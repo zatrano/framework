@@ -42,6 +42,7 @@ type Config struct {
 	OAuth    OAuth    `mapstructure:"oauth"`
 	HTTP     HTTP     `mapstructure:"http"`
 	I18n     I18n     `mapstructure:"i18n"`
+	Mail     Mail     `mapstructure:"mail"`
 }
 
 // LoadOptions controls where configuration is read from.
@@ -120,6 +121,13 @@ func Load(opts LoadOptions) (*Config, error) {
 	v.SetDefault("i18n.locales_dir", "locales")
 	v.SetDefault("i18n.cookie_name", "zatrano_lang")
 	v.SetDefault("i18n.query_key", "lang")
+	v.SetDefault("mail.driver", "log")
+	v.SetDefault("mail.from_name", "ZATRANO")
+	v.SetDefault("mail.from_email", "noreply@example.com")
+	v.SetDefault("mail.templates_dir", "views/mails")
+	v.SetDefault("mail.smtp.host", "localhost")
+	v.SetDefault("mail.smtp.port", 587)
+	v.SetDefault("mail.smtp.encryption", "tls")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

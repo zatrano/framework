@@ -23,6 +23,7 @@
 - [Authorization (RBAC & Gate/Policy)](#authorization-rbac--gatepolicy)
 - [Cache System](#cache-system)
 - [Queue / Job System](#queue--job-system)
+- [Mail System](#mail-system)
 - [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -40,11 +41,12 @@
 | Auth | **Session (Redis) + CSRF**; **JWT** for `/api/v1/private/*`; **OAuth2** (Google/GitHub) browser login; **RBAC** (role→permission, DB-backed); **Gate/Policy** (resource-based authorization) |
 | Cache | **Memory / Redis** drivers, **Tag-based** invalidation, **Middleware** support |
 | Queue | **Redis-backed** job queue, delayed jobs (ZADD), auto retry + exponential backoff, failed jobs (PostgreSQL) |
+| Mail | **SMTP / Log** drivers, HTML templates with layouts, queue integration, attachments, Mailable pattern |
 | Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
 | Ops | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, `serve`, `db`, **`cache`**, **`queue`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, delayed jobs, retry, failed jobs, worker), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, delayed jobs, retry, failed jobs, worker), **`mail`** (SMTP/log, templates, queue, attachments, preview), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -52,7 +54,7 @@
 
 | Path | Purpose |
 |------|---------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI & generators** — not imported by apps |
 
 Generated apps use **`zatrano.Start`** with **`RegisterRoutes: routes.Register`** (see `internal/routes/register.go`) or **`zatrano.Run()`** when you do not inject routes.
@@ -131,6 +133,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen request <name>` | Generate form request structs only (`modules/<name>/requests/create_*.go`, `update_*.go`) |
 | `zatrano gen policy <name>` | Generate authorization policy stub (`modules/<name>/policies/<name>_policy.go`) implementing `auth.Policy` with CRUD methods |
 | `zatrano gen job <name>` | Generate queue job stub (`modules/jobs/<name>.go`) implementing `queue.Job` with Handle, Retries, Timeout |
+| `zatrano gen mail <name>` | Generate Mailable struct + HTML template (`modules/mails/<name>_mail.go` + `views/mails/<name>.html`) |
 | `zatrano gen wire <name>` | **Wire only** (no overwrite); picks `Register` / `RegisterCRUD` from existing files (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate [path]` | Validate one file, or **`--merged`** (same as live `/openapi.yaml`; `--base`, optional positional overrides base) |
 | `zatrano openapi export` | Write merged YAML (`--base`, `--output` or `-` for stdout) |
@@ -140,6 +143,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano queue failed` | List failed jobs |
 | `zatrano queue retry [id]` | Retry a failed job or `--all` |
 | `zatrano queue flush` | Delete all failed jobs |
+| `zatrano mail preview [name]` | Preview email template in browser (`--port`, `--layout`) |
 | `zatrano completion …` | Shell completions |
 | `zatrano verify` | **`go vet` + `go test` + merged OpenAPI** (PR/CI; `--race` for data races; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Version string (also **`zatrano --version`**) |
@@ -717,6 +721,116 @@ zatrano queue flush
 | Ready queue | `LIST` (LPUSH/BRPOP) | FIFO job processing |
 | Delayed jobs | `SORTED SET` (ZADD) | Time-based scheduling |
 | Failed jobs | PostgreSQL table | Persistent failure records |
+
+---
+
+## Mail System
+
+ZATRANO provides a **multi-driver mail system** with HTML template support, queue integration for async sending, attachments, and a Mailable pattern for reusable email definitions.
+
+### Configuration
+
+```yaml
+# config/dev.yaml
+mail:
+  driver: smtp          # smtp | log (log = dev/testing)
+  from_name: "My App"
+  from_email: "noreply@myapp.com"
+  templates_dir: "views/mails"
+  smtp:
+    host: smtp.example.com
+    port: 587
+    username: user
+    password: secret
+    encryption: tls     # tls | starttls | ""
+```
+
+### Sending Emails
+
+```go
+import "github.com/zatrano/framework/pkg/mail"
+
+// Simple message
+app.Mail.Send(ctx, &mail.Message{
+    To:      []mail.Address{{Email: "user@example.com", Name: "Alice"}},
+    Subject: "Welcome!",
+    HTMLBody: "<h1>Hello Alice!</h1>",
+})
+
+// With template
+app.Mail.SendTemplate(ctx,
+    []mail.Address{{Email: "user@example.com"}},
+    "Welcome to Our App",
+    "welcome",    // views/mails/welcome.html
+    "default",    // views/mails/layouts/default.html
+    map[string]any{"Name": "Alice"},
+)
+
+// Async via queue
+app.Mail.Queue(ctx, &mail.Message{
+    To:      []mail.Address{{Email: "user@example.com"}},
+    Subject: "Newsletter",
+    HTMLBody: body,
+})
+```
+
+### Mailable Pattern
+
+Generate structured, reusable email definitions:
+
+```bash
+zatrano gen mail welcome
+# → modules/mails/welcome_mail.go
+# → views/mails/welcome.html
+```
+
+```go
+type WelcomeMail struct {
+    Name  string
+    Email string
+}
+
+func (m *WelcomeMail) Build(b *mail.MessageBuilder) error {
+    b.To(m.Name, m.Email).
+        Subject("Welcome!").
+        View("welcome", "default", map[string]any{"Name": m.Name}).
+        AttachData("guide.pdf", pdfBytes, "application/pdf")
+    return nil
+}
+
+// Send synchronously
+app.Mail.SendMailable(ctx, &mails.WelcomeMail{Name: "Alice", Email: "alice@example.com"})
+
+// Or async via queue
+app.Mail.QueueMailable(ctx, &mails.WelcomeMail{Name: "Alice", Email: "alice@example.com"})
+```
+
+### Attachments
+
+```go
+msg := &mail.Message{
+    To:      []mail.Address{{Email: "user@example.com"}},
+    Subject: "Invoice",
+    HTMLBody: body,
+    Attachments: []mail.Attachment{
+        {Filename: "invoice.pdf", Content: pdfBytes},
+        {Filename: "logo.png", Content: logoBytes, Inline: true},
+    },
+}
+app.Mail.Send(ctx, msg)
+```
+
+### Template Preview
+
+Preview email templates in the browser during development:
+
+```bash
+zatrano mail preview              # list templates
+zatrano mail preview welcome      # preview welcome template
+zatrano mail preview welcome --port 3001
+```
+
+For full local mail testing, use **Mailpit** or **MailHog** as the SMTP host.
 
 ---
 

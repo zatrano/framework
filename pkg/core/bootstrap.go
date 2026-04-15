@@ -19,6 +19,7 @@ import (
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
 	"github.com/zatrano/framework/pkg/i18n"
+	"github.com/zatrano/framework/pkg/mail"
 	"github.com/zatrano/framework/pkg/queue"
 	"github.com/zatrano/framework/pkg/validation"
 )
@@ -97,6 +98,33 @@ func Bootstrap(cfg *config.Config) (*App, error) {
 	// Initialise Queue. Requires Redis.
 	if app.Redis != nil {
 		app.Queue = queue.New(queue.NewRedisDriver(app.Redis))
+	}
+
+	// Initialise Mail.
+	mailCfg := mail.MailConfig{
+		Driver:       cfg.Mail.Driver,
+		FromName:     cfg.Mail.FromName,
+		FromEmail:    cfg.Mail.FromEmail,
+		TemplatesDir: cfg.Mail.TemplatesDir,
+		SMTP: mail.SMTPConfig{
+			Host:       cfg.Mail.SMTP.Host,
+			Port:       cfg.Mail.SMTP.Port,
+			Username:   cfg.Mail.SMTP.Username,
+			Password:   cfg.Mail.SMTP.Password,
+			Encryption: cfg.Mail.SMTP.Encryption,
+		},
+	}
+	var mailDriver mail.Driver
+	switch strings.ToLower(mailCfg.Driver) {
+	case "smtp":
+		mailDriver = mail.NewSMTPDriver(mailCfg.SMTP)
+	default:
+		mailDriver = mail.NewLogDriver(zl)
+	}
+	app.Mail = mail.New(mailDriver, mailCfg, zl, app.I18n)
+	if app.Queue != nil {
+		app.Mail.SetQueue(app.Queue)
+		mail.RegisterMailJob(app.Queue, app.Mail)
 	}
 
 	return app, nil

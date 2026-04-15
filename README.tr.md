@@ -23,6 +23,7 @@
 - [Yetkilendirme (RBAC & Gate/Policy)](#yetkilendirme-rbac--gatepolicy)
 - [Cache Sistemi (Önbellek)](#cache-sistemi-önbellek)
 - [Kuyruk / Job Sistemi](#kuyruk--job-sistemi)
+- [Mail Sistemi (E-posta)](#mail-sistemi-e-posta)
 - [Uluslararasılaştırma (i18n)](#uluslararasılaştırma-i18n)
 - [Yapılandırma](#yapılandırma)
 - [Geliştirme](#geliştirme)
@@ -40,10 +41,11 @@
 | Kimlik | **Oturum (Redis) + CSRF**; `/api/v1/private/*` için **JWT**; **OAuth2** (Google/GitHub) tarayıcı girişi; **RBAC** (rol→izin, DB destekli); **Gate/Policy** (kaynak bazlı yetkilendirme) |
 | Veri | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** (`pg_dump` / `pg_restore` / `psql` PATH'te olmalı) |
 | Kuyruk | **Redis tabanlı** job kuyruğu, geciktirilmiş joblar (ZADD), otomatik retry + üssel geri çekilme, başarısız joblar (PostgreSQL) |
+| Mail | **SMTP / Log** sürücüleri, HTML şablon + layout desteği, kuyruk entegrasyonu, ek dosya, Mailable deseni |
 | Operasyon | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, `serve`, `db`, **`cache`**, **`queue`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, geciktirilmiş joblar, retry, failed jobs, worker), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, geciktirilmiş joblar, retry, failed jobs, worker), **`mail`** (SMTP/log, şablonlar, kuyruk, ek dosya, önizleme), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -51,7 +53,7 @@
 
 | Yol | Amaç |
 |-----|------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI ve üreticiler** — uygulama import etmez |
 
 Üretilen projeler **`zatrano.Start`** + **`RegisterRoutes: routes.Register`** (`internal/routes/register.go`) veya ek rota yoksa **`zatrano.Run()`** kullanır.
@@ -130,6 +132,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen request <name>` | Yalnızca form request struct'ları üret (`modules/<name>/requests/create_*.go`, `update_*.go`) |
 | `zatrano gen policy <name>` | Yetkilendirme policy stub'ı üret (`modules/<name>/policies/<name>_policy.go`) — `auth.Policy` arayüzünü CRUD metotlarıyla implemente eder |
 | `zatrano gen job <name>` | Kuyruk job stub'ı üret (`modules/jobs/<name>.go`) — `queue.Job` arayüzünü Handle, Retries, Timeout ile implemente eder |
+| `zatrano gen mail <name>` | Mailable struct + HTML şablon üret (`modules/mails/<name>_mail.go` + `views/mails/<name>.html`) |
 | `zatrano gen wire <name>` | Sadece wire (dosya üretmez); `register.go` / `crud_register.go` varlığına göre (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate` | Tek dosya veya **`--merged`** (canlı `/openapi.yaml` ile aynı; `--base`, isteğe konumsal argüman) |
 | `zatrano openapi export` | Birleşik YAML yaz (`--base`, `--output` veya `-` stdout) |
@@ -139,6 +142,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano queue failed` | Başarısız jobları listele |
 | `zatrano queue retry [id]` | Başarısız jobı yeniden gönder veya `--all` |
 | `zatrano queue flush` | Tüm başarısız job kayıtlarını sil |
+| `zatrano mail preview [name]` | E-posta şablonunu tarayıcıda önizle (`--port`, `--layout`) |
 | `zatrano completion …` | Kabuk tamamlama |
 | `zatrano verify` | **`go vet` + `go test` + birleşik OpenAPI** (PR/CI; yarış için **`--race`**; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Sürüm (ayrıca **`zatrano --version`**) |
@@ -716,6 +720,116 @@ zatrano queue flush
 | Hazır kuyruk | `LIST` (LPUSH/BRPOP) | FIFO job işleme |
 | Geciktirilmiş joblar | `SORTED SET` (ZADD) | Zaman bazlı zamanlama |
 | Başarısız joblar | PostgreSQL tablosu | Kalıcı hata kayıtları |
+
+---
+
+## Mail Sistemi (E-posta)
+
+ZATRANO, HTML şablon desteği, asenkron gönderim için kuyruk entegrasyonu, ek dosya desteği ve yeniden kullanılabilir e-posta tanımları için Mailable deseni sunan **çok sürücülü bir mail sistemi** sağlar.
+
+### Yapılandırma
+
+```yaml
+# config/dev.yaml
+mail:
+  driver: smtp          # smtp | log (log = geliştirme/test)
+  from_name: "Uygulamam"
+  from_email: "noreply@uygulamam.com"
+  templates_dir: "views/mails"
+  smtp:
+    host: smtp.example.com
+    port: 587
+    username: kullanici
+    password: sifre
+    encryption: tls     # tls | starttls | ""
+```
+
+### E-posta Gönderme
+
+```go
+import "github.com/zatrano/framework/pkg/mail"
+
+// Basit mesaj
+app.Mail.Send(ctx, &mail.Message{
+    To:      []mail.Address{{Email: "kullanici@example.com", Name: "Deniz"}},
+    Subject: "Hoş Geldiniz!",
+    HTMLBody: "<h1>Merhaba Deniz!</h1>",
+})
+
+// Şablon ile
+app.Mail.SendTemplate(ctx,
+    []mail.Address{{Email: "kullanici@example.com"}},
+    "Uygulamamıza Hoş Geldiniz",
+    "welcome",    // views/mails/welcome.html
+    "default",    // views/mails/layouts/default.html
+    map[string]any{"Name": "Deniz"},
+)
+
+// Kuyruk ile asenkron
+app.Mail.Queue(ctx, &mail.Message{
+    To:      []mail.Address{{Email: "kullanici@example.com"}},
+    Subject: "Bülten",
+    HTMLBody: body,
+})
+```
+
+### Mailable Deseni
+
+Yapılandırılmış, yeniden kullanılabilir e-posta tanımları üretin:
+
+```bash
+zatrano gen mail hosgeldiniz
+# → modules/mails/hosgeldiniz_mail.go
+# → views/mails/hosgeldiniz.html
+```
+
+```go
+type HosgeldinizMail struct {
+    Ad    string
+    Email string
+}
+
+func (m *HosgeldinizMail) Build(b *mail.MessageBuilder) error {
+    b.To(m.Ad, m.Email).
+        Subject("Hoş Geldiniz!").
+        View("hosgeldiniz", "default", map[string]any{"Name": m.Ad}).
+        AttachData("rehber.pdf", pdfBytes, "application/pdf")
+    return nil
+}
+
+// Senkron gönder
+app.Mail.SendMailable(ctx, &mails.HosgeldinizMail{Ad: "Deniz", Email: "deniz@example.com"})
+
+// Kuyruk ile asenkron
+app.Mail.QueueMailable(ctx, &mails.HosgeldinizMail{Ad: "Deniz", Email: "deniz@example.com"})
+```
+
+### Ek Dosya Desteği
+
+```go
+msg := &mail.Message{
+    To:      []mail.Address{{Email: "kullanici@example.com"}},
+    Subject: "Fatura",
+    HTMLBody: body,
+    Attachments: []mail.Attachment{
+        {Filename: "fatura.pdf", Content: pdfBytes},
+        {Filename: "logo.png", Content: logoBytes, Inline: true},
+    },
+}
+app.Mail.Send(ctx, msg)
+```
+
+### Şablon Önizleme
+
+Geliştirme sırasında e-posta şablonlarını tarayıcıda önizleyin:
+
+```bash
+zatrano mail preview              # şablonları listele
+zatrano mail preview welcome      # welcome şablonunu önizle
+zatrano mail preview welcome --port 3001
+```
+
+Tam yerel mail testi için **Mailpit** veya **MailHog**'u SMTP sunucusu olarak kullanın.
 
 ---
 

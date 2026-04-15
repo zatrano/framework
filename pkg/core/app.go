@@ -11,6 +11,7 @@ import (
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
 	"github.com/zatrano/framework/pkg/i18n"
+	"github.com/zatrano/framework/pkg/mail"
 	"github.com/zatrano/framework/pkg/queue"
 )
 
@@ -40,4 +41,7 @@ type App struct {
 
 	// Queue is the background job queue manager (Redis-backed).
 	Queue *queue.Manager
+
+	// Mail is the email sending manager (SMTP, log drivers).
+	Mail *mail.Manager
 }
