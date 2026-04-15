@@ -21,6 +21,7 @@
 - [HTTP Routes](#http-current)
 - [Validation](#validation)
 - [Authorization (RBAC & Gate/Policy)](#authorization-rbac--gatepolicy)
+- [Cache System](#cache-system)
 - [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -33,14 +34,15 @@
 |------|------|
 | Architecture | Modular core + pluggable modules (modular monolith) |
 | Layers | Handler → Service → Repository (mandatory bases) |
-| Web | Fiber HTML templates, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON locales), security headers, gzip, static |
+| Web | Fiber HTML templates, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON locales), **cache** (Memory/Redis), security headers, gzip, static |
 | API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
 | Auth | **Session (Redis) + CSRF**; **JWT** for `/api/v1/private/*`; **OAuth2** (Google/GitHub) browser login; **RBAC** (role→permission, DB-backed); **Gate/Policy** (resource-based authorization) |
+| Cache | **Memory / Redis** drivers, **Tag-based** invalidation, **Middleware** support |
 | Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
 | Ops | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`cache`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -48,7 +50,7 @@
 
 | Path | Purpose |
 |------|---------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI & generators** — not imported by apps |
 
 Generated apps use **`zatrano.Start`** with **`RegisterRoutes: routes.Register`** (see `internal/routes/register.go`) or **`zatrano.Run()`** when you do not inject routes.
@@ -130,6 +132,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano openapi validate [path]` | Validate one file, or **`--merged`** (same as live `/openapi.yaml`; `--base`, optional positional overrides base) |
 | `zatrano openapi export` | Write merged YAML (`--base`, `--output` or `-` for stdout) |
 | `zatrano jwt sign` | Print HS256 token (`--sub`, `--secret`, config flags) |
+| `zatrano cache clear` | Clear all cache or specific tags (`--tag`) |
 | `zatrano completion …` | Shell completions |
 | `zatrano verify` | **`go vet` + `go test` + merged OpenAPI** (PR/CI; `--race` for data races; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Version string (also **`zatrano --version`**) |
@@ -507,6 +510,95 @@ Authorization messages are stored under the `auth.*` key namespace in locale fil
     "permission_required": "You do not have the required permission: {{.Permission}}."
   }
 }
+```
+
+---
+
+## Cache System
+
+ZATRANO provides a **robust caching layer** with a unified API for **In-Memory** and **Redis** backends. It supports advanced patterns like `Remember`, JSON serialization, tag-based invalidation, and response middleware.
+
+### Drivers
+
+The system automatically chooses the best driver based on your configuration:
+- **Redis:** Preferred when `redis_url` is configured. Supports distributed environments and tags.
+- **Memory:** Fallback for local development or single-node deployments. Fast, but volatile.
+
+### Basic Usage
+
+Access the cache manager via `app.Cache`:
+
+```go
+import "context"
+
+ctx := context.Background()
+
+// Simple storage
+app.Cache.Set(ctx, "key", "value", 10 * time.Minute)
+
+// Retrieval
+val, ok := app.Cache.Get(ctx, "key")
+
+// Automatic JSON handling
+type User struct { Name string }
+app.Cache.SetJSON(ctx, "user:1", User{Name: "Alice"}, time.Hour)
+
+var user User
+ok, err := app.Cache.GetJSON(ctx, "user:1", &user)
+```
+
+### Advanced Patterns
+
+#### `Remember` and `RememberJSON`
+
+The most popular pattern (Laravl-style): returns the cached value if it exists, otherwise computes it via the provided function, caches it, and returns the result.
+
+```go
+// Fetch from DB only if not in cache
+users, err := app.Cache.RememberJSON(ctx, "users:all", 30*time.Minute, &[]User{}, func() (any, error) {
+    return db.FindAllUsers(ctx)
+})
+```
+
+#### Tags (Redis Only)
+
+Group related keys under tags for bulk invalidation.
+
+```go
+// Store under a tag
+app.Cache.Tags("users").Set(ctx, "users:1", data, time.Hour)
+
+// Invalidate all keys associated with a tag
+app.Cache.Tags("users").Flush(ctx)
+```
+
+### Middleware
+
+Cache the entire response of a route at the HTTP level.
+
+```go
+import "github.com/zatrano/framework/pkg/middleware"
+
+// Cache for 5 minutes
+app.Get("/api/v1/stats", middleware.Cache(app.Cache, 5*time.Minute), handler)
+
+// With Tags
+app.Get("/api/v1/users", middleware.CacheWithConfig(app.Cache, middleware.CacheConfig{
+    TTL:  10 * time.Minute,
+    Tags: []string{"users"},
+}), handler)
+```
+
+### CLI Commands
+
+Clear the cache from the terminal:
+
+```bash
+# Clear everything
+zatrano cache clear
+
+# Clear specific tags
+zatrano cache clear --tag users --tag posts
 ```
 
 ---

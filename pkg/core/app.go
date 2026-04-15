@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/zatrano/framework/pkg/auth"
+	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
 	"github.com/zatrano/framework/pkg/i18n"
 )
@@ -32,4 +33,7 @@ type App struct {
 
 	// RBAC is the role-based access control manager (role → permission mapping, DB-backed).
 	RBAC *auth.RBACManager
+
+	// Cache is the application cache manager (memory or Redis driver).
+	Cache *cache.Manager
 }

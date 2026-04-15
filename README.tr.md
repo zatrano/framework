@@ -21,6 +21,7 @@
 - [HTTP Rotaları](#http-şimdilik)
 - [Validation (Doğrulama)](#validation-doğrulama)
 - [Yetkilendirme (RBAC & Gate/Policy)](#yetkilendirme-rbac--gatepolicy)
+- [Cache Sistemi (Önbellek)](#cache-sistemi-önbellek)
 - [Uluslararasılaştırma (i18n)](#uluslararasılaştırma-i18n)
 - [Yapılandırma](#yapılandırma)
 - [Geliştirme](#geliştirme)
@@ -33,14 +34,14 @@
 |------|------|
 | Mimari | Modüler çekirdek + takılabilir modüller (modüler monolith) |
 | Katmanlar | Handler → Service → Repository (zorunlu; hepsinde base) |
-| Web | Fiber HTML şablonları, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON çeviriler), güvenlik başlıkları, gzip, static |
+| Web | Fiber HTML şablonları, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON çeviriler), **cache** (Memory/Redis), güvenlik başlıkları, gzip, static |
 | API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
 | Kimlik | **Oturum (Redis) + CSRF**; `/api/v1/private/*` için **JWT**; **OAuth2** (Google/GitHub) tarayıcı girişi; **RBAC** (rol→izin, DB destekli); **Gate/Policy** (kaynak bazlı yetkilendirme) |
 | Veri | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** (`pg_dump` / `pg_restore` / `psql` PATH'te olmalı) |
 | Operasyon | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`cache`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -48,7 +49,7 @@
 
 | Yol | Amaç |
 |-----|------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI ve üreticiler** — uygulama import etmez |
 
 Üretilen projeler **`zatrano.Start`** + **`RegisterRoutes: routes.Register`** (`internal/routes/register.go`) veya ek rota yoksa **`zatrano.Run()`** kullanır.
@@ -130,6 +131,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano openapi validate` | Tek dosya veya **`--merged`** (canlı `/openapi.yaml` ile aynı; `--base`, isteğe konumsal argüman) |
 | `zatrano openapi export` | Birleşik YAML yaz (`--base`, `--output` veya `-` stdout) |
 | `zatrano jwt sign` | Test JWT üret (`--sub`, `--secret`, config bayrakları) |
+| `zatrano cache clear` | Önbelleği temizle veya belirli tag'leri sil (`--tag`) |
 | `zatrano completion …` | Kabuk tamamlama |
 | `zatrano verify` | **`go vet` + `go test` + birleşik OpenAPI** (PR/CI; yarış için **`--race`**; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Sürüm (ayrıca **`zatrano --version`**) |
@@ -506,6 +508,96 @@ Yetkilendirme mesajları, locale dosyalarında `auth.*` anahtar alanı altında 
     "permission_required": "Gerekli izne sahip değilsiniz: {{.Permission}}."
   }
 }
+```
+
+---
+
+## Cache Sistemi (Önbellek)
+
+ZATRANO, **Bellek İçi (In-Memory)** ve **Redis** sürücüleri için ortak bir API sunan **güçlü bir önbellek katmanı** sağlar. `Remember`, JSON serileştirme, tag tabanlı geçersiz kılma ve response middleware gibi gelişmiş özellikleri destekler.
+
+### Sürücüler (Drivers)
+
+Sistem, yapılandırmanıza göre en iyi sürücüyü otomatik olarak seçer:
+- **Redis:** `redis_url` ayarlandığında tercih edilir. Dağıtık ortamlar ve tag desteği için uygundur.
+- **Memory:** Yerel geliştirme veya tek node'lu yapılar için geri dönüş (fallback) seçeneğidir. Hızlıdır ancak geçicidir.
+
+### Temel Kullanım
+
+Önbellek yöneticisine `app.Cache` üzerinden erişebilirsiniz:
+
+```go
+import "context"
+
+ctx := context.Background()
+
+// Basit veri saklama
+app.Cache.Set(ctx, "anahtar", "değer", 10 * time.Minute)
+
+// Veri okuma
+val, ok := app.Cache.Get(ctx, "anahtar")
+
+// Otomatik JSON işleme
+type Kullanici struct { Ad string }
+app.Cache.SetJSON(ctx, "user:1", Kullanici{Ad: "Deniz"}, time.Hour)
+
+var user Kullanici
+ok, err := app.Cache.GetJSON(ctx, "user:1", &user)
+```
+
+### Gelişmiş Kullanım
+
+#### `Remember` ve `RememberJSON`
+
+Laravel stili popüler desen: Veri önbellekte varsa döner, yoksa verilen fonksiyonu çalıştırıp sonucu önbelleğe yazar ve döner.
+
+```go
+// Veri yoksa DB'den çek ve önbelleğe yaz
+var users []User
+err := app.Cache.RememberJSON(ctx, "users:all", 30*time.Minute, &users, func() (any, error) {
+    return db.FindAllUsers(ctx)
+})
+```
+
+#### Tags (Sadece Redis)
+
+İlişkili anahtarları tag'ler altında gruplayarak toplu silme yapmanızı sağlar.
+
+```go
+// Tag ile saklama
+app.Cache.Tags("users").Set(ctx, "users:1", data, time.Hour)
+
+// Bir tag'e ait tüm anahtarları temizleme
+app.Cache.Tags("users").Flush(ctx)
+```
+
+### Middleware (Ara Katman)
+
+Bir rotanın tüm HTTP yanıtını sunucu tarafında önbelleğe alabilirsiniz.
+
+```go
+import "github.com/zatrano/framework/pkg/middleware"
+
+// 5 dakika boyunca önbelleğe al
+app.Get("/api/v1/stats", middleware.Cache(app.Cache, 5*time.Minute), handler)
+
+// Tag desteği ile
+app.Get("/api/v1/users", middleware.CacheWithConfig(app.Cache, middleware.CacheConfig{
+    TTL:  10 * time.Minute,
+    Tags: []string{"users"},
+}), handler)
+```
+
+### CLI Komutları
+
+Terminal üzerinden önbelleği temizleyin:
+
+```bash
+# Tüm önbelleği sil
+zatrano cache clear
+
+# Sadece belirli tag'leri sil
+zatrano cache clear --tag users --tag posts
 ```
 
 ---
