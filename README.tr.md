@@ -1,12 +1,16 @@
 # ZATRANO
 
-**ZATRANO**, **kurumsal seviyede, güçlü görüşlere sahip bir modüler monolith** Go framework'üdür: **üretim hazır HTTP API'ler (REST + OpenAPI)** ve **güçlü sunucu tarafı HTML form sistemleri** sunar; ölçeklenebilir ve standartlaştırılmış geliştirme süreçleri için birinci sınıf **`zatrano` CLI** ile desteklenir.
+ZATRANO, Go dili için geliştirilmiş **üretim seviyesinde bir backend geliştirme platformudur**. Ölçeklenebilir sunucu taraflı uygulamaların geliştirilmesini hızlandırmak ve standartlaştırmak için tasarlanmıştır.
+
+HTTP çalışma zamanı, kimlik doğrulama sistemi, veritabanı katmanı, CLI araçları, kod üreticileri ve altyapı yardımcılarını tek bir bütünleşik ekosistem içinde sunar. Hem **modüler monolit** hem de **servis tabanlı backend mimarileri** için kullanılabilir.
+
+ZATRANO yalnızca bir framework değildir — uygulamaların nasıl üretildiğini, yapılandırıldığını ve çalıştırıldığını tanımlayan bir **backend geliştirme platformu ve araç zinciridir**.
 
 - **Modül yolu:** `github.com/zatrano/framework`
 - **Go:** 1.25+
-- **Yığın:** Fiber v3, PostgreSQL, Redis, GORM, Zap, golang-migrate (SQL migration)
+- **Stack:** Fiber v3, PostgreSQL, Redis, GORM, Zap, golang-migrate (SQL migration)
 
-> **Durum:** aktif geliştirme. Üretilen uygulamaların import edebilmesi için genel API **`pkg/`** altında. Kullanıcıya görünen her değişiklikte bu dosya güncellenir.
+> **Durum:** aktif geliştirme aşamasındadır. Tüm public Go API’leri **`pkg/`** altında yer alır ve üretilen uygulamalar bu katmanı import edebilir.
 
 ---
 
