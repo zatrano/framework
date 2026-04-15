@@ -1,12 +1,16 @@
 # ZATRANO
 
-**ZATRANO** is an **enterprise-grade, opinionated modular monolith** Go framework: delivering **production-ready HTTP APIs (REST + OpenAPI)** and **robust server-rendered HTML form systems**, powered by a **first-class `zatrano` CLI** for scalable, standardized development workflows.
+ZATRANO is a production-grade backend development platform for Go, designed to standardize and accelerate building scalable server-side applications.
+
+It provides a cohesive ecosystem including an HTTP runtime, authentication system, database layer, CLI tooling, code generators, and infrastructure utilities for building modular monolith and service-oriented backend systems.
+
+ZATRANO is not just a framework — it is a backend development platform and toolchain that defines how applications are structured, generated, and operated in production.
 
 - **Module path:** `github.com/zatrano/framework`
 - **Go:** 1.25+
 - **Stack:** Fiber v3, PostgreSQL, Redis, GORM, Zap, golang-migrate (SQL migrations)
 
-> **Status:** active development. Public Go APIs live under **`pkg/`** so generated apps can `import` the framework. This file is updated with every user-visible change.
+> **Status:** active development. Public Go APIs live under **`pkg/`** so generated applications can import the platform.
 
 ---
 
