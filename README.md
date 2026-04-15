@@ -25,6 +25,7 @@
 - [Queue / Job System](#queue--job-system)
 - [Mail System](#mail-system)
 - [Event / Listener System](#event--listener-system)
+- [Repository / Data](#repository--data)
 - [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -44,7 +45,8 @@
 | Queue | **Redis-backed** job queue, delayed jobs (ZADD), auto retry + exponential backoff, failed jobs (PostgreSQL) |
 | Mail | **SMTP / Log** drivers, HTML templates with layouts, queue integration, attachments, Mailable pattern |
 | Events | **Sync and async** event bus, `ShouldQueue` for queue-backed listeners, `gen event` + `gen listener` |
-| Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
+| Data | **Generic Repository** pattern, automated soft-deletes, **chainable Scopes**, Offset-based pagination |
+| DB / Ops | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** |
 | Ops | `/health`, `/ready`, `/status` |
 | CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, **`gen event`**, **`gen listener`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
@@ -932,6 +934,71 @@ func Register(app *core.App) {
     app.Events.Listen("user.created", &listeners.SendWelcomeMailListener{})
     app.Events.Listen("order.placed", &listeners.SendOrderConfirmationListener{})
 }
+```
+
+---
+
+## Repository / Data
+
+ZATRANO provides a **generic repository pattern** over GORM to standardize data access, enforce reusable query scopes, and automate common tasks like pagination and soft-deleting.
+
+### Base Model & Generic Repository
+
+Use the `repository.Model` to get ID, timestamps, and standard soft-delete behavior out of the box.
+
+```go
+import "github.com/zatrano/framework/pkg/repository"
+
+type User struct {
+    repository.Model
+    Name  string
+    Email string
+}
+
+// In your service layer:
+repo := repository.New[User](app.DB)
+
+// Create
+repo.Create(ctx, &User{Name: "Alice", Email: "alice@example.com"})
+
+// Soft Delete
+repo.DeleteByID(ctx, 1)
+
+// Restore
+repo.Restore(ctx, 1)
+```
+
+### Chainable Scopes
+
+Build complex queries without leaking GORM internals into your handlers. 
+
+```go
+// Pre-defined scopes
+scopes := repository.Scopes(
+    repository.Active(),
+    repository.Where("email LIKE ?", "%@example.com"),
+    repository.PreloadAll(), // Eager load to prevent N+1
+    repository.OrderBy("created_at DESC"),
+    repository.Limit(10),
+)
+
+users, _ := repo.FindAll(ctx, scopes...)
+```
+
+### Pagination
+
+Pagination is built-in and standardizes responses. `repo.Paginate` returns a `Page[T]` containing items and normalized metadata.
+
+```go
+opts := repository.PaginateOpts{Page: 1, PerPage: 15}
+
+page, _ := repo.Paginate(ctx, opts, repository.Active())
+
+// page.Items (your data)
+// page.Pagination.Total, page.Pagination.CurrentPage, etc.
+
+// Get HTML pagination links for rendering in templates
+links := page.Pagination.Links("/users", "&sort=desc")
 ```
 
 ---

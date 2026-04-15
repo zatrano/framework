@@ -55,6 +55,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"%[4]s"
+	"github.com/zatrano/framework/pkg/repository"
 	"github.com/zatrano/framework/pkg/zatrano"
 )
 
@@ -68,12 +69,16 @@ func New%[2]sCRUDHandler() *%[2]sCRUDHandler {
 
 // List returns a placeholder collection.
 func (h *%[2]sCRUDHandler) List(c fiber.Ctx) error {
+	// Example eager loading to prevent N+1 queries:
+	// scopes := repository.Scopes(repository.PreloadAll())
 	return c.JSON(fiber.Map{"items": []any{}, "resource": %[3]q})
 }
 
 // Show returns one item by ID from the path.
 func (h *%[2]sCRUDHandler) Show(c fiber.Ctx) error {
 	id := c.Params("id")
+	// Example specific preload:
+	// scopes := repository.Scopes(repository.Preload("Profile"))
 	return c.JSON(fiber.Map{"id": id, "resource": %[3]q})
 }
 

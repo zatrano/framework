@@ -25,6 +25,7 @@
 - [Kuyruk / Job Sistemi](#kuyruk--job-sistemi)
 - [Mail Sistemi (E-posta)](#mail-sistemi-e-posta)
 - [Event / Listener Sistemi](#event--listener-sistemi)
+- [Repository / Veri Sistemi](#repository--veri-sistemi)
 - [Uluslararasılaştırma (i18n)](#uluslararasılaştırma-i18n)
 - [Yapılandırma](#yapılandırma)
 - [Geliştirme](#geliştirme)
@@ -40,7 +41,8 @@
 | Web | Fiber HTML şablonları, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON çeviriler), **cache** (Memory/Redis), güvenlik başlıkları, gzip, static |
 | API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
 | Kimlik | **Oturum (Redis) + CSRF**; `/api/v1/private/*` için **JWT**; **OAuth2** (Google/GitHub) tarayıcı girişi; **RBAC** (rol→izin, DB destekli); **Gate/Policy** (kaynak bazlı yetkilendirme) |
-| Veri | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** (`pg_dump` / `pg_restore` / `psql` PATH'te olmalı) |
+| Veri | **Generic Repository** deseni, otomatik soft-delete, **zincirleme Scope'lar**, Offset tabanlı sayfalama |
+| VT / Ops | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** |
 | Kuyruk | **Redis tabanlı** job kuyruğu, geciktirilmiş joblar (ZADD), otomatik retry + üssel geri çekilme, başarısız joblar (PostgreSQL) |
 | Mail | **SMTP / Log** sürücüleri, HTML şablon + layout desteği, kuyruk entegrasyonu, ek dosya, Mailable deseni |
 | Events | **Senkron ve asenkron** event bus, `ShouldQueue` ile kuyruk tabanlı listener, `gen event` + `gen listener` |
@@ -931,6 +933,71 @@ func Register(app *core.App) {
     app.Events.Listen("user.created", &listeners.HosgeldinizMailGonderListener{})
     app.Events.Listen("siparis.verildi", &listeners.SiparisOnayMailListener{})
 }
+```
+
+---
+
+## Repository / Veri Sistemi
+
+ZATRANO, veri erişimini standartlaştırmak, yeniden kullanılabilir sorgu scope'ları (kapsamlar) dayatmak ve sayfalama ile soft-delete gibi yaygın görevleri otomatikleştirmek için GORM üzerinde **generic repository deseni** sağlar.
+
+### Base Model & Generic Repository
+
+Kayıt kimliği (ID), zaman damgaları (timestamps) ve standart soft-delete davranışı için doğrudan `repository.Model` struct'ını modellerinize gömün.
+
+```go
+import "github.com/zatrano/framework/pkg/repository"
+
+type User struct {
+    repository.Model
+    Name  string
+    Email string
+}
+
+// Servis katmanınızda:
+repo := repository.New[User](app.DB)
+
+// Oluştur
+repo.Create(ctx, &User{Name: "Alice", Email: "alice@example.com"})
+
+// Soft Delete
+repo.DeleteByID(ctx, 1)
+
+// Geri Yükle
+repo.Restore(ctx, 1)
+```
+
+### Zincirleme Kapsamlar (Chainable Scopes)
+
+GORM iç yapısını handler (işleyici) fonksiyonlarınıza sızdırmadan karmaşık sorgular oluşturun.
+
+```go
+// Önceden tanımlanmış kapsamlar (scopes)
+scopes := repository.Scopes(
+    repository.Active(),
+    repository.Where("email LIKE ?", "%@example.com"),
+    repository.PreloadAll(), // N+1 sorununu önlemek için hazır yükleme
+    repository.OrderBy("created_at DESC"),
+    repository.Limit(10),
+)
+
+users, _ := repo.FindAll(ctx, scopes...)
+```
+
+### Sayfalama (Pagination)
+
+Sayfalama yerleşiktir ve yanıtları standartlaştırır. `repo.Paginate`, öğeleri ve standartlaştırılmış meta verileri içeren bir `Page[T]` döndürür.
+
+```go
+opts := repository.PaginateOpts{Page: 1, PerPage: 15}
+
+page, _ := repo.Paginate(ctx, opts, repository.Active())
+
+// page.Items (verileriniz)
+// page.Pagination.Total, page.Pagination.CurrentPage, vb.
+
+// HTML şablonlarda kullanmak üzere sayfalama linkleri alma
+links := page.Pagination.Links("/users", "&sort=desc")
 ```
 
 ---
