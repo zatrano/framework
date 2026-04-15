@@ -11,8 +11,8 @@ import (
 )
 
 // Config is the runtime configuration for ZATRANO (HTTP, data stores, logging, security).
-// Values are loaded from optional .env, config/{env}.yaml, and ZATRANO_* environment variables
-// (nested YAML keys map to env like ZATRANO_SECURITY_JWT_SECRET).
+// Values are loaded from optional .env, config/{env}.yaml, and environment variables
+// (nested YAML keys map to env like SECURITY_JWT_SECRET).
 type Config struct {
 	Env     string `mapstructure:"env"`
 	AppName string `mapstructure:"app_name"`
@@ -47,7 +47,7 @@ type Config struct {
 
 // LoadOptions controls where configuration is read from.
 type LoadOptions struct {
-	// Env is the profile name (e.g. dev, prod). Defaults to ZATRANO_ENV or "dev".
+	// Env is the profile name (e.g. dev, prod). Defaults to ENV or "dev".
 	Env string
 	// ConfigDir is the directory containing {env}.yaml (default "config").
 	ConfigDir string
@@ -62,7 +62,7 @@ func Load(opts LoadOptions) (*Config, error) {
 	}
 	envName := strings.TrimSpace(opts.Env)
 	if envName == "" {
-		envName = strings.TrimSpace(os.Getenv("ZATRANO_ENV"))
+		envName = strings.TrimSpace(os.Getenv("ENV"))
 	}
 	if envName == "" {
 		envName = "dev"
@@ -73,7 +73,6 @@ func Load(opts LoadOptions) (*Config, error) {
 	}
 
 	v := viper.New()
-	v.SetEnvPrefix("ZATRANO")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
@@ -149,10 +148,10 @@ func (c *Config) validate() error {
 		return fmt.Errorf("invalid log_level %q (use debug, info, warn, error)", c.LogLevel)
 	}
 	if c.DatabaseRequired && strings.TrimSpace(c.DatabaseURL) == "" {
-		return fmt.Errorf("database_required is true but database_url is empty (set ZATRANO_DATABASE_URL or config/database_url)")
+		return fmt.Errorf("database_required is true but database_url is empty (set DATABASE_URL or config/database_url)")
 	}
 	if c.RedisRequired && strings.TrimSpace(c.RedisURL) == "" {
-		return fmt.Errorf("redis_required is true but redis_url is empty (set ZATRANO_REDIS_URL or config/redis_url)")
+		return fmt.Errorf("redis_required is true but redis_url is empty (set REDIS_URL or config/redis_url)")
 	}
 	if c.Security.DemoTokenEndpoint && strings.EqualFold(strings.TrimSpace(c.Env), "prod") {
 		return fmt.Errorf("security.demo_token_endpoint cannot be true when env is prod")

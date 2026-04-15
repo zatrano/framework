@@ -9,14 +9,14 @@ import (
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the HTTP server (Fiber)",
-	Long: `Loads configuration from .env (optional), config/{env}.yaml, and ZATRANO_* environment variables,
-then starts the ZATRANO HTTP server.`,
+	Long: `Loads configuration from .env (optional), config/{env}.yaml, and environment variables,
+then starts the HTTP server. Use --env to override the environment name.`,
 	RunE: runServe,
 }
 
 func init() {
 	serveCmd.Flags().String("addr", "", "override HTTP listen address (default: config http_addr)")
-	serveCmd.Flags().String("env", "", "environment name (e.g. dev, prod); default ZATRANO_ENV or dev")
+	serveCmd.Flags().String("env", "", "environment name (e.g. dev, prod); default ENV or dev")
 	serveCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	serveCmd.Flags().Bool("no-dotenv", false, "do not load .env from the working directory")
 	rootCmd.AddCommand(serveCmd)

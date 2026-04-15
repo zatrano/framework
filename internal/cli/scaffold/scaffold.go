@@ -263,7 +263,7 @@ go mod tidy
 go run ./cmd/{{.AppName}}
 ` + "```" + `
 
-Set ` + "`ZATRANO_DATABASE_URL`" + ` and ` + "`ZATRANO_REDIS_URL`" + ` when you enable Postgres/Redis.
+Set ` + "`DATABASE_URL`" + ` and ` + "`REDIS_URL`" + ` when you enable Postgres/Redis.
 
 ## Modules
 

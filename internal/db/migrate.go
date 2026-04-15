@@ -13,7 +13,7 @@ import (
 // MigrateUp applies SQL migrations from dir (filesystem path) using databaseURL (postgres DSN).
 func MigrateUp(databaseURL, dir string, steps int) (version uint, dirty bool, err error) {
 	if strings.TrimSpace(databaseURL) == "" {
-		return 0, false, fmt.Errorf("database URL is empty (set ZATRANO_DATABASE_URL)")
+		return 0, false, fmt.Errorf("database URL is empty (set DATABASE_URL)")
 	}
 	src, err := fileSourceURL(dir)
 	if err != nil {
@@ -42,7 +42,7 @@ func MigrateUp(databaseURL, dir string, steps int) (version uint, dirty bool, er
 // MigrateDown rolls back migrations (one step by default when steps is 0, use steps for more).
 func MigrateDown(databaseURL, dir string, steps int) (version uint, dirty bool, err error) {
 	if strings.TrimSpace(databaseURL) == "" {
-		return 0, false, fmt.Errorf("database URL is empty (set ZATRANO_DATABASE_URL)")
+		return 0, false, fmt.Errorf("database URL is empty (set DATABASE_URL)")
 	}
 	src, err := fileSourceURL(dir)
 	if err != nil {

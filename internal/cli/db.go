@@ -18,7 +18,7 @@ var dbCmd = &cobra.Command{
 var dbMigrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Apply SQL migrations (golang-migrate)",
-	Long:  `Runs *.up.sql migrations from migrations_dir (default ./migrations). Requires ZATRANO_DATABASE_URL.`,
+	Long:  `Runs *.up.sql migrations from migrations_dir (default ./migrations). Requires DATABASE_URL.`,
 	RunE:  runDBMigrate,
 }
 
@@ -56,29 +56,29 @@ This can DROP objects when --clean is used. Always test on a copy first.`,
 }
 
 func init() {
-	dbMigrateCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	dbMigrateCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	dbMigrateCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	dbMigrateCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	dbMigrateCmd.Flags().String("migrations", "", "override migrations directory (default from config migrations_dir)")
 
-	dbRollbackCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	dbRollbackCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	dbRollbackCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	dbRollbackCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	dbRollbackCmd.Flags().String("migrations", "", "override migrations directory")
 	dbRollbackCmd.Flags().Int("steps", 1, "number of migrations to roll back")
 
-	dbSeedCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	dbSeedCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	dbSeedCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	dbSeedCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	dbSeedCmd.Flags().String("seeds", "", "override seeds directory (default from config seeds_dir)")
 
-	dbBackupCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	dbBackupCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	dbBackupCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	dbBackupCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	dbBackupCmd.Flags().String("output", "", "output file or directory (default: backups/zatrano-<timestamp>.dump)")
 	dbBackupCmd.Flags().String("format", "custom", "custom | plain | directory")
 
-	dbRestoreCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	dbRestoreCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	dbRestoreCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	dbRestoreCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	dbRestoreCmd.Flags().String("input", "", "backup file or directory (required)")

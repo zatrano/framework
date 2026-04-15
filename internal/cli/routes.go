@@ -27,7 +27,7 @@ Routes are sorted by URL prefix group (first path segment), then path, then meth
 }
 
 func init() {
-	routesCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	routesCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	routesCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	routesCmd.Flags().Bool("no-dotenv", false, "do not load .env from the working directory")
 	routesCmd.Flags().Bool("json", false, "print as JSON lines (method, path, name)")

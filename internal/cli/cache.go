@@ -36,7 +36,7 @@ Examples:
 
 func init() {
 	cacheClearCmd.Flags().StringSlice("tag", nil, "clear only keys with these tags (repeat for multiple)")
-	cacheClearCmd.Flags().String("env", "", "environment profile (default $ZATRANO_ENV or dev)")
+	cacheClearCmd.Flags().String("env", "", "environment profile (default $ENV or dev)")
 	cacheClearCmd.Flags().String("config-dir", "config", "config directory")
 	cacheClearCmd.Flags().Bool("no-dotenv", false, "skip .env loading")
 	cacheCmd.AddCommand(cacheClearCmd)

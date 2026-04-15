@@ -1,5 +1,5 @@
 # Example profile: copy to config/dev.yaml and adjust.
-# Environment variables ZATRANO_* override these keys (see pkg/config).
+# Environment variables override these keys (see pkg/config).
 
 env: dev
 app_name: ZATRANO
@@ -21,7 +21,7 @@ http_read_timeout: 30s
 #   request_timeout: 0       # e.g. 60s — per-handler deadline (0 = off)
 #   body_limit: 0            # max body bytes (0 = Fiber default 4 MiB)
 
-# Leave empty for local UI-only work; set ZATRANO_DATABASE_URL when Postgres is up.
+# Leave empty for local UI-only work; set DATABASE_URL when Postgres is up.
 database_url: ""
 database_required: false
 

@@ -14,7 +14,7 @@ import (
 // RunSeeds executes every *.sql file in dir in lexical order inside a single transaction.
 func RunSeeds(databaseURL, dir string) error {
 	if strings.TrimSpace(databaseURL) == "" {
-		return fmt.Errorf("database URL is empty (set ZATRANO_DATABASE_URL)")
+		return fmt.Errorf("database URL is empty (set DATABASE_URL)")
 	}
 	fi, err := os.Stat(dir)
 	if err != nil {

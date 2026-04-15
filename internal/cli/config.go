@@ -20,7 +20,7 @@ var configCmd = &cobra.Command{
 
 var configPrintCmd = &cobra.Command{
 	Use:   "print",
-	Short: "Print effective config after .env, YAML, and ZATRANO_* merge",
+	Short: "Print effective config after .env, YAML, and environment variables merge",
 	Long: `Loads configuration the same way as serve/doctor and prints a sanitized view:
 database/redis URLs and secrets are masked; OAuth client IDs stay visible, secrets masked.
 
@@ -34,7 +34,7 @@ Use --paths-only for a short list of env, working directory, config profile path
 var configValidateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Load and validate config only (no DB/Redis connections)",
-	Long: `Runs the same merge and validation rules as serve/doctor: .env, config/{env}.yaml, ZATRANO_*.
+	Long: `Runs the same merge and validation rules as serve/doctor: .env, config/{env}.yaml, environment variables.
 
 Use in CI or pre-commit when you only need schema and cross-field checks — faster than doctor
 because it does not bootstrap the app or probe databases.
@@ -44,13 +44,13 @@ Exit code 0 on success, non-zero on validation error.`,
 }
 
 func init() {
-	configPrintCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	configPrintCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	configPrintCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	configPrintCmd.Flags().Bool("no-dotenv", false, "do not load .env from the working directory")
 	configPrintCmd.Flags().Bool("paths-only", false, "only print paths summary (no secrets); default format becomes lines unless --format is set")
 	configPrintCmd.Flags().String("format", "json", "output format: json, yaml, or lines (lines is typical with --paths-only)")
 
-	configValidateCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	configValidateCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	configValidateCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	configValidateCmd.Flags().Bool("no-dotenv", false, "do not load .env from the working directory")
 	configValidateCmd.Flags().BoolP("quiet", "q", false, "no stdout on success (exit code only)")

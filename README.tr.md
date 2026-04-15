@@ -170,7 +170,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 
 **Hatalar:** JSON gövdesi `{ "error": { "code", "message", "request_id"? } }`. `request_id`, **`X-Request-ID`** başlığıyla aynıdır (log ve destek için).
 
-**HTTP ara katmanı (`http` YAML / `ZATRANO_HTTP_*`):**
+**HTTP ara katmanı (`http` YAML / `HTTP_*` env):**
 
 - **CORS** — `http.cors_enabled`, `cors_allow_origins`, `cors_allow_methods`, `cors_allow_headers`, `cors_expose_headers`, `cors_allow_credentials`, `cors_max_age`. Varsayılan **kapalı**. **`cors_allow_credentials: true`** ile köken **`*`** birlikte kullanılamaz (doğrulama hata verir).
 - **Rate limit** — `rate_limit_enabled`, `rate_limit_max`, `rate_limit_window`, isteğe **`rate_limit_redis: true`** (`redis_url` gerekir). Aksi halde süreç başına **bellek içi**. Limit **altındaki** yanıtlarda **`X-RateLimit-*`** vardır. Limit aşımında **429** + aynı `error` JSON + **`Retry-After`** (RFC 6585).
@@ -847,7 +847,7 @@ Uygulama metinleri **`locales_dir`** altında **JSON** dosyalarında tutulur: **
 
 ## Yapılandırma
 
-- **`.env`**, **`config/{env}.yaml`**, **`ZATRANO_*`**. Çoklu köken veya **`supported_locales`** gibi **listeler** için **YAML** tercih edin.
+- **`.env`**, **`config/{env}.yaml`**, **ortam değişkenleri** (ör. `SECURITY_JWT_SECRET`). Çoklu köken veya **`supported_locales`** gibi **listeler** için **YAML** tercih edin.
 - Ayrıntı: `migrations_dir`, `seeds_dir`, `openapi_path`, **`http.*`**, **`i18n.*`**, `security.*`, `oauth.*` — `config/examples/dev.yaml`.
 - Hata ayıklama: **`zatrano config print`** (tam, maskeli) veya **`zatrano config print --paths-only`** (sohbete yapıştırmaya uygun özet).
 - CI: önce **`zatrano config validate -q`** (hızlı YAML/ortam kontrolü), sonra **`zatrano openapi validate --merged`**, veya tam kapı için **`zatrano verify`** (Geliştirme bölümüne bakın).

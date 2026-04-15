@@ -22,7 +22,7 @@ var jwtSignCmd = &cobra.Command{
 }
 
 func init() {
-	jwtSignCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	jwtSignCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	jwtSignCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	jwtSignCmd.Flags().Bool("no-dotenv", false, "do not load .env")
 	jwtSignCmd.Flags().String("sub", "dev-user", "JWT subject (sub claim)")
@@ -52,7 +52,7 @@ func runJWTSign(cmd *cobra.Command, _ []string) error {
 	}
 	tok, err := security.SignAccessToken(cfg, sub, nil)
 	if err != nil {
-		return fmt.Errorf("%w\n\nhint: set ZATRANO_SECURITY_JWT_SECRET or security.jwt_secret in YAML", err)
+		return fmt.Errorf("%w\n\nhint: set SECURITY_JWT_SECRET or security.jwt_secret in YAML", err)
 	}
 	fmt.Fprintln(os.Stdout, tok)
 	return nil

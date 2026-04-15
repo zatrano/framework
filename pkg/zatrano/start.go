@@ -102,7 +102,7 @@ func Start(opts StartOptions) error {
 	return nil
 }
 
-// Run reads ZATRANO_* and config from the working directory (with .env) and starts the server.
+// Run reads environment variables and config from the working directory (with .env) and starts the server.
 func Run() error {
 	return Start(StartOptions{})
 }

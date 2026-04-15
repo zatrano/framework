@@ -172,7 +172,7 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 
 **Errors:** JSON responses use `{ "error": { "code", "message", "request_id"? } }`. `request_id` matches the **`X-Request-ID`** header when middleware runs (use it in logs and support tickets).
 
-**HTTP middleware (`http` in YAML / `ZATRANO_HTTP_*`):**
+**HTTP middleware (`http` in YAML / `HTTP_*` env):**
 
 - **CORS** — `http.cors_enabled`, `cors_allow_origins`, `cors_allow_methods`, `cors_allow_headers`, `cors_expose_headers`, `cors_allow_credentials`, `cors_max_age`. Default **off**. You cannot combine **`cors_allow_credentials: true`** with a wildcard origin **`*`** (browser rules); validation fails if you try.
 - **Rate limit** — `http.rate_limit_enabled`, `rate_limit_max`, `rate_limit_window`, optional **`rate_limit_redis: true`** (uses **`redis_url`**; required if you enable Redis-backed limiting). Otherwise **in-memory** per process. Responses **under** the limit include **`X-RateLimit-*`** headers. When exceeded, **429** uses the same JSON `error` shape and Fiber sets **`Retry-After`** (RFC 6585).
@@ -848,7 +848,7 @@ Application UI copy lives in **JSON** files under **`locales_dir`**, one file pe
 
 ## Configuration
 
-- **`.env`**, **`config/{env}.yaml`**, **`ZATRANO_*`** (nested keys use underscores, e.g. `ZATRANO_SECURITY_JWT_SECRET`). For **lists** (e.g. multiple CORS origins or **`supported_locales`**), prefer **YAML**; env overrides for slices vary by shell.
+- **`.env`**, **`config/{env}.yaml`**, **environment variables** (nested keys use underscores, e.g. `SECURITY_JWT_SECRET`). For **lists** (e.g. multiple CORS origins or **`supported_locales`**), prefer **YAML**; env overrides for slices vary by shell.
 - Key fields: `migrations_dir`, `seeds_dir`, `openapi_path`, **`http.*`**, **`i18n.*`**, `security.*`, `oauth.*` (see `config/examples/dev.yaml`).
 - Debug: **`zatrano config print`** (full dump, redacted) or **`zatrano config print --paths-only`** (env, cwd, profile path, dirs — safe to paste in chat).
 - CI: **`zatrano config validate -q`** (fast YAML/env checks), then **`zatrano openapi validate --merged`**, or **`zatrano verify`** for the full gate (see Development).

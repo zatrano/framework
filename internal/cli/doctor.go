@@ -26,7 +26,7 @@ var doctorCmd = &cobra.Command{
 }
 
 func init() {
-	doctorCmd.Flags().String("env", "", "environment name; default ZATRANO_ENV or dev")
+	doctorCmd.Flags().String("env", "", "environment name; default ENV or dev")
 	doctorCmd.Flags().String("config-dir", "config", "directory containing {env}.yaml")
 	doctorCmd.Flags().Bool("no-dotenv", false, "do not load .env from the working directory")
 	rootCmd.AddCommand(doctorCmd)

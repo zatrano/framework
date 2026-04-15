@@ -21,7 +21,7 @@ const (
 // Backup runs pg_dump. Requires `pg_dump` on PATH (PostgreSQL client tools).
 func Backup(databaseURL, outPath string, format BackupFormat) error {
 	if strings.TrimSpace(databaseURL) == "" {
-		return fmt.Errorf("database URL is empty (set ZATRANO_DATABASE_URL)")
+		return fmt.Errorf("database URL is empty (set DATABASE_URL)")
 	}
 	outPath = filepath.Clean(outPath)
 	dir := filepath.Dir(outPath)
@@ -60,7 +60,7 @@ func Backup(databaseURL, outPath string, format BackupFormat) error {
 // Requires `psql` / `pg_restore` on PATH.
 func Restore(databaseURL, inputPath string, format BackupFormat, clean bool) error {
 	if strings.TrimSpace(databaseURL) == "" {
-		return fmt.Errorf("database URL is empty (set ZATRANO_DATABASE_URL)")
+		return fmt.Errorf("database URL is empty (set DATABASE_URL)")
 	}
 	inputPath = filepath.Clean(inputPath)
 	fi, err := os.Stat(inputPath)
