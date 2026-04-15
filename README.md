@@ -24,6 +24,7 @@
 - [Cache System](#cache-system)
 - [Queue / Job System](#queue--job-system)
 - [Mail System](#mail-system)
+- [Event / Listener System](#event--listener-system)
 - [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -42,11 +43,12 @@
 | Cache | **Memory / Redis** drivers, **Tag-based** invalidation, **Middleware** support |
 | Queue | **Redis-backed** job queue, delayed jobs (ZADD), auto retry + exponential backoff, failed jobs (PostgreSQL) |
 | Mail | **SMTP / Log** drivers, HTML templates with layouts, queue integration, attachments, Mailable pattern |
+| Events | **Sync and async** event bus, `ShouldQueue` for queue-backed listeners, `gen event` + `gen listener` |
 | Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
 | Ops | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, **`gen event`**, **`gen listener`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, delayed jobs, retry, failed jobs, worker), **`mail`** (SMTP/log, templates, queue, attachments, preview), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen event`** + **`gen listener`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, delayed jobs, retry, failed jobs, worker), **`mail`** (SMTP/log, templates, queue, attachments, preview), **`events`** (sync/async dispatch, ShouldQueue, queue-backed listeners), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -54,7 +56,7 @@
 
 | Path | Purpose |
 |------|---------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/events`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI & generators** — not imported by apps |
 
 Generated apps use **`zatrano.Start`** with **`RegisterRoutes: routes.Register`** (see `internal/routes/register.go`) or **`zatrano.Run()`** when you do not inject routes.
@@ -134,6 +136,8 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen policy <name>` | Generate authorization policy stub (`modules/<name>/policies/<name>_policy.go`) implementing `auth.Policy` with CRUD methods |
 | `zatrano gen job <name>` | Generate queue job stub (`modules/jobs/<name>.go`) implementing `queue.Job` with Handle, Retries, Timeout |
 | `zatrano gen mail <name>` | Generate Mailable struct + HTML template (`modules/mails/<name>_mail.go` + `views/mails/<name>.html`) |
+| `zatrano gen event <name>` | Generate event struct (`modules/events/<name>_event.go`) implementing `events.Event` |
+| `zatrano gen listener <name>` | Generate listener (`modules/listeners/<name>_listener.go`); use `--queued` for async |
 | `zatrano gen wire <name>` | **Wire only** (no overwrite); picks `Register` / `RegisterCRUD` from existing files (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate [path]` | Validate one file, or **`--merged`** (same as live `/openapi.yaml`; `--base`, optional positional overrides base) |
 | `zatrano openapi export` | Write merged YAML (`--base`, `--output` or `-` for stdout) |
@@ -831,6 +835,104 @@ zatrano mail preview welcome --port 3001
 ```
 
 For full local mail testing, use **Mailpit** or **MailHog** as the SMTP host.
+
+---
+
+## Event / Listener System
+
+ZATRANO provides a **central event bus** (pub/sub) with support for synchronous and asynchronous listeners, queue-backed delivery via `ShouldQueue`, and generators for rapid development.
+
+### Registering Listeners
+
+```go
+// In your service provider / bootstrap (e.g. events/event_service_provider.go):
+
+// Sync listener (inline)
+app.Events.ListenFunc("user.created", func(ctx context.Context, e events.Event) error {
+    log.Println("user created", e)
+    return nil
+})
+
+// Struct listener
+app.Events.Listen("user.created", &listeners.SendWelcomeMailListener{})
+
+// Multiple listeners for one event
+app.Events.Subscribe("order.placed",
+    &listeners.SendOrderConfirmationListener{},
+    &listeners.UpdateInventoryListener{},
+)
+```
+
+### Firing Events
+
+```go
+import "github.com/zatrano/framework/pkg/events"
+
+// Define an event
+type UserCreatedEvent struct {
+    events.BaseEvent
+    UserID uint
+    Email  string
+}
+func (e *UserCreatedEvent) Name() string { return "user.created" }
+
+// Fire synchronously (blocks until all sync listeners complete)
+app.Events.Fire(ctx, &UserCreatedEvent{UserID: 1, Email: "alice@example.com"})
+
+// Fire asynchronously (goroutines, errors only logged)
+app.Events.FireAsync(ctx, &UserCreatedEvent{UserID: 1, Email: "alice@example.com"})
+```
+
+### Async Listeners via Queue (`ShouldQueue`)
+
+Implement `ShouldQueue` to dispatch a listener as a queue job:
+
+```go
+type SendWelcomeMailListener struct{}
+
+func (l *SendWelcomeMailListener) Handle(ctx context.Context, event events.Event) error {
+    // runs in a background worker
+    return nil
+}
+
+func (l *SendWelcomeMailListener) Queue() string { return "events" }   // queue name
+func (l *SendWelcomeMailListener) Retries() int  { return 3 }
+```
+
+When `ShouldQueue` is implemented and a queue is configured (Redis), the listener is automatically dispatched via the Queue system instead of running inline.
+
+### Generator
+
+```bash
+zatrano gen event user_created
+# → modules/events/user_created_event.go
+
+zatrano gen listener send_welcome_mail
+# → modules/listeners/send_welcome_mail_listener.go  (sync)
+
+zatrano gen listener send_welcome_mail --queued
+# → modules/listeners/send_welcome_mail_listener.go  (ShouldQueue / async)
+```
+
+### Event Service Provider
+
+Centralise all listener registrations in one place:
+
+```go
+// modules/events/event_service_provider.go
+package myevents
+
+import (
+    "github.com/zatrano/framework/pkg/core"
+    "myapp/modules/listeners"
+)
+
+// Register wires all event listeners. Call from main or bootstrap.
+func Register(app *core.App) {
+    app.Events.Listen("user.created", &listeners.SendWelcomeMailListener{})
+    app.Events.Listen("order.placed", &listeners.SendOrderConfirmationListener{})
+}
+```
 
 ---
 

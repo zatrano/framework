@@ -18,6 +18,7 @@ import (
 	"github.com/zatrano/framework/pkg/auth"
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
+	"github.com/zatrano/framework/pkg/events"
 	"github.com/zatrano/framework/pkg/i18n"
 	"github.com/zatrano/framework/pkg/mail"
 	"github.com/zatrano/framework/pkg/queue"
@@ -125,6 +126,13 @@ func Bootstrap(cfg *config.Config) (*App, error) {
 	if app.Queue != nil {
 		app.Mail.SetQueue(app.Queue)
 		mail.RegisterMailJob(app.Queue, app.Mail)
+	}
+
+	// Initialise Events dispatcher.
+	app.Events = events.New(zl)
+	if app.Queue != nil {
+		app.Events.SetQueue(app.Queue)
+		events.RegisterEventJob(app.Queue, app.Events)
 	}
 
 	return app, nil

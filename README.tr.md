@@ -24,6 +24,7 @@
 - [Cache Sistemi (Önbellek)](#cache-sistemi-önbellek)
 - [Kuyruk / Job Sistemi](#kuyruk--job-sistemi)
 - [Mail Sistemi (E-posta)](#mail-sistemi-e-posta)
+- [Event / Listener Sistemi](#event--listener-sistemi)
 - [Uluslararasılaştırma (i18n)](#uluslararasılaştırma-i18n)
 - [Yapılandırma](#yapılandırma)
 - [Geliştirme](#geliştirme)
@@ -42,10 +43,11 @@
 | Veri | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** (`pg_dump` / `pg_restore` / `psql` PATH'te olmalı) |
 | Kuyruk | **Redis tabanlı** job kuyruğu, geciktirilmiş joblar (ZADD), otomatik retry + üssel geri çekilme, başarısız joblar (PostgreSQL) |
 | Mail | **SMTP / Log** sürücüleri, HTML şablon + layout desteği, kuyruk entegrasyonu, ek dosya, Mailable deseni |
+| Events | **Senkron ve asenkron** event bus, `ShouldQueue` ile kuyruk tabanlı listener, `gen event` + `gen listener` |
 | Operasyon | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, **`gen mail`**, **`gen event`**, **`gen listener`**, `serve`, `db`, **`cache`**, **`queue`**, **`mail`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, geciktirilmiş joblar, retry, failed jobs, worker), **`mail`** (SMTP/log, şablonlar, kuyruk, ek dosya, önizleme), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen mail`** + **`gen event`** + **`gen listener`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, geciktirilmiş joblar, retry, failed jobs, worker), **`mail`** (SMTP/log, şablonlar, kuyruk, ek dosya, önizleme), **`events`** (senkron/asenkron gönderim, ShouldQueue, kuyruk tabanlı listener'lar), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -53,7 +55,7 @@
 
 | Yol | Amaç |
 |-----|------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/mail`, `pkg/events`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI ve üreticiler** — uygulama import etmez |
 
 Üretilen projeler **`zatrano.Start`** + **`RegisterRoutes: routes.Register`** (`internal/routes/register.go`) veya ek rota yoksa **`zatrano.Run()`** kullanır.
@@ -133,6 +135,8 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen policy <name>` | Yetkilendirme policy stub'ı üret (`modules/<name>/policies/<name>_policy.go`) — `auth.Policy` arayüzünü CRUD metotlarıyla implemente eder |
 | `zatrano gen job <name>` | Kuyruk job stub'ı üret (`modules/jobs/<name>.go`) — `queue.Job` arayüzünü Handle, Retries, Timeout ile implemente eder |
 | `zatrano gen mail <name>` | Mailable struct + HTML şablon üret (`modules/mails/<name>_mail.go` + `views/mails/<name>.html`) |
+| `zatrano gen event <name>` | Event struct üret (`modules/events/<name>_event.go`) — `events.Event` arayüzünü implemente eder |
+| `zatrano gen listener <name>` | Listener üret (`modules/listeners/<name>_listener.go`); asenkron için `--queued` bayrağı |
 | `zatrano gen wire <name>` | Sadece wire (dosya üretmez); `register.go` / `crud_register.go` varlığına göre (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate` | Tek dosya veya **`--merged`** (canlı `/openapi.yaml` ile aynı; `--base`, isteğe konumsal argüman) |
 | `zatrano openapi export` | Birleşik YAML yaz (`--base`, `--output` veya `-` stdout) |
@@ -830,6 +834,104 @@ zatrano mail preview welcome --port 3001
 ```
 
 Tam yerel mail testi için **Mailpit** veya **MailHog**'u SMTP sunucusu olarak kullanın.
+
+---
+
+## Event / Listener Sistemi
+
+ZATRANO, senkron ve asenkron listener desteği, `ShouldQueue` ile kuyruk tabanlı gönderim ve hızlı geliştirme için üreticiler sunan **merkezi bir event bus**'a (pub/sub) sahiptir.
+
+### Listener Kayıt
+
+```go
+// Servis sağlayıcıda / bootstrap'ta (ör. events/event_service_provider.go):
+
+// Senkron (inline fonksiyon)
+app.Events.ListenFunc("user.created", func(ctx context.Context, e events.Event) error {
+    log.Println("kullanıcı oluşturuldu", e)
+    return nil
+})
+
+// Struct listener
+app.Events.Listen("user.created", &listeners.HosgeldinizMailGonderListener{})
+
+// Birden fazla listener
+app.Events.Subscribe("siparis.verildi",
+    &listeners.SiparisOnayMailListener{},
+    &listeners.StokGuncelleListener{},
+)
+```
+
+### Event Fırlatma
+
+```go
+import "github.com/zatrano/framework/pkg/events"
+
+// Event tanımla
+type KullaniciOlusturulduEvent struct {
+    events.BaseEvent
+    KullaniciID uint
+    Email       string
+}
+func (e *KullaniciOlusturulduEvent) Name() string { return "user.created" }
+
+// Senkron fırlat (tüm sync listener'lar tamamlanana kadar bekler)
+app.Events.Fire(ctx, &KullaniciOlusturulduEvent{KullaniciID: 1, Email: "ali@example.com"})
+
+// Asenkron fırlat (goroutine'ler, hatalar sadece loglanır)
+app.Events.FireAsync(ctx, &KullaniciOlusturulduEvent{KullaniciID: 1, Email: "ali@example.com"})
+```
+
+### Kuyruk Tabanlı Listener (`ShouldQueue`)
+
+`ShouldQueue` arayüzünü implemente eden listener'lar kuyruk job'u olarak gönderilir:
+
+```go
+type HosgeldinizMailGonderListener struct{}
+
+func (l *HosgeldinizMailGonderListener) Handle(ctx context.Context, event events.Event) error {
+    // arka plan worker'ında çalışır
+    return nil
+}
+
+func (l *HosgeldinizMailGonderListener) Queue() string { return "events" }
+func (l *HosgeldinizMailGonderListener) Retries() int  { return 3 }
+```
+
+Redis yapılandırılmışsa `ShouldQueue` uygulayan listener'lar otomatik olarak Queue sistemi üzerinden gönderilir.
+
+### Üretici
+
+```bash
+zatrano gen event kullanici_olusturuldu
+# → modules/events/kullanici_olusturuldu_event.go
+
+zatrano gen listener hosgeldiniz_mail_gonder
+# → modules/listeners/hosgeldiniz_mail_gonder_listener.go  (senkron)
+
+zatrano gen listener hosgeldiniz_mail_gonder --queued
+# → modules/listeners/hosgeldiniz_mail_gonder_listener.go  (ShouldQueue / asenkron)
+```
+
+### Event Servis Sağlayıcı
+
+Tüm listener kayıtlarını tek bir yerde toplayın:
+
+```go
+// modules/events/event_service_provider.go
+package myevents
+
+import (
+    "github.com/zatrano/framework/pkg/core"
+    "myapp/modules/listeners"
+)
+
+// Register tüm event listener'larını bağlar. main veya bootstrap'tan çağırın.
+func Register(app *core.App) {
+    app.Events.Listen("user.created", &listeners.HosgeldinizMailGonderListener{})
+    app.Events.Listen("siparis.verildi", &listeners.SiparisOnayMailListener{})
+}
+```
 
 ---
 

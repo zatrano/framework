@@ -10,6 +10,7 @@ import (
 	"github.com/zatrano/framework/pkg/auth"
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
+	"github.com/zatrano/framework/pkg/events"
 	"github.com/zatrano/framework/pkg/i18n"
 	"github.com/zatrano/framework/pkg/mail"
 	"github.com/zatrano/framework/pkg/queue"
@@ -44,4 +45,7 @@ type App struct {
 
 	// Mail is the email sending manager (SMTP, log drivers).
 	Mail *mail.Manager
+
+	// Events is the event dispatcher (pub/sub bus).
+	Events *events.Dispatcher
 }
