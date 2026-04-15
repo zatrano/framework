@@ -1,0 +1,47 @@
+{
+  "app": {
+    "title": "ZATRANO",
+    "welcome": "Hoş geldiniz",
+    "hello_user": "Merhaba, {{.Name}}!"
+  },
+  "auth": {
+    "forbidden": "Bu işlemi gerçekleştirme yetkiniz bulunmamaktadır.",
+    "unauthorized": "Bu kaynağa erişmek için kimlik doğrulaması gereklidir.",
+    "role_required": "Bu kaynağa erişmek için gerekli role sahip değilsiniz.",
+    "permission_required": "Gerekli izne sahip değilsiniz: {{.Permission}}.",
+    "token_invalid": "Sağlanan kimlik doğrulama jetonu geçersiz.",
+    "token_expired": "Kimlik doğrulama jetonunuzun süresi dolmuş."
+  },
+  "validation": {
+    "required": "Bu alan zorunludur",
+    "email": "Geçerli bir e-posta adresi olmalıdır",
+    "min": "En az {{.Param}} karakter olmalıdır",
+    "max": "En fazla {{.Param}} karakter olmalıdır",
+    "gte": "{{.Param}} değerinden büyük veya eşit olmalıdır",
+    "lte": "{{.Param}} değerinden küçük veya eşit olmalıdır",
+    "gt": "{{.Param}} değerinden büyük olmalıdır",
+    "lt": "{{.Param}} değerinden küçük olmalıdır",
+    "len": "Tam olarak {{.Param}} karakter olmalıdır",
+    "url": "Geçerli bir URL olmalıdır",
+    "uri": "Geçerli bir URI olmalıdır",
+    "uuid": "Geçerli bir UUID olmalıdır",
+    "oneof": "Şunlardan biri olmalıdır: {{.Param}}",
+    "numeric": "Sayısal bir değer olmalıdır",
+    "number": "Geçerli bir sayı olmalıdır",
+    "alpha": "Sadece harf içermelidir",
+    "alphanum": "Sadece harf ve rakam içermelidir",
+    "boolean": "true veya false olmalıdır",
+    "contains": "'{{.Param}}' içermelidir",
+    "excludes": "'{{.Param}}' içermemelidir",
+    "startswith": "'{{.Param}}' ile başlamalıdır",
+    "endswith": "'{{.Param}}' ile bitmelidir",
+    "ip": "Geçerli bir IP adresi olmalıdır",
+    "ipv4": "Geçerli bir IPv4 adresi olmalıdır",
+    "ipv6": "Geçerli bir IPv6 adresi olmalıdır",
+    "datetime": "Geçerli bir tarih/saat olmalıdır ({{.Param}})",
+    "json": "Geçerli bir JSON olmalıdır",
+    "jwt": "Geçerli bir JWT olmalıdır",
+    "eqfield": "{{.Param}} ile aynı olmalıdır",
+    "nefield": "{{.Param}} ile farklı olmalıdır"
+  }
+}

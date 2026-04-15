@@ -1,0 +1,71 @@
+# Example profile: copy to config/dev.yaml and adjust.
+# Environment variables ZATRANO_* override these keys (see pkg/config).
+
+env: dev
+app_name: ZATRANO
+
+http_addr: ":8080"
+http_read_timeout: 30s
+
+# Optional Fiber middleware (see README → HTTP middleware).
+# http:
+#   cors_enabled: true
+#   cors_allow_origins:
+#     - http://localhost:5173
+#   cors_allow_headers: ["Authorization", "Content-Type", "X-Request-ID"]
+#   cors_allow_credentials: true
+#   rate_limit_enabled: true
+#   rate_limit_max: 120
+#   rate_limit_window: 1m
+#   rate_limit_redis: true   # requires redis_url; else in-memory per process
+#   request_timeout: 0       # e.g. 60s — per-handler deadline (0 = off)
+#   body_limit: 0            # max body bytes (0 = Fiber default 4 MiB)
+
+# Leave empty for local UI-only work; set ZATRANO_DATABASE_URL when Postgres is up.
+database_url: ""
+database_required: false
+
+redis_url: ""
+redis_required: false
+
+log_level: info
+log_development: true
+
+migrations_dir: migrations
+seeds_dir: db/seeds
+openapi_path: api/openapi.yaml
+
+security:
+  session_enabled: true
+  csrf_enabled: true
+  csrf_skip_prefixes:
+    - /api/
+  jwt_secret: ""
+  jwt_issuer: zatrano
+  jwt_expiry: 60m
+  cookie_secure: false
+  demo_token_endpoint: false
+
+# OAuth2 browser login (requires redis_url + oauth.base_url + provider keys).
+# oauth:
+#   enabled: true
+#   base_url: http://127.0.0.1:8080
+#   providers:
+#     google:
+#       client_id: ""
+#       client_secret: ""
+#     github:
+#       client_id: ""
+#       client_secret: ""
+
+# Application i18n (JSON per locale under locales_dir). Copy repo `locales/*.json` or add your own.
+# i18n:
+#   enabled: true
+#   default_locale: en
+#   supported_locales: [en, tr]
+#   locales_dir: locales
+#   cookie_name: zatrano_lang
+#   query_key: lang
+
+static_path: public
+static_url_prefix: /static

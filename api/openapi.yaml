@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: ZATRANO API
+  description: |
+    REST surface shipped with the ZATRANO framework (health, status, JWT demo, OpenAPI).
+    Server-rendered HTML forms use session cookies + CSRF; JSON API clients should send `Authorization: Bearer <token>`.
+  version: 0.1.0-dev
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local default (see config http_addr)
+tags:
+  - name: Health
+  - name: API
+  - name: Meta
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+  /ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Ready
+        "503":
+          description: Not ready
+  /status:
+    get:
+      tags: [Health]
+      summary: Aggregated dependency status
+      responses:
+        "200":
+          description: Status payload
+  /api/v1/public/ping:
+    get:
+      tags: [API]
+      summary: Public ping
+      responses:
+        "200":
+          description: Pong
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: pong
+  /api/v1/private/me:
+    get:
+      tags: [API]
+      summary: Example JWT-protected route
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Claims echo
+        "401":
+          description: Missing or invalid bearer token
+  /api/v1/auth/token:
+    post:
+      tags: [API]
+      summary: Demo token issuer (disabled unless security.demo_token_endpoint is true)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sub]
+              properties:
+                sub:
+                  type: string
+      responses:
+        "200":
+          description: Access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+        "400":
+          description: Bad request
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

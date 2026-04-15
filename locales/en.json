@@ -1,0 +1,47 @@
+{
+  "app": {
+    "title": "ZATRANO",
+    "welcome": "Welcome",
+    "hello_user": "Hello, {{.Name}}!"
+  },
+  "auth": {
+    "forbidden": "You do not have permission to perform this action.",
+    "unauthorized": "Authentication is required to access this resource.",
+    "role_required": "You do not have the required role to access this resource.",
+    "permission_required": "You do not have the required permission: {{.Permission}}.",
+    "token_invalid": "The provided authentication token is invalid.",
+    "token_expired": "Your authentication token has expired."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Must be a valid email address",
+    "min": "Must be at least {{.Param}} characters",
+    "max": "Must be at most {{.Param}} characters",
+    "gte": "Must be greater than or equal to {{.Param}}",
+    "lte": "Must be less than or equal to {{.Param}}",
+    "gt": "Must be greater than {{.Param}}",
+    "lt": "Must be less than {{.Param}}",
+    "len": "Must be exactly {{.Param}} characters",
+    "url": "Must be a valid URL",
+    "uri": "Must be a valid URI",
+    "uuid": "Must be a valid UUID",
+    "oneof": "Must be one of: {{.Param}}",
+    "numeric": "Must be numeric",
+    "number": "Must be a valid number",
+    "alpha": "Must contain only letters",
+    "alphanum": "Must contain only letters and numbers",
+    "boolean": "Must be true or false",
+    "contains": "Must contain '{{.Param}}'",
+    "excludes": "Must not contain '{{.Param}}'",
+    "startswith": "Must start with '{{.Param}}'",
+    "endswith": "Must end with '{{.Param}}'",
+    "ip": "Must be a valid IP address",
+    "ipv4": "Must be a valid IPv4 address",
+    "ipv6": "Must be a valid IPv6 address",
+    "datetime": "Must be a valid datetime ({{.Param}})",
+    "json": "Must be valid JSON",
+    "jwt": "Must be a valid JWT",
+    "eqfield": "Must be equal to {{.Param}}",
+    "nefield": "Must not be equal to {{.Param}}"
+  }
+}

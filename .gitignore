@@ -1,0 +1,37 @@
+# Binaries
+/bin/
+/zatrano
+/zatrano.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test / coverage
+*.out
+*.test
+coverage.*
+profile.cov
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Env (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Local data
+/tmp/
+tmp/
+*.log
+air build-errors.log

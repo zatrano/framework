@@ -1,0 +1,575 @@
+# ZATRANO
+
+**ZATRANO** is an **enterprise-grade, opinionated modular monolith** Go framework: delivering **production-ready HTTP APIs (REST + OpenAPI)** and **robust server-rendered HTML form systems**, powered by a **first-class `zatrano` CLI** for scalable, standardized development workflows.
+
+- **Module path:** `github.com/zatrano/framework`
+- **Go:** 1.25+
+- **Stack:** Fiber v3, PostgreSQL, Redis, GORM, Zap, golang-migrate (SQL migrations)
+
+> **Status:** active development. Public Go APIs live under **`pkg/`** so generated apps can `import` the framework. This file is updated with every user-visible change.
+
+---
+
+## Table of Contents
+
+- [Features](#features-roadmap)
+- [Layout](#layout-pkg-vs-internal)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [CLI Commands](#cli-commands)
+- [HTTP Routes](#http-current)
+- [Validation](#validation)
+- [Authorization (RBAC & Gate/Policy)](#authorization-rbac--gatepolicy)
+- [Internationalization (i18n)](#internationalization-i18n)
+- [Configuration](#configuration)
+- [Development](#development)
+
+---
+
+## Features (roadmap)
+
+| Area | Plan |
+|------|------|
+| Architecture | Modular core + pluggable modules (modular monolith) |
+| Layers | Handler → Service → Repository (mandatory bases) |
+| Web | Fiber HTML templates, CSRF, **validation** (`go-playground/validator`), flash, **CORS**, **rate limit**, **i18n** (JSON locales), security headers, gzip, static |
+| API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
+| Auth | **Session (Redis) + CSRF**; **JWT** for `/api/v1/private/*`; **OAuth2** (Google/GitHub) browser login; **RBAC** (role→permission, DB-backed); **Gate/Policy** (resource-based authorization) |
+| Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
+| Ops | `/health`, `/ready`, `/status` |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+
+**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+
+---
+
+## Layout (`pkg/` vs `internal/`)
+
+| Path | Purpose |
+|------|---------|
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
+| `internal/cli`, `internal/db`, `internal/gen` | **CLI & generators** — not imported by apps |
+
+Generated apps use **`zatrano.Start`** with **`RegisterRoutes: routes.Register`** (see `internal/routes/register.go`) or **`zatrano.Run()`** when you do not inject routes.
+
+---
+
+## Requirements
+
+- Go **1.25.0** or newer
+- **PostgreSQL** for `db migrate` / GORM URLs
+- **Redis** for session + CSRF (optional locally; required when you turn on `redis_url` / production sessions)
+- **PostgreSQL client tools** (`pg_dump`, `pg_restore`, `psql`) on PATH for `zatrano db backup` and `db restore`
+
+---
+
+## Installation
+
+Install the CLI globally:
+
+```bash
+go install github.com/zatrano/framework/cmd/zatrano@latest
+```
+
+---
+
+## Quick start
+
+Create a new app:
+
+```bash
+zatrano new app
+cd app
+zatrano serve
+```
+
+Or run the framework directly:
+
+```bash
+go run ./cmd/zatrano serve
+```
+
+Optional:
+
+```bash
+cp config/examples/dev.yaml config/dev.yaml
+cp .env.example .env
+```
+
+Validate or export OpenAPI (export merges `api/openapi.yaml` with framework routes — same as live `/openapi.yaml`):
+
+```bash
+go run ./cmd/zatrano openapi validate api/openapi.yaml
+go run ./cmd/zatrano openapi validate --merged
+go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
+```
+
+---
+
+## CLI commands
+
+| Command | Purpose |
+|---------|---------|
+| `zatrano serve` | HTTP server (`--addr`, `--env`, `--config-dir`, `--no-dotenv`) |
+| `zatrano doctor` | Config (incl. **HTTP** middleware summary) + Postgres/Redis checks |
+| `zatrano routes` | Print routes (same config as `serve`; `--json`, `--all`, **`--group`**) |
+| `zatrano config print` | Effective config, **masked** secrets; **`--paths-only`** short summary (default **lines**; `json` / `yaml`) |
+| `zatrano config validate` | Load + **validate** only (no DB/Redis); **`--quiet`** / **`-q`** for CI exit code only |
+| `zatrano new <name>` | Scaffold app (`--module`, `--output`, `--replace-zatrano` for local dev) |
+| `zatrano db migrate` | Apply `migrations/*.up.sql` (golang-migrate) |
+| `zatrano db rollback` | Roll back (`--steps`) |
+| `zatrano db seed` | Run `db/seeds/*.sql` in one transaction (no-op if no `.sql` files) |
+| `zatrano db backup` | `pg_dump` → file/dir (`--format`: custom, plain, or directory; `--output` or default under `backups/`) |
+| `zatrano db restore` | `pg_restore` / `psql` (**requires `--yes`**, optional `--clean`) |
+| `zatrano gen module <name>` | Scaffold `modules/<name>/`; **wires** + **`go fmt`** on wire file (`--skip-wire`, `--module-root`, `--out`, `--dry-run`) |
+| `zatrano gen crud <name>` | Add CRUD stubs + **form request structs** (`requests/`); **wires** `RegisterCRUD` + **`go fmt`** (same flags) |
+| `zatrano gen request <name>` | Generate form request structs only (`modules/<name>/requests/create_*.go`, `update_*.go`) |
+| `zatrano gen policy <name>` | Generate authorization policy stub (`modules/<name>/policies/<name>_policy.go`) implementing `auth.Policy` with CRUD methods |
+| `zatrano gen wire <name>` | **Wire only** (no overwrite); picks `Register` / `RegisterCRUD` from existing files (`--register-only`, `--crud-only`) |
+| `zatrano openapi validate [path]` | Validate one file, or **`--merged`** (same as live `/openapi.yaml`; `--base`, optional positional overrides base) |
+| `zatrano openapi export` | Write merged YAML (`--base`, `--output` or `-` for stdout) |
+| `zatrano jwt sign` | Print HS256 token (`--sub`, `--secret`, config flags) |
+| `zatrano completion …` | Shell completions |
+| `zatrano verify` | **`go vet` + `go test` + merged OpenAPI** (PR/CI; `--race` for data races; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
+| `zatrano version` | Version string (also **`zatrano --version`**) |
+
+**Windows / paths with spaces:** use `--replace-zatrano` pointing at your checkout; the scaffold quotes the path in `go.mod` when needed.
+
+---
+
+## HTTP (current)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/` | JSON index (`env`, `endpoints`, `http` flags for CORS/rate limit, `error_includes_request_id`) |
+| GET | `/health`, `/ready`, `/status` | Liveness / readiness / aggregate (`/status` includes `env`) |
+| GET | `/openapi.yaml` | **Merged** OpenAPI (your file + built-in ops; **`/`** and **`/status`** include JSON schemas) |
+| GET | `/docs` | Scalar API reference (CDN) |
+| GET | `/api/v1/public/ping` | Public JSON |
+| GET | `/api/v1/private/me` | **Bearer JWT** required if `jwt_secret` set |
+| POST | `/api/v1/auth/token` | **Only if** `security.demo_token_endpoint: true` (blocked when `env: prod`) |
+| GET | `/auth/oauth/google/login`, `/auth/oauth/github/login` | Starts OAuth2 (requires `oauth.enabled` + provider keys) |
+| GET | `/auth/oauth/google/callback`, `/auth/oauth/github/callback` | OAuth redirect handler |
+
+**Session + CSRF:** enabled when `redis_url` is set and `security.session_enabled` / `csrf_enabled` are true. CSRF is skipped for `Authorization: Bearer …`, `csrf_skip_prefixes` (default includes `/api/`), and **`/auth/oauth/`** (OAuth callbacks).
+
+**OAuth2:** set `oauth.enabled`, `oauth.base_url`, and `oauth.providers.google` / `github` client IDs. Redirect URLs in the provider console must be `{base_url}/auth/oauth/google/callback` (and the same for `github`). Session keys after login: `oauth_provider`, `oauth_subject`, `oauth_name`, `oauth_email`.
+
+**Errors:** JSON responses use `{ "error": { "code", "message", "request_id"? } }`. `request_id` matches the **`X-Request-ID`** header when middleware runs (use it in logs and support tickets).
+
+**HTTP middleware (`http` in YAML / `ZATRANO_HTTP_*`):**
+
+- **CORS** — `http.cors_enabled`, `cors_allow_origins`, `cors_allow_methods`, `cors_allow_headers`, `cors_expose_headers`, `cors_allow_credentials`, `cors_max_age`. Default **off**. You cannot combine **`cors_allow_credentials: true`** with a wildcard origin **`*`** (browser rules); validation fails if you try.
+- **Rate limit** — `http.rate_limit_enabled`, `rate_limit_max`, `rate_limit_window`, optional **`rate_limit_redis: true`** (uses **`redis_url`**; required if you enable Redis-backed limiting). Otherwise **in-memory** per process. Responses **under** the limit include **`X-RateLimit-*`** headers. When exceeded, **429** uses the same JSON `error` shape and Fiber sets **`Retry-After`** (RFC 6585).
+- **Request timeout** — `http.request_timeout` (e.g. `60s`): Fiber **timeout** middleware; **408** JSON on overrun.
+- **Body limit** — `http.body_limit` bytes (maps to Fiber **`BodyLimit`**; `0` = Fiber default **4 MiB**).
+
+Order in the stack: **recover → request-id → i18n (if enabled) → CORS → request timeout → rate limit → helmet → compress → session/CSRF → routes**.
+
+---
+
+## Validation
+
+ZATRANO provides a **generic, struct-tag based validation system** wrapping [`go-playground/validator/v10`](https://pkg.go.dev/github.com/go-playground/validator/v10) with automatic **422 JSON responses** and **i18n-translated error messages**.
+
+### Quick Usage
+
+The primary API is **`zatrano.Validate[T](c)`** — a single generic call that parses the request body, validates struct tags, and returns a structured 422 response on failure:
+
+```go
+import "github.com/zatrano/framework/pkg/zatrano"
+
+func (h *ProductHandler) Create(c fiber.Ctx) error {
+    req, err := zatrano.Validate[CreateProductRequest](c)
+    if err != nil {
+        return err // 422 JSON response already sent
+    }
+    // req is valid — use it
+    return h.svc.Create(c.Context(), req.Name, req.Email)
+}
+```
+
+### Form Request Structs
+
+Define your request shapes as plain Go structs with `json` and `validate` tags:
+
+```go
+// requests/create_product.go
+package requests
+
+type CreateProductRequest struct {
+    Name  string `json:"name"  validate:"required,min=2,max=255"`
+    Email string `json:"email" validate:"required,email"`
+    Age   int    `json:"age"   validate:"gte=0,lte=150"`
+}
+```
+
+```go
+// requests/update_product.go
+package requests
+
+type UpdateProductRequest struct {
+    Name  string `json:"name"  validate:"omitempty,min=2,max=255"`
+    Email string `json:"email" validate:"omitempty,email"`
+}
+```
+
+### Generating Request Structs
+
+Use the CLI to scaffold request stubs automatically:
+
+```bash
+# Generate only request structs
+zatrano gen request product
+# → modules/product/requests/create_product.go
+# → modules/product/requests/update_product.go
+
+# gen crud also generates request structs automatically
+zatrano gen crud product
+# → modules/product/crud_handlers.go      (uses zatrano.Validate[T])
+# → modules/product/crud_register.go
+# → modules/product/requests/create_product.go
+# → modules/product/requests/update_product.go
+```
+
+### 422 Error Response Format
+
+When validation fails, the response body follows a consistent JSON structure:
+
+```json
+{
+  "error": {
+    "code": 422,
+    "message": "validation failed",
+    "details": [
+      {
+        "field": "Name",
+        "tag": "required",
+        "message": "This field is required"
+      },
+      {
+        "field": "Email",
+        "tag": "email",
+        "value": "not-an-email",
+        "message": "Must be a valid email address"
+      }
+    ]
+  }
+}
+```
+
+When i18n is enabled and the request locale is `tr`, messages are automatically translated:
+
+```json
+{
+  "error": {
+    "code": 422,
+    "message": "validation failed",
+    "details": [
+      {
+        "field": "Name",
+        "tag": "required",
+        "message": "Bu alan zorunludur"
+      },
+      {
+        "field": "Email",
+        "tag": "email",
+        "value": "not-an-email",
+        "message": "Geçerli bir e-posta adresi olmalıdır"
+      }
+    ]
+  }
+}
+```
+
+### i18n Validation Messages
+
+Validation messages are stored in your locale files under the `validation.*` key namespace:
+
+```json
+// locales/en.json
+{
+  "validation": {
+    "required": "This field is required",
+    "email": "Must be a valid email address",
+    "min": "Must be at least {{.Param}} characters",
+    "max": "Must be at most {{.Param}} characters"
+  }
+}
+```
+
+The `{{.Param}}` placeholder is replaced with the constraint value (e.g. `min=5` → `"Must be at least 5 characters"`).
+
+**Built-in translated tags:** `required`, `email`, `min`, `max`, `gte`, `lte`, `gt`, `lt`, `len`, `url`, `uri`, `uuid`, `oneof`, `numeric`, `number`, `alpha`, `alphanum`, `boolean`, `contains`, `excludes`, `startswith`, `endswith`, `ip`, `ipv4`, `ipv6`, `datetime`, `json`, `jwt`, `eqfield`, `nefield`.
+
+### Custom Validation Rules
+
+Register custom validation tags with optional i18n support:
+
+```go
+import (
+    "github.com/go-playground/validator/v10"
+    "github.com/zatrano/framework/pkg/zatrano"
+)
+
+// Register a custom rule
+zatrano.RegisterRule("tc_no", func(fl validator.FieldLevel) bool {
+    v := fl.Field().String()
+    if len(v) != 11 {
+        return false
+    }
+    // ... TC identity number algorithm
+    return true
+})
+
+// With i18n message key (add "validation.tc_no" to your locale files)
+zatrano.RegisterRuleWithMessage("tc_no", tcNoValidator, "validation.tc_no")
+```
+
+Then use it in struct tags:
+
+```go
+type CitizenRequest struct {
+    TCNO string `json:"tc_no" validate:"required,tc_no"`
+}
+```
+
+### Direct Engine Access
+
+For advanced use cases, access the underlying validator engine:
+
+```go
+import "github.com/zatrano/framework/pkg/validation"
+
+engine := validation.Default()
+engine.Validator() // *validator.Validate from go-playground/validator
+
+// Validate any struct programmatically (without Fiber context)
+if verr := engine.ValidateStruct(myStruct, "en"); verr != nil {
+    for _, fe := range verr.Errors {
+        fmt.Printf("%s: %s\n", fe.Field, fe.Message)
+    }
+}
+```
+
+---
+
+## Authorization (RBAC & Gate/Policy)
+
+ZATRANO provides a **complete authorization system** with two complementary layers: **RBAC** (role-based, DB-backed) for permission checks and **Gate/Policy** (resource-based) for fine-grained instance-level authorization. Both integrate with the **i18n** system for localized 403 error messages.
+
+### RBAC — Role-Based Access Control
+
+Roles and permissions are stored in the database (`roles`, `permissions`, `role_permissions`, `zatrano_user_roles` tables). An in-memory cache avoids DB hits on hot-path permission checks. The `RBACManager` is initialized automatically during bootstrap (when DB is available) and accessible via `app.RBAC`.
+
+```go
+import "github.com/zatrano/framework/pkg/auth"
+
+// Create roles and permissions
+rbac := app.RBAC
+rbac.CreateRole(ctx, "admin", "Administrator")
+rbac.CreateRole(ctx, "editor", "Content editor")
+rbac.CreatePermission(ctx, "posts.create", "Create posts")
+rbac.CreatePermission(ctx, "posts.update", "Update posts")
+rbac.CreatePermission(ctx, "posts.delete", "Delete posts")
+
+// Assign permissions to roles
+rbac.AssignPermissions(ctx, "admin", "posts.create", "posts.update", "posts.delete")
+rbac.AssignPermissions(ctx, "editor", "posts.create", "posts.update")
+
+// Assign roles to users
+rbac.AssignRoleToUser(ctx, userID, "editor")
+
+// Check permissions
+ok, _ := rbac.UserHasPermission(ctx, userID, "posts.create") // true
+ok, _ = rbac.UserHasPermission(ctx, userID, "posts.delete")  // false (editor can't delete)
+```
+
+**Database migration:** run `zatrano db migrate` — migration `000002_zatrano_rbac` creates the four required tables with proper indexes and foreign keys.
+
+### Gate / Policy — Resource-Based Authorization
+
+The `Gate` system (accessible via `app.Gate`) allows defining authorization checks for specific actions. Use `Define` for ad-hoc checks or `RegisterPolicy` for structured CRUD policies.
+
+```go
+import "github.com/zatrano/framework/pkg/auth"
+
+// Ad-hoc gate definition
+gate := app.Gate
+gate.Define("edit-post", func(c fiber.Ctx, resource any) bool {
+    post := resource.(*Post)
+    userID, _ := c.Locals(middleware.LocalsUserID).(uint)
+    return post.AuthorID == userID
+})
+
+// Super-admin bypass (runs before every gate check)
+gate.Before(func(c fiber.Ctx, ability string, resource any) *bool {
+    roles, _ := c.Locals(middleware.LocalsUserRoles).([]string)
+    for _, r := range roles {
+        if r == "super-admin" { t := true; return &t }
+    }
+    return nil // fall through to gate definition
+})
+
+// In handlers:
+if err := gate.Authorize(c, "edit-post", post); err != nil {
+    return err // 403 Forbidden
+}
+```
+
+**Policy interface:** implement `auth.Policy` for structured CRUD authorization. Generate stubs with `zatrano gen policy`:
+
+```bash
+zatrano gen policy post
+# → modules/post/policies/post_policy.go
+```
+
+The generated policy implements 7 methods: `ViewAny`, `View`, `Create`, `Update`, `Delete`, `ForceDelete`, `Restore`. Register it with the gate:
+
+```go
+import "myapp/modules/post/policies"
+
+gate.RegisterPolicy("post", &policies.PostPolicy{})
+// Creates: "post.viewAny", "post.view", "post.create", "post.update",
+//          "post.delete", "post.forceDelete", "post.restore"
+```
+
+### Route-Level Authorization Middleware
+
+The `pkg/middleware` package provides ready-to-use middleware for route-level permission and role checks. All return **403 JSON** with **i18n-aware** error messages.
+
+| Middleware | Description |
+|---|---|
+| `middleware.Can(rbac, "perm")` | Requires the user to have a specific permission |
+| `middleware.CanAny(rbac, "p1", "p2")` | Passes if the user has **any** of the listed permissions |
+| `middleware.CanAll(rbac, "p1", "p2")` | Passes only if the user has **all** listed permissions |
+| `middleware.HasRole("admin")` | Requires a specific role |
+| `middleware.HasAnyRole("admin", "editor")` | Passes if the user has **any** of the listed roles |
+| `middleware.GateAllows(gate, "ability")` | Checks a gate ability (without resource) |
+| `middleware.InjectRoles(rbac)` | Loads user roles into Locals (place after auth middleware) |
+
+```go
+import "github.com/zatrano/framework/pkg/middleware"
+
+// After authentication middleware:
+app.Use(security.JWTMiddleware(cfg))
+app.Use(middleware.InjectRoles(rbac))  // loads roles into context
+
+// Permission-based
+app.Get("/admin/users", middleware.Can(rbac, "users.view"), usersHandler)
+app.Post("/posts", middleware.Can(rbac, "posts.create"), createPostHandler)
+app.Delete("/system", middleware.CanAll(rbac, "system.admin", "system.delete"), handler)
+
+// Role-based
+app.Get("/dashboard", middleware.HasAnyRole("admin", "editor"), dashHandler)
+
+// Gate-based
+app.Get("/posts", middleware.GateAllows(gate, "post.viewAny"), listPostsHandler)
+```
+
+### 403 Error Response Format
+
+When authorization fails, the response follows the standard JSON error shape:
+
+```json
+{
+  "error": {
+    "code": 403,
+    "message": "You do not have permission to perform this action.",
+    "permission": "posts.delete"
+  }
+}
+```
+
+When i18n is enabled and the request locale is `tr`:
+
+```json
+{
+  "error": {
+    "code": 403,
+    "message": "Bu işlemi gerçekleştirme yetkiniz bulunmamaktadır.",
+    "permission": "posts.delete"
+  }
+}
+```
+
+### i18n Authorization Messages
+
+Authorization messages are stored under the `auth.*` key namespace in locale files:
+
+```json
+{
+  "auth": {
+    "forbidden": "You do not have permission to perform this action.",
+    "unauthorized": "Authentication is required to access this resource.",
+    "role_required": "You do not have the required role to access this resource.",
+    "permission_required": "You do not have the required permission: {{.Permission}}."
+  }
+}
+```
+
+---
+
+### Internationalization (`i18n`)
+
+Application UI copy lives in **JSON** files under **`locales_dir`**, one file per locale: **`{locales_dir}/{tag}.json`** (e.g. `locales/en.json`). Nested objects are flattened to **dot keys** (`app.welcome`).
+
+- **Config:** `i18n.enabled`, `i18n.default_locale`, `i18n.supported_locales`, `i18n.locales_dir`, optional `i18n.cookie_name` (default `zatrano_lang`), `i18n.query_key` (default `lang`). When **`i18n.enabled`** is true, **`locales_dir`** must exist on disk (validated at config load).
+- **Resolution order:** query (`?lang=`), cookie, **`Accept-Language`**, then **`default_locale`**.
+- **Handlers:** `import "github.com/zatrano/zatrano/pkg/i18n"` — **`i18n.T(c, "app.welcome")`** for static strings; **`i18n.Tf(c, "app.hello_user", map[string]any{"Name": userName})`** (or any struct) for **`text/template`** placeholders such as **`{{.Name}}`** in JSON. For **`map`** data, simple `{{.Field}}` segments are rewritten automatically; use **`Bundle.Format(locale, key, data)`** without Fiber. If i18n is off, **`T`** / **`Tf`** return the key unchanged ( **`Tf`** also returns **`nil`** error).
+- **GET /** includes an **`i18n`** object (`enabled`, and when on: `default_locale`, `supported_locales`, **`active_locale`** for the current request).
+- **Validation messages** are automatically resolved from `validation.*` keys when i18n is enabled (see [Validation](#validation)).
+
+---
+
+## Configuration
+
+- **`.env`**, **`config/{env}.yaml`**, **`ZATRANO_*`** (nested keys use underscores, e.g. `ZATRANO_SECURITY_JWT_SECRET`). For **lists** (e.g. multiple CORS origins or **`supported_locales`**), prefer **YAML**; env overrides for slices vary by shell.
+- Key fields: `migrations_dir`, `seeds_dir`, `openapi_path`, **`http.*`**, **`i18n.*`**, `security.*`, `oauth.*` (see `config/examples/dev.yaml`).
+- Debug: **`zatrano config print`** (full dump, redacted) or **`zatrano config print --paths-only`** (env, cwd, profile path, dirs — safe to paste in chat).
+- CI: **`zatrano config validate -q`** (fast YAML/env checks), then **`zatrano openapi validate --merged`**, or **`zatrano verify`** for the full gate (see Development).
+
+---
+
+## Development
+
+```bash
+go test ./... -count=1
+go fmt ./...
+go vet ./...
+golangci-lint run   # when installed
+```
+
+**One-shot gate:** `zatrano verify` (or **`make verify`** on POSIX) runs `vet`, `test`, and merged OpenAPI validation. **`make verify-race`** / **`zatrano verify --race`** before release builds (slower; catches data races). **`make config-validate`** mirrors **`zatrano config validate`**.
+
+**Live reload:** install [Air](https://github.com/air-verse/air), then `air` (uses `.air.toml`). On Windows the binary is `./tmp/main.exe`.
+
+**Merged OpenAPI file:** `make openapi-export` (POSIX Make) or `go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml`.
+
+**Environment check:** `zatrano doctor` prints config summary, **`http` middleware** (CORS, rate limit, timeout, body limit) and a pointer to **`config print --paths-only`**, **OAuth** when enabled, **`pg_dump` / `pg_restore` / `psql`** PATH resolution for backup/restore, then connectivity probes.
+
+**Generate code:** `gen module` / `gen crud` patch **`zatrano:wire:*`** markers and run **`go fmt`** on the wire file. **`gen wire`** does the same patch without regenerating `modules/` (e.g. after **`--skip-wire`**). **`gen request`** generates form request struct stubs independently. **`gen policy`** generates an `auth.Policy` implementation with CRUD methods (ViewAny, View, Create, Update, Delete, ForceDelete, Restore). **Apps:** `internal/routes/register.go`. **Framework checkout:** `pkg/server/register_modules.go`.
+
+**Embedding the server:** `server.Mount(app, fiberApp, server.MountOptions{RegisterRoutes: …})`; `zatrano.StartOptions.RegisterRoutes` passes through for generated apps.
+
+---
+
+## Documentation
+
+- **English:** this file (`README.md`)
+- **Türkçe:** [`README.tr.md`](README.tr.md)
+
+Keep both in sync when adding or changing features.
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. For any behavior or CLI change, update **both** `README.md` and `README.tr.md` in the same change.
+
+---
+
+## License
+
+To be determined.
