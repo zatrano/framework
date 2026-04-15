@@ -11,6 +11,7 @@ import (
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
 	"github.com/zatrano/framework/pkg/i18n"
+	"github.com/zatrano/framework/pkg/queue"
 )
 
 // App is the root application container.
@@ -36,4 +37,7 @@ type App struct {
 
 	// Cache is the application cache manager (memory or Redis driver).
 	Cache *cache.Manager
+
+	// Queue is the background job queue manager (Redis-backed).
+	Queue *queue.Manager
 }

@@ -22,6 +22,7 @@
 - [Validation (Doğrulama)](#validation-doğrulama)
 - [Yetkilendirme (RBAC & Gate/Policy)](#yetkilendirme-rbac--gatepolicy)
 - [Cache Sistemi (Önbellek)](#cache-sistemi-önbellek)
+- [Kuyruk / Job Sistemi](#kuyruk--job-sistemi)
 - [Uluslararasılaştırma (i18n)](#uluslararasılaştırma-i18n)
 - [Yapılandırma](#yapılandırma)
 - [Geliştirme](#geliştirme)
@@ -38,10 +39,11 @@
 | API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
 | Kimlik | **Oturum (Redis) + CSRF**; `/api/v1/private/*` için **JWT**; **OAuth2** (Google/GitHub) tarayıcı girişi; **RBAC** (rol→izin, DB destekli); **Gate/Policy** (kaynak bazlı yetkilendirme) |
 | Veri | GORM + **`db migrate` / `rollback` / `seed`** + **`db backup` / `restore`** (`pg_dump` / `pg_restore` / `psql` PATH'te olmalı) |
+| Kuyruk | **Redis tabanlı** job kuyruğu, geciktirilmiş joblar (ZADD), otomatik retry + üssel geri çekilme, başarısız joblar (PostgreSQL) |
 | Operasyon | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`cache`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, `serve`, `db`, **`cache`**, **`queue`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Şu an hazır:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (isteğe **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, geciktirilmiş joblar, retry, failed jobs, worker), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, istek süresi, gövde boyutu), **`i18n`** (JSON yereller + Fiber yardımcıları), **validation** (generic `Validate[T]`, i18n hata mesajları, özel kurallar, form request'ler), **yetkilendirme** (RBAC rol→izin, Gate/Policy, `middleware.Can`, i18n 403), Redis + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -49,7 +51,7 @@
 
 | Yol | Amaç |
 |-----|------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Genel API** — uygulamalar import eder |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI ve üreticiler** — uygulama import etmez |
 
 Üretilen projeler **`zatrano.Start`** + **`RegisterRoutes: routes.Register`** (`internal/routes/register.go`) veya ek rota yoksa **`zatrano.Run()`** kullanır.
@@ -127,11 +129,16 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen crud <name>` | CRUD + **form request struct'ları** (`requests/`) + **`RegisterCRUD`** wire + **`go fmt`** (aynı bayraklar) |
 | `zatrano gen request <name>` | Yalnızca form request struct'ları üret (`modules/<name>/requests/create_*.go`, `update_*.go`) |
 | `zatrano gen policy <name>` | Yetkilendirme policy stub'ı üret (`modules/<name>/policies/<name>_policy.go`) — `auth.Policy` arayüzünü CRUD metotlarıyla implemente eder |
+| `zatrano gen job <name>` | Kuyruk job stub'ı üret (`modules/jobs/<name>.go`) — `queue.Job` arayüzünü Handle, Retries, Timeout ile implemente eder |
 | `zatrano gen wire <name>` | Sadece wire (dosya üretmez); `register.go` / `crud_register.go` varlığına göre (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate` | Tek dosya veya **`--merged`** (canlı `/openapi.yaml` ile aynı; `--base`, isteğe konumsal argüman) |
 | `zatrano openapi export` | Birleşik YAML yaz (`--base`, `--output` veya `-` stdout) |
 | `zatrano jwt sign` | Test JWT üret (`--sub`, `--secret`, config bayrakları) |
 | `zatrano cache clear` | Önbelleği temizle veya belirli tag'leri sil (`--tag`) |
+| `zatrano queue work` | Kuyruk worker süreci başlat (`--queue`, `--tries`, `--timeout`, `--sleep`) |
+| `zatrano queue failed` | Başarısız jobları listele |
+| `zatrano queue retry [id]` | Başarısız jobı yeniden gönder veya `--all` |
+| `zatrano queue flush` | Tüm başarısız job kayıtlarını sil |
 | `zatrano completion …` | Kabuk tamamlama |
 | `zatrano verify` | **`go vet` + `go test` + birleşik OpenAPI** (PR/CI; yarış için **`--race`**; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Sürüm (ayrıca **`zatrano --version`**) |
@@ -599,6 +606,116 @@ zatrano cache clear
 # Sadece belirli tag'leri sil
 zatrano cache clear --tag users --tag posts
 ```
+
+---
+
+## Kuyruk / Job Sistemi
+
+ZATRANO, geciktirilmiş zamanlama, otomatik yeniden deneme ve üssel geri çekilme (exponential backoff) ve başarısız job’ların PostgreSQL’de saklanmasıyla **Redis tabanlı bir arkaplan job kuyruğu** sunar.
+
+### Job Tanımlama
+
+`queue.Job` arayüzünü implemente edin veya varsayılan değerler için `queue.BaseJob` gömün:
+
+```go
+package jobs
+
+import (
+    "context"
+    "time"
+    "github.com/zatrano/framework/pkg/queue"
+)
+
+type EpostaGonderJob struct {
+    queue.BaseJob
+    Kime    string `json:"kime"`
+    Konu    string `json:"konu"`
+    Icerik  string `json:"icerik"`
+}
+
+func (j *EpostaGonderJob) Name() string            { return "eposta_gonder" }
+func (j *EpostaGonderJob) Queue() string           { return "epostalar" }
+func (j *EpostaGonderJob) Retries() int            { return 5 }
+func (j *EpostaGonderJob) Timeout() time.Duration  { return 30 * time.Second }
+
+func (j *EpostaGonderJob) Handle(ctx context.Context) error {
+    // e-postayı gönder...
+    return mailer.Send(ctx, j.Kime, j.Konu, j.Icerik)
+}
+```
+
+CLI ile job stub'ı üretin:
+
+```bash
+zatrano gen job eposta_gonder
+# → modules/jobs/eposta_gonder.go
+```
+
+### Job Gönderme (Dispatch)
+
+```go
+// Uygulama başlangıcında job türlerini kaydedin
+app.Queue.Register("eposta_gonder", func() queue.Job { return &jobs.EpostaGonderJob{} })
+
+// Hemen gönder
+app.Queue.Dispatch(ctx, &jobs.EpostaGonderJob{
+    Kime:   "kullanici@example.com",
+    Konu:   "Hoş geldiniz!",
+    Icerik: "Merhaba dünya",
+})
+
+// Gecikmeli gönder (Redis ZADD sorted set)
+app.Queue.Later(ctx, 5*time.Minute, &jobs.EpostaGonderJob{
+    Kime: "kullanici@example.com",
+    Konu: "Takip",
+})
+```
+
+### Worker Süreci
+
+Kuyruktan jobları işleyen uzun çalışan bir worker başlatın:
+
+```bash
+zatrano queue work
+zatrano queue work --queue epostalar --queue bildirimler
+zatrano queue work --tries 5 --timeout 120s --sleep 5s
+```
+
+Worker otomatik olarak:
+- Redis BRPOP ile FIFO sırasında polllar
+- Geciktirilmiş jobları her saniye taşır (ZADD → LPUSH)
+- Başarısız jobları **üssel geri çekilme** ile yeniden dener (2^deneme saniye)
+- Kalıcı olarak başarısız jobları `zatrano_failed_jobs` PostgreSQL tablosuna kaydeder
+- `Handle()` içindeki panic’lerden kurtulur
+- SIGINT/SIGTERM ile düzgün kapanır
+
+### Başarısız Joblar
+
+Maksimum yeniden deneme sayısını aşan joblar, hata mesajı, stack trace ve orijinal payload ile PostgreSQL’e kaydedilir.
+
+```bash
+# Başarısız jobları listele
+zatrano queue failed
+
+# Belirli bir başarısız jobı yeniden dene
+zatrano queue retry 42
+
+# Tüm başarısız jobları yeniden dene
+zatrano queue retry --all
+
+# Tüm başarısız job kayıtlarını sil
+zatrano queue flush
+```
+
+**Veritabanı migration:** `zatrano db migrate` çalıştırın — `000003_zatrano_failed_jobs` migration’ı gerekli tabloyu oluşturur.
+
+### Kuyruk Mimarisi
+
+| Bileşen | Redis Yapısı | Amaç |
+|---|---|---|
+| Hazır kuyruk | `LIST` (LPUSH/BRPOP) | FIFO job işleme |
+| Geciktirilmiş joblar | `SORTED SET` (ZADD) | Zaman bazlı zamanlama |
+| Başarısız joblar | PostgreSQL tablosu | Kalıcı hata kayıtları |
 
 ---
 

@@ -19,6 +19,7 @@ import (
 	"github.com/zatrano/framework/pkg/cache"
 	"github.com/zatrano/framework/pkg/config"
 	"github.com/zatrano/framework/pkg/i18n"
+	"github.com/zatrano/framework/pkg/queue"
 	"github.com/zatrano/framework/pkg/validation"
 )
 
@@ -91,6 +92,11 @@ func Bootstrap(cfg *config.Config) (*App, error) {
 		app.Cache = cache.New(cache.NewRedisDriver(app.Redis))
 	} else {
 		app.Cache = cache.New(cache.NewMemoryDriver())
+	}
+
+	// Initialise Queue. Requires Redis.
+	if app.Redis != nil {
+		app.Queue = queue.New(queue.NewRedisDriver(app.Redis))
 	}
 
 	return app, nil

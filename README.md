@@ -22,6 +22,7 @@
 - [Validation](#validation)
 - [Authorization (RBAC & Gate/Policy)](#authorization-rbac--gatepolicy)
 - [Cache System](#cache-system)
+- [Queue / Job System](#queue--job-system)
 - [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -38,11 +39,12 @@
 | API | REST + **OpenAPI 3** (`api/openapi.yaml`, `/docs`, `/openapi.yaml`) |
 | Auth | **Session (Redis) + CSRF**; **JWT** for `/api/v1/private/*`; **OAuth2** (Google/GitHub) browser login; **RBAC** (role→permission, DB-backed); **Gate/Policy** (resource-based authorization) |
 | Cache | **Memory / Redis** drivers, **Tag-based** invalidation, **Middleware** support |
+| Queue | **Redis-backed** job queue, delayed jobs (ZADD), auto retry + exponential backoff, failed jobs (PostgreSQL) |
 | Data | GORM + **`zatrano db migrate` / `rollback`** + **`db seed`** + **`db backup` / `restore`** (needs `pg_dump` / `pg_restore` / `psql` on PATH) |
 | Ops | `/health`, `/ready`, `/status` |
-| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, `serve`, `db`, **`cache`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
+| CLI | **`new`**, **`gen module`**, **`gen crud`**, **`gen request`**, **`gen policy`**, **`gen job`**, `serve`, `db`, **`cache`**, **`queue`**, **`openapi export`**, `openapi validate`, **`jwt sign`**, … |
 
-**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
+**Implemented now:** `serve`, `doctor`, **`routes`**, **`config print`**, **`config validate`**, **`verify`** (optional **`--race`**), `completion`, `version` / **`--version`**, **`new`**, **`gen module`** + **`gen crud`** + **`gen request`** + **`gen policy`** + **`gen job`** + **`gen wire`**, **`db`**, **`cache`** (Memory/Redis, Tags, middleware), **`queue`** (Redis FIFO, delayed jobs, retry, failed jobs, worker), **`openapi validate`** + **`openapi export`**, **`jwt sign`**, **OAuth2**, **`http.*`** (CORS, rate limit, request timeout, body limit), **`i18n`** (JSON locales + Fiber helpers), **validation** (generic `Validate[T]`, i18n errors, custom rules, form requests), **authorization** (RBAC role→permission, Gate/Policy, `middleware.Can`, i18n 403), Redis session + CSRF, JWT, Scalar **`/docs`**, **Air** (`.air.toml`).
 
 ---
 
@@ -50,7 +52,7 @@
 
 | Path | Purpose |
 |------|---------|
-| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
+| `pkg/config`, `pkg/core`, `pkg/server`, `pkg/health`, `pkg/middleware`, `pkg/security`, `pkg/auth`, `pkg/cache`, `pkg/queue`, `pkg/oauth`, `pkg/openapi`, `pkg/i18n`, `pkg/validation`, `pkg/zatrano`, `pkg/meta` | **Public** — use from your apps |
 | `internal/cli`, `internal/db`, `internal/gen` | **CLI & generators** — not imported by apps |
 
 Generated apps use **`zatrano.Start`** with **`RegisterRoutes: routes.Register`** (see `internal/routes/register.go`) or **`zatrano.Run()`** when you do not inject routes.
@@ -128,11 +130,16 @@ go run ./cmd/zatrano openapi export --output api/openapi.merged.yaml
 | `zatrano gen crud <name>` | Add CRUD stubs + **form request structs** (`requests/`); **wires** `RegisterCRUD` + **`go fmt`** (same flags) |
 | `zatrano gen request <name>` | Generate form request structs only (`modules/<name>/requests/create_*.go`, `update_*.go`) |
 | `zatrano gen policy <name>` | Generate authorization policy stub (`modules/<name>/policies/<name>_policy.go`) implementing `auth.Policy` with CRUD methods |
+| `zatrano gen job <name>` | Generate queue job stub (`modules/jobs/<name>.go`) implementing `queue.Job` with Handle, Retries, Timeout |
 | `zatrano gen wire <name>` | **Wire only** (no overwrite); picks `Register` / `RegisterCRUD` from existing files (`--register-only`, `--crud-only`) |
 | `zatrano openapi validate [path]` | Validate one file, or **`--merged`** (same as live `/openapi.yaml`; `--base`, optional positional overrides base) |
 | `zatrano openapi export` | Write merged YAML (`--base`, `--output` or `-` for stdout) |
 | `zatrano jwt sign` | Print HS256 token (`--sub`, `--secret`, config flags) |
 | `zatrano cache clear` | Clear all cache or specific tags (`--tag`) |
+| `zatrano queue work` | Start queue worker process (`--queue`, `--tries`, `--timeout`, `--sleep`) |
+| `zatrano queue failed` | List failed jobs |
+| `zatrano queue retry [id]` | Retry a failed job or `--all` |
+| `zatrano queue flush` | Delete all failed jobs |
 | `zatrano completion …` | Shell completions |
 | `zatrano verify` | **`go vet` + `go test` + merged OpenAPI** (PR/CI; `--race` for data races; `--no-vet`, `--no-test`, `--no-openapi`, `--module-root`) |
 | `zatrano version` | Version string (also **`zatrano --version`**) |
@@ -600,6 +607,116 @@ zatrano cache clear
 # Clear specific tags
 zatrano cache clear --tag users --tag posts
 ```
+
+---
+
+## Queue / Job System
+
+ZATRANO provides a **Redis-backed background job queue** with delayed scheduling, automatic retry with exponential backoff, and failed job persistence to PostgreSQL.
+
+### Defining Jobs
+
+Implement the `queue.Job` interface or embed `queue.BaseJob` for sensible defaults:
+
+```go
+package jobs
+
+import (
+    "context"
+    "time"
+    "github.com/zatrano/framework/pkg/queue"
+)
+
+type SendEmailJob struct {
+    queue.BaseJob
+    To      string `json:"to"`
+    Subject string `json:"subject"`
+    Body    string `json:"body"`
+}
+
+func (j *SendEmailJob) Name() string            { return "send_email" }
+func (j *SendEmailJob) Queue() string           { return "emails" }
+func (j *SendEmailJob) Retries() int            { return 5 }
+func (j *SendEmailJob) Timeout() time.Duration  { return 30 * time.Second }
+
+func (j *SendEmailJob) Handle(ctx context.Context) error {
+    // send the email...
+    return mailer.Send(ctx, j.To, j.Subject, j.Body)
+}
+```
+
+Generate job stubs with the CLI:
+
+```bash
+zatrano gen job send_email
+# → modules/jobs/send_email.go
+```
+
+### Dispatching Jobs
+
+```go
+// Register job types at startup
+app.Queue.Register("send_email", func() queue.Job { return &jobs.SendEmailJob{} })
+
+// Dispatch immediately
+app.Queue.Dispatch(ctx, &jobs.SendEmailJob{
+    To:      "user@example.com",
+    Subject: "Welcome!",
+    Body:    "Hello world",
+})
+
+// Dispatch with delay (Redis ZADD sorted set)
+app.Queue.Later(ctx, 5*time.Minute, &jobs.SendEmailJob{
+    To:      "user@example.com",
+    Subject: "Follow-up",
+})
+```
+
+### Worker Process
+
+Start a long-running worker that processes jobs from the queue:
+
+```bash
+zatrano queue work
+zatrano queue work --queue emails --queue notifications
+zatrano queue work --tries 5 --timeout 120s --sleep 5s
+```
+
+The worker automatically:
+- Polls Redis using BRPOP (FIFO order)
+- Migrates delayed jobs (ZADD → LPUSH) every second
+- Retries failed jobs with **exponential backoff** (2^attempt seconds)
+- Records permanently failed jobs in the `zatrano_failed_jobs` PostgreSQL table
+- Recovers from panics inside `Handle()`
+- Shuts down gracefully on SIGINT/SIGTERM
+
+### Failed Jobs
+
+Jobs that exceed their maximum retry count are saved to PostgreSQL with error message, stack trace, and original payload.
+
+```bash
+# List failed jobs
+zatrano queue failed
+
+# Retry a specific failed job
+zatrano queue retry 42
+
+# Retry all failed jobs
+zatrano queue retry --all
+
+# Delete all failed job records
+zatrano queue flush
+```
+
+**Database migration:** run `zatrano db migrate` — migration `000003_zatrano_failed_jobs` creates the required table.
+
+### Queue Architecture
+
+| Component | Redis Structure | Purpose |
+|---|---|---|
+| Ready queue | `LIST` (LPUSH/BRPOP) | FIFO job processing |
+| Delayed jobs | `SORTED SET` (ZADD) | Time-based scheduling |
+| Failed jobs | PostgreSQL table | Persistent failure records |
 
 ---
 
