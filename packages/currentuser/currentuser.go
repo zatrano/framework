@@ -18,6 +18,7 @@ const (
 type CurrentUser struct {
 	ID         uint
 	Email      string
+	Name       string
 	UserTypeID uint
 }
 
@@ -43,6 +44,7 @@ func FromFiber(c fiber.Ctx) CurrentUser {
 		return CurrentUser{
 			ID:         convertToUint(au["ID"]),
 			Email:      convertToString(au["Email"]),
+			Name:       convertToString(au["Name"]),
 			UserTypeID: convertToUint(au["UserTypeID"]),
 		}
 	}
@@ -50,6 +52,7 @@ func FromFiber(c fiber.Ctx) CurrentUser {
 		return CurrentUser{
 			ID:         convertToUint(au["ID"]),
 			Email:      convertToString(au["Email"]),
+			Name:       convertToString(au["Name"]),
 			UserTypeID: convertToUint(au["UserTypeID"]),
 		}
 	}
@@ -59,10 +62,11 @@ func FromFiber(c fiber.Ctx) CurrentUser {
 	if rv.Kind() == reflect.Struct {
 		idField := rv.FieldByName("ID")
 		emailField := rv.FieldByName("Email")
+		nameField := rv.FieldByName("Name")
 		userTypeIDField := rv.FieldByName("UserTypeID")
 		if idField.IsValid() {
 			var id, userTypeID uint
-			var email string
+			var email, name string
 			switch idField.Kind() {
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				id = uint(idField.Uint())
@@ -72,6 +76,9 @@ func FromFiber(c fiber.Ctx) CurrentUser {
 			if emailField.IsValid() && emailField.Kind() == reflect.String {
 				email = emailField.String()
 			}
+			if nameField.IsValid() && nameField.Kind() == reflect.String {
+				name = nameField.String()
+			}
 			if userTypeIDField.IsValid() {
 				switch userTypeIDField.Kind() {
 				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -80,7 +87,7 @@ func FromFiber(c fiber.Ctx) CurrentUser {
 					userTypeID = uint(userTypeIDField.Int())
 				}
 			}
-			return CurrentUser{ID: id, Email: email, UserTypeID: userTypeID}
+			return CurrentUser{ID: id, Email: email, Name: name, UserTypeID: userTypeID}
 		}
 	}
 	return CurrentUser{}

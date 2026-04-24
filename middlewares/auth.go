@@ -14,6 +14,7 @@ import (
 type AuthUser struct {
 	ID            uint
 	Email         string
+	Name          string
 	UserTypeID    uint
 	IsActive      bool
 	EmailVerified bool
@@ -62,6 +63,7 @@ func AuthMiddleware(authService services.IAuthService) fiber.Handler {
 		authUser := AuthUser{
 			ID:            user.ID,
 			Email:         user.Email,
+			Name:          user.Name,
 			UserTypeID:    user.UserTypeID,
 			IsActive:      user.IsActive,
 			EmailVerified: user.EmailVerified,
@@ -76,6 +78,7 @@ func AuthMiddleware(authService services.IAuthService) fiber.Handler {
 		cu := currentuser.CurrentUser{
 			ID:         user.ID,
 			Email:      user.Email,
+			Name:       user.Name,
 			UserTypeID: user.UserTypeID,
 		}
 		c.Locals("currentUser", cu)

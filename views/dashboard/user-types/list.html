@@ -1,164 +1,113 @@
-<div class="row">
-    <div class="col-12">
-        <div class="card card-primary card-outline mb-4">
-            <div class="card-header d-flex align-items-center">
-                <h3 class="card-title mb-0">Kullanıcı Türü Listesi</h3>
-                <div class="ms-auto d-flex gap-2">
-                    <button class="btn btn-warning btn-sm" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
-                        <i class="bi bi-funnel"></i> Filtrele
-                    </button>
-                    <a href="/dashboard/user-types/create" class="btn btn-primary btn-sm">
-                        <i class="bi bi-plus"></i> Yeni Ekle
-                    </a>
-                </div>
+<div class="at-page">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">{{.Title}}</h1>
+            <div class="at-breadcrumb">
+                <a href="/dashboard/home">Ana sayfa</a>
+                <i class="bi bi-chevron-right"></i>
+                <span>Kullanıcı türleri</span>
+                <i class="bi bi-chevron-right"></i>
+                <span>Liste</span>
             </div>
-
-            <div class="collapse" id="filterCollapse">
-                <div class="card-body border-bottom pb-3 mb-0 bg-light">
-                    <div class="border rounded bg-white shadow-sm p-4">
-                        <form action="/dashboard/user-types" method="GET">
-                            <div class="row mb-4">
-                                <div class="col-xl-6 col-lg-6 col-md-6">
-                                    <input type="text" class="form-control" name="name" value="{{ .Params.Name }}"
-                                        placeholder="Kullanıcı tipi ara...">
-                                </div>
-
-                                <div class="col-xl-6 col-lg-6 col-md-6">
-                                    <select class="form-select" name="is_active">
-                                        <option value="">Tüm Durumlar</option>
-                                        <option value="true" {{ if eq .Params.IsActive "true" }}selected{{ end }}>Aktif
-                                        </option>
-                                        <option value="false" {{ if eq .Params.IsActive "false" }}selected{{ end }}>
-                                            Pasif</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row g-3 align-items-end">
-                                <div class="col-xl-2 col-lg-4 col-md-6">
-                                    <label class="form-label small text-muted mb-1">Sırala</label>
-                                    <select class="form-select" name="sortBy">
-                                        <option value="id" {{ if eq .Params.SortBy "id" }}selected{{ end }}>ID</option>
-                                        <option value="name" {{ if eq .Params.SortBy "name" }}selected{{ end }}>Ad
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="col-xl-2 col-lg-4 col-md-6">
-                                    <label class="form-label small text-muted mb-1">Yön</label>
-                                    <select class="form-select" name="orderBy">
-                                        <option value="asc" {{ if eq .Params.OrderBy "asc" }}selected{{ end }}>Artan
-                                        </option>
-                                        <option value="desc" {{ if eq .Params.OrderBy "desc" }}selected{{ end }}>Azalan
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="col-xl-2 col-lg-4 col-md-6">
-                                    <label class="form-label small text-muted mb-1">Kayıt</label>
-                                    <select class="form-select" name="perPage">
-                                        <option value="20" {{ if eq .Params.PerPage 20 }}selected{{ end }}>20</option>
-                                        <option value="50" {{ if eq .Params.PerPage 50 }}selected{{ end }}>50</option>
-                                        <option value="100" {{ if eq .Params.PerPage 100 }}selected{{ end }}>100
-                                        </option>
-                                        <option value="200" {{ if eq .Params.PerPage 200 }}selected{{ end }}>200
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="col-xl-3 col-lg-6 col-md-6">
-                                    <label class="form-label small text-muted mb-1 d-block">&nbsp;</label>
-                                    <button type="submit" class="btn btn-primary w-100 py-2">
-                                        <i class="bi bi-funnel"></i> Filtrele
-                                    </button>
-                                </div>
-
-                                <div class="col-xl-3 col-lg-6 col-md-6">
-                                    <label class="form-label small text-muted mb-1 d-block">&nbsp;</label>
-                                    <a href="/dashboard/user-types" class="btn btn-secondary w-100 py-2">
-                                        <i class="bi bi-x-lg"></i> Temizle
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
+        </div>
+        <a href="/dashboard/user-types/create" class="btn-tpl-primary"><i class="bi bi-plus-lg"></i> Yeni ekle</a>
+    </div>
+    <div class="at-surface">
+        <div class="at-surface__head">
+            <h2 class="at-surface__title">Tüm kullanıcı türleri</h2>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse"><i class="bi bi-funnel"></i> Filtrele</button>
+        </div>
+        <div class="collapse" id="filterCollapse">
+            <div class="at-filter-collapse">
+                <form action="/dashboard/user-types" method="GET">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" name="name" value="{{.Params.Name}}" placeholder="Kullanıcı türü ara...">
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select" name="is_active">
+                                <option value="">Tüm durumlar</option>
+                                <option value="true" {{if eq .Params.IsActive "true"}}selected{{end}}>Aktif</option>
+                                <option value="false" {{if eq .Params.IsActive "false"}}selected{{end}}>Pasif</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-xl-2 col-md-4">
+                            <label class="form-label small">Sırala</label>
+                            <select class="form-select" name="sortBy">
+                                <option value="id" {{if eq .Params.SortBy "id"}}selected{{end}}>ID</option>
+                                <option value="name" {{if eq .Params.SortBy "name"}}selected{{end}}>Ad</option>
+                            </select>
+                        </div>
+                        <div class="col-xl-2 col-md-4">
+                            <label class="form-label small">Yön</label>
+                            <select class="form-select" name="orderBy">
+                                <option value="asc" {{if eq .Params.OrderBy "asc"}}selected{{end}}>Artan</option>
+                                <option value="desc" {{if eq .Params.OrderBy "desc"}}selected{{end}}>Azalan</option>
+                            </select>
+                        </div>
+                        <div class="col-xl-2 col-md-4">
+                            <label class="form-label small">Kayıt / sayfa</label>
+                            <select class="form-select" name="perPage">
+                                <option value="20" {{if eq .Params.PerPage 20}}selected{{end}}>20</option>
+                                <option value="50" {{if eq .Params.PerPage 50}}selected{{end}}>50</option>
+                                <option value="100" {{if eq .Params.PerPage 100}}selected{{end}}>100</option>
+                                <option value="200" {{if eq .Params.PerPage 200}}selected{{end}}>200</option>
+                            </select>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Uygula</button>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <a href="/dashboard/user-types" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg"></i> Temizle</a>
+                        </div>
+                    </div>
+                </form>
             </div>
-
-            <div class="card-body pt-0">
-                <div class="table-responsive" style="margin-top: 1rem;">
-                    <table class="table table-bordered table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="text-center" style="width: 60px">#</th>
-                                <th>Ad</th>
-                                <th class="text-center" style="width: 100px">Durum</th>
-                                <th class="text-center" style="width: 150px">İşlemler</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{ if .Result.Data }}
-                            {{ range .Result.Data }}
-                            <tr>
-                                <td class="text-center">{{ .ID }}</td>
-                                <td>{{ .Name }}</td>
-                                <td class="text-center">
-                                    {{ if .IsActive }}
-                                    <span class="badge bg-success">Aktif</span>
-                                    {{ else }}
-                                    <span class="badge bg-danger">Pasif</span>
-                                    {{ end }}
-                                </td>
-                                <td class="text-center d-flex flex-nowrap justify-content-center gap-1">
-                                    <a href="/dashboard/user-types/update/{{ .ID }}" class="btn btn-sm btn-warning">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger"
-                                        onclick="confirmDelete('{{ .ID }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {{ end }}
-                            {{ else }}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
-                                    Henüz kayıt bulunmuyor.
-                                </td>
-                            </tr>
-                            {{ end }}
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+        <div class="at-surface__body">
+            <div class="table-responsive">
+                <table class="at-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:60px">#</th>
+                            <th>Ad</th>
+                            <th class="text-center">Durum</th>
+                            <th class="text-center" style="width:120px">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{if .Result.Data}}{{range .Result.Data}}
+                        <tr>
+                            <td class="text-center text-muted small">{{.ID}}</td>
+                            <td class="fw-semibold">{{.Name}}</td>
+                            <td class="text-center">{{if .IsActive}}<span class="at-badge at-badge--success">Aktif</span>{{else}}<span class="at-badge at-badge--danger">Pasif</span>{{end}}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="/dashboard/user-types/update/{{.ID}}" class="btn-action" title="Düzenle"><i class="bi bi-pencil"></i></a>
+                                    <button type="button" class="btn-action delete" onclick="confirmDelete('{{.ID}}')" title="Sil"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}{{else}}
+                        <tr><td colspan="4" class="at-empty">Henüz kayıt yok.</td></tr>
+                        {{end}}
+                    </tbody>
+                </table>
             </div>
-
-            <div class="card-footer clearfix">
-                {{ template "pagination" . }}
-            </div>
+        </div>
+        <div class="at-surface__foot">
+            <span class="text-muted small"></span>
+            <div class="w-100 w-md-auto">{{template "pagination" .}}</div>
         </div>
     </div>
 </div>
-
 <script>
-    function confirmDelete(id) {
-        if (confirm('Bu kullanıcı tipini silmek istediğinize emin misiniz?')) {
-            fetch(`/dashboard/user-types/delete/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-Token': '{{ .CsrfToken }}',
-                    'Accept': 'application/json'
-                }
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Silme işlemi başarısız oldu.');
-                }
-            }).catch(error => {
-                console.error('Error:', error);
-                alert('Bir hata oluştu.');
-            });
-        }
+function confirmDelete(id) {
+    if (confirm('Bu kullanıcı tipini silmek istediğinize emin misiniz?')) {
+        fetch('/dashboard/user-types/delete/' + id, { method: 'DELETE', headers: { 'X-CSRF-Token': '{{.CsrfToken}}', 'Accept': 'application/json' }})
+            .then(r => { if (r.ok) location.reload(); else alert('Silinemedi.'); }).catch(() => alert('Hata.'));
     }
+}
 </script>

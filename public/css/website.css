@@ -1,0 +1,124 @@
+/* Genel site sayfaları (layouts/website) — panel şablonu renk paleti */
+:root {
+    --w-primary: #1a56db;
+    --w-text: #0f172a;
+    --w-muted: #64748b;
+    --w-border: #e2e8f0;
+    --w-bg: #f8fafc;
+    --w-card: #fff;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--w-bg);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--w-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Hata (404, 5xx) — site/error.html */
+.website-error {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    box-sizing: border-box;
+}
+
+.website-error__card {
+    width: 100%;
+    max-width: 460px;
+    background: var(--w-card);
+    border: 1px solid var(--w-border);
+    border-radius: 20px;
+    box-shadow: 0 4px 40px rgba(15, 23, 42, 0.06);
+    padding: 2.5rem 1.75rem 2.25rem;
+    text-align: center;
+}
+
+.website-error__brand {
+    font-size: 1.4rem;
+    line-height: 1.2;
+    color: var(--w-primary);
+    margin: 0 0 1.5rem;
+    display: block;
+}
+
+.website-error__code {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #94a3b8;
+    line-height: 1;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.04em;
+}
+
+.website-error__title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+    line-height: 1.35;
+    color: var(--w-text);
+}
+
+.website-error__text {
+    color: var(--w-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin: 0 0 1.75rem;
+}
+
+.website-error__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+@media (min-width: 420px) {
+    .website-error__actions {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+.btn-website {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.35rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 12px;
+    text-decoration: none;
+    font-family: inherit;
+    transition: filter 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
+    cursor: pointer;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+}
+
+.btn-website--primary {
+    background: linear-gradient(135deg, #1a56db 0%, #2563eb 100%);
+    color: #fff;
+    border: none;
+}
+
+.btn-website--primary:hover {
+    color: #fff;
+    filter: brightness(1.05);
+}
+
+.btn-website--ghost {
+    background: var(--w-card);
+    color: var(--w-primary);
+    border-color: var(--w-border);
+}
+
+.btn-website--ghost:hover {
+    background: #f1f5f9;
+    color: var(--w-primary);
+}

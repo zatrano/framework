@@ -1,77 +1,47 @@
-<div class="row">
-    <div class="col-12">
-        <div class="card dashboard-card">
-            <div class="card-header bg-transparent border-bottom" style="padding: 1.25rem 2rem;">
-                <h5 class="card-title mb-0" style="font-weight: 600; font-size: 1.2rem;">
-                    <i class="bi bi-geo-alt me-2"></i>Yeni Şehir Ekle
-                </h5>
+<div class="at-page">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">{{.Title}}</h1>
+            <div class="at-breadcrumb">
+                <a href="/dashboard/home">Ana sayfa</a>
+                <i class="bi bi-chevron-right"></i>
+                <a href="/dashboard/cities">Şehirler</a>
+                <i class="bi bi-chevron-right"></i>
+                <span>Yeni</span>
             </div>
-
-            <form method="POST" action="/dashboard/cities/create" novalidate>
-                <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
-
-                <div class="card-body" style="padding: 2rem;">
-
-                    <div class="mb-3">
-                        <label for="country_id" class="form-label">Ülke</label>
-                        <select name="country_id" id="country_id"
-                            class="form-select {{ if index .ValidationErrors "country_id" }}is-invalid{{ end }}" required>
-                            <option value="">Seçiniz</option>
-                            {{ range .Countries }}
-                            <option value="{{ .ID }}" {{ if eq (index $.FormData "country_id") (printf "%d" .ID) }}selected{{ end }}>{{ .Name }}</option>
-                            {{ end }}
-                        </select>
-                        {{ if index .ValidationErrors "country_id" }}
-                        <div class="invalid-feedback d-block">{{ index .ValidationErrors "country_id" }}</div>
-                        {{ else }}
-                        <div class="valid-feedback">Doğru!</div>
-                        {{ end }}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Şehir Adı</label>
-                        <input type="text" name="name" id="name"
-                            class="form-control {{ if index .ValidationErrors "name" }}is-invalid{{ end }}"
-                            value="{{ if .FormData }}{{ index .FormData "name" }}{{ end }}" required>
-                        {{ if index .ValidationErrors "name" }}
-                        <div class="invalid-feedback d-block">{{ index .ValidationErrors "name" }}</div>
-                        {{ else }}
-                        <div class="valid-feedback">Doğru!</div>
-                        {{ end }}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="is_active" class="form-label">Durum</label>
-                        <select name="is_active" id="is_active"
-                            class="form-select {{ if index .ValidationErrors "is_active" }}is-invalid{{ end }}" required>
-                            <option value="true" {{ if eq (index .FormData "is_active") "true" }}selected{{ end }}>Aktif</option>
-                            <option value="false" {{ if eq (index .FormData "is_active") "false" }}selected{{ end }}>Pasif</option>
-                        </select>
-                        {{ if index .ValidationErrors "is_active" }}
-                        <div class="invalid-feedback d-block">{{ index .ValidationErrors "is_active" }}</div>
-                        {{ else }}
-                        <div class="valid-feedback">Doğru!</div>
-                        {{ end }}
-                    </div>
-
-                </div>
-
-                <div class="card-footer">
-                    <div class="row">
-                        <div class="col-4">
-                            <a href="/dashboard/cities" class="btn btn-secondary w-100">
-                                <i class="bi bi-arrow-left"></i> Geri
-                            </a>
-                        </div>
-                        <div class="col-8">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-check-lg"></i> Kaydet
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-            </form>
         </div>
+    </div>
+    <div class="at-surface">
+        <div class="at-surface__head"><h2 class="at-surface__title"><i class="bi bi-geo-alt me-2"></i>Yeni şehir</h2></div>
+        <form method="POST" action="/dashboard/cities/create" novalidate>
+            <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
+            <div class="at-surface__body at-surface__body--padded">
+                <div class="at-form-group">
+                    <label class="at-form-label" for="country_id">Ülke <span class="at-required">*</span></label>
+                    <select id="country_id" name="country_id" class="form-select {{if index .ValidationErrors "country_id"}}is-invalid{{end}}" required>
+                        <option value="">Seçiniz</option>
+                        {{range .Countries}}<option value="{{.ID}}" {{if eq (index $.FormData "country_id") (printf "%d" .ID)}}selected{{end}}>{{.Name}}</option>{{end}}
+                    </select>
+                    {{if index .ValidationErrors "country_id"}}<div class="invalid-feedback d-block">{{index .ValidationErrors "country_id"}}</div>{{end}}
+                </div>
+                <div class="at-form-group">
+                    <label class="at-form-label" for="name">Şehir adı <span class="at-required">*</span></label>
+                    <input type="text" id="name" name="name" class="form-control {{if index .ValidationErrors "name"}}is-invalid{{end}}" value="{{if .FormData}}{{index .FormData "name"}}{{end}}" required>
+                    {{if index .ValidationErrors "name"}}<div class="invalid-feedback d-block">{{index .ValidationErrors "name"}}</div>{{end}}
+                </div>
+                <div class="at-form-group">
+                    <label class="at-form-label" for="is_active">Durum <span class="at-required">*</span></label>
+                    <select id="is_active" name="is_active" class="form-select {{if index .ValidationErrors "is_active"}}is-invalid{{end}}" required>
+                        <option value="true" {{if eq (index .FormData "is_active") "true"}}selected{{end}}>Aktif</option>
+                        <option value="false" {{if eq (index .FormData "is_active") "false"}}selected{{end}}>Pasif</option>
+                    </select>
+                    {{if index .ValidationErrors "is_active"}}<div class="invalid-feedback d-block">{{index .ValidationErrors "is_active"}}</div>{{end}}
+                </div>
+                <div class="at-form-actions">
+                    <a href="/dashboard/cities" class="btn-tpl-secondary"><i class="bi bi-x-lg"></i> İptal</a>
+                    <button type="submit" class="btn-tpl-primary"><i class="bi bi-check-lg"></i> Kaydet</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>

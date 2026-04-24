@@ -72,6 +72,20 @@
             box-shadow: 0 8px 24px rgba(26, 86, 219, 0.3);
         }
 
+        .auth-logo.auth-logo--wordmark {
+            width: auto;
+            min-width: 0;
+            height: auto;
+            padding: 0;
+            background: none;
+            box-shadow: none;
+            border-radius: 0;
+            color: var(--primary);
+            font-weight: 400;
+            font-size: 1.9rem;
+            line-height: 1.1;
+        }
+
         .auth-title {
             font-size: 26px;
             font-weight: 700;
@@ -87,6 +101,11 @@
 
         .form-group {
             margin-bottom: 22px;
+        }
+
+        /* Profil: yeni/şifre tekrar satırı ile “Şifreyi güncelle” arası */
+        .auth-card .profile-password-cta {
+            margin-top: 1.25rem;
         }
 
         .form-label {

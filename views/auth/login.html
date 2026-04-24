@@ -1,6 +1,3 @@
-{{$brand := "zatrano"}}
-{{if .DefinitionValues}}{{with index .DefinitionValues "app_name"}}{{$brand = .}}{{end}}{{end}}
-
 {{if .PendingVerification}}
 <div class="alert alert-warning shadow-sm border-0 mb-3" role="alert">
   <h5 class="alert-heading mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>E-posta Doğrulama Gerekli!</h5>
@@ -27,7 +24,7 @@
 
 <div class="auth-card">
   <div class="auth-header">
-    <div class="auth-logo">{{Initials2 $brand}}</div>
+    <div class="auth-logo auth-logo--wordmark zatrano-wordmark">ZATRANO</div>
     <h1 class="auth-title mb-0">{{.Title}}</h1>
     <p class="auth-subtitle mt-2">Hesabınıza erişmek için bilgilerinizi girin</p>
   </div>

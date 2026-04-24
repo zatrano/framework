@@ -1,0 +1,440 @@
+/* Dashboard liste / form sayfaları — user-list & user-add şablonları (yalnız .at-page içi) */
+.at-page {
+    --at-radius: 16px;
+    --at-radius-sm: 10px;
+}
+
+/* Üst başlık */
+.at-page .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.at-page .page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.at-page .at-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.at-page .at-breadcrumb a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.at-page .at-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+/* Kart (Bootstrap .card’dan ayrı) */
+.at-page .at-surface {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--at-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 0;
+}
+
+.at-page .at-surface__head {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    background-color: transparent;
+}
+
+.at-page .at-surface__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.at-page .at-surface__body {
+    padding: 0;
+}
+
+.at-page .at-surface__body--padded {
+    padding: 24px;
+}
+
+.at-page .at-surface__foot {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    background-color: transparent;
+}
+
+/* Filtre */
+.at-page .filter-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.at-page .filter-bar .form-control,
+.at-page .filter-bar .form-select {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    min-width: 160px;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.at-page .filter-bar .form-control:focus,
+.at-page .filter-bar .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Tablo */
+.at-page .table-responsive {
+    overflow-x: auto;
+}
+
+.at-page .at-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.at-page .at-table th {
+    padding: 14px 24px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    background-color: var(--bg-main);
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.at-page .at-table td {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.at-page .at-table tbody tr:hover {
+    background-color: var(--bg-main);
+}
+
+.at-page .at-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Hücreler / avatar */
+.at-page .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.at-page .user-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.at-page .user-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.at-page .user-email {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Rozet (şablon) */
+.at-page .at-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.at-page .at-badge--success {
+    background-color: rgba(5, 150, 105, 0.1);
+    color: var(--success);
+}
+
+.at-page .at-badge--danger {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: var(--danger);
+}
+
+.at-page .at-badge--warning {
+    background-color: rgba(217, 119, 6, 0.1);
+    color: var(--warning);
+}
+
+.at-page .at-badge--primary {
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+.at-page .at-badge--muted {
+    background-color: rgba(108, 117, 125, 0.12);
+    color: #6c757d;
+}
+
+.at-page .at-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+/* Aksiyon ikonları */
+.at-page .action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.at-page .btn-action {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    padding: 0;
+    text-decoration: none;
+}
+
+.at-page .btn-action:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background-color: var(--primary-light);
+}
+
+.at-page .btn-action.delete,
+.at-page .btn-action.btn--danger {
+    border-color: var(--border-color);
+}
+
+.at-page .btn-action.delete:hover,
+.at-page .btn-action.btn--danger:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background-color: rgba(220, 38, 38, 0.1);
+}
+
+/* CTA: şablon .btn-primary (link veya buton) */
+.at-page a.btn-tpl-primary,
+.at-page .btn-tpl-primary {
+    background-color: var(--primary);
+    border: none;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: var(--at-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.2;
+}
+
+.at-page a.btn-tpl-primary:hover,
+.at-page .btn-tpl-primary:hover {
+    background-color: var(--primary-hover);
+    color: #fff;
+}
+
+/* Filtre collapse (mevcut) */
+.at-page .at-filter-collapse {
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-main);
+    padding: 20px 24px;
+}
+
+.at-page .at-filter-collapse .form-label {
+    font-size: 0.8rem;
+}
+
+/* Sayfalama — card footer içi */
+.at-page .at-surface__foot .pagination {
+    margin: 0;
+    gap: 4px;
+}
+
+.at-page .at-surface__foot .page-link {
+    min-width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.at-page .at-surface__foot .page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* Form (user-add) */
+.at-page .at-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.at-page .at-form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.at-page .at-form-label .required,
+.at-page .at-required {
+    color: var(--danger);
+    margin-left: 4px;
+}
+
+.at-page .at-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+@media (max-width: 767.98px) {
+    .at-page .at-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.at-page .at-form-control,
+.at-page .at-surface__body--padded .form-control,
+.at-page .at-surface__body--padded .form-select {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--at-radius-sm);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.at-page .at-surface__body--padded .form-control:focus,
+.at-page .at-surface__body--padded .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.at-page .at-form-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.at-page .at-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.at-page a.btn-tpl-secondary,
+.at-page .btn-tpl-secondary {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 14px 24px;
+    border-radius: var(--at-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.at-page a.btn-tpl-secondary:hover,
+.at-page .btn-tpl-secondary:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Boş / uyarı satırı */
+.at-page .at-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem 1rem;
+}
+
+@media (max-width: 991.98px) {
+    .at-page .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .at-page .at-surface__foot {
+        flex-direction: column;
+    }
+}

@@ -11,26 +11,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/brand.css" />
   <link rel="stylesheet" href="/css/admintemplate-app.css" />
+  <link rel="stylesheet" href="/css/admintemplate-pages.css" />
 </head>
 
 <body>
   {{$p := .Path}}
-  {{$brand := "zatrano"}}
-  {{if .DefinitionValues}}{{with index .DefinitionValues "app_name"}}{{$brand = .}}{{end}}{{end}}
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo">
-        <i class="bi bi-grid-3x3-gap-fill"></i>
-      </div>
-      <div class="sidebar-brand">
-        <span class="sidebar-title">{{$brand}}</span>
-        <span class="sidebar-subtitle">Yönetim paneli</span>
-      </div>
+      <span class="sidebar-title zatrano-wordmark">ZATRANO</span>
     </div>
 
     <nav class="sidebar-menu">
@@ -102,16 +97,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      {{if .User}}
-      <div class="profile-card">
-        <div class="profile-avatar">{{Initials2 .User.Email}}</div>
-        <div class="profile-info">
-          <div class="profile-name">{{.User.Email}}</div>
-          <div class="profile-role">Yönetici</div>
-        </div>
-        <div class="profile-status"></div>
-      </div>
-      {{end}}
       <a href="/auth/logout" class="btn-logout text-decoration-none d-flex align-items-center justify-content-center">
         <i class="bi bi-box-arrow-right"></i>
         <span>Oturumu kapat</span>
@@ -132,10 +117,6 @@
       </div>
 
       <div class="header-actions">
-        <button type="button" class="header-action-btn d-none d-sm-flex" id="fullscreenBtn" title="Tam ekran"
-          aria-label="Tam ekran">
-          <i class="bi bi-arrows-fullscreen"></i>
-        </button>
         <div class="dropdown">
           <button class="header-action-btn" type="button" id="notificationDropdown" data-bs-toggle="dropdown"
             aria-expanded="false" title="Bildirimler">
@@ -152,36 +133,26 @@
 
         <div class="header-divider d-none d-md-block"></div>
 
-        <div class="header-user d-none d-md-flex">
+        <a href="/auth/profile" class="header-user d-none d-md-flex" title="Profil">
           {{if .User}}
-          <div class="header-user-avatar">{{Initials2 .User.Email}}</div>
+          <div class="header-user-avatar">{{Initials2 (or .User.Name .User.Email)}}</div>
           <div class="header-user-info">
-            <span class="header-user-name">{{.User.Email}}</span>
-            <span class="header-user-role">Yönetici</span>
+            <span class="header-user-name">{{or .User.Name .User.Email}}</span>
+            <span class="header-user-role">Profil</span>
           </div>
           {{end}}
-        </div>
+        </a>
       </div>
     </header>
 
     <main class="content content-embed p-0">
-      <div class="container-fluid py-3 px-3">
-        <div class="row mb-2">
-          <div class="col-12">
-            <h1 class="h4 mb-0 text-dark fw-semibold">{{.Title}}</h1>
-            <p class="text-muted small mt-1 mb-0 d-none d-md-block">{{$p}}</p>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-12">
-            {{embed}}
-          </div>
-        </div>
+      <div class="container-fluid px-3 pt-4 pb-3">
+        {{embed}}
       </div>
     </main>
 
     <footer class="footer">
-      <span>© {{ CurrentYear }} <a href="/">{{$brand}}</a>. Tüm hakları saklıdır.</span>
+      <span>© {{ CurrentYear }} <a href="/" class="zatrano-wordmark text-decoration-none">ZATRANO</a>. Tüm hakları saklıdır.</span>
       <span>Versiyon 1.0.0</span>
     </footer>
   </div>

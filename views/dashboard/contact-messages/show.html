@@ -1,36 +1,44 @@
-<div class="row">
-    <div class="col-12 col-lg-12 col-xl-12">
-        <div class="card card-primary card-outline mb-4">
-            <div class="card-header d-flex align-items-center">
-                <h3 class="card-title mb-0">İletişim mesajı</h3>
-                <a href="/dashboard/contact-messages" class="btn btn-sm btn-secondary ms-auto">
-                    <i class="bi bi-arrow-left"></i> Listeye dön
-                </a>
+<div class="at-page">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">{{.Title}}</h1>
+            <div class="at-breadcrumb">
+                <a href="/dashboard/home">Ana sayfa</a>
+                <i class="bi bi-chevron-right"></i>
+                <a href="/dashboard/contact-messages">İletişim</a>
+                <i class="bi bi-chevron-right"></i>
+                <span>Detay</span>
             </div>
-            {{ if .Message }}
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-3 text-muted">Gönderen</dt>
-                    <dd class="col-sm-9">{{ .Message.Name }}</dd>
-                    <dt class="col-sm-3 text-muted">E-posta</dt>
-                    <dd class="col-sm-9"><a href="mailto:{{ .Message.Email }}">{{ .Message.Email }}</a></dd>
-                    <dt class="col-sm-3 text-muted">Telefon</dt>
-                    <dd class="col-sm-9">{{ if .Message.Phone }}{{ .Message.Phone }}{{ else }}<span class="text-muted">—</span>{{ end }}</dd>
-                    <dt class="col-sm-3 text-muted">Konu</dt>
-                    <dd class="col-sm-9">{{ if .Message.Subject }}{{ .Message.Subject }}{{ else }}<span class="text-muted">—</span>{{ end }}</dd>
-                    <dt class="col-sm-3 text-muted">Tarih</dt>
-                    <dd class="col-sm-9">{{ FormatDateTimeTR .Message.CreatedAt }}</dd>
-                    <dt class="col-sm-3 text-muted">IP</dt>
-                    <dd class="col-sm-9"><code class="small">{{ if .Message.IP }}{{ .Message.IP }}{{ else }}—{{ end }}</code></dd>
-                    <dt class="col-sm-3 text-muted">Tarayıcı</dt>
-                    <dd class="col-sm-9 small text-break">{{ if .Message.UserAgent }}{{ .Message.UserAgent }}{{ else }}—{{ end }}</dd>
-                    <dt class="col-sm-3 text-muted">Mesaj</dt>
-                    <dd class="col-sm-9">
-                        <div class="border rounded p-3 bg-light" style="white-space: pre-wrap;">{{ .Message.Message }}</div>
-                    </dd>
-                </dl>
-            </div>
-            {{ end }}
+        </div>
+        <a href="/dashboard/contact-messages" class="btn-tpl-secondary"><i class="bi bi-arrow-left"></i> Listeye dön</a>
+    </div>
+    {{if .Message}}
+    <div class="at-surface">
+        <div class="at-surface__head">
+            <h2 class="at-surface__title">İletişim mesajı</h2>
+        </div>
+        <div class="at-surface__body at-surface__body--padded">
+            <dl class="row mb-0 at-dl">
+                <dt class="col-sm-3 text-muted">Gönderen</dt>
+                <dd class="col-sm-9">{{.Message.Name}}</dd>
+                <dt class="col-sm-3 text-muted">E-posta</dt>
+                <dd class="col-sm-9"><a href="mailto:{{.Message.Email}}">{{.Message.Email}}</a></dd>
+                <dt class="col-sm-3 text-muted">Telefon</dt>
+                <dd class="col-sm-9">{{if .Message.Phone}}{{.Message.Phone}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+                <dt class="col-sm-3 text-muted">Konu</dt>
+                <dd class="col-sm-9">{{if .Message.Subject}}{{.Message.Subject}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+                <dt class="col-sm-3 text-muted">Tarih</dt>
+                <dd class="col-sm-9">{{FormatDateTimeTR .Message.CreatedAt}}</dd>
+                <dt class="col-sm-3 text-muted">IP</dt>
+                <dd class="col-sm-9"><code class="small">{{if .Message.IP}}{{.Message.IP}}{{else}}—{{end}}</code></dd>
+                <dt class="col-sm-3 text-muted">Tarayıcı</dt>
+                <dd class="col-sm-9 small text-break">{{if .Message.UserAgent}}{{.Message.UserAgent}}{{else}}—{{end}}</dd>
+                <dt class="col-sm-3 text-muted">Mesaj</dt>
+                <dd class="col-sm-9">
+                    <div class="border rounded p-3 at-message-body" style="white-space: pre-wrap; background:var(--at-bg-soft, #f8f9fa)">{{.Message.Message}}</div>
+                </dd>
+            </dl>
         </div>
     </div>
+    {{end}}
 </div>

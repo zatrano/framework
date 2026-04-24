@@ -1,6 +1,12 @@
-<div class="container py-5 text-center">
-  <p class="display-4 text-muted mb-2">{{ if .Code }}{{ .Code }}{{ else }}—{{ end }}</p>
-  <h1 class="h3 mb-3">{{ .Title }}</h1>
-  <p class="text-muted mb-4">{{ .Message }}</p>
-  <a href="/" class="btn btn-primary">Ana sayfa</a>
+<div class="website-error">
+  <div class="website-error__card">
+    <span class="website-error__brand zatrano-wordmark">ZATRANO</span>
+    <p class="website-error__code">{{ if .Code }}{{ .Code }}{{ else }}—{{ end }}</p>
+    <h1 class="website-error__title">{{ .Title }}</h1>
+    <p class="website-error__text">{{ .Message }}</p>
+    <div class="website-error__actions">
+      <a href="/" class="btn-website btn-website--primary">Ana sayfa</a>
+      <button type="button" class="btn-website btn-website--ghost" onclick="history.back()">Geri dön</button>
+    </div>
+  </div>
 </div>

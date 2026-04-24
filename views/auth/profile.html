@@ -1,9 +1,7 @@
 <div class="auth-embed" data-auth-wide="1">
-  {{$av := or .User.Name .User.Email}}
-
   <div class="auth-card text-start">
     <div class="auth-header text-center">
-      <div class="auth-logo mx-auto">{{Initials2 $av}}</div>
+      <div class="auth-logo auth-logo--wordmark zatrano-wordmark mx-auto">ZATRANO</div>
       <h1 class="auth-title mb-0">{{.Title}}</h1>
       <p class="auth-subtitle mt-2">Hesap bilgilerinizi buradan yönetebilirsiniz</p>
     </div>
@@ -104,7 +102,7 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group profile-password-cta">
         <button type="submit" class="btn-auth-warn w-100" id="update-btn" disabled>
           <i class="bi bi-shield-lock"></i>
           Şifreyi güncelle

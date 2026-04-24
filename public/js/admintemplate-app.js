@@ -35,15 +35,4 @@
       item.classList.add('active');
     });
   });
-
-  const fullscreenBtn = document.getElementById('fullscreenBtn');
-  if (fullscreenBtn) {
-    fullscreenBtn.addEventListener('click', function () {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-      } else {
-        document.exitFullscreen();
-      }
-    });
-  }
 })();
