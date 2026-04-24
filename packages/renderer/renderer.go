@@ -9,6 +9,7 @@ import (
 	"github.com/zatrano/framework/packages/formflash"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/csrf"
 )
 
 const (
@@ -23,8 +24,14 @@ const (
 func prepareRenderData(c fiber.Ctx, data fiber.Map) fiber.Map {
 	renderData := make(fiber.Map)
 
-	// v3: Locals("csrf") hâlâ çalışır
-	renderData[CsrfTokenKey] = c.Locals("csrf")
+	// Fiber v3 CSRF: token context'te; eski kod Locals("csrf") bekliyordu.
+	tok := csrf.TokenFromContext(c)
+	if tok == "" {
+		if v, ok := c.Locals("csrf").(string); ok {
+			tok = v
+		}
+	}
+	renderData[CsrfTokenKey] = tok
 
 	flashData, _ := flashmessages.GetFlashMessages(c)
 	if flashData.Success != "" {

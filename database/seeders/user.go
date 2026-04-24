@@ -14,8 +14,8 @@ func SeedSystemUser(db *gorm.DB) error {
 	adminUserType := uint(1)
 
 	admin := models.User{
-		Name:       "github.com/zatrano/framework",
-		Email:      "github.com/zatrano/framework@zatrano.com",
+		Name:       "ZATRANO",
+		Email:      "zatrano@zatrano.com",
 		UserTypeID: adminUserType,
 		BaseModel: models.BaseModel{
 			IsActive:  true,
@@ -27,7 +27,7 @@ func SeedSystemUser(db *gorm.DB) error {
 		EmailVerified: true,
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("github.com/zatrano/framework"), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("ZATRANO"), bcrypt.DefaultCost)
 	if err != nil {
 		logconfig.SLog.Error("Sistem kullanıcısının şifresi hash'lenirken hata oluştu", err)
 		return err
