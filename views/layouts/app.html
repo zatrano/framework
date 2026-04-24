@@ -3,115 +3,219 @@
 
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>zatrano | {{.Title}}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <meta name="color-scheme" content="light dark" />
-  <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ .CsrfToken }}">
+  <title>{{if .Title}}zatrano | {{.Title}}{{else}}zatrano{{end}}</title>
+  <meta name="color-scheme" content="light" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
-  <meta name="title" content="github.com/zatrano/framework" />
-  <meta name="author" content="github.com/zatrano/framework" />
-  <meta name="supported-color-schemes" content="light dark" />
-  <link rel="preload" href="/css/adminlte.css" as="style" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
-    integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q=" crossorigin="anonymous" media="print"
-    onload="this.media='all'" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css"
-    crossorigin="anonymous" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
-    crossorigin="anonymous" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
-    integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="/css/adminlte.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admintemplate-app.css" />
 </head>
 
-<body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
-  <div class="app-wrapper">
-    {{template "navbar" .}}
-    {{template "sidebar" .}}
-    <main class="app-main">
-      <div class="app-content-header">
-        <div class="container-fluid">
-          <div class="row">
-            <div class="col-sm-6">
-              <h3 class="mb-0">{{.Title}}</h3>
+<body>
+  {{$p := .Path}}
+  {{$brand := "zatrano"}}
+  {{if .DefinitionValues}}{{with index .DefinitionValues "app_name"}}{{$brand = .}}{{end}}{{end}}
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+      </div>
+      <div class="sidebar-brand">
+        <span class="sidebar-title">{{$brand}}</span>
+        <span class="sidebar-subtitle">Yönetim paneli</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-menu">
+      <div class="menu-label">Ana menü</div>
+
+      <a href="/dashboard/home"
+        class="menu-item {{if or (eq $p `/dashboard/`) (eq $p `/dashboard`) (eq $p `/dashboard/home`)}}active{{end}}">
+        <i class="bi bi-house-door"></i>
+        <span>Ana sayfa</span>
+      </a>
+
+      <div class="menu-item menu-dropdown {{if hasPrefix $p `/dashboard/user-types`}}open{{end}}"
+        onclick="toggleSubmenu(this)">
+        <i class="bi bi-layers"></i>
+        <span>Kullanıcı tipleri</span>
+        <i class="bi bi-chevron-down dropdown-icon"></i>
+      </div>
+      <div class="submenu {{if hasPrefix $p `/dashboard/user-types`}}show{{end}}">
+        <a href="/dashboard/user-types" class="menu-item {{if eq $p `/dashboard/user-types`}}active{{end}}">
+          <span>Liste</span>
+        </a>
+        <a href="/dashboard/user-types/create" class="menu-item {{if eq $p `/dashboard/user-types/create`}}active{{end}}">
+          <span>Yeni</span>
+        </a>
+      </div>
+
+      <div class="menu-item menu-dropdown {{if or (hasPrefix $p `/dashboard/countries`) (hasPrefix $p `/dashboard/cities`) (hasPrefix $p `/dashboard/districts`) (hasPrefix $p `/dashboard/addresses`)}}open{{end}}"
+        onclick="toggleSubmenu(this)">
+        <i class="bi bi-geo-alt"></i>
+        <span>Coğrafya &amp; adres</span>
+        <i class="bi bi-chevron-down dropdown-icon"></i>
+      </div>
+      <div
+        class="submenu {{if or (hasPrefix $p `/dashboard/countries`) (hasPrefix $p `/dashboard/cities`) (hasPrefix $p `/dashboard/districts`) (hasPrefix $p `/dashboard/addresses`)}}show{{end}}">
+        <a href="/dashboard/countries" class="menu-item {{if hasPrefix $p `/dashboard/countries`}}active{{end}}">
+          <span>Ülkeler</span>
+        </a>
+        <a href="/dashboard/cities" class="menu-item {{if hasPrefix $p `/dashboard/cities`}}active{{end}}">
+          <span>Şehirler</span>
+        </a>
+        <a href="/dashboard/districts" class="menu-item {{if hasPrefix $p `/dashboard/districts`}}active{{end}}">
+          <span>İlçeler</span>
+        </a>
+        <a href="/dashboard/addresses" class="menu-item {{if hasPrefix $p `/dashboard/addresses`}}active{{end}}">
+          <span>Adresler</span>
+        </a>
+      </div>
+
+      <div class="menu-item menu-dropdown {{if hasPrefix $p `/dashboard/users`}}open{{end}}"
+        onclick="toggleSubmenu(this)">
+        <i class="bi bi-people"></i>
+        <span>Kullanıcılar</span>
+        <i class="bi bi-chevron-down dropdown-icon"></i>
+      </div>
+      <div class="submenu {{if hasPrefix $p `/dashboard/users`}}show{{end}}">
+        <a href="/dashboard/users" class="menu-item {{if eq $p `/dashboard/users`}}active{{end}}">
+          <span>Liste</span>
+        </a>
+        <a href="/dashboard/users/create" class="menu-item {{if eq $p `/dashboard/users/create`}}active{{end}}">
+          <span>Yeni</span>
+        </a>
+      </div>
+
+      <a href="/dashboard/contact-messages"
+        class="menu-item {{if hasPrefix $p `/dashboard/contact-messages`}}active{{end}}">
+        <i class="bi bi-envelope-paper"></i>
+        <span>İletişim mesajları</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      {{if .User}}
+      <div class="profile-card">
+        <div class="profile-avatar">{{Initials2 .User.Email}}</div>
+        <div class="profile-info">
+          <div class="profile-name">{{.User.Email}}</div>
+          <div class="profile-role">Yönetici</div>
+        </div>
+        <div class="profile-status"></div>
+      </div>
+      {{end}}
+      <a href="/auth/logout" class="btn-logout text-decoration-none d-flex align-items-center justify-content-center">
+        <i class="bi bi-box-arrow-right"></i>
+        <span>Oturumu kapat</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="main-wrapper">
+    <header class="header">
+      <button type="button" class="header-toggle" id="sidebarToggle" aria-label="Menüyü aç/kapat">
+        <i class="bi bi-list"></i>
+      </button>
+
+      <div class="header-search">
+        <i class="bi bi-search search-icon"></i>
+        <input type="search" class="form-control" placeholder="Menü, sayfa veya işlem ara…" disabled
+          title="Yakında">
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="header-action-btn d-none d-sm-flex" id="fullscreenBtn" title="Tam ekran"
+          aria-label="Tam ekran">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+        <div class="dropdown">
+          <button class="header-action-btn" type="button" id="notificationDropdown" data-bs-toggle="dropdown"
+            aria-expanded="false" title="Bildirimler">
+            <i class="bi bi-bell"></i>
+            <span class="notification-badge"></span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown">
+            <div class="notification-header">
+              <span class="notification-title">Bildirimler</span>
             </div>
-            <div class="col-sm-6">
-              <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item">
-                  <a href="/">Ana Sayfa</a>
-                </li>
-                <li class="breadcrumb-item active" aria-current="page">{{.Title}}</li>
-              </ol>
-            </div>
+            <div class="notification-body text-muted small p-3">Şu an gösterilecek bildirim yok.</div>
+          </div>
+        </div>
+
+        <div class="header-divider d-none d-md-block"></div>
+
+        <div class="header-user d-none d-md-flex">
+          {{if .User}}
+          <div class="header-user-avatar">{{Initials2 .User.Email}}</div>
+          <div class="header-user-info">
+            <span class="header-user-name">{{.User.Email}}</span>
+            <span class="header-user-role">Yönetici</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </header>
+
+    <main class="content content-embed p-0">
+      <div class="container-fluid py-3 px-3">
+        <div class="row mb-2">
+          <div class="col-12">
+            <h1 class="h4 mb-0 text-dark fw-semibold">{{.Title}}</h1>
+            <p class="text-muted small mt-1 mb-0 d-none d-md-block">{{$p}}</p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-12">
+            {{embed}}
           </div>
         </div>
       </div>
-      <div class="app-content">
-        <div class="container-fluid">
-          {{embed}}
-        </div>
-      </div>
     </main>
-    <footer class="app-footer text-center py-3">
-      <strong>
-        &copy; {{ CurrentYear }} zatrano | Tüm Hakları Saklıdır.
-      </strong>
+
+    <footer class="footer">
+      <span>© {{ CurrentYear }} <a href="/">{{$brand}}</a>. Tüm hakları saklıdır.</span>
+      <span>Versiyon 1.0.0</span>
     </footer>
-    {{if .Success}}
-    {{template "success" .}}
-    {{end}}
-    {{if .Error}}
-    {{template "error" .}}
-    {{end}}
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
-  <script src="/js/adminlte.js"></script>
+
+  {{if .Success}}
+  {{template "success" .}}
+  {{end}}
+  {{if .Error}}
+  {{template "error" .}}
+  {{end}}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/admintemplate-app.js"></script>
   <script>
-    const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
-    const Default = {
-      scrollbarTheme: 'os-theme-light',
-      scrollbarAutoHide: 'leave',
-      scrollbarClickScroll: true,
-    };
     document.addEventListener('DOMContentLoaded', function () {
-      const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
-      if (sidebarWrapper && OverlayScrollbarsGlobal?.OverlayScrollbars !== undefined) {
-        OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
-          scrollbars: {
-            theme: Default.scrollbarTheme,
-            autoHide: Default.scrollbarAutoHide,
-            clickScroll: Default.scrollbarClickScroll,
-          },
-        });
-      }
-    });
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
       const toastElList = document.querySelectorAll('.toast');
-      toastElList.forEach(el => {
-        const toast = new bootstrap.Toast(el);
-        toast.show();
+      toastElList.forEach(function (el) {
+        if (window.bootstrap) {
+          const toast = new bootstrap.Toast(el);
+          toast.show();
+        }
       });
     });
   </script>
   <script>
     document.addEventListener('submit', function (e) {
       const form = e.target;
-
+      if (!form || !form.querySelector) {
+        return;
+      }
       const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
-
-      submitButtons.forEach(btn => {
+      submitButtons.forEach(function (btn) {
         btn.disabled = true;
         btn.dataset.originalText = btn.innerHTML || btn.value;
-
         if (btn.tagName === "BUTTON") {
           btn.innerHTML = "Bekleyin...";
         } else {

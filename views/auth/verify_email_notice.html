@@ -1,36 +1,31 @@
-<div class="card card-outline card-success shadow-lg border-0 rounded-3">
-    <div class="card-body login-card-body p-5 text-center">
+{{$brand := "zatrano"}}
+{{if .DefinitionValues}}{{with index .DefinitionValues "app_name"}}{{$brand = .}}{{end}}{{end}}
 
-        <div class="mb-4">
-            <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 rounded-circle text-success"
-                style="width: 80px; height: 80px;">
-                <i class="bi bi-envelope-check-fill fs-1"></i>
-            </div>
-        </div>
+<div class="auth-card text-center">
+  <div class="auth-state-icon auth-state-icon--success">
+    <i class="bi bi-envelope-check-fill" style="font-size: 2.25rem;" aria-hidden="true"></i>
+  </div>
 
-        <h4 class="mb-3 fw-bold text-success">Lütfen E-postanızı Kontrol Edin!</h4>
+  <h1 class="auth-title mb-0">E-postanızı kontrol edin</h1>
+  <p class="auth-subtitle mt-3">
+    E-posta adresinize bir doğrulama bağlantısı gönderdik.<br>
+    Kaydı tamamlamak için lütfen e-postadaki bağlantıya tıklayın.
+  </p>
 
-        <p class="text-muted mb-4">
-            E-posta adresinize bir doğrulama bağlantısı gönderdik.<br>
-            Aktivasyon işlemini tamamlamak için lütfen bu bağlantıya tıklayın.
-        </p>
+  <div class="alert alert-light border text-start d-flex align-items-start small my-4">
+    <i class="bi bi-info-circle text-secondary me-2 flex-shrink-0"></i>
+    <span class="text-secondary">
+      E-postayı göremiyorsanız <strong>Spam / Önemsiz</strong> klasörüne de bakın.
+    </span>
+  </div>
 
-        <div class="alert alert-light border shadow-sm text-start d-flex align-items-start small text-muted mb-4">
-            <i class="bi bi-info-circle-fill text-muted me-2 mt-1"></i>
-            <div>
-                E-postayı göremiyorsanız, lütfen <strong>Spam/Önemsiz</strong> klasörünü kontrol etmeyi unutmayın.
-            </div>
-        </div>
+  <a href="/auth/resend-verification{{if .UserEmail}}?email={{.UserEmail | urlquery}}{{end}}"
+    class="btn-social text-decoration-none w-100">
+    <i class="bi bi-arrow-repeat"></i>
+    E-posta gelmediyse tekrar gönder
+  </a>
 
-        <div class="d-grid gap-2">
-            <button type="button" class="btn btn-outline-primary shadow-sm"
-                onclick="window.location.href='/auth/resend-verification{{if .UserEmail}}?email={{.UserEmail}}{{end}}'">
-                <i class="bi bi-arrow-repeat me-2"></i> Mail Gelmediyse Tekrar Gönder
-            </button>
-        </div>
-
-        <p class="mt-4 mb-0 text-center text-muted small">
-            <a href="/auth/login" class="text-primary fw-bold text-decoration-none">Girişe Dön</a>
-        </p>
-    </div>
+  <div class="auth-footer border-0 pt-3 mt-3">
+    <p class="mb-0"><a href="/auth/login">Giriş sayfası</a></p>
+  </div>
 </div>

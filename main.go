@@ -94,7 +94,7 @@ func main() {
 
 	// ─── 8. Dosya yükleme ─────────────────────────────────────────────────────
 	fileconfig.InitFileConfig()
-	fileconfig.Config.SetAllowedExtensions("uploads", []string{"jpg", "jpeg", "png", "webp", "pdf"})
+	fileconfig.Config.SetAllowedExtensions(fileconfig.DefaultUploadCategory, []string{"jpg", "jpeg", "png", "webp", "pdf"})
 
 	// ─── 9. Template engine ───────────────────────────────────────────────────
 	engine := html.New("./views", ".html")

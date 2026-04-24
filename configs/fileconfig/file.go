@@ -22,6 +22,10 @@ type FileConfig struct {
 
 var Config *FileConfig
 
+// DefaultUploadCategory, genel dosya yüklemeleri için GetPath altında kullanılan klasör adıdır.
+// BasePath (genelde "uploads") ile aynı isim verilmemeli; aksi halde .../uploads/uploads oluşur.
+const DefaultUploadCategory = "files"
+
 func InitFileConfig() {
 	// .env'den oku; boş, satır-içi # yorumu veya hatalı parse (# ile başlama) durumunda ./uploads
 	basePath := normalizeFileBasePath(envconfig.String("FILE_BASE_PATH", ""))

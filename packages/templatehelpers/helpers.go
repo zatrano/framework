@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // PathOnly normalizes path (dil kaldırıldı, her zaman aynı path).
@@ -105,6 +108,44 @@ func TemplateHelpers() template.FuncMap {
 
 		"hasPrefix": func(s, prefix string) bool {
 			return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+		},
+
+		// Initials2 — Boşlukla ayrılmış kelimelerin her birinin ilk harfi; tek kelimeyse yalnızca o harf.
+		// E-postada @ öncesi alınır. Türkçe büyük harf (ör. i→İ) için Turkish casing kullanılır.
+		"Initials2": func(s string) string {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				return "?"
+			}
+			if i := strings.Index(s, "@"); i > 0 {
+				s = s[:i]
+			}
+			s = strings.TrimSpace(s)
+			if s == "" {
+				return "?"
+			}
+			words := strings.Fields(s)
+			if len(words) == 0 {
+				return "?"
+			}
+			trUpper := cases.Upper(language.Turkish)
+			var b strings.Builder
+			for _, w := range words {
+				w = strings.TrimSpace(w)
+				if w == "" {
+					continue
+				}
+				r := []rune(w)
+				if len(r) == 0 {
+					continue
+				}
+				_, _ = b.WriteString(trUpper.String(string(r[0])))
+			}
+			out := b.String()
+			if out == "" {
+				return "?"
+			}
+			return out
 		},
 
 		"LangURL": func(lang, p string) string { return PathOnly(lang, p) },

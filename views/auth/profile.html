@@ -1,156 +1,190 @@
-<div class="card card-outline card-primary shadow-lg border-0 rounded-3">
-    <div class="card-header bg-transparent border-bottom-0 pt-4 pb-0 text-center">
-        <h4 class="mb-0 fw-bold text-primary">{{ .Title }}</h4>
-        <p class="text-muted small mt-1">Hesap bilgilerinizi buradan yönetebilirsiniz</p>
+<div class="auth-embed" data-auth-wide="1">
+  {{$av := or .User.Name .User.Email}}
+
+  <div class="auth-card text-start">
+    <div class="auth-header text-center">
+      <div class="auth-logo mx-auto">{{Initials2 $av}}</div>
+      <h1 class="auth-title mb-0">{{.Title}}</h1>
+      <p class="auth-subtitle mt-2">Hesap bilgilerinizi buradan yönetebilirsiniz</p>
     </div>
-    <div class="card-body p-4">
 
-        {{if .Error}}
-        <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center" role="alert">
-            <i class="bi bi-x-circle-fill me-2 fs-5"></i>
-            <div>{{ .Error }}</div>
-        </div>
-        {{end}}
-        {{if .Success}}
-        <div class="alert alert-success shadow-sm border-0 d-flex align-items-center" role="alert">
-            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-            <div>{{ .Success }}</div>
-        </div>
-        {{end}}
-
-        <form method="POST" action="/auth/profile/update-info" class="mb-5">
-            <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
-
-            <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-2">Kişisel Bilgiler</h6>
-
-            <div class="form-floating mb-3">
-                <input id="name" type="text" class="form-control {{if .ValidationErrors.name}}is-invalid{{end}}"
-                    name="name" value="{{ if .Old.name }}{{ .Old.name }}{{ else }}{{ .User.Name }}{{ end }}"
-                    placeholder="Ad Soyad" required />
-                <label for="name" class="text-secondary"><i class="bi bi-person me-1"></i> Ad Soyad</label>
-                {{if .ValidationErrors.name}}
-                <span class="invalid-feedback d-block text-start ps-1" role="alert">
-                    {{ .ValidationErrors.name }}
-                </span>
-                {{end}}
-            </div>
-
-            <div class="form-floating mb-3">
-                <input id="email" type="email" class="form-control {{if .ValidationErrors.email}}is-invalid{{end}}"
-                    name="email" value="{{ if .Old.email }}{{ .Old.email }}{{ else }}{{ .User.Email }}{{ end }}"
-                    placeholder="E-Posta" required />
-                <label for="email" class="text-secondary"><i class="bi bi-envelope me-1"></i> E-Posta</label>
-                {{if .ValidationErrors.email}}
-                <span class="invalid-feedback d-block text-start ps-1" role="alert">
-                    {{ .ValidationErrors.email }}
-                </span>
-                {{end}}
-            </div>
-
-            <div class="d-grid gap-2 text-end">
-                <button type="submit" class="btn btn-primary shadow-sm">
-                    <i class="bi bi-save me-2"></i> Bilgileri Güncelle
-                </button>
-            </div>
-        </form>
-
-        <form method="POST" action="/auth/profile/update-password">
-            <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
-
-            <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-2">Güvenlik</h6>
-
-            <div class="form-floating mb-3">
-                <input id="current_password" type="password"
-                    class="form-control {{if .ValidationErrors.current_password}}is-invalid{{end}}"
-                    name="current_password" placeholder="Mevcut Şifre" required />
-                <label for="current_password" class="text-secondary"><i class="bi bi-lock me-1"></i> Mevcut
-                    Şifre</label>
-                {{if .ValidationErrors.current_password}}
-                <span class="invalid-feedback d-block text-start ps-1" role="alert">
-                    {{ .ValidationErrors.current_password }}
-                </span>
-                {{end}}
-            </div>
-
-            <div class="row g-2 mb-3">
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <input id="new_password" type="password"
-                            class="form-control {{if .ValidationErrors.new_password}}is-invalid{{end}}"
-                            name="new_password" placeholder="Yeni Şifre" />
-                        <label for="new_password" class="text-secondary"><i class="bi bi-key me-1"></i> Yeni
-                            Şifre</label>
-                    </div>
-                    {{if .ValidationErrors.new_password}}
-                    <span class="invalid-feedback d-block text-start ps-1" role="alert">
-                        {{ .ValidationErrors.new_password }}
-                    </span>
-                    {{end}}
-                </div>
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <input id="confirm_password" type="password"
-                            class="form-control {{if .ValidationErrors.confirm_password}}is-invalid{{end}}"
-                            name="confirm_password" placeholder="Yeni Şifre (Tekrar)" />
-                        <label for="confirm_password" class="text-secondary"><i class="bi bi-key-fill me-1"></i>
-                            Tekrar</label>
-                        <div id="password-match-feedback" class="invalid-feedback d-none">
-                            Şifreler eşleşmiyor!
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2 text-end">
-                <button type="submit" class="btn btn-warning shadow-sm text-white" id="update-btn" disabled>
-                    <i class="bi bi-shield-lock me-2"></i> Şifreyi Güncelle
-                </button>
-            </div>
-        </form>
-
-        <div class="mt-5 text-center border-top pt-4">
-            {{ if eq .User.UserTypeID 1 }}
-            <a href="/dashboard/home" class="btn btn-light shadow-sm me-2"><i class="bi bi-speedometer2 me-1"></i>
-                Panel'e Dön</a>
-            {{ else }}
-            <a href="/panel/anasayfa" class="btn btn-light shadow-sm me-2"><i class="bi bi-speedometer2 me-1"></i>
-                Panel'e Dön</a>
-            {{ end }}
-            <a href="/auth/logout" class="btn btn-outline-danger shadow-sm"><i class="bi bi-box-arrow-right me-1"></i>
-                Çıkış Yap</a>
-        </div>
+    {{if .Error}}
+    <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-start" role="alert">
+      <i class="bi bi-x-circle-fill me-2 fs-5 flex-shrink-0"></i>
+      <div>{{.Error}}</div>
     </div>
+    {{end}}
+    {{if .Success}}
+    <div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-start" role="alert">
+      <i class="bi bi-check-circle-fill me-2 fs-5 flex-shrink-0"></i>
+      <div>{{.Success}}</div>
+    </div>
+    {{end}}
+
+    <h2 class="auth-section-title">Kişisel bilgiler</h2>
+    <form method="POST" action="/auth/profile/update-info" class="mb-0" novalidate>
+      <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
+
+      <div class="form-group">
+        <label class="form-label" for="name">Ad soyad</label>
+        <div class="auth-input-wrap">
+          <i class="bi bi-person input-icon" aria-hidden="true"></i>
+          <input id="name" type="text" name="name" required
+            class="form-control {{if .ValidationErrors.name}}is-invalid{{end}}"
+            value="{{if .Old.name}}{{.Old.name}}{{else}}{{.User.Name}}{{end}}" placeholder="Adınız ve soyadınız"
+            autocomplete="name">
+        </div>
+        {{if .ValidationErrors.name}}
+        <div class="invalid-feedback d-block">{{.ValidationErrors.name}}</div>
+        {{end}}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">E-posta</label>
+        <div class="auth-input-wrap">
+          <i class="bi bi-envelope input-icon" aria-hidden="true"></i>
+          <input id="email" type="email" name="email" required
+            class="form-control {{if .ValidationErrors.email}}is-invalid{{end}}"
+            value="{{if .Old.email}}{{.Old.email}}{{else}}{{.User.Email}}{{end}}" placeholder="ornek@sirket.com"
+            autocomplete="email">
+        </div>
+        {{if .ValidationErrors.email}}
+        <div class="invalid-feedback d-block">{{.ValidationErrors.email}}</div>
+        {{end}}
+      </div>
+
+      <button type="submit" class="btn-primary w-100">
+        <i class="bi bi-save"></i>
+        Bilgileri güncelle
+      </button>
+    </form>
+
+    <h2 class="auth-section-title">Güvenlik</h2>
+    <form method="POST" action="/auth/profile/update-password" novalidate>
+      <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
+
+      <div class="form-group">
+        <label class="form-label" for="current_password">Mevcut şifre</label>
+        <div class="auth-input-wrap">
+          <i class="bi bi-lock input-icon" aria-hidden="true"></i>
+          <input id="current_password" type="password" name="current_password" required
+            class="form-control {{if .ValidationErrors.current_password}}is-invalid{{end}}"
+            placeholder="••••••••" autocomplete="current-password">
+          <button type="button" class="toggle-password" aria-label="Şifreyi göster / gizle">
+            <i class="bi bi-eye" aria-hidden="true"></i>
+          </button>
+        </div>
+        {{if .ValidationErrors.current_password}}
+        <div class="invalid-feedback d-block">{{.ValidationErrors.current_password}}</div>
+        {{end}}
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="form-group mb-0">
+            <label class="form-label" for="new_password">Yeni şifre</label>
+            <div class="auth-input-wrap">
+              <i class="bi bi-key input-icon" aria-hidden="true"></i>
+              <input id="new_password" type="password" name="new_password"
+                class="form-control {{if .ValidationErrors.new_password}}is-invalid{{end}}"
+                placeholder="En az 8 karakter" autocomplete="new-password" minlength="8">
+              <button type="button" class="toggle-password" aria-label="Şifreyi göster / gizle">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+            {{if .ValidationErrors.new_password}}
+            <div class="invalid-feedback d-block">{{.ValidationErrors.new_password}}</div>
+            {{end}}
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="form-group mb-0">
+            <label class="form-label" for="confirm_password">Yeni şifre (tekrar)</label>
+            <div class="auth-input-wrap">
+              <i class="bi bi-key-fill input-icon" aria-hidden="true"></i>
+              <input id="confirm_password" type="password" name="confirm_password"
+                class="form-control {{if .ValidationErrors.confirm_password}}is-invalid{{end}}"
+                placeholder="Tekrar" autocomplete="new-password" minlength="8">
+              <button type="button" class="toggle-password" aria-label="Şifreyi göster / gizle">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div id="password-match-feedback" class="invalid-feedback d-none">Şifreler eşleşmiyor</div>
+            {{if .ValidationErrors.confirm_password}}
+            <div class="invalid-feedback d-block">{{.ValidationErrors.confirm_password}}</div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <button type="submit" class="btn-auth-warn w-100" id="update-btn" disabled>
+          <i class="bi bi-shield-lock"></i>
+          Şifreyi güncelle
+        </button>
+      </div>
+    </form>
+
+    <div
+      class="d-flex flex-wrap gap-2 justify-content-center align-items-stretch align-items-sm-center border-top pt-4 mt-4">
+      {{if eq .User.UserTypeID 1}}
+      <a href="/dashboard/home" class="btn btn-outline-secondary flex-grow-1 flex-sm-grow-0">
+        <i class="bi bi-speedometer2 me-1"></i> Yönetim paneli
+      </a>
+      {{else}}
+      <a href="/panel/anasayfa" class="btn btn-outline-secondary flex-grow-1 flex-sm-grow-0">
+        <i class="bi bi-speedometer2 me-1"></i> Panel
+      </a>
+      {{end}}
+      <a href="/auth/logout" class="btn btn-outline-danger flex-grow-1 flex-sm-grow-0">
+        <i class="bi bi-box-arrow-right me-1"></i> Çıkış
+      </a>
+    </div>
+  </div>
 </div>
 
 <script>
+  (function () {
     const passwordInput = document.getElementById('new_password');
     const passwordConfirmInput = document.getElementById('confirm_password');
     const updateBtn = document.getElementById('update-btn');
     const feedback = document.getElementById('password-match-feedback');
 
     function checkPasswords() {
-        const pass = passwordInput.value;
-        const pass2 = passwordConfirmInput.value;
+      if (!passwordInput || !passwordConfirmInput || !updateBtn) {
+        return;
+      }
+      const pass = passwordInput.value;
+      const pass2 = passwordConfirmInput.value;
 
-        passwordConfirmInput.classList.remove('is-invalid');
+      passwordConfirmInput.classList.remove('is-invalid');
+      if (feedback) {
         feedback.classList.add('d-none');
+      }
 
-        if (pass.length === 0 && pass2.length === 0) {
-            updateBtn.disabled = true;
-            return;
-        }
+      if (pass.length === 0 && pass2.length === 0) {
+        updateBtn.disabled = true;
+        return;
+      }
 
-        if (pass === pass2 && pass.length > 0) {
-            updateBtn.disabled = false;
-        } else {
-            if (pass2.length > 0) {
-                passwordConfirmInput.classList.add('is-invalid');
-                feedback.classList.remove('d-none');
-            }
-            updateBtn.disabled = true;
+      if (pass === pass2 && pass.length > 0) {
+        updateBtn.disabled = false;
+      } else {
+        if (pass2.length > 0) {
+          passwordConfirmInput.classList.add('is-invalid');
+          if (feedback) {
+            feedback.classList.remove('d-none');
+          }
         }
+        updateBtn.disabled = true;
+      }
     }
 
-    passwordInput.addEventListener('input', checkPasswords);
-    passwordConfirmInput.addEventListener('input', checkPasswords);
+    if (passwordInput) {
+      passwordInput.addEventListener('input', checkPasswords);
+    }
+    if (passwordConfirmInput) {
+      passwordConfirmInput.addEventListener('input', checkPasswords);
+    }
+  })();
 </script>
