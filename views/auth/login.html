@@ -1,0 +1,107 @@
+{{/* layouts/auth.html extends logic handled by renderer, content injected via embed */}}
+
+{{if .PendingVerification}}
+<div class="alert alert-warning mb-3 shadow-sm border-0" role="alert">
+    <h5 class="alert-heading mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>E-posta Doğrulama Gerekli!</h5>
+    {{if .UserEmail}}
+    <p class="mb-2">
+        <strong>{{.UserEmail}}</strong> adresiniz doğrulanmamış.
+    </p>
+    <p class="mb-1">
+        Doğrulama linkini e-postanızdan kontrol edin.
+    </p>
+    <div class="mt-2">
+        <a href="/auth/resend-verification?email={{.UserEmail}}" class="btn btn-warning btn-sm">
+            <i class="bi bi-send me-1"></i> Yeniden Gönder
+        </a>
+    </div>
+    {{else}}
+    <p class="mb-1">
+        Onay maili gelmedi mi?
+        <a href="/auth/resend-verification" class="alert-link">Tekrar Gönder</a>
+    </p>
+    {{end}}
+</div>
+{{end}}
+
+<div class="card card-outline card-primary shadow-lg border-0 rounded-3">
+    <div class="card-header text-center bg-transparent border-bottom-0 pt-4 pb-0">
+        <h4 class="mb-0 fw-bold text-primary">{{ .Title }}</h4>
+        <p class="text-muted small mt-1">Hesabınıza erişmek için bilgilerinizi girin</p>
+    </div>
+    <div class="card-body login-card-body p-4">
+
+        {{if .Error}}
+        <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center" role="alert">
+            <i class="bi bi-x-circle-fill me-2 fs-5"></i>
+            <div>{{ .Error }}</div>
+        </div>
+        {{end}}
+
+        <form method="POST" action="/auth/login">
+            <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
+
+            <div class="form-floating mb-3">
+                <input id="email" type="email" class="form-control {{if .ValidationErrors.email}}is-invalid{{end}}"
+                    name="email" value="{{ .Old.email }}" required autocomplete="email" autofocus
+                    placeholder="E-Posta Adresi" />
+                <label for="email" class="text-secondary"><i class="bi bi-envelope me-1"></i> E-Posta Adresi</label>
+                {{if .ValidationErrors.email}}
+                <span class="invalid-feedback d-block text-start ps-1" role="alert">
+                    {{ .ValidationErrors.email }}
+                </span>
+                {{end}}
+            </div>
+
+            <div class="form-floating mb-3">
+                <input id="password" type="password"
+                    class="form-control {{if .ValidationErrors.password}}is-invalid{{end}}" name="password" required
+                    autocomplete="current-password" placeholder="Şifre" />
+                <label for="password" class="text-secondary"><i class="bi bi-lock me-1"></i> Şifre</label>
+                {{if .ValidationErrors.password}}
+                <span class="invalid-feedback d-block text-start ps-1" role="alert">
+                    {{ .ValidationErrors.password }}
+                </span>
+                {{end}}
+            </div>
+
+            <div class="row align-items-center mb-3">
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ if
+                            .Old.remember }}checked{{ end }} />
+                        <label class="form-check-label text-secondary small" for="remember"> Beni Hatırla </label>
+                    </div>
+                </div>
+                <div class="col-6 text-end">
+                    <a href="/auth/forgot-password" class="text-primary small text-decoration-none">Şifremi Unuttum?</a>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Giriş Yap
+                </button>
+            </div>
+        </form>
+
+        <div class="position-relative my-4">
+            <div class="progress" style="height: 1px;">
+                <div class="progress-bar bg-secondary opacity-25" role="progressbar" style="width: 100%"
+                    aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <p class="position-absolute top-0 start-50 translate-middle bg-white px-2 text-muted small">VEYA</p>
+        </div>
+
+        <div class="d-grid gap-2">
+            <a href="/auth/oauth/google/login" class="btn btn-outline-danger shadow-sm">
+                <i class="bi bi-google me-2"></i> Google ile Giriş Yap
+            </a>
+        </div>
+
+        <p class="mb-0 mt-4 text-center text-muted small">
+            Hesabınız yok mu? <a href="/auth/register" class="text-primary fw-bold text-decoration-none">Yeni Üyelik
+                Oluştur</a>
+        </p>
+    </div>
+</div>

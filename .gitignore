@@ -1,0 +1,8 @@
+/.env
+/.env.*.local
+*.exe
+*.test
+__debug_bin
+.DS_Store
+.idea
+.vscode

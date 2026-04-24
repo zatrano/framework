@@ -1,0 +1,97 @@
+<div class="card card-outline card-primary shadow-lg border-0 rounded-3">
+    <div class="card-header text-center bg-transparent border-bottom-0 pt-4 pb-0">
+        <h4 class="mb-0 fw-bold text-primary">{{ .Title }}</h4>
+        <p class="text-muted small mt-1">Aramıza katılmak için formu doldurun</p>
+    </div>
+    <div class="card-body register-card-body p-4">
+
+        {{if .Error}}
+        <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center" role="alert">
+            <i class="bi bi-x-circle-fill me-2 fs-5"></i>
+            <div>{{ .Error }}</div>
+        </div>
+        {{end}}
+
+        <form method="POST" action="/auth/register">
+            <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
+
+            <div class="form-floating mb-3">
+                <input id="registerName" type="text" class="form-control {{if .ValidationErrors.name}}is-invalid{{end}}"
+                    name="name" value="{{ .Old.name }}" placeholder="Ad Soyad" required autofocus />
+                <label for="registerName" class="text-secondary"><i class="bi bi-person me-1"></i> Ad Soyad</label>
+                {{if .ValidationErrors.name}}
+                <span class="invalid-feedback d-block text-start ps-1" role="alert">
+                    {{ .ValidationErrors.name }}
+                </span>
+                {{end}}
+            </div>
+
+            <div class="form-floating mb-3">
+                <input id="registerEmail" type="email"
+                    class="form-control {{if .ValidationErrors.email}}is-invalid{{end}}" name="email"
+                    value="{{ .Old.email }}" placeholder="E-Posta Adresi" required />
+                <label for="registerEmail" class="text-secondary"><i class="bi bi-envelope me-1"></i> E-Posta
+                    Adresi</label>
+                {{if .ValidationErrors.email}}
+                <span class="invalid-feedback d-block text-start ps-1" role="alert">
+                    {{ .ValidationErrors.email }}
+                </span>
+                {{end}}
+            </div>
+
+            <div class="form-floating mb-3">
+                <input id="registerPassword" type="password"
+                    class="form-control {{if .ValidationErrors.password}}is-invalid{{end}}" name="password"
+                    placeholder="Şifre" required />
+                <label for="registerPassword" class="text-secondary"><i class="bi bi-lock me-1"></i> Şifre</label>
+                {{if .ValidationErrors.password}}
+                <span class="invalid-feedback d-block text-start ps-1" role="alert">
+                    {{ .ValidationErrors.password }}
+                </span>
+                {{end}}
+            </div>
+
+            <div class="form-floating mb-3">
+                <input id="registerPassword2" type="password" class="form-control" name="confirm_password"
+                    placeholder="Şifre (Tekrar)" required />
+                <label for="registerPassword2" class="text-secondary"><i class="bi bi-lock-fill me-1"></i> Şifre
+                    (Tekrar)</label>
+            </div>
+
+            {{ if .TurnstileSiteKey }}
+            <div class="mb-3">
+                <div class="cf-turnstile" data-sitekey="{{ .TurnstileSiteKey }}" data-theme="light" data-size="normal"></div>
+                {{ if .ValidationErrors.Turnstile }}<small class="text-danger d-block mt-1">{{ .ValidationErrors.Turnstile }}</small>{{ end }}
+            </div>
+            {{ end }}
+
+            <div class="d-grid gap-2 mb-3">
+                <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                    <i class="bi bi-person-plus-fill me-2"></i> Kayıt Ol
+                </button>
+            </div>
+        </form>
+
+        <div class="position-relative my-4">
+            <div class="progress" style="height: 1px;">
+                <div class="progress-bar bg-secondary opacity-25" role="progressbar" style="width: 100%"
+                    aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <p class="position-absolute top-0 start-50 translate-middle bg-white px-2 text-muted small">VEYA</p>
+        </div>
+
+        <div class="d-grid gap-2">
+            <a href="/auth/oauth/google/login" class="btn btn-outline-danger shadow-sm">
+                <i class="bi bi-google me-2"></i> Google ile Kayıt Ol
+            </a>
+        </div>
+
+        <p class="mb-0 mt-4 text-center text-muted small">
+            Zaten üyeliğiniz var mı? <a href="/auth/login" class="text-primary fw-bold text-decoration-none">Giriş
+                Yapın</a>
+        </p>
+    </div>
+</div>
+{{ if .TurnstileSiteKey }}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{{ end }}

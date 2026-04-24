@@ -1,0 +1,153 @@
+<div class="row">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header bg-transparent border-bottom" style="padding: 1.25rem 2rem;">
+                <h5 class="card-title mb-0" style="font-weight: 600; font-size: 1.2rem;">
+                    <i class="bi bi-person-plus me-2"></i>Kullanıcı Oluştur
+                </h5>
+            </div>
+
+            <form method="POST" action="/dashboard/users/create" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
+
+                <div class="card-body" style="padding: 2rem;">
+
+                    <!-- Ad Soyad -->
+                    <div class="mb-3">
+                        <label class="form-label">Ad Soyad</label>
+                        <input type="text" name="name"
+                            class="form-control {{if .ValidationErrors.name}}is-invalid{{end}}"
+                            value="{{if .Old}}{{.Old.name}}{{end}}" required>
+                        {{if .ValidationErrors.name}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.name}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email"
+                            class="form-control {{if .ValidationErrors.email}}is-invalid{{end}}"
+                            value="{{if .Old}}{{.Old.email}}{{end}}" required>
+                        {{if .ValidationErrors.email}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.email}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Şifre -->
+                    <div class="mb-3">
+                        <label class="form-label">Şifre</label>
+                        <input type="password" name="password"
+                            class="form-control {{if .ValidationErrors.password}}is-invalid{{end}}" required>
+                        {{if .ValidationErrors.password}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.password}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Şifre Tekrar -->
+                    <div class="mb-3">
+                        <label class="form-label">Şifre Tekrar</label>
+                        <input type="password" name="confirmPassword"
+                            class="form-control {{if .ValidationErrors.confirmPassword}}is-invalid{{end}}" required>
+                        {{if .ValidationErrors.confirmPassword}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.confirmPassword}}</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Kullanıcı Tipi -->
+                    <div class="mb-3">
+                        <label class="form-label">Kullanıcı Tipi</label>
+                        <select name="user_type_id"
+                            class="form-select {{if .ValidationErrors.user_type_id}}is-invalid{{end}}" required>
+                            {{range .UserTypes}}
+                            <option value="{{.ID}}" {{if and $.Old (eq $.Old.user_type_id (printf "%d"
+                                .ID))}}selected{{end}}>
+                                {{.Name}}
+                            </option>
+                            {{end}}
+                        </select>
+                        {{if .ValidationErrors.user_type_id}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.user_type_id}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Durum -->
+                    <div class="mb-3">
+                        <label class="form-label">Durum</label>
+                        <select name="is_active" class="form-select {{if .ValidationErrors.is_active}}is-invalid{{end}}"
+                            required>
+                            <option value="true" {{if and .Old (eq .Old.is_active "true" )}}selected{{end}}>Aktif
+                            </option>
+                            <option value="false" {{if and .Old (eq .Old.is_active "false" )}}selected{{end}}>Pasif
+                            </option>
+                        </select>
+                        {{if .ValidationErrors.is_active}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.is_active}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Email Onayı -->
+                    <div class="mb-3">
+                        <label class="form-label">Email Onayı</label>
+                        <select name="email_verified"
+                            class="form-select {{if .ValidationErrors.email_verified}}is-invalid{{end}}" required>
+                            <option value="true" {{if and .Old (eq .Old.email_verified "true" )}}selected{{end}}>Onaylı
+                            </option>
+                            <option value="false" {{if and .Old (eq .Old.email_verified "false" )}}selected{{end}}>
+                                Onaysız</option>
+                        </select>
+                        {{if .ValidationErrors.email_verified}}
+                        <div class="invalid-feedback d-block">{{.ValidationErrors.email_verified}}</div>
+                        {{else}}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{end}}
+                    </div>
+
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-4">
+                            <a href="/dashboard/users" class="btn btn-secondary w-100">
+                                <i class="bi bi-arrow-left"></i> Geri
+                            </a>
+                        </div>
+                        <div class="col-8">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-check-lg"></i> Kaydet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+</script>

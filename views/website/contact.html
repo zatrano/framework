@@ -1,0 +1,75 @@
+<div class="row g-4">
+  <div class="col-lg-5">
+    <h1 class="h3 mb-3">İletişim</h1>
+    <p class="text-muted small mb-4">Mesajınızı aşağıdaki formdan iletebilirsiniz. Üretim ortamında Cloudflare Turnstile ile bot koruması önerilir.</p>
+
+    {{ if .Success }}
+    <div class="alert alert-success" role="alert">{{ .Success }}</div>
+    {{ end }}
+    {{ if .Error }}
+    <div class="alert alert-danger" role="alert">{{ .Error }}</div>
+    {{ end }}
+
+    {{ $def := .DefinitionValues }}
+    <ul class="list-unstyled small">
+      {{ with (index $def "contact_address") }}<li class="mb-2"><i class="bi bi-geo-alt me-2"></i>{{ . }}</li>{{ end }}
+      {{ with (index $def "contact_email") }}<li class="mb-2"><i class="bi bi-envelope me-2"></i><a href="mailto:{{ . }}">{{ . }}</a></li>{{ end }}
+      {{ with (index $def "contact_phone") }}<li class="mb-2"><i class="bi bi-telephone me-2"></i><a href="tel:{{ . }}">{{ . }}</a></li>{{ end }}
+    </ul>
+
+    {{ with (index $def "contact_map_embed_url") }}
+    <div class="ratio ratio-4x3 rounded overflow-hidden border mt-3">
+      <iframe src="{{ . }}" title="Harita" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+    </div>
+    {{ end }}
+  </div>
+
+  <div class="col-lg-7">
+    <form method="post" action="/iletisim" class="card shadow-sm border-0">
+      <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
+      <div class="card-body p-4">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="name">Ad Soyad <span class="text-danger">*</span></label>
+            <input type="text" class="form-control{{ if index .Errors "Name" }} is-invalid{{ end }}" id="name" name="name" value="{{ index .FormData "name" }}" required maxlength="255" autocomplete="name">
+            {{ if index .Errors "Name" }}<div class="invalid-feedback">{{ index .Errors "Name" }}</div>{{ end }}
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="email">E-posta <span class="text-danger">*</span></label>
+            <input type="email" class="form-control{{ if index .Errors "Email" }} is-invalid{{ end }}" id="email" name="email" value="{{ index .FormData "email" }}" required autocomplete="email">
+            {{ if index .Errors "Email" }}<div class="invalid-feedback">{{ index .Errors "Email" }}</div>{{ end }}
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="phone">Telefon</label>
+          <input type="text" class="form-control{{ if index .Errors "Phone" }} is-invalid{{ end }}" id="phone" name="phone" value="{{ index .FormData "phone" }}" maxlength="50" autocomplete="tel">
+          {{ if index .Errors "Phone" }}<div class="invalid-feedback">{{ index .Errors "Phone" }}</div>{{ end }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="subject">Konu</label>
+          <input type="text" class="form-control{{ if index .Errors "Subject" }} is-invalid{{ end }}" id="subject" name="subject" value="{{ index .FormData "subject" }}" maxlength="100">
+          {{ if index .Errors "Subject" }}<div class="invalid-feedback">{{ index .Errors "Subject" }}</div>{{ end }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="message">Mesaj <span class="text-danger">*</span></label>
+          <textarea class="form-control{{ if index .Errors "Message" }} is-invalid{{ end }}" id="message" name="message" rows="6" required minlength="10" maxlength="5000">{{ index .FormData "message" }}</textarea>
+          {{ if index .Errors "Message" }}<div class="invalid-feedback">{{ index .Errors "Message" }}</div>{{ end }}
+          <div class="form-text">En az 10 karakter.</div>
+        </div>
+
+        {{ if .TurnstileSiteKey }}
+        <div class="mb-3">
+          <div class="cf-turnstile" data-sitekey="{{ .TurnstileSiteKey }}" data-theme="light"></div>
+          {{ if index .Errors "Turnstile" }}<div class="text-danger small mt-1">{{ index .Errors "Turnstile" }}</div>{{ end }}
+        </div>
+        {{ end }}
+
+        <button type="submit" class="btn btn-primary">Gönder</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{ if .TurnstileSiteKey }}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{{ end }}

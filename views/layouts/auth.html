@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="tr">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="csrf-token" content="{{ .CsrfToken }}">
+  <title>zatrano | {{ .Title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+
+  {{/* Styles */}}
+  <link rel="preload" href="/css/adminlte.css" as="style" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
+    integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q=" crossorigin="anonymous" media="print"
+    onload="this.media='all'" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css"
+    crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+    crossorigin="anonymous" />
+  <link rel="stylesheet" href="/css/adminlte.css" />
+
+  <style>
+    /* Enterprise Touch: A cleaner background */
+    body.login-page {
+      background-color: #e9ecef;
+      /* Slightly darker than standard light */
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+    }
+
+    .login-box {
+      width: 400px;
+      /* Slightly wider for enterprise feel */
+    }
+
+    @media (max-width: 576px) {
+      .login-box {
+        width: 90%;
+        margin-top: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body class="login-page">
+
+  <div class="login-box">
+    <div class="login-logo mb-4">
+      <a href="/" class="d-inline-flex align-items-center justify-content-center text-decoration-none">
+        <span class="brand-text fw-bold fs-3 text-dark">zatrano</span>
+      </a>
+    </div>
+
+    {{embed}}
+
+    <div class="text-center mt-4 text-muted small">
+      &copy; {{ CurrentYear }} zatrano | Tüm Hakları Saklıdır.
+    </div>
+  </div>
+  {{if .Success}}
+  {{template "success" .}}
+  {{end}}
+  {{if .Error}}
+  {{template "error" .}}
+  {{end}}
+  {{/* Scripts */}}
+  <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+  <script src="/js/adminlte.js"></script>
+
+  <script>
+    const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
+    const Default = {
+      scrollbarTheme: 'os-theme-light',
+      scrollbarAutoHide: 'leave',
+      scrollbarClickScroll: true,
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
+      if (sidebarWrapper && OverlayScrollbarsGlobal?.OverlayScrollbars !== undefined) {
+        OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
+          scrollbars: {
+            theme: Default.scrollbarTheme,
+            autoHide: Default.scrollbarAutoHide,
+            clickScroll: Default.scrollbarClickScroll,
+          },
+        });
+      }
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toastElList = document.querySelectorAll('.toast');
+      toastElList.forEach(el => {
+        const toast = new bootstrap.Toast(el);
+        toast.show();
+      });
+    });
+  </script>
+  <script>
+    document.addEventListener('submit', function (e) {
+      const form = e.target;
+      const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+
+      submitButtons.forEach(btn => {
+        if (btn.tagName === "BUTTON") {
+          const originalContent = btn.innerHTML;
+          btn.dataset.originalContent = originalContent;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>İşleniyor...';
+        } else {
+          const originalValue = btn.value;
+          btn.dataset.originalValue = originalValue;
+          btn.value = 'İşleniyor...';
+        }
+        btn.disabled = true;
+      });
+    });
+  </script>
+</body>
+
+</html>

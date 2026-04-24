@@ -1,0 +1,97 @@
+{{define "pagination"}}
+{{- if gt .Result.Meta.TotalItems 0 -}}
+<div class="mt-2">
+    <nav aria-label="Sayfalama">
+        <ul class="pagination justify-content-center mb-0">
+            {{- $meta := .Result.Meta -}}
+            {{- $params := .Params -}}
+
+            {{- $p_pp := SafeGet $params "PerPage" -}}
+            {{- $p_sort := SafeGet $params "SortBy" -}}
+            {{- $p_order := SafeGet $params "OrderBy" -}}
+
+            {{- $query_suffix := "" -}}
+            {{- if $p_sort }}{{ $query_suffix = print $query_suffix "&sortBy=" $p_sort }}{{ end -}}
+            {{- if $p_order }}{{ $query_suffix = print $query_suffix "&orderBy=" $p_order }}{{ end -}}
+            {{- $queryParams := ParamsToQueryMap $params -}}
+            {{- range $key, $value := $queryParams -}}
+            {{- if $value -}}
+            {{- $query_suffix = print $query_suffix "&" $key "=" (print $value | urlquery) -}}
+            {{- end -}}
+            {{- end -}}
+
+            {{- $currentPage := $meta.CurrentPage -}}
+            {{- $totalPages := $meta.TotalPages -}}
+
+            <!-- Önceki -->
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+                {{- $prevPage := Subtract $currentPage 1 -}}
+                <a class="page-link" href="{{if gt $currentPage 1}}{{ print "?page=" $prevPage "&perPage=" $p_pp $query_suffix | SafeURL }}{{else}}#{{end}}">
+                    Önceki
+                </a>
+            </li>
+
+            {{- if le $totalPages 7 -}}
+            {{- range $i := Iterate 1 $totalPages -}}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+                <a class="page-link" href="{{ print "?page=" $i "&perPage=" $p_pp $query_suffix | SafeURL }}">
+                    {{$i}}
+                </a>
+            </li>
+            {{- end -}}
+            {{- else -}}
+
+            {{- if gt $currentPage 4 -}}
+            <li class="page-item">
+                <a class="page-link" href="{{ print "?page=1&perPage=" $p_pp $query_suffix | SafeURL }}">1</a>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">…</span>
+            </li>
+            {{- end -}}
+
+            {{- $startPage := Max 1 (Subtract $currentPage 2) -}}
+            {{- $endPage := Min $totalPages (Add $currentPage 2) -}}
+
+            {{- range $i := Iterate $startPage $endPage -}}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+                <a class="page-link" href="{{ print "?page=" $i "&perPage=" $p_pp $query_suffix | SafeURL }}">
+                    {{$i}}
+                </a>
+            </li>
+            {{- end -}}
+
+            {{- if lt $currentPage (Subtract $totalPages 3) -}}
+            <li class="page-item disabled">
+                <span class="page-link">…</span>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="{{ print "?page=" $totalPages "&perPage=" $p_pp $query_suffix | SafeURL }}">
+                    {{$totalPages}}
+                </a>
+            </li>
+            {{- end -}}
+
+            {{- end -}}
+
+            <!-- Sonraki -->
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+                {{- $nextPage := Add $currentPage 1 -}}
+                <a class="page-link" href="{{if lt $currentPage $totalPages}}{{ print "?page=" $nextPage "&perPage=" $p_pp $query_suffix | SafeURL }}{{else}}#{{end}}">
+                    Sonraki
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="text-center text-muted small mt-2">
+        {{$meta.TotalItems}} kayıt – Sayfa {{$currentPage}} / {{$totalPages}}
+        (Sayfa başına: {{$p_pp}} kayıt)
+    </div>
+</div>
+{{- else -}}
+<div class="text-muted small text-center mt-4">
+    Kayıt bulunamadı.
+</div>
+{{- end -}}
+{{end}}

@@ -1,0 +1,93 @@
+<div class="row">
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            <i class="bi bi-people me-1"></i> Kullanıcılar
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ with .UserCount }}{{ . }}{{ else }}0{{ end }}</div>
+                        <small class="text-muted">Toplam kullanıcı</small>
+                    </div>
+                    <div class="col-auto"><div class="icon-circle bg-primary"><i class="bi bi-people text-white"></i></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            <i class="bi bi-globe me-1"></i> Ülkeler
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ with .CountryCount }}{{ . }}{{ else }}0{{ end }}</div>
+                        <small class="text-muted">Toplam ülke</small>
+                    </div>
+                    <div class="col-auto"><div class="icon-circle bg-info"><i class="bi bi-globe text-white"></i></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            <i class="bi bi-geo-alt me-1"></i> Şehirler
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ with .CityCount }}{{ . }}{{ else }}0{{ end }}</div>
+                        <small class="text-muted">Toplam şehir</small>
+                    </div>
+                    <div class="col-auto"><div class="icon-circle bg-warning"><i class="bi bi-geo-alt text-white"></i></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            <i class="bi bi-pin-map me-1"></i> İlçeler
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ with .DistrictCount }}{{ . }}{{ else }}0{{ end }}</div>
+                        <small class="text-muted">Toplam ilçe</small>
+                    </div>
+                    <div class="col-auto"><div class="icon-circle bg-success"><i class="bi bi-pin-map text-white"></i></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                            <i class="bi bi-geo me-1"></i> Adresler
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ with .AddressCount }}{{ . }}{{ else }}0{{ end }}</div>
+                        <small class="text-muted">Toplam adres kaydı</small>
+                    </div>
+                    <div class="col-auto"><div class="icon-circle bg-secondary"><i class="bi bi-geo text-white"></i></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .icon-circle { display: inline-flex; align-items: center; justify-content: center; width: 3rem; height: 3rem; border-radius: 50%; }
+    .card { border: none; border-radius: 15px; }
+    .border-left-primary { border-left: 4px solid #4e73df !important; }
+    .border-left-info { border-left: 4px solid #36b9cc !important; }
+    .border-left-warning { border-left: 4px solid #f6c23e !important; }
+    .border-left-success { border-left: 4px solid #1cc88a !important; }
+    .border-left-secondary { border-left: 4px solid #858796 !important; }
+    .text-xs { font-size: 0.8rem; }
+</style>

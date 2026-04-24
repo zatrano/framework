@@ -1,0 +1,99 @@
+{{define "website-pagination"}}
+{{- if gt .Result.Meta.TotalItems 0 -}}
+<div class="tj-pagination d-flex justify-content-center">
+    <ul>
+        {{- $meta := .Result.Meta -}}
+        {{- $params := .Params -}}
+
+        {{- $query := "" -}}
+
+        {{- $p_pp := SafeGet $params "PerPage" -}}
+        {{- if $p_pp }}{{ $query = printf "%s&perPage=%v" $query $p_pp }}{{ end -}}
+
+        {{- $p_name := SafeGet $params "Name" -}}
+        {{- if $p_name }}{{ $query = printf "%s&name=%s" $query ($p_name | urlquery) }}{{ end -}}
+
+        {{- $p_title := SafeGet $params "Title" -}}
+        {{- if $p_title }}{{ $query = printf "%s&title=%s" $query ($p_title | urlquery) }}{{ end -}}
+
+        {{- $p_active := SafeGet $params "IsActive" -}}
+        {{- if $p_active }}{{ $query = printf "%s&is_active=%v" $query $p_active }}{{ end -}}
+
+        {{- $p_sort := SafeGet $params "SortBy" -}}
+        {{- if $p_sort }}{{ $query = printf "%s&sortBy=%v" $query $p_sort }}{{ end -}}
+
+        {{- $p_order := SafeGet $params "OrderBy" -}}
+        {{- if $p_order }}{{ $query = printf "%s&orderBy=%v" $query $p_order }}{{ end -}}
+
+        {{- $p_country := SafeGet $params "CountryID" -}}
+        {{- if $p_country }}{{ $query = printf "%s&country_id=%v" $query $p_country }}{{ end -}}
+
+        {{- $p_city := SafeGet $params "CityID" -}}
+        {{- if $p_city }}{{ $query = printf "%s&city_id=%v" $query $p_city }}{{ end -}}
+
+        {{- $p_cat := SafeGet $params "CategoryID" -}}
+        {{- if $p_cat }}{{ $query = printf "%s&category_id=%v" $query $p_cat }}{{ end -}}
+
+        {{- $p_card := SafeGet $params "CardTypeID" -}}
+        {{- if $p_card }}{{ $query = printf "%s&card_type_id=%v" $query $p_card }}{{ end -}}
+
+        {{- $totalPages := $meta.TotalPages -}}
+        {{- $currentPage := $meta.CurrentPage -}}
+
+        {{- if le $totalPages 7 -}}
+            {{- range $i := Iterate 1 $totalPages -}}
+            <li>
+                {{- if eq $i $currentPage -}}
+                <span aria-current="page" class="page-numbers current">{{$i}}</span>
+                {{- else -}}
+                <a class="page-numbers" href="{{ printf "?page=%d%s" $i $query | SafeURL }}">{{$i}}</a>
+                {{- end -}}
+            </li>
+            {{- end -}}
+        {{- else -}}
+
+            {{- if gt $currentPage 4 -}}
+            <li>
+                <a class="page-numbers" href="{{ printf "?page=1%s" $query | SafeURL }}">1</a>
+            </li>
+            <li>
+                <span class="page-numbers dots">…</span>
+            </li>
+            {{- end -}}
+
+            {{- $startPage := Max 1 (Subtract $currentPage 2) -}}
+            {{- $endPage := Min $totalPages (Add $currentPage 2) -}}
+
+            {{- range $i := Iterate $startPage $endPage -}}
+            <li>
+                {{- if eq $i $currentPage -}}
+                <span aria-current="page" class="page-numbers current">{{$i}}</span>
+                {{- else -}}
+                <a class="page-numbers" href="{{ printf "?page=%d%s" $i $query | SafeURL }}">{{$i}}</a>
+                {{- end -}}
+            </li>
+            {{- end -}}
+
+            {{- if lt $currentPage (Subtract $totalPages 3) -}}
+            <li>
+                <span class="page-numbers dots">…</span>
+            </li>
+            <li>
+                <a class="page-numbers" href="{{ printf "?page=%d%s" $totalPages $query | SafeURL }}">{{$totalPages}}</a>
+            </li>
+            {{- end -}}
+
+        {{- end -}}
+
+        {{- if lt $currentPage $totalPages -}}
+            {{- $nextPage := Add $currentPage 1 -}}
+            <li>
+                <a class="next page-numbers" href="{{ printf "?page=%d%s" $nextPage $query | SafeURL }}">
+                    <i class="tji-arrow-right-long"></i>
+                </a>
+            </li>
+        {{- end -}}
+    </ul>
+</div>
+{{- end -}}
+{{end}}

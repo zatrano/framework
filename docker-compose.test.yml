@@ -1,0 +1,55 @@
+# Integration testler için minimal docker-compose
+# Kullanım: docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: zatrano_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test:
+    image: golang:1.26.1-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      APP_ENV: test
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: zatrano_test
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: test-secret-key-minimum-32-characters
+      SESSION_COOKIE_NAME: test_session
+      APP_PORT: 3001
+      APP_HOST: 0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "go test -tags=integration -v -race ./tests/integration/... 2>&1"

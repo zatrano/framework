@@ -1,0 +1,96 @@
+{{define "dashboard-sidebar"}}
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+  <div class="sidebar-brand">
+    {{if hasPrefix .Path "/panel"}}
+    <a href="/panel/anasayfa" class="brand-link">
+    {{else}}
+    <a href="/dashboard/home" class="brand-link">
+    {{end}}
+    <span class="brand-text fw-bold text-white ms-2">zatrano</span>
+    </a>
+  </div>
+
+  <div class="sidebar-wrapper">
+    <nav class="mt-2">
+      <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation"
+        data-accordion="false" id="navigation">
+
+        {{if hasPrefix .Path "/panel"}}
+        <li class="nav-item">
+          <a href="/panel/anasayfa" class="nav-link {{ if eq .Path "/panel/anasayfa" }}active{{ end }}">
+            <i class="nav-icon bi bi-house-door"></i>
+            <p>Ana Sayfa</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/auth/profile" class="nav-link {{ if hasPrefix .Path "/auth/profile" }}active{{ end }}">
+            <i class="nav-icon bi bi-person"></i>
+            <p>Profil</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/auth/logout" class="nav-link">
+            <i class="nav-icon bi bi-box-arrow-right"></i>
+            <p>Çıkış</p>
+          </a>
+        </li>
+        {{else}}
+        <li class="nav-item">
+          <a href="/dashboard/home" class="nav-link {{ if eq .Path "/dashboard/home" }}active{{ end }}">
+            <i class="nav-icon bi bi-house-door"></i>
+            <p>Ana Sayfa</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/users" class="nav-link {{ if hasPrefix .Path "/dashboard/users" }}active{{ end }}">
+            <i class="nav-icon bi bi-people"></i>
+            <p>Kullanıcı Hesapları</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/contact-messages" class="nav-link {{ if hasPrefix .Path "/dashboard/contact-messages" }}active{{ end }}">
+            <i class="nav-icon bi bi-envelope-paper"></i>
+            <p>İletişim mesajları</p>
+          </a>
+        </li>
+
+        <li class="nav-header">TANIMLAMALAR</li>
+
+        <li class="nav-item">
+          <a href="/dashboard/user-types" class="nav-link {{ if hasPrefix .Path "/dashboard/user-types" }}active{{ end }}">
+            <i class="nav-icon bi bi-person-badge"></i>
+            <p>Kullanıcı Türleri</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/countries" class="nav-link {{ if hasPrefix .Path "/dashboard/countries" }}active{{ end }}">
+            <i class="nav-icon bi bi-globe"></i>
+            <p>Ülkeler</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/cities" class="nav-link {{ if hasPrefix .Path "/dashboard/cities" }}active{{ end }}">
+            <i class="nav-icon bi bi-geo-alt"></i>
+            <p>Şehirler</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/districts" class="nav-link {{ if hasPrefix .Path "/dashboard/districts" }}active{{ end }}">
+            <i class="nav-icon bi bi-pin-map"></i>
+            <p>İlçeler</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/dashboard/addresses" class="nav-link {{ if hasPrefix .Path "/dashboard/addresses" }}active{{ end }}">
+            <i class="nav-icon bi bi-geo"></i>
+            <p>Adresler</p>
+          </a>
+        </li>
+
+        {{end}}
+
+      </ul>
+    </nav>
+  </div>
+</aside>
+{{end}}

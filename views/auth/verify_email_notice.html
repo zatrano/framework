@@ -1,0 +1,36 @@
+<div class="card card-outline card-success shadow-lg border-0 rounded-3">
+    <div class="card-body login-card-body p-5 text-center">
+
+        <div class="mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 rounded-circle text-success"
+                style="width: 80px; height: 80px;">
+                <i class="bi bi-envelope-check-fill fs-1"></i>
+            </div>
+        </div>
+
+        <h4 class="mb-3 fw-bold text-success">Lütfen E-postanızı Kontrol Edin!</h4>
+
+        <p class="text-muted mb-4">
+            E-posta adresinize bir doğrulama bağlantısı gönderdik.<br>
+            Aktivasyon işlemini tamamlamak için lütfen bu bağlantıya tıklayın.
+        </p>
+
+        <div class="alert alert-light border shadow-sm text-start d-flex align-items-start small text-muted mb-4">
+            <i class="bi bi-info-circle-fill text-muted me-2 mt-1"></i>
+            <div>
+                E-postayı göremiyorsanız, lütfen <strong>Spam/Önemsiz</strong> klasörünü kontrol etmeyi unutmayın.
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="button" class="btn btn-outline-primary shadow-sm"
+                onclick="window.location.href='/auth/resend-verification{{if .UserEmail}}?email={{.UserEmail}}{{end}}'">
+                <i class="bi bi-arrow-repeat me-2"></i> Mail Gelmediyse Tekrar Gönder
+            </button>
+        </div>
+
+        <p class="mt-4 mb-0 text-center text-muted small">
+            <a href="/auth/login" class="text-primary fw-bold text-decoration-none">Girişe Dön</a>
+        </p>
+    </div>
+</div>

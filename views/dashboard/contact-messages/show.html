@@ -1,0 +1,40 @@
+<div class="row">
+    <div class="col-12 col-lg-12 col-xl-12">
+        <div class="card card-primary card-outline mb-4">
+            <div class="card-header d-flex align-items-center">
+                <h3 class="card-title mb-0">İletişim mesajı</h3>
+                <a href="/dashboard/contact-messages" class="btn btn-sm btn-secondary ms-auto">
+                    <i class="bi bi-arrow-left"></i> Listeye dön
+                </a>
+            </div>
+            {{ if .Error }}
+            <div class="card-body">
+                <div class="alert alert-danger mb-0">{{ .Error }}</div>
+            </div>
+            {{ else if .Message }}
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3 text-muted">Gönderen</dt>
+                    <dd class="col-sm-9">{{ .Message.Name }}</dd>
+                    <dt class="col-sm-3 text-muted">E-posta</dt>
+                    <dd class="col-sm-9"><a href="mailto:{{ .Message.Email }}">{{ .Message.Email }}</a></dd>
+                    <dt class="col-sm-3 text-muted">Telefon</dt>
+                    <dd class="col-sm-9">{{ if .Message.Phone }}{{ .Message.Phone }}{{ else }}<span class="text-muted">—</span>{{ end }}</dd>
+                    <dt class="col-sm-3 text-muted">Konu</dt>
+                    <dd class="col-sm-9">{{ if .Message.Subject }}{{ .Message.Subject }}{{ else }}<span class="text-muted">—</span>{{ end }}</dd>
+                    <dt class="col-sm-3 text-muted">Tarih</dt>
+                    <dd class="col-sm-9">{{ FormatDateTimeTR .Message.CreatedAt }}</dd>
+                    <dt class="col-sm-3 text-muted">IP</dt>
+                    <dd class="col-sm-9"><code class="small">{{ if .Message.IP }}{{ .Message.IP }}{{ else }}—{{ end }}</code></dd>
+                    <dt class="col-sm-3 text-muted">Tarayıcı</dt>
+                    <dd class="col-sm-9 small text-break">{{ if .Message.UserAgent }}{{ .Message.UserAgent }}{{ else }}—{{ end }}</dd>
+                    <dt class="col-sm-3 text-muted">Mesaj</dt>
+                    <dd class="col-sm-9">
+                        <div class="border rounded p-3 bg-light" style="white-space: pre-wrap;">{{ .Message.Message }}</div>
+                    </dd>
+                </dl>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</div>

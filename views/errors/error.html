@@ -1,0 +1,48 @@
+{{ $code := or .Code 404 }}
+{{ $title := or .Title "Sayfa Bulunamadı" }}
+{{ $message := or .Message "Aradığınız sayfa mevcut değil veya taşınmış olabilir." }}
+
+<!-- Breadcrumb -->
+<section class="tj-page-header section-gap-x" data-bg-image="/assets/images/bg/pheader-bg.webp">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="tj-page-header-content text-center">
+          <h1 class="tj-page-title">Hata {{ $code }}</h1>
+          <div class="tj-page-link">
+            <span><i class="tji-home"></i></span>
+            <span><a href="/">Ana Sayfa</a></span>
+            <span>/</span>
+            <span>Hata {{ $code }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Error Section (template/error.html) -->
+<section class="tj-error-section">
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <div class="tj-error-wrap text-center">
+          <div class="tj-error-content">
+            <div class="error-img">
+              <img src="/assets/images/404/error.webp" alt="Hata {{ $code }}" onerror="this.style.display='none'"/>
+            </div>
+            <h2 class="error-title text-anim">{{ $title }}</h2>
+            <div class="error-desc">{{ $message }}</div>
+            <a class="tj-primary-btn error-btn" href="/">
+              <div class="btn-inner">
+                <span class="btn-icon h-icon"><i class="tji-home"></i></span>
+                <span class="btn-text">Ana Sayfaya Dön</span>
+                <span class="btn-icon"><i class="tji-home"></i></span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

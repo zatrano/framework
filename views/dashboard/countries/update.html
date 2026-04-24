@@ -1,0 +1,77 @@
+<div class="row">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header bg-transparent border-bottom" style="padding: 1.25rem 2rem;">
+                <h5 class="card-title mb-0" style="font-weight: 600; font-size: 1.2rem;">
+                    <i class="bi bi-globe me-2"></i>Ülke Düzenle
+                </h5>
+            </div>
+
+            <form action="/dashboard/countries/update/{{ .Country.ID }}" method="POST" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
+
+                <div class="card-body" style="padding: 2rem;">
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Ülke Adı</label>
+                        <input type="text" name="name" id="name"
+                            class="form-control {{ if index .ValidationErrors "name" }}is-invalid{{ end }}"
+                            value="{{ if .FormData }}{{ index .FormData "name" }}{{ else }}{{ .Country.Name }}{{ end }}" required>
+                        {{ if index .ValidationErrors "name" }}
+                        <div class="invalid-feedback d-block">{{ index .ValidationErrors "name" }}</div>
+                        {{ else }}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{ end }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_active" class="form-label">Durum</label>
+                        <select name="is_active" id="is_active"
+                            class="form-select {{ if index .ValidationErrors "is_active" }}is-invalid{{ end }}" required>
+                            <option value="true" {{ if .FormData }}{{ if eq (index .FormData "is_active") "true" }}selected{{ end }}{{ else }}{{ if .Country.IsActive }}selected{{ end }}{{ end }}>Aktif</option>
+                            <option value="false" {{ if .FormData }}{{ if eq (index .FormData "is_active") "false" }}selected{{ end }}{{ else }}{{ if not .Country.IsActive }}selected{{ end }}{{ end }}>Pasif</option>
+                        </select>
+                        {{ if index .ValidationErrors "is_active" }}
+                        <div class="invalid-feedback d-block">{{ index .ValidationErrors "is_active" }}</div>
+                        {{ else }}
+                        <div class="valid-feedback">Doğru!</div>
+                        {{ end }}
+                    </div>
+
+                </div>
+
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-4">
+                            <a href="/dashboard/countries" class="btn btn-secondary w-100">
+                                <i class="bi bi-arrow-left"></i> Geri
+                            </a>
+                        </div>
+                        <div class="col-8">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-check-lg"></i> Güncelle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+</script>
