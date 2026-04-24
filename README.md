@@ -331,83 +331,201 @@ Tüm repositoryler `repositories/` altında tanımlıdır ve GORM kullanır:
 
 ## Başlangıç Rehberi
 
-### Gerekli Adımlar
+### Ön koşullar
 
-1. Reponun klonlanması
+| Gereksinim | Açıklama |
+|------------|----------|
+| **Go** | `go.mod` ile uyumlu sürüm (ör. 1.25+); `go version` ile kontrol edin. |
+| **PostgreSQL** | Çalışan bir instance; `DB_*` değişkenleri buna göre. |
+| **Redis** | Oturum, rate limit ve cache için; `REDIS_*` değişkenleri. |
+| **Make** (isteğe bağlı) | `Makefile` kısayolları için; yoksa aşağıdaki `go run` komutlarını kullanın. |
+
+### 1. Repoyu klonlayın
 
 ```bash
 git clone https://github.com/zatrano/framework.git
-cd zatrano
+cd framework
 ```
 
-2. Ortam dosyasının oluşturulması
+### 2. Ortam dosyasını oluşturun
+
+Kök dizinde `env.example` şablonu vardır; kopyalayıp `.env` yapın:
 
 ```bash
-cp .env.example .env
+# Linux / macOS
+cp env.example .env
+
+# Windows (PowerShell)
+Copy-Item env.example .env
 ```
 
-3. `.env` içinde aşağıdaki temel değişkenleri düzenleyin:
+> **Not:** `FILE_BASE_PATH` gibi alanlarda aynı satıra `# yorum` yazmayın; değer ile yorumu ayrı satırlara bölün. Boş bırakılırsa uygulama varsayılan olarak `./uploads` kullanır.
 
-- `APP_ENV`
-- `APP_HOST`
-- `APP_PORT`
-- `APP_BASE_URL`
-- `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SSL_MODE`
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_TLS`
-- `JWT_SECRET`
-- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` (SMTP için)
-- `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` (Captcha için)
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+### 3. `.env` içinde zorunlu / kritik alanlar
 
-4. Bağımlılıkları indirme ve doğrulama
+Aşağıdakileri kendi ortamınıza göre doldurun (tam liste `env.example` içinde):
+
+- **Uygulama:** `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_BASE_URL` (üretimde `APP_BASE_URL` zorunlu doğrulamaya girer)
+- **Veritabanı:** `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SSL_MODE`, `DB_TIMEZONE`
+- **Redis:** `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`
+- **Güvenlik:** `JWT_SECRET` (yeterince uzun, rastgele)
+- **E-posta (opsiyonel):** `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+- **Turnstile / OAuth (kullanacaksanız):** `TURNSTILE_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+
+PostgreSQL ve Redis’in **çalışıyor** ve `.env`’deki host/port/şifrelerin **doğru** olduğundan emin olun.
+
+### 4. Go bağımlılıkları
 
 ```bash
+go mod download
+# veya
 make tidy
 ```
 
-5. Veritabanı migrasyonları
+### 5. Migrasyon (şema)
+
+Şema [GORM AutoMigrate](https://gorm.io/docs/migration.html) ile `database/migrations/schema.go` üzerinden güncellenir; tablolar yoksa oluşturulur.
+
+**Make kullanıyorsanız:**
 
 ```bash
 make migrate
 ```
 
-6. Seed verisi yükleme
+**Düz `go` ile:**
+
+```bash
+go run ./database/cmd/main.go -migrate
+```
+
+> Bayrak yokken `go run ./database/cmd/main.go` sadece DB’ye bağlanır; `-migrate` ve/veya `-seed` verilmedikçe şema/seed çalışmaz (logda bilgi mesajı yazar).
+
+### 6. Seed (örnek / başlangıç verisi)
+
+Kullanıcı tipleri, admin kullanıcı, ülke/şehir/ilçe örnekleri, `definitions` seeder’ı vb. `database/seeders` içinde tanımlıdır; detay `seed_all.go` sırasıyla çalışır.
+
+**Make:**
 
 ```bash
 make seed
 ```
 
-7. Geliştirme sunucusunu çalıştırma
+**Düz `go` ile:**
+
+```bash
+go run ./database/cmd/main.go -seed
+```
+
+### 7. İlk kurulum: migrasyon + seed birlikte
+
+**Make:**
+
+```bash
+make migrate-seed
+```
+
+**Düz `go` ile:**
+
+```bash
+go run ./database/cmd/main.go -migrate -seed
+```
+
+Bu komut **tek transaction** içinde önce migrasyon, sonra tüm seeder’ları çalıştırır. Üretimde seed’i yalnızca bilinçli olarak çalıştırın.
+
+### 8. Uygulamayı çalıştırma
+
+**Make (Linux/macOS; `APP_ENV` ayarlanır):**
 
 ```bash
 make dev
 ```
 
-8. Tarayıcıdan erişim
+**Düz `go` (tüm platformlar):**
 
-- `http://127.0.0.1:3000`
-- `http://127.0.0.1:3000/health`
-- `http://127.0.0.1:3000/metrics`
+```bash
+go run .
+```
+
+Geliştirme için genelde `APP_ENV=development` kullanılır. **Windows PowerShell** örneği:
+
+```powershell
+$env:APP_ENV="development"; go run .
+```
+
+**Üretim** için önce derleyip binary çalıştırın; örnek:
+
+```bash
+make build
+./bin/zatrano
+# veya: go build -o zatrano . && ./zatrano
+```
+
+### 9. Hızlı kontrol listesi (sıra)
+
+1. PostgreSQL + Redis ayakta  
+2. `env.example` → `.env`, değerler dolduruldu  
+3. `go mod download` veya `make tidy`  
+4. `make migrate` veya `go run ./database/cmd/main.go -migrate`  
+5. `make seed` veya `go run ./database/cmd/main.go -seed` (veya 4–5 için `make migrate-seed`)  
+6. `make dev` veya `go run .`  
+7. Tarayıcı: `http://127.0.0.1:3000` (port `APP_PORT` ile aynı olmalı)
+
+### 10. Uç noktalar (çalıştırdıktan sonra)
+
+- Ana uygulama: `http://127.0.0.1:3000` (veya `APP_BASE_URL`)  
+- Sağlık: `http://127.0.0.1:3000/health`  
+- Hazırlık: `http://127.0.0.1:3000/readyz`  
+- Metrik: `http://127.0.0.1:3000/metrics`  
+
+`APP_PORT` varsayılanı `3000`’dir; `.env` ile değişir.
 
 ---
 
-## `Makefile` Komutları
+## `Makefile` ve eşdeğer `go` / CLI komutları
 
-- `make help` — tüm komutları gösterir
-- `make tidy` — modülleri düzenler ve doğrular
-- `make dev` — geliştirme modunda çalıştırır
-- `make build` — production binary derler
-- `make run` — derler ve çalıştırır
-- `make migrate` — DB migrasyonlarını uygular
-- `make seed` — seed verilerini yükler
-- `make migrate-seed` — migrasyon + seed
-- `make clean` — build artefaktlarını temizler
-- `make test-unit` — unit test çalıştırır
-- `make test-integration` — docker destekli integration test
-- `make test` — unit test + coverage
-- `make test-race` — race condition testi
-- `make lint` — golangci-lint çalıştırır
-- `make docker-build` — Docker image üretir
+İlk kurulum adımları için **Başlangıç Rehberi** bölümüne bakın. Aşağıda `make` hedeflerinin **Make kullanmadan** karşılıkları verilmiştir. Tam `LDFLAGS`, çapraz derleme (`GOOS`/`GOARCH`) ve sürüm enjeksiyonu için `Makefile` içine bakın.
+
+| Make hedefi | Go / komut satırı eşdeğeri |
+|-------------|----------------------------|
+| `make help` | `Makefile` içinde `grep -E '^## '` (Windows’ta hedef adlarını `Makefile`’dan okuyun) |
+| `make tidy` | `go mod tidy` ve ardından `go mod verify` |
+| `make dev` | Linux/macOS: `APP_ENV=development go run .` — **Windows (PowerShell):** `$env:APP_ENV="development"; go run .` |
+| `make build` | `mkdir -p bin` (Windows: `New-Item -ItemType Directory -Force bin`) sonra `go build -trimpath -o bin/zatrano .` (Windows çıktı: `bin\zatrano.exe`) — üretimde `Makefile` ayrıca `-ldflags` ve `linux/amd64` sabitler |
+| `make run` | `make build` + `./bin/zatrano` (Windows: `.\bin\zatrano.exe`) veya: `go run .` |
+| `make migrate` | `go run ./database/cmd/main.go -migrate` |
+| `make seed` | `go run ./database/cmd/main.go -seed` |
+| `make migrate-seed` | `go run ./database/cmd/main.go -migrate -seed` |
+| `make clean` | `rm -rf ./bin` — Windows: `Remove-Item -Recurse -Force bin -ErrorAction SilentlyContinue` (varsa `coverage.out`, `coverage.html` da silinir) |
+| `make test-unit` | `go test -v -race -count=1 ./tests/unit/...` |
+| `make test` | `go test -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...` sonra `go tool cover -func=coverage.out` / `-html=coverage.html` |
+| `make test-race` | `go test -race -count=3 ./tests/unit/...` |
+| `make test-integration` | Aynı: `docker-compose -f docker-compose.test.yml up --abort-on-container-exit --build` (Go ile değil, Docker) |
+| `make vet` | `go vet ./...` |
+| `make lint` | `golangci-lint` kuruluysa: `golangci-lint run --timeout=5m ./...` (Make’e bağlı) |
+| `make docker-build` | `docker build` (Makefile’daki `VERSION` / `--build-arg` için `Makefile`’a bakın) |
+
+**Özet (sık kullanılan `go` komutları):**
+
+```bash
+# Modül
+go mod tidy
+go mod verify
+go mod download
+
+# Uygulama
+go run .
+go build -o zatrano .
+
+# Veritabanı aracı (migrate / seed)
+go run ./database/cmd/main.go -migrate
+go run ./database/cmd/main.go -seed
+go run ./database/cmd/main.go -migrate -seed
+
+# Test
+go test -v -race -count=1 ./tests/unit/...
+go test -race -coverprofile=coverage.out ./tests/unit/...
+go vet ./...
+```
 
 ---
 
@@ -415,27 +533,57 @@ make dev
 
 ### Birim Testler
 
-`tests/unit/` klasöründe servis unit testleri bulunur. Aşağıdaki komutla run edilir:
+`tests/unit/` servis testlerini barındırır.
+
+**Make:**
 
 ```bash
 make test-unit
 ```
 
+**Sadece `go`:**
+
+```bash
+go test -v -race -count=1 ./tests/unit/...
+```
+
 ### Entegrasyon Testler
 
-`tests/integration/` içinde Docker destekli testler vardır. Aşağıdaki komut çalıştırılır:
+`tests/integration/` Docker ile çalışır; `go test` yerine `docker-compose` kullanılır (Make de aynısını çağırır).
 
 ```bash
 make test-integration
+# veya
+docker-compose -f docker-compose.test.yml up --abort-on-container-exit --build
+docker-compose -f docker-compose.test.yml down -v
+```
+
+### Coverage (Make `test` hedefi eşdeğeri)
+
+**Make:** `make test` (rapor `coverage.html`).
+
+**Sadece `go`:**
+
+```bash
+go test -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+go tool cover -func=coverage.out
+go tool cover -html=coverage.out -o coverage.html
 ```
 
 ### Kod Kalitesi
 
-Linter ve race testleri:
+| İş | Make | `go` / araç |
+|----|------|-------------|
+| Race tekrar | `make test-race` | `go test -race -count=3 ./tests/unit/...` |
+| Statik analiz (Go yerleşik) | `make vet` | `go vet ./...` |
+| Linter | `make lint` | `golangci-lint run --timeout=5m ./...` (ayrı kurulum gerekir) |
 
 ```bash
-make lint
 make test-race
+# veya
+go test -race -count=3 ./tests/unit/...
+
+go vet ./...
 ```
 
 ---
