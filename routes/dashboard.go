@@ -19,7 +19,6 @@ func registerDashboardRoutes(fiberApp *fiber.App, c *app.Container) {
 		c.UserRepo, c.CountryRepo, c.CityRepo, c.DistrictRepo, c.AddressRepo,
 	)
 	dashboardGroup.Get("/", dashboardHomeHandler.HomePage)
-	dashboardGroup.Get("/home", dashboardHomeHandler.HomePage)
 
 	userTypeHandler := handlers.NewDashboardUserTypeHandler(c.UserType)
 	dashboardGroup.Get("/user-types", userTypeHandler.ListUserTypes)

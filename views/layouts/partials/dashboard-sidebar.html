@@ -4,7 +4,7 @@
     {{if hasPrefix .Path "/panel"}}
     <a href="/panel/anasayfa" class="brand-link">
     {{else}}
-    <a href="/dashboard/home" class="brand-link">
+    <a href="/dashboard" class="brand-link">
     {{end}}
     <span class="brand-text fw-bold text-white ms-2 zatrano-wordmark">ZATRANO</span>
     </a>
@@ -36,7 +36,7 @@
         </li>
         {{else}}
         <li class="nav-item">
-          <a href="/dashboard/home" class="nav-link {{ if eq .Path "/dashboard/home" }}active{{ end }}">
+          <a href="/dashboard" class="nav-link {{ if eq .Path "/dashboard" }}active{{ end }}">
             <i class="nav-icon bi bi-house-door"></i>
             <p>Ana Sayfa</p>
           </a>

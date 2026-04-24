@@ -216,7 +216,7 @@ Sıralama:
 
 ### Yönetici Paneli
 
-- `GET /dashboard/home`
+- `GET /dashboard` (ana sayfa)
 - `GET /dashboard/user-types`
 - `GET /dashboard/user-types/create`
 - `POST /dashboard/user-types/create`
@@ -679,7 +679,7 @@ Toplanan metrikler:
 
 1. Kullanıcı `/auth/login` formunu gönderir
 2. `AuthService.Authenticate` kimlik bilgilerini doğrular
-3. Başarılıysa session başlatılır ve yetkiye göre `/dashboard/home` veya `/panel/anasayfa` yönlendirilir
+3. Başarılıysa session başlatılır ve yetkiye göre `/dashboard` veya `/panel/anasayfa` yönlendirilir
 
 ### JWT API Akışı
 

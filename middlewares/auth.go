@@ -84,7 +84,7 @@ func AuthMiddleware(authService services.IAuthService) fiber.Handler {
 		c.Locals("currentUser", cu)
 
 		if strings.HasPrefix(c.Path(), "/panel") && user.UserTypeID == 1 {
-			return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard/home")
+			return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard")
 		}
 
 		return c.Next()

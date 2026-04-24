@@ -167,7 +167,7 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 	flashmessages.SetFlashMessage(c, flashmessages.FlashSuccessKey, "Başarıyla giriş yapıldı")
 
 	if user.UserTypeID == 1 {
-		return c.Redirect().Status(fiber.StatusFound).To("/dashboard/home")
+		return c.Redirect().Status(fiber.StatusFound).To("/dashboard")
 	}
 	return c.Redirect().Status(fiber.StatusFound).To("/panel/anasayfa")
 }

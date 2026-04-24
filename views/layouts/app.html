@@ -96,11 +96,18 @@
 
   <div class="main-wrapper">
     <header class="header">
-      <button type="button" class="header-toggle" id="sidebarToggle" aria-label="Menüyü aç/kapat">
-        <i class="bi bi-list"></i>
-      </button>
+      <div class="header-inner container-fluid px-3">
+        <div class="header-start">
+          <button type="button" class="header-sidebar-collapse" id="sidebarCollapseToggle"
+            aria-expanded="true" aria-controls="sidebar" title="Kenar çubuğunu gizle">
+            <i class="bi bi-chevron-double-left" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="header-toggle" id="sidebarToggle" aria-label="Menüyü aç/kapat">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
 
-      <div class="header-actions">
+        <div class="header-actions">
         <div class="dropdown">
           <button class="header-action-btn" type="button" id="notificationDropdown" data-bs-toggle="dropdown"
             aria-expanded="false" title="Bildirimler">
@@ -126,6 +133,7 @@
           </div>
           {{end}}
         </a>
+        </div>
       </div>
     </header>
 
@@ -136,8 +144,9 @@
     </main>
 
     <footer class="footer">
-      <span>© {{ CurrentYear }} <a href="/" class="zatrano-wordmark text-decoration-none">ZATRANO</a>. Tüm hakları saklıdır.</span>
-      <span>Versiyon 1.0.0</span>
+      <div class="container-fluid px-3 footer-inner">
+        <span>© {{ CurrentYear }} <a href="/" class="zatrano-wordmark text-decoration-none">ZATRANO</a>. Tüm hakları saklıdır.</span>
+      </div>
     </footer>
   </div>
 

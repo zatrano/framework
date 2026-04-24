@@ -89,14 +89,9 @@ func pathFromOriginalURL(raw string) string {
 	return ""
 }
 
-func isDashboardAnaSayfaPath(p string) bool {
-	p = normMenuPath(p)
-	return p == "/dashboard" || p == "/dashboard/home"
-}
-
 // navbarPath, kenar çubuğunda aktif menü eşlemesi için tutarlı yol döner.
 // Dashboard grup kökünde c.Path() bazen "/" kalır; URI PathOriginal, FullPath ve OriginalURL ile tamamlanır.
-// Ana sayfa rotaları (/dashboard, /dashboard/, /dashboard/home) tek kök olarak /dashboard normalize edilir.
+// Ana sayfa yolu /dashboard olarak normalize edilir.
 func navbarPath(c fiber.Ctx) string {
 	reqPath := string(c.Request().URI().PathOriginal())
 	if i := strings.IndexByte(reqPath, '?'); i >= 0 {
@@ -123,9 +118,10 @@ func navbarPath(c fiber.Ctx) string {
 	}
 	p = normMenuPath(p)
 
-	if isDashboardAnaSayfaPath(p) || isDashboardAnaSayfaPath(fp) || isDashboardAnaSayfaPath(orig) || isDashboardAnaSayfaPath(reqPath) ||
-		(normMenuPath(pathRaw) == "/" && (isDashboardAnaSayfaPath(fp) || isDashboardAnaSayfaPath(orig) || isDashboardAnaSayfaPath(reqPath))) {
-		return "/dashboard"
+	dash := "/dashboard"
+	if normMenuPath(p) == dash || normMenuPath(fp) == dash || normMenuPath(orig) == dash || normMenuPath(reqPath) == dash ||
+		(normMenuPath(pathRaw) == "/" && (normMenuPath(fp) == dash || normMenuPath(orig) == dash || normMenuPath(reqPath) == dash)) {
+		return dash
 	}
 	return p
 }

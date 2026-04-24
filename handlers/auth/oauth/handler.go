@@ -1,4 +1,4 @@
-﻿package oauth
+package oauth
 
 import (
 	"context"
@@ -234,7 +234,7 @@ func generateStateToken() (string, error) {
 // redirectAfterLogin: 1 = admin (dashboard), 2 = kullanıcı (panel)
 func redirectAfterLogin(c fiber.Ctx, userTypeID uint) error {
 	if userTypeID == 1 {
-		return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard/home")
+		return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard")
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To("/panel/anasayfa")
 }

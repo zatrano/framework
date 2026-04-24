@@ -3,9 +3,6 @@
 
   function normalizePath(path) {
     var p = (path || '').replace(/\/$/, '') || '/';
-    if (p === '/dashboard/home') {
-      p = '/dashboard';
-    }
     return p;
   }
 

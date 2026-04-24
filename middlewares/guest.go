@@ -32,7 +32,7 @@ func GuestMiddleware(c fiber.Ctx) error {
 	}
 
 	if userTypeID == 1 {
-		return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard/home")
+		return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard")
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To("/panel/anasayfa")
 }

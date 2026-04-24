@@ -34,7 +34,7 @@ func UserTypeMiddleware(allowedTypes ...uint) fiber.Handler {
 			_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey,
 				"Bu sayfaya erişim yetkiniz bulunmamaktadır.")
 			if user.UserTypeID == 1 {
-				return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard/home")
+				return c.Redirect().Status(fiber.StatusSeeOther).To("/dashboard")
 			}
 			return c.Redirect().Status(fiber.StatusSeeOther).To("/panel/anasayfa")
 		}
