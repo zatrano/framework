@@ -22,9 +22,10 @@ type FileConfig struct {
 
 var Config *FileConfig
 
-// DefaultUploadCategory, genel dosya yüklemeleri için GetPath altında kullanılan klasör adıdır.
-// BasePath (genelde "uploads") ile aynı isim verilmemeli; aksi halde .../uploads/uploads oluşur.
-const DefaultUploadCategory = "files"
+// DefaultUploadCategory, genel dosya yüklemeleri için AllowedExtMap anahtarıdır; boş string
+// olduğunda GetPath doğrudan BasePath döner (uploads/files gibi ek alt klasör oluşmaz).
+// Alt kategori kullanırken klasör adı olarak BasePath ile aynı segmenti (ör. "uploads") vermeyin.
+const DefaultUploadCategory = ""
 
 func InitFileConfig() {
 	// .env'den oku; boş, satır-içi # yorumu veya hatalı parse (# ile başlama) durumunda ./uploads
@@ -63,25 +64,39 @@ func normalizeFileBasePath(s string) string {
 	return s
 }
 
+func normalizeCategory(contentType string) string {
+	s := strings.TrimSpace(contentType)
+	if s == "" {
+		return DefaultUploadCategory
+	}
+	return sanitize(s)
+}
+
+func (fc *FileConfig) uploadDirForKey(key string) string {
+	if key == DefaultUploadCategory {
+		return fc.BasePath
+	}
+	return filepath.Join(fc.BasePath, key)
+}
+
 func (fc *FileConfig) GetPath(contentType string) string {
-	contentType = sanitize(contentType)
-	return filepath.Join(fc.BasePath, contentType)
+	return fc.uploadDirForKey(normalizeCategory(contentType))
 }
 
 func (fc *FileConfig) GetAllowedExtensions(contentType string) []string {
-	contentType = sanitize(contentType)
+	key := normalizeCategory(contentType)
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	return fc.AllowedExtMap[contentType]
+	return fc.AllowedExtMap[key]
 }
 
 func (fc *FileConfig) SetAllowedExtensions(contentType string, extensions []string) {
-	contentType = sanitize(contentType)
+	key := normalizeCategory(contentType)
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	fc.AllowedExtMap[contentType] = extensions
+	fc.AllowedExtMap[key] = extensions
 
-	dir := fc.GetPath(contentType)
+	dir := fc.uploadDirForKey(key)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		// 🔧 Düzeltme: Sugared logger kullan
 		logconfig.SLog.Fatalw("Klasör oluşturulamadı",

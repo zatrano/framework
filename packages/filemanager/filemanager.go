@@ -220,7 +220,7 @@ func generateUniqueFileName(originalName string) (string, error) {
 var safeFileNameRe = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
 
 func DeleteFile(contentType, fileName string) {
-	if fileName == "" || contentType == "" {
+	if fileName == "" {
 		return
 	}
 	// Path traversal ve güvensiz karakterleri temizle
