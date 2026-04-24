@@ -28,34 +28,39 @@
       <span class="sidebar-title zatrano-wordmark">ZATRANO</span>
     </div>
 
-    <nav class="sidebar-menu" hx-boost="true" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">
+    <nav class="sidebar-menu" hx-boost="true" hx-target="#main-content" hx-swap="innerHTML show:window:top" hx-push-url="true">
       <div class="menu-label">Ana menü</div>
 
-      <a href="/dashboard/home"
-        class="menu-item {{if or (eq $p `/dashboard/`) (eq $p `/dashboard`) (eq $p `/dashboard/home`)}}active{{end}}">
+      <a href="/dashboard"
+        class="menu-item {{if eq $p `/dashboard`}}active{{end}}">
         <i class="bi bi-house-door"></i>
         <span>Ana sayfa</span>
       </a>
 
-      <div class="menu-item menu-dropdown {{if hasPrefix $p `/dashboard/user-types`}}open{{end}}"
-        onclick="toggleSubmenu(this)">
+      <a href="/dashboard/users"
+        class="menu-item {{if hasPrefix $p `/dashboard/users`}}active{{end}}">
+        <i class="bi bi-people"></i>
+        <span>Kullanıcılar</span>
+      </a>
+
+      <a href="/dashboard/contact-messages"
+        class="menu-item {{if hasPrefix $p `/dashboard/contact-messages`}}active{{end}}">
+        <i class="bi bi-envelope-paper"></i>
+        <span>İletişim mesajları</span>
+      </a>
+
+      <div class="menu-label">Tanımlamalar</div>
+
+      <a href="/dashboard/user-types"
+        class="menu-item {{if hasPrefix $p `/dashboard/user-types`}}active{{end}}">
         <i class="bi bi-layers"></i>
         <span>Kullanıcı tipleri</span>
-        <i class="bi bi-chevron-down dropdown-icon"></i>
-      </div>
-      <div class="submenu {{if hasPrefix $p `/dashboard/user-types`}}show{{end}}">
-        <a href="/dashboard/user-types" class="menu-item {{if eq $p `/dashboard/user-types`}}active{{end}}">
-          <span>Liste</span>
-        </a>
-        <a href="/dashboard/user-types/create" class="menu-item {{if eq $p `/dashboard/user-types/create`}}active{{end}}">
-          <span>Yeni</span>
-        </a>
-      </div>
+      </a>
 
       <div class="menu-item menu-dropdown {{if or (hasPrefix $p `/dashboard/countries`) (hasPrefix $p `/dashboard/cities`) (hasPrefix $p `/dashboard/districts`) (hasPrefix $p `/dashboard/addresses`)}}open{{end}}"
         onclick="toggleSubmenu(this)">
         <i class="bi bi-geo-alt"></i>
-        <span>Coğrafya &amp; adres</span>
+        <span>Coğrafya</span>
         <i class="bi bi-chevron-down dropdown-icon"></i>
       </div>
       <div
@@ -74,25 +79,10 @@
         </a>
       </div>
 
-      <div class="menu-item menu-dropdown {{if hasPrefix $p `/dashboard/users`}}open{{end}}"
-        onclick="toggleSubmenu(this)">
-        <i class="bi bi-people"></i>
-        <span>Kullanıcılar</span>
-        <i class="bi bi-chevron-down dropdown-icon"></i>
-      </div>
-      <div class="submenu {{if hasPrefix $p `/dashboard/users`}}show{{end}}">
-        <a href="/dashboard/users" class="menu-item {{if eq $p `/dashboard/users`}}active{{end}}">
-          <span>Liste</span>
-        </a>
-        <a href="/dashboard/users/create" class="menu-item {{if eq $p `/dashboard/users/create`}}active{{end}}">
-          <span>Yeni</span>
-        </a>
-      </div>
-
-      <a href="/dashboard/contact-messages"
-        class="menu-item {{if hasPrefix $p `/dashboard/contact-messages`}}active{{end}}">
-        <i class="bi bi-envelope-paper"></i>
-        <span>İletişim mesajları</span>
+      <a href="/dashboard/definitions"
+        class="menu-item {{if hasPrefix $p `/dashboard/definitions`}}active{{end}}">
+        <i class="bi bi-sliders"></i>
+        <span>Tanımlar</span>
       </a>
     </nav>
 
@@ -109,12 +99,6 @@
       <button type="button" class="header-toggle" id="sidebarToggle" aria-label="Menüyü aç/kapat">
         <i class="bi bi-list"></i>
       </button>
-
-      <div class="header-search">
-        <i class="bi bi-search search-icon"></i>
-        <input type="search" class="form-control" placeholder="Menü, sayfa veya işlem ara…" disabled
-          title="Yakında">
-      </div>
 
       <div class="header-actions">
         <div class="dropdown">
@@ -146,7 +130,7 @@
     </header>
 
     <main class="content content-embed p-0">
-      <div id="main-content" class="container-fluid px-3 pt-4 pb-3" hx-boost="true" hx-target="this" hx-swap="innerHTML" hx-push-url="true">
+      <div id="main-content" class="container-fluid px-3 pt-4 pb-3" hx-boost="true" hx-target="this" hx-swap="innerHTML show:window:top" hx-push-url="true">
         {{embed}}
       </div>
     </main>

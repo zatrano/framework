@@ -72,4 +72,12 @@ func registerDashboardRoutes(fiberApp *fiber.App, c *app.Container) {
 	dashboardGroup.Get("/users/update/:id", userHandler.ShowUpdateUser)
 	dashboardGroup.Post("/users/update/:id", userHandler.UpdateUser)
 	dashboardGroup.Delete("/users/delete/:id", userHandler.DeleteUser)
+
+	definitionHandler := handlers.NewDashboardDefinitionHandler(c.Definition)
+	dashboardGroup.Get("/definitions", definitionHandler.ListDefinitions)
+	dashboardGroup.Get("/definitions/create", definitionHandler.ShowCreateDefinition)
+	dashboardGroup.Post("/definitions/create", definitionHandler.CreateDefinition)
+	dashboardGroup.Get("/definitions/update/:id", definitionHandler.ShowUpdateDefinition)
+	dashboardGroup.Post("/definitions/update/:id", definitionHandler.UpdateDefinition)
+	dashboardGroup.Delete("/definitions/delete/:id", definitionHandler.DeleteDefinition)
 }

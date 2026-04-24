@@ -3,6 +3,7 @@ package renderer
 import (
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -61,6 +62,72 @@ func layoutSupportsHtmxPartial(layout string) bool {
 // IsHtmxRequest, tarayıcıdan gelen HTMX isteğini (HX-Request: true) tanır.
 func IsHtmxRequest(c fiber.Ctx) bool {
 	return strings.EqualFold(strings.TrimSpace(c.Get("HX-Request")), "true")
+}
+
+func normMenuPath(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > 1 {
+		s = strings.TrimRight(s, "/")
+	}
+	return s
+}
+
+func pathFromOriginalURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if u, err := url.Parse(raw); err == nil && u.Path != "" {
+		return u.Path
+	}
+	if strings.HasPrefix(raw, "/") {
+		if i := strings.IndexAny(raw, "?#"); i >= 0 {
+			return raw[:i]
+		}
+		return raw
+	}
+	return ""
+}
+
+func isDashboardAnaSayfaPath(p string) bool {
+	p = normMenuPath(p)
+	return p == "/dashboard" || p == "/dashboard/home"
+}
+
+// navbarPath, kenar çubuğunda aktif menü eşlemesi için tutarlı yol döner.
+// Dashboard grup kökünde c.Path() bazen "/" kalır; URI PathOriginal, FullPath ve OriginalURL ile tamamlanır.
+// Ana sayfa rotaları (/dashboard, /dashboard/, /dashboard/home) tek kök olarak /dashboard normalize edilir.
+func navbarPath(c fiber.Ctx) string {
+	reqPath := string(c.Request().URI().PathOriginal())
+	if i := strings.IndexByte(reqPath, '?'); i >= 0 {
+		reqPath = reqPath[:i]
+	}
+	reqPath = normMenuPath(strings.TrimSpace(reqPath))
+
+	pathRaw := strings.TrimSpace(c.Path())
+	fp := normMenuPath(c.FullPath())
+	orig := normMenuPath(pathFromOriginalURL(c.OriginalURL()))
+
+	p := pathRaw
+	if (p == "/" || p == "") && reqPath != "" && strings.HasPrefix(reqPath, "/dashboard") {
+		p = reqPath
+	}
+	if (p == "/" || p == "") && fp != "" && strings.HasPrefix(fp, "/dashboard") {
+		p = fp
+	}
+	if p == "" && fp != "" {
+		p = fp
+	}
+	if (p == "" || p == "/") && strings.HasPrefix(orig, "/dashboard") {
+		p = orig
+	}
+	p = normMenuPath(p)
+
+	if isDashboardAnaSayfaPath(p) || isDashboardAnaSayfaPath(fp) || isDashboardAnaSayfaPath(orig) || isDashboardAnaSayfaPath(reqPath) ||
+		(normMenuPath(pathRaw) == "/" && (isDashboardAnaSayfaPath(fp) || isDashboardAnaSayfaPath(orig) || isDashboardAnaSayfaPath(reqPath))) {
+		return "/dashboard"
+	}
+	return p
 }
 
 func pageTitleHeader(layout string, data fiber.Map) string {
@@ -127,7 +194,7 @@ func prepareRenderData(c fiber.Ctx, data fiber.Map) fiber.Map {
 		}
 	}
 
-	data["Path"] = strings.TrimSpace(c.Path())
+	data["Path"] = navbarPath(c)
 	if menuPages := c.Locals("MenuPages"); menuPages != nil {
 		data["MenuPages"] = menuPages
 	}
