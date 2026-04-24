@@ -15,7 +15,7 @@
         <div class="at-surface__head">
             <h2 class="at-surface__title"><i class="bi bi-globe me-2"></i>Ülke düzenle</h2>
         </div>
-        <form action="/dashboard/countries/update/{{.Country.ID}}" method="POST" class="needs-validation" novalidate>
+        <form action="/dashboard/countries/update/{{.Country.ID}}" method="POST" class="needs-validation" novalidate hx-boost="false">
             <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
             <div class="at-surface__body at-surface__body--padded">
                 <div class="at-form-group">

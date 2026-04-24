@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"github.com/zatrano/framework/configs/envconfig"
 	"github.com/zatrano/framework/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -14,6 +15,8 @@ func SharedDataMiddleware(definitionService services.IDefinitionService) fiber.H
 	return func(c fiber.Ctx) error {
 		c.Locals("MenuPages", []interface{}{})
 		c.Locals("DefinitionValues", definitionService.GetMap(c.Context()))
+		// Site key şablonlarda (Turnstile script / widget) kullanılır; handler ayrıca geçebilir.
+		c.Locals("TurnstileSiteKey", envconfig.String("TURNSTILE_SITE_KEY", ""))
 		return c.Next()
 	}
 }

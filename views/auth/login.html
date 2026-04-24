@@ -29,7 +29,7 @@
     <p class="auth-subtitle mt-2">Hesabınıza erişmek için bilgilerinizi girin</p>
   </div>
 
-  <form method="POST" action="/auth/login" novalidate>
+  <form method="POST" action="/auth/login" novalidate hx-boost="false">
     <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
 
     <div class="form-group">
@@ -81,7 +81,7 @@
   </div>
 
   <div class="social-buttons">
-    <a href="/auth/oauth/google/login" class="btn-social text-decoration-none">
+    <a href="/auth/oauth/google/login" class="btn-social text-decoration-none" hx-boost="false">
       <i class="bi bi-google"></i>
       Google ile giriş
     </a>

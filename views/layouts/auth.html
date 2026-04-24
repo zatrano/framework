@@ -15,12 +15,17 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/brand.css" />
   <link rel="stylesheet" href="/css/admintemplate-auth.css" />
+  {{if .TurnstileSiteKey}}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {{end}}
 </head>
 
 <body>
   <div class="auth-container">
 
-    {{embed}}
+    <div id="main-content" hx-boost="true" hx-target="this" hx-swap="innerHTML" hx-push-url="true">
+      {{embed}}
+    </div>
 
     <p class="text-center mt-3 mb-0 text-muted small">
       &copy; {{ CurrentYear }} <span class="zatrano-wordmark">ZATRANO</span> · Tüm hakları saklıdır.
@@ -35,7 +40,9 @@
   {{end}}
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script src="/js/admintemplate-auth.js"></script>
+  <script src="/js/htmx-shell.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const toastElList = document.querySelectorAll('.toast');

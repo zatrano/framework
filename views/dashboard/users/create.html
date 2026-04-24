@@ -16,7 +16,7 @@
         <div class="at-surface__head">
             <h2 class="at-surface__title"><i class="bi bi-person-plus me-2"></i>Yeni kullanıcı</h2>
         </div>
-        <form method="POST" action="/dashboard/users/create" class="needs-validation" novalidate>
+        <form method="POST" action="/dashboard/users/create" class="needs-validation" novalidate hx-boost="false">
             <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
             <div class="at-surface__body at-surface__body--padded">
 

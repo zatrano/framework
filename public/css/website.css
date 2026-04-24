@@ -15,6 +15,37 @@ body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     color: var(--w-text);
     -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+}
+
+.website-header {
+    flex-shrink: 0;
+}
+
+#main-content {
+    flex: 1 0 auto;
+}
+
+.website-footer {
+    flex-shrink: 0;
+}
+
+.website-nav a {
+    padding: 0.25rem 0.5rem;
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.website-nav a:not(.active):hover {
+    color: var(--w-primary) !important;
+    background: rgba(26, 86, 219, 0.06);
+}
+
+.website-nav a.active {
+    color: var(--w-primary) !important;
+    font-weight: 600;
+    background: rgba(26, 86, 219, 0.1);
 }
 
 /* Hata (404, 5xx) — site/error.html */

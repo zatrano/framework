@@ -5,7 +5,7 @@
     <p class="auth-subtitle mt-2">Aramıza katılmak için formu doldurun</p>
   </div>
 
-  <form method="POST" action="/auth/register" novalidate>
+  <form method="POST" action="/auth/register" novalidate hx-boost="false">
     <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
 
     <div class="form-group">
@@ -82,7 +82,7 @@
   </div>
 
   <div class="social-buttons">
-    <a href="/auth/oauth/google/login" class="btn-social text-decoration-none">
+    <a href="/auth/oauth/google/login" class="btn-social text-decoration-none" hx-boost="false">
       <i class="bi bi-google"></i>
       Google ile kayıt ol
     </a>
@@ -92,7 +92,3 @@
     <p class="mb-0">Zaten üyeliğiniz var mı? <a href="/auth/login">Giriş yap</a></p>
   </div>
 </div>
-
-{{if .TurnstileSiteKey}}
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-{{end}}

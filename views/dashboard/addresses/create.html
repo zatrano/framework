@@ -15,7 +15,7 @@
         <div class="at-surface__head">
             <h2 class="at-surface__title"><i class="bi bi-geo me-2"></i>Yeni adres</h2>
         </div>
-        <form method="POST" action="/dashboard/addresses/create" novalidate>
+        <form method="POST" action="/dashboard/addresses/create" novalidate hx-boost="false">
             <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
             <div class="at-surface__body at-surface__body--padded">
                 <div class="at-form-group">

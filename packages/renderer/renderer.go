@@ -1,8 +1,10 @@
 package renderer
 
 import (
+	"encoding/base64"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/zatrano/framework/packages/currentuser"
 	"github.com/zatrano/framework/packages/flashmessages"
@@ -18,7 +20,63 @@ const (
 	FlashErrorKeyView   = "Error"
 	OldInputKey         = "Old"
 	ValidationErrorsKey = "ValidationErrors"
+	// LayoutApp tam sayfa kabuğu; HX-Request ile yalnızca gömülü şablon döner.
+	LayoutApp = "layouts/app"
+	// LayoutWebsite — genel site kabuğu (layouts/website.html).
+	LayoutWebsite = "layouts/website"
+	// LayoutAuth — oturum açma / kayıt kabuğu.
+	LayoutAuth = "layouts/auth"
 )
+
+var (
+	htmxShellMu      sync.RWMutex
+	htmxShellLayouts = make(map[string]struct{})
+)
+
+func init() {
+	RegisterHtmxShellLayout(LayoutApp)
+	RegisterHtmxShellLayout(LayoutWebsite)
+	RegisterHtmxShellLayout(LayoutAuth)
+}
+
+// RegisterHtmxShellLayout, verilen layout için HX-Request geldiğinde gömülü şablon (kabuk olmadan) dönmeyi açar.
+// Örn. yeni "layouts/userpanel" eklendiğinde init veya paket init içinde çağırın.
+func RegisterHtmxShellLayout(layout string) {
+	layout = strings.TrimSpace(layout)
+	if layout == "" {
+		return
+	}
+	htmxShellMu.Lock()
+	htmxShellLayouts[layout] = struct{}{}
+	htmxShellMu.Unlock()
+}
+
+func layoutSupportsHtmxPartial(layout string) bool {
+	htmxShellMu.RLock()
+	defer htmxShellMu.RUnlock()
+	_, ok := htmxShellLayouts[layout]
+	return ok
+}
+
+// IsHtmxRequest, tarayıcıdan gelen HTMX isteğini (HX-Request: true) tanır.
+func IsHtmxRequest(c fiber.Ctx) bool {
+	return strings.EqualFold(strings.TrimSpace(c.Get("HX-Request")), "true")
+}
+
+func pageTitleHeader(layout string, data fiber.Map) string {
+	t, _ := data["Title"].(string)
+	t = strings.TrimSpace(t)
+	if layout == LayoutWebsite {
+		if t != "" {
+			return t + " | ZATRANO"
+		}
+		return "ZATRANO"
+	}
+	if t != "" {
+		return "ZATRANO | " + t
+	}
+	return "ZATRANO"
+}
 
 // v3: fiber.Ctx artık somut tip (arayüz değil)
 func prepareRenderData(c fiber.Ctx, data fiber.Map) fiber.Map {
@@ -97,6 +155,12 @@ func prepareRenderData(c fiber.Ctx, data fiber.Map) fiber.Map {
 		delete(renderData, FlashErrorKeyView)
 	}
 
+	if _, ok := renderData["TurnstileSiteKey"]; !ok {
+		if v := c.Locals("TurnstileSiteKey"); v != nil {
+			renderData["TurnstileSiteKey"] = v
+		}
+	}
+
 	return renderData
 }
 
@@ -106,8 +170,15 @@ func Render(c fiber.Ctx, template string, layout string, data fiber.Map, statusC
 		status = statusCode[0]
 	}
 	finalData := prepareRenderData(c, data)
-	if layout == "" {
+	layoutToUse := layout
+	origLayout := layout
+	if layoutSupportsHtmxPartial(origLayout) && IsHtmxRequest(c) {
+		layoutToUse = ""
+		// Özel HTTP başlığında ham UTF-8 tarayıcıda bozulabiliyor; başlığı yalnızca Base64 taşıyoruz.
+		c.Set("X-Page-Title-B64", base64.StdEncoding.EncodeToString([]byte(pageTitleHeader(origLayout, finalData))))
+	}
+	if layoutToUse == "" {
 		return c.Status(status).Render(template, finalData)
 	}
-	return c.Status(status).Render(template, finalData, layout)
+	return c.Status(status).Render(template, finalData, layoutToUse)
 }

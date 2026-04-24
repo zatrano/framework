@@ -15,7 +15,7 @@
         <div class="at-surface__head">
             <h2 class="at-surface__title"><i class="bi bi-globe me-2"></i>Yeni ülke</h2>
         </div>
-        <form method="POST" action="/dashboard/countries/create" novalidate>
+        <form method="POST" action="/dashboard/countries/create" novalidate hx-boost="false">
             <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
             <div class="at-surface__body at-surface__body--padded">
                 <div class="at-form-group">

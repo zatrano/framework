@@ -5,7 +5,7 @@
     <p class="auth-subtitle mt-2">E-posta doğrulama linkini tekrar gönderin</p>
   </div>
 
-  <form method="POST" action="/auth/resend-verification" novalidate>
+  <form method="POST" action="/auth/resend-verification" novalidate hx-boost="false">
     <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
 
     <div class="form-group">
