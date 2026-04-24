@@ -23,19 +23,13 @@ type FileConfig struct {
 var Config *FileConfig
 
 func InitFileConfig() {
-	// .env'den oku, yoksa varsayılan belirle
-	basePath := envconfig.String("FILE_BASE_PATH", "")
+	// .env'den oku; boş, satır-içi # yorumu veya hatalı parse (# ile başlama) durumunda ./uploads
+	basePath := normalizeFileBasePath(envconfig.String("FILE_BASE_PATH", ""))
 	if basePath == "" {
-		if envconfig.IsProd() {
-			basePath = "./uploads"
-		} else {
-			basePath = "./uploads"
-		}
+		basePath = "./uploads"
 	}
 
-	// dizin oluşturulmamışsa oluştur
 	if err := os.MkdirAll(basePath, 0755); err != nil {
-		// 🔧 Düzeltme: Sugared logger kullan
 		logconfig.SLog.Fatalw("Upload klasörü oluşturulamadı",
 			"path", basePath, "error", err)
 	}
@@ -46,6 +40,23 @@ func InitFileConfig() {
 	}
 
 	logconfig.SLog.Infow("FileConfig initialized", "base_path", basePath)
+}
+
+// normalizeFileBasePath, .env satırlarında "KEY=  # açıklama" gibi hatalı parse sonucu
+// oluşan "# Boş = ..." değerlerini söküp yolu güvenle döndürür.
+func normalizeFileBasePath(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	// Aynı satırdaki yorum: "path # note"
+	if i := strings.Index(s, " #"); i >= 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	if s == "" || strings.HasPrefix(s, "#") {
+		return ""
+	}
+	return s
 }
 
 func (fc *FileConfig) GetPath(contentType string) string {
