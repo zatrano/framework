@@ -8,13 +8,6 @@
     <p class="auth-subtitle mt-2">Aramıza katılmak için formu doldurun</p>
   </div>
 
-  {{if .Error}}
-  <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-start" role="alert">
-    <i class="bi bi-x-circle-fill me-2 fs-5 flex-shrink-0"></i>
-    <div>{{.Error}}</div>
-  </div>
-  {{end}}
-
   <form method="POST" action="/auth/register" novalidate>
     <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
 

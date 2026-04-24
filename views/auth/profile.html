@@ -8,19 +8,6 @@
       <p class="auth-subtitle mt-2">Hesap bilgilerinizi buradan yönetebilirsiniz</p>
     </div>
 
-    {{if .Error}}
-    <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-start" role="alert">
-      <i class="bi bi-x-circle-fill me-2 fs-5 flex-shrink-0"></i>
-      <div>{{.Error}}</div>
-    </div>
-    {{end}}
-    {{if .Success}}
-    <div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-start" role="alert">
-      <i class="bi bi-check-circle-fill me-2 fs-5 flex-shrink-0"></i>
-      <div>{{.Success}}</div>
-    </div>
-    {{end}}
-
     <h2 class="auth-section-title">Kişisel bilgiler</h2>
     <form method="POST" action="/auth/profile/update-info" class="mb-0" novalidate>
       <input type="hidden" name="csrf_token" value="{{.CsrfToken}}">
