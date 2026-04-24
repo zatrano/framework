@@ -184,7 +184,7 @@ func main() {
 			"env", appEnv, "version", version)
 		return nil
 	})
-	app.Hooks().OnShutdown(func() error {
+	app.Hooks().OnPostShutdown(func(_ error) error {
 		logconfig.Log.Info("HTTP sunucusu kapatıldı")
 		return nil
 	})

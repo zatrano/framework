@@ -6,9 +6,11 @@ import (
 
 	"github.com/zatrano/framework/configs/envconfig"
 	"github.com/zatrano/framework/configs/logconfig"
+	"github.com/zatrano/framework/configs/sessionconfig"
 	"github.com/zatrano/framework/packages/flashmessages"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"go.uber.org/zap"
 )
@@ -48,11 +50,10 @@ func SetupCSRF() fiber.Handler {
 		cookieDomain = envconfig.String("COOKIE_DOMAIN", "")
 	}
 
-	// v3: csrf.Config alanları güncellendi
-	
-	// CookieSameSite artık string (aynı), CookieSessionOnly kaldırıldı
+	// Fiber v3.1: KeyLookup yok; token extractors + isteğe Session store
 	cfg := csrf.Config{
-		KeyLookup:      "header:X-CSRF-Token",
+		Session:        sessionconfig.SetupSession(),
+		Extractor:      extractors.FromHeader("X-CSRF-Token"),
 		CookieName:     "csrf_token",
 		CookieHTTPOnly: true,
 		CookieSecure:   secure,

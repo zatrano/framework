@@ -68,10 +68,14 @@ func CaptureError(err error, extras ...map[string]interface{}) {
 		return
 	}
 	sentry.WithScope(func(scope *sentry.Scope) {
+		merged := make(sentry.Context)
 		for _, extra := range extras {
 			for k, v := range extra {
-				scope.SetExtra(k, v)
+				merged[k] = v
 			}
+		}
+		if len(merged) > 0 {
+			scope.SetContext("extras", merged)
 		}
 		sentry.CaptureException(err)
 	})

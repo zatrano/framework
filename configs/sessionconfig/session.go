@@ -11,7 +11,7 @@ import (
 	"github.com/zatrano/framework/models"
 
 	"github.com/gofiber/fiber/v3"
-	// v3: session paketi fiber/v3 altına taşındı
+	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	redisstorage "github.com/gofiber/storage/redis/v3"
 )
@@ -74,16 +74,16 @@ func createSessionStore() *session.Store {
 
 	redisStore := redisstorage.NewFromConnection(redisconfig.GetClient())
 
-	// Fiber v3: session.NewStore + IdleTimeout / AbsoluteTimeout (Expiration alanı yok)
+	// Fiber v3.1: KeyLookup yok; cookie adı extractors.FromCookie ile
 	exp := time.Duration(expirationHours) * time.Hour
 	store := session.NewStore(session.Config{
-		KeyLookup:      "cookie:" + cookieName,
+		Storage:        redisStore,
+		Extractor:      extractors.FromCookie(cookieName),
 		CookieHTTPOnly: true,
 		CookieSecure:   secure,
 		CookieSameSite: sameSite,
 		CookieDomain:   cookieDomain,
 		IdleTimeout:    exp,
-		Storage:        redisStore,
 	})
 
 	logconfig.SLog.Infow("Session store Redis ile yapılandırıldı",
