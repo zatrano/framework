@@ -69,7 +69,7 @@ func (h *DashboardUserHandler) ListUsers(c fiber.Ctx) error {
 	// Kullanıcı tiplerini filtreleme dropdown'ı için getir
 	userTypesResult, _ := h.userTypeService.GetAllUserTypes(c.Context(), requests.UserTypeListParams{
 		Page:    1,
-		PerPage: 1000,
+		PerPage: 200,
 		SortBy:  "name",
 		OrderBy: "asc",
 	})
@@ -107,7 +107,7 @@ func (h *DashboardUserHandler) ListUsers(c fiber.Ctx) error {
 func (h *DashboardUserHandler) ShowCreateUser(c fiber.Ctx) error {
 	userTypesResult, _ := h.userTypeService.GetAllUserTypes(c.Context(), requests.UserTypeListParams{
 		Page:    1,
-		PerPage: 1000,
+		PerPage: 200,
 		SortBy:  "name",
 		OrderBy: "asc",
 	})
@@ -176,7 +176,7 @@ func (h *DashboardUserHandler) ShowUpdateUser(c fiber.Ctx) error {
 
 	userTypesResult, _ := h.userTypeService.GetAllUserTypes(c.Context(), requests.UserTypeListParams{
 		Page:    1,
-		PerPage: 1000,
+		PerPage: 200,
 		SortBy:  "name",
 		OrderBy: "asc",
 	})

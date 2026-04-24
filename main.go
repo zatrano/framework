@@ -104,8 +104,13 @@ func main() {
 		return i18n.Translate(envconfig.String("DEFAULT_LANG", i18n.DefaultLang), key, args...)
 	})
 	engine.AddFuncMap(templatehelpers.TemplateHelpers())
+	// Geliştirmede Reload(true) her istekte tüm .html dosyalarını diskten okur → gezinme belirgin şekilde yavaşlar.
+	// Şablon değiştirirken geçici olarak TEMPLATE_RELOAD=1 yapın.
 	if !envconfig.IsProd() {
-		engine.Reload(true)
+		tr := strings.TrimSpace(strings.ToLower(envconfig.String("TEMPLATE_RELOAD", "")))
+		if tr == "1" || tr == "true" || tr == "yes" {
+			engine.Reload(true)
+		}
 	}
 
 	// ─── 10. DI Container ────────────────────────────────────────────────────
