@@ -95,8 +95,14 @@ Uygulamanın çalışması şu adımlarla ilerler:
 ### REST API
 
 - `/api/v1/auth/login` — JWT erişim ve refresh token üretimi
+- `/api/v1/auth/register` — kullanıcı kaydı
+- `/api/v1/auth/verify-email` — e-posta doğrulama
+- `/api/v1/auth/resend-verification` — doğrulama e-postasını yeniden gönderme
+- `/api/v1/auth/forgot-password` — şifre sıfırlama bağlantısı üretimi
+- `/api/v1/auth/reset-password` — token ile şifre sıfırlama
 - `/api/v1/auth/refresh` — refresh token ile yeni access token
 - `/api/v1/auth/me` — oturumlu kullanıcının profili
+- `/api/v1/auth/logout` — access/refresh token iptali (revoke)
 - `/api/v1/user/profile` — kullanıcı profili güncelleme
 - `/api/v1/user/password` — şifre değiştirme
 - `/api/v1/admin/users` — admin kullanıcı CRUD
@@ -268,8 +274,14 @@ Sıralama:
 ### API
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/verify-email`
+- `POST /api/v1/auth/resend-verification`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
 - `POST /api/v1/auth/refresh`
 - `GET /api/v1/auth/me`
+- `POST /api/v1/auth/logout`
 - `GET /api/v1/user/profile`
 - `PUT /api/v1/user/profile`
 - `PUT /api/v1/user/password`
@@ -687,6 +699,221 @@ Toplanan metrikler:
 2. `GET /api/v1/auth/me` ile tokenlı kullanıcı bilgileri alınır
 3. `PUT /api/v1/user/password` ile şifre değiştirilebilir
 4. `POST /api/v1/auth/refresh` ile yeni access token alınır
+5. `POST /api/v1/auth/logout` ile access (ve opsiyonel refresh) token revoke edilir
+
+### Mobil Auth Örnekleri
+
+#### Login Request
+
+```json
+{
+  "email": "user@example.com",
+  "password": "secret123"
+}
+```
+
+#### Login Response (200)
+
+```json
+{
+  "data": {
+    "access_token": "<ACCESS_TOKEN>",
+    "refresh_token": "<REFRESH_TOKEN>",
+    "token_type": "Bearer",
+    "user": {
+      "id": 12,
+      "name": "Demo User",
+      "email": "user@example.com",
+      "user_type_id": 2
+    }
+  }
+}
+```
+
+#### Logout Request
+
+Header:
+
+```text
+Authorization: Bearer <ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+Body (opsiyonel refresh revoke):
+
+```json
+{
+  "refresh_token": "<REFRESH_TOKEN>"
+}
+```
+
+#### Logout Response (200)
+
+```json
+{
+  "data": {
+    "message": "Çıkış başarılı. Access ve varsa refresh token iptal edildi."
+  }
+}
+```
+
+## Auth Dokümantasyonu (Web + Mobil/API)
+
+Bu bölüm, projedeki auth ile ilişkili tüm akışı ve fonksiyon envanterini tek yerde toplar. Web tarafı **session/cookie**, mobil/API tarafı **JWT (Bearer)** kullanır.
+
+### Auth Modları
+
+- **Web/Auth:** Form tabanlı, session ile oturum yönetimi, CSRF korumalı.
+- **Mobil/API:** JSON + Bearer token, refresh token akışı, revoke/blacklist destekli.
+
+### Web Auth Endpointleri (Session)
+
+- `GET /auth/login` (`ShowLogin`) — giriş sayfası.
+- `POST /auth/login` (`Login`) — kimlik doğrulama, session açma.
+- `GET /auth/logout` (`Logout`) — session yok etme.
+- `GET /auth/profile` (`Profile`) — oturum kullanıcısı profil ekranı.
+- `POST /auth/profile/update-password` (`UpdatePassword`) — şifre güncelleme.
+- `POST /auth/profile/update-info` (`UpdateInfo`) — ad/e-posta güncelleme.
+- `GET /auth/register` (`ShowRegister`) — kayıt sayfası.
+- `POST /auth/register` (`Register`) — kullanıcı kaydı + doğrulama maili kuyruğa ekleme.
+- `GET /auth/forgot-password` (`ShowForgotPassword`) — şifre unuttum ekranı.
+- `POST /auth/forgot-password` (`ForgotPassword`) — reset linki üretme/gönderme.
+- `GET /auth/reset-password` (`ShowResetPassword`) — token ile reset ekranı.
+- `POST /auth/reset-password` (`ResetPassword`) — yeni şifreyi kaydetme.
+- `GET /auth/verify-email` (`VerifyEmail`) — e-posta doğrulama.
+- `GET /auth/resend-verification` (`ShowResendVerification`) — doğrulama linki yeniden gönder formu.
+- `POST /auth/resend-verification` (`ResendVerification`) — doğrulama mailini tekrar gönderme.
+- `GET /auth/oauth/:provider/login` (`OAuthLogin`) — OAuth provider login yönlendirmesi.
+- `GET /auth/oauth/:provider/callback` (`OAuthCallback`) — OAuth callback işleme.
+
+### Mobil/API Auth Endpointleri (JWT)
+
+- `POST /api/v1/auth/login` (`AuthAPIHandler.Login`) — `access_token` + `refresh_token`.
+- `POST /api/v1/auth/register` (`AuthAPIHandler.Register`) — kayıt.
+- `POST /api/v1/auth/verify-email` (`AuthAPIHandler.VerifyEmail`) — token ile e-posta doğrulama.
+- `POST /api/v1/auth/resend-verification` (`AuthAPIHandler.ResendVerification`) — doğrulama maili tekrar gönderme.
+- `POST /api/v1/auth/forgot-password` (`AuthAPIHandler.ForgotPassword`) — reset linki talebi.
+- `POST /api/v1/auth/reset-password` (`AuthAPIHandler.ResetPassword`) — token ile şifre sıfırlama.
+- `POST /api/v1/auth/refresh` (`AuthAPIHandler.Refresh`) — refresh ile yeni access token.
+- `GET /api/v1/auth/me` (`AuthAPIHandler.Me`) — geçerli kullanıcının özeti.
+- `POST /api/v1/auth/logout` (`AuthAPIHandler.Logout`) — access + opsiyonel refresh revoke.
+
+İlgili kullanıcı endpointleri (JWT gerekli):
+
+- `GET /api/v1/user/profile` (`UserAPIHandler.Profile`)
+- `PUT /api/v1/user/profile` (`UserAPIHandler.UpdateProfile`)
+- `PUT /api/v1/user/password` (`UserAPIHandler.ChangePassword`)
+
+### Auth Function Envanteri (Atlanmayan Tam Liste)
+
+`handlers/auth/auth_handler.go`:
+
+- `NewAuthHandler`
+- `getSessionUser`
+- `destroySession`
+- `ShowLogin`
+- `Login`
+- `ShowRegister`
+- `Register`
+- `Profile`
+- `UpdatePassword`
+- `ShowForgotPassword`
+- `ForgotPassword`
+- `ShowResetPassword`
+- `ResetPassword`
+- `UpdateInfo`
+- `VerifyEmail`
+- `ShowResendVerification`
+- `ResendVerification`
+- `Logout`
+- `OAuthLogin`
+- `OAuthCallback`
+- `GoogleLogin`
+- `GoogleCallback`
+
+`api/v1/handlers/auth_api_handler.go`:
+
+- `NewAuthAPIHandler`
+- `Login`
+- `Register`
+- `Refresh`
+- `VerifyEmail`
+- `ResendVerification`
+- `ForgotPassword`
+- `ResetPassword`
+- `Me`
+- `Logout`
+
+`api/v1/handlers/user_api_handler.go`:
+
+- `NewUserAPIHandler`
+- `Profile`
+- `UpdateProfile`
+- `ChangePassword`
+
+`services/auth_service.go` (`IAuthService` + implementasyon):
+
+- `Authenticate`
+- `RegisterUser`
+- `VerifyEmail`
+- `ResendVerificationLink`
+- `SendPasswordResetLink`
+- `ResetPassword`
+- `UpdatePassword`
+- `GetUserProfile`
+- `UpdateUserInfo`
+- `FindOrCreateOAuthUser`
+- Yardımcılar: `logAuthSuccess`, `logDBError`, `logWarn`, `generateToken`, `getUserByEmail`, `getUserByID`, `comparePasswords`, `hashPassword`, `enqueueVerificationEmail`, `enqueuePasswordResetEmail`
+
+`services/jwt_service.go` (`IJWTService` + implementasyon):
+
+- `GenerateToken`
+- `GenerateRefreshToken`
+- `ValidateToken`
+- `RefreshAccessToken`
+- `RevokeToken`
+- `IsTokenRevoked`
+
+`middlewares/jwt_auth.go`:
+
+- `JWTAuth`
+- `JWTClaimsFromFiber`
+- `JWTTypeMiddleware`
+
+`middlewares/auth.go`:
+
+- `AuthMiddleware`
+
+`packages/jwtrevoke/jwtrevoke.go`:
+
+- `RevokeToken`
+- `IsRevoked`
+
+### Middleware ve Güvenlik Davranışı
+
+- Web auth formları CSRF ile korunur (`csrfconfig.SetupCSRF`).
+- API auth grubu CORS + API rate limit + JSON content-type zorlaması + body size limit ile çalışır.
+- `JWTAuth` akışı: Authorization parse -> revoke blacklist kontrolü -> JWT imza/expiry doğrulama -> `Locals(userID)`.
+- Logout sonrası tokenlar Redis blacklist’e yazılır; süresi dolana kadar tekrar kullanılamaz.
+
+### Geliştirici Notları (Web vs Mobil)
+
+- Web istemcisi `session cookie` taşır; API token kullanmaz.
+- Mobil istemci `Authorization: Bearer <access_token>` taşır; session cookie kullanmaz.
+- Refresh token güvenli depoda tutulmalı (Keychain/Keystore).
+- Logout çağrısında `refresh_token` body ile verilirse iki token da revoke edilir.
+- Refresh sonrası eski access tokenın kullanımını istemci tarafında bırakın; yeni access tokenı kullanın.
+
+### Hata Modeli
+
+- API hata gövdesi `packages/apierrors` standardına göre döner: `status`, `code`, `message`, opsiyonel `details`.
+- Web tarafı hata/başarı geri bildirimleri `flashmessages` ile render edilir.
+
+### Postman Collection
+
+Mobil/API auth akışını doğrudan import etmek için koleksiyon:
+
+- `docs/postman/zatrano-auth.postman_collection.json`
 
 ---
 

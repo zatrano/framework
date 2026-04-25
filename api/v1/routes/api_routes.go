@@ -27,11 +27,17 @@ func SetupAPIRoutes(fiberApp *fiber.App, c *app.Container) {
 	authHandler := handlers.NewAuthAPIHandler(c.Auth, c.JWT)
 	auth := api.Group("/auth")
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/register", authHandler.Register)
 	auth.Post("/refresh", authHandler.Refresh)
+	auth.Post("/verify-email", authHandler.VerifyEmail)
+	auth.Post("/resend-verification", authHandler.ResendVerification)
+	auth.Post("/forgot-password", authHandler.ForgotPassword)
+	auth.Post("/reset-password", authHandler.ResetPassword)
 
 	// ── Auth (korumalı) ─────────────────────────────────────────────────────
 	authProtected := auth.Group("", middlewares.JWTAuth())
 	authProtected.Get("/me", authHandler.Me)
+	authProtected.Post("/logout", authHandler.Logout)
 
 	// ── Kullanıcı (type=2: standart kullanıcılar) ───────────────────────────────────────
 	userHandler := handlers.NewUserAPIHandler(c.Auth)

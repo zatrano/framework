@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"github.com/zatrano/framework/configs/envconfig"
+	"github.com/zatrano/framework/configs/logconfig"
 	"github.com/zatrano/framework/models"
 	"github.com/zatrano/framework/packages/jwtclaims"
+	"github.com/zatrano/framework/packages/jwtrevoke"
 	"github.com/zatrano/framework/repositories"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 type IJWTService interface {
@@ -18,6 +21,8 @@ type IJWTService interface {
 	GenerateRefreshToken(user *models.User) (string, error)
 	ValidateToken(tokenStr string) (*jwtclaims.JWTClaims, error)
 	RefreshAccessToken(refreshToken string) (string, error)
+	RevokeToken(tokenStr string) error
+	IsTokenRevoked(tokenStr string) (bool, error)
 }
 
 type JWTService struct {
@@ -81,6 +86,14 @@ func (s *JWTService) ValidateToken(tokenStr string) (*jwtclaims.JWTClaims, error
 }
 
 func (s *JWTService) RefreshAccessToken(refreshToken string) (string, error) {
+	revoked, err := s.IsTokenRevoked(refreshToken)
+	if err != nil {
+		return "", errors.New("token durumu doğrulanamadı")
+	}
+	if revoked {
+		return "", errors.New("refresh token geçersiz")
+	}
+
 	claims, err := s.ValidateToken(refreshToken)
 	if err != nil {
 		return "", errors.New("geçersiz refresh token")
@@ -93,4 +106,25 @@ func (s *JWTService) RefreshAccessToken(refreshToken string) (string, error) {
 		return "", errors.New("kullanıcı bulunamadı")
 	}
 	return s.GenerateToken(user)
+}
+
+func (s *JWTService) RevokeToken(tokenStr string) error {
+	claims, err := s.ValidateToken(tokenStr)
+	if err != nil {
+		return err
+	}
+	expiresAt := claims.ExpiresAt.Time
+	ttl := time.Until(expiresAt)
+	if ttl <= 0 {
+		return nil
+	}
+	if err := jwtrevoke.RevokeToken(context.Background(), tokenStr, ttl); err != nil {
+		logconfig.Log.Error("JWT revoke kaydı başarısız", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (s *JWTService) IsTokenRevoked(tokenStr string) (bool, error) {
+	return jwtrevoke.IsRevoked(context.Background(), tokenStr)
 }

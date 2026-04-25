@@ -7,6 +7,7 @@ import (
 	"github.com/zatrano/framework/configs/logconfig"
 	"github.com/zatrano/framework/packages/apierrors"
 	"github.com/zatrano/framework/packages/jwtclaims"
+	"github.com/zatrano/framework/packages/jwtrevoke"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -30,6 +31,15 @@ func JWTAuth() fiber.Handler {
 		}
 
 		tokenStr := parts[1]
+		revoked, revokeErr := jwtrevoke.IsRevoked(c.Context(), tokenStr)
+		if revokeErr != nil {
+			logconfig.Log.Error("JWT blacklist kontrolü başarısız", zap.Error(revokeErr))
+			return apierrors.Send(c, apierrors.Internal("Token doğrulama servisi geçici olarak kullanılamıyor"))
+		}
+		if revoked {
+			return apierrors.Send(c, apierrors.Unauthorized("Token geçersiz"))
+		}
+
 		secret := envconfig.String("JWT_SECRET", "")
 		if secret == "" {
 			logconfig.Log.Error("JWT_SECRET env değişkeni tanımlı değil")
