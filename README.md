@@ -293,6 +293,96 @@ Sıralama:
 
 ---
 
+## Definition (Tanımlar) Modülü
+
+`definitions` modülü, uygulama içinde panel/website tarafında tekrar kullanılacak metinsel ayarları (key/value) merkezi olarak yönetmek için kullanılır.
+
+### Veri Modeli
+
+- Tablo: `definitions`
+- Alanlar:
+  - `key` (unique, `varchar(120)`)
+  - `value` (`text`)
+  - `description` (`varchar(255)`)
+  - `is_active` (`BaseModel` içinden)
+
+### Key Kuralları
+
+`requests/definition_request.go` içindeki doğrulama kuralları:
+
+- en az 2, en fazla 120 karakter
+- yalnızca küçük harf, rakam, `_`
+- başta `_` veya rakam olamaz
+- örnek geçerli key: `site_title`, `contact_email`
+
+### Dashboard Route'ları (Admin / UserType=1)
+
+Tanım yönetimi web panelinden yapılır:
+
+- `GET /dashboard/definitions` — liste + filtre + sayfalama
+- `GET /dashboard/definitions/create` — oluşturma formu
+- `POST /dashboard/definitions/create` — kayıt
+- `GET /dashboard/definitions/update/:id` — güncelleme formu
+- `POST /dashboard/definitions/update/:id` — güncelleme
+- `DELETE /dashboard/definitions/delete/:id` — silme
+
+> Not: Şu an `definitions` için ayrı bir REST API endpointi (`/api/v1/admin/definitions`) yok; yönetim dashboard üzerinden yapılıyor.
+
+### Handler Katmanı
+
+`handlers/dashboard/dashboard_definition_handler.go`:
+
+- `ListDefinitions`
+- `ShowCreateDefinition`
+- `CreateDefinition`
+- `ShowUpdateDefinition`
+- `UpdateDefinition`
+- `DeleteDefinition`
+- `getFormData` (yardımcı)
+
+### Service Katmanı
+
+`services/definition_service.go`:
+
+- `GetValue(ctx, key, fallback)` — tek key değeri (aktif kayıt)
+- `GetMap(ctx)` — aktif tüm key/value sözlüğü
+- `GetAllDefinitions(ctx, params)` — list/pagination
+- `GetDefinitionByID(ctx, id)` — detay
+- `CreateDefinition(ctx, req)` — kayıt + key çakışma kontrolü
+- `UpdateDefinition(ctx, id, req)` — güncelleme + key çakışma kontrolü
+- `DeleteDefinition(ctx, id)` — silme
+
+Önbellek davranışı:
+
+- `GetMap` kısa süreli memory cache kullanır.
+- TTL: `DEFINITION_CACHE_TTL_SECONDS` (varsayılan `120` saniye).
+- `Create/Update/Delete` sonrası cache invalid edilir.
+
+### Repository Katmanı
+
+`repositories/definition_repository.go`:
+
+- `ListAll`, `ListPaged`
+- `GetByID`, `GetByKey`, `GetByKeyAny`, `GetByKeySlugs`
+- `Create`, `UpdateFields`, `Delete`
+- `Upsert` (seeder/otomatik güncelleme senaryoları için)
+
+### Runtime Kullanımı (Shared Data)
+
+`middlewares/SharedDataMiddleware` her istekte:
+
+- `DefinitionValues` -> `definitionService.GetMap(...)`
+
+şeklinde veriyi `Locals` içine koyar. Bu sayede şablonlar (`layouts`, `website`, `auth`, `dashboard`) handler ek kodu yazmadan tanım değerlerini okuyabilir.
+
+### Seeder ve Operasyon
+
+- İlk kurulumda `database/seeders` içinde `definitions` seeder çalışır.
+- `make seed` veya `go run ./database/cmd/main.go -seed` ile tekrar yüklenebilir.
+- Key değişiklikleri canlı ortamda panelden yönetilebilir; cache TTL nedeniyle güncellemeler kısa sürede yansır.
+
+---
+
 ## Core Servisler ve Bağımlılıklar
 
 ### Dependency Injection Container
