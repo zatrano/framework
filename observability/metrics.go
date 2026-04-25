@@ -85,8 +85,8 @@ func Middleware() fiber.Handler {
 	}
 
 	return func(c fiber.Ctx) error {
-		path := c.Path()
-		if skipPaths[path] {
+		rawPath := c.Path()
+		if skipPaths[rawPath] {
 			return c.Next()
 		}
 
@@ -99,12 +99,24 @@ func Middleware() fiber.Handler {
 
 		status := strconv.Itoa(c.Response().StatusCode())
 		method := c.Method()
+		path := normalizedPath(c, rawPath)
 
 		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
 
 		return err
 	}
+}
+
+func normalizedPath(c fiber.Ctx, fallback string) string {
+	route := c.Route()
+	if route != nil && route.Path != "" {
+		return route.Path
+	}
+	if fallback == "" {
+		return "unknown"
+	}
+	return fallback
 }
 
 // MetricsHandler — /metrics uç noktası için promhttp.Handler'ı Fiber'a sarar.

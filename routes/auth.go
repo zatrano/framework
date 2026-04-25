@@ -13,6 +13,7 @@ func registerAuthRoutes(fiberApp *fiber.App, c *app.Container) {
 
 	authHandler := handlers.NewAuthHandler(c.Auth, c.Mail)
 	authGroup := fiberApp.Group("/auth")
+	authGroup.Use(middlewares.SessionMiddleware())
 
 	authGroup.Get("/login", middlewares.GuestMiddleware, authHandler.ShowLogin)
 	authGroup.Post("/login",

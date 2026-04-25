@@ -10,7 +10,6 @@ import (
 func SetupRoutes(fiberApp *fiber.App, c *app.Container) {
 	fiberApp.Use(middlewares.GlobalRateLimit())
 	fiberApp.Use(middlewares.FormPostRateLimit())
-	fiberApp.Use(middlewares.SessionMiddleware())
 	fiberApp.Use(middlewares.SharedDataMiddleware(c.Definition))
 
 	registerAuthRoutes(fiberApp, c)

@@ -6,7 +6,9 @@ package sentrylog
 
 import (
 	"context"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zatrano/framework/configs/envconfig"
@@ -25,6 +27,10 @@ func Init(release string) {
 	dsn := envconfig.String("SENTRY_DSN", "")
 	if dsn == "" {
 		logconfig.SLog.Info("SENTRY_DSN tanımlı değil, Sentry devre dışı")
+		return
+	}
+	if !isValidSentryDSN(dsn) {
+		logconfig.SLog.Warn("SENTRY_DSN geçersiz formatta, Sentry devre dışı bırakıldı")
 		return
 	}
 
@@ -51,6 +57,23 @@ func Init(release string) {
 	logconfig.SLog.Infow("Sentry başlatıldı",
 		"environment", env,
 		"release", release)
+}
+
+func isValidSentryDSN(dsn string) bool {
+	u, err := url.Parse(strings.TrimSpace(dsn))
+	if err != nil {
+		return false
+	}
+	if u == nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	if u.Host == "" {
+		return false
+	}
+	return true
 }
 
 // Flush — uygulama kapanmadan önce bekleyen event'leri gönderir.

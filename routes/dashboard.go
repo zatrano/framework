@@ -11,6 +11,7 @@ import (
 func registerDashboardRoutes(fiberApp *fiber.App, c *app.Container) {
 	dashboardGroup := fiberApp.Group("/dashboard")
 	dashboardGroup.Use(
+		middlewares.SessionMiddleware(),
 		middlewares.AuthMiddleware(c.Auth),
 		middlewares.UserTypeMiddleware(1),
 	)

@@ -10,7 +10,10 @@ import (
 
 func registerPanelRoutes(fiberApp *fiber.App, c *app.Container) {
 	panelGroup := fiberApp.Group("/panel")
-	panelGroup.Use(middlewares.AuthMiddleware(c.Auth))
+	panelGroup.Use(
+		middlewares.SessionMiddleware(),
+		middlewares.AuthMiddleware(c.Auth),
+	)
 
 	panelHandler := handlers.NewPanelHomeHandler()
 	panelGroup.Get("/", func(ctx fiber.Ctx) error {
