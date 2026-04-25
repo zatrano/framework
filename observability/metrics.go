@@ -5,6 +5,7 @@ package observability
 
 import (
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -14,6 +15,8 @@ import (
 )
 
 var (
+	registry = prometheus.NewRegistry()
+
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
@@ -55,22 +58,20 @@ var (
 	)
 )
 
-var registered bool
+var registerOnce sync.Once
 
 // Register — tüm metrikleri Prometheus varsayılan kayıt alanına kaydeder.
 // main() içinde bir kez çağrılmalıdır.
 func Register() {
-	if registered {
-		return
-	}
-	prometheus.MustRegister(
-		httpRequestsTotal,
-		httpRequestDuration,
-		httpRequestsInFlight,
-		mailQueueSize,
-		dbQueryDuration,
-	)
-	registered = true
+	registerOnce.Do(func() {
+		registry.MustRegister(
+			httpRequestsTotal,
+			httpRequestDuration,
+			httpRequestsInFlight,
+			mailQueueSize,
+			dbQueryDuration,
+		)
+	})
 }
 
 // Middleware — her isteği otomatik olarak ölçer.
@@ -108,7 +109,7 @@ func Middleware() fiber.Handler {
 
 // MetricsHandler — /metrics uç noktası için promhttp.Handler'ı Fiber'a sarar.
 func MetricsHandler() fiber.Handler {
-	return adaptor.HTTPHandler(promhttp.Handler())
+	return adaptor.HTTPHandler(promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 }
 
 // ObserveDB — DB sorgu süresini ölçmek için kullanılır.
