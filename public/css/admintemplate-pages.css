@@ -428,8 +428,20 @@
 
 @media (max-width: 991.98px) {
     .at-page .page-header {
-        flex-direction: column;
+        flex-direction: row;
         align-items: flex-start;
+        flex-wrap: nowrap;
+    }
+
+    .at-page .page-header > div:first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .at-page .page-header .btn-tpl-primary {
+        margin-left: auto;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
 }
 

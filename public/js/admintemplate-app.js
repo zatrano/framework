@@ -73,14 +73,44 @@
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebarCollapseToggle = document.getElementById('sidebarCollapseToggle');
+
+  function closeMobileSidebar() {
+    if (!sidebar || !sidebarOverlay || mqDesktop()) {
+      return;
+    }
+    sidebar.classList.remove('show');
+    sidebarOverlay.classList.remove('show');
+  }
+
+  function isSidebarOpenOnMobile() {
+    return !mqDesktop() && !!sidebar && sidebar.classList.contains('show');
+  }
+
   if (sidebar && sidebarOverlay && sidebarToggle) {
     sidebarToggle.addEventListener('click', function () {
       sidebar.classList.toggle('show');
       sidebarOverlay.classList.toggle('show');
     });
     sidebarOverlay.addEventListener('click', function () {
-      sidebar.classList.remove('show');
-      sidebarOverlay.classList.remove('show');
+      closeMobileSidebar();
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!isSidebarOpenOnMobile()) {
+        return;
+      }
+      var target = event.target;
+      if (!target) {
+        return;
+      }
+      var clickedInsideSidebar = sidebar.contains(target);
+      var clickedSidebarToggle = sidebarToggle.contains(target);
+      var clickedDesktopCollapse = !!sidebarCollapseToggle && sidebarCollapseToggle.contains(target);
+      if (clickedInsideSidebar || clickedSidebarToggle || clickedDesktopCollapse) {
+        return;
+      }
+      closeMobileSidebar();
     });
   }
 
@@ -104,6 +134,7 @@
         i.classList.remove('active');
       });
       item.classList.add('active');
+      closeMobileSidebar();
     });
   });
 })();
