@@ -10,6 +10,13 @@ func (m *CreateJobsTable) Name() string {
 }
 
 func (m *CreateJobsTable) Up(s *schema.Builder) error {
+	// Database queue EnsureTable may CREATE TABLE IF NOT EXISTS during bootstrap
+	// before migrate runs; skip if the table is already present.
+	if ok, err := s.HasTable("jobs"); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
 	return s.Create("jobs", func(table *schema.Blueprint) {
 		table.ID()
 		table.String("queue").Default("default")

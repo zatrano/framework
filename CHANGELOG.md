@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.1.6 - 2026-08-11
+
+### Fixed
+
+- Jobs table migration skips create when the table already exists (queue bootstrap race)
+
 ## 0.1.5 - 2026-08-06
 
 ### Fixed
