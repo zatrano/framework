@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.1.7 - 2026-08-11
+
+### Changed
+
+- View `dataGet` resolves dotted paths on structs (including embedded fields), not only maps
+
 ## 0.1.6 - 2026-08-11
 
 ### Fixed

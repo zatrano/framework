@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// dataGet reads a dotted path from a map (and nested maps).
+// dataGet reads a dotted path from maps and structs.
 func dataGet(data any, path string) any {
 	if data == nil || path == "" {
 		return nil
@@ -40,17 +40,62 @@ func dataGet(data any, path string) any {
 				}
 				rv = rv.Elem()
 			}
-			if rv.Kind() != reflect.Map || rv.Type().Key().Kind() != reflect.String {
+			switch rv.Kind() {
+			case reflect.Map:
+				if rv.Type().Key().Kind() != reflect.String {
+					return nil
+				}
+				val := rv.MapIndex(reflect.ValueOf(part))
+				if !val.IsValid() {
+					return nil
+				}
+				cur = val.Interface()
+			case reflect.Struct:
+				val := structFieldByName(rv, part)
+				if !val.IsValid() {
+					return nil
+				}
+				if val.CanInterface() {
+					cur = val.Interface()
+				} else {
+					return nil
+				}
+			default:
 				return nil
 			}
-			val := rv.MapIndex(reflect.ValueOf(part))
-			if !val.IsValid() {
-				return nil
-			}
-			cur = val.Interface()
 		}
 	}
 	return cur
+}
+
+func structFieldByName(rv reflect.Value, name string) reflect.Value {
+	if rv.Kind() != reflect.Struct {
+		return reflect.Value{}
+	}
+	if f := rv.FieldByName(name); f.IsValid() {
+		return f
+	}
+	t := rv.Type()
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+		if !sf.Anonymous {
+			continue
+		}
+		fv := rv.Field(i)
+		for fv.Kind() == reflect.Pointer {
+			if fv.IsNil() {
+				break
+			}
+			fv = fv.Elem()
+		}
+		if fv.Kind() != reflect.Struct {
+			continue
+		}
+		if found := structFieldByName(fv, name); found.IsValid() {
+			return found
+		}
+	}
+	return reflect.Value{}
 }
 
 func safeStr(v any) template.HTML {
