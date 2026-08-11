@@ -3,40 +3,42 @@
 </p>
 
 <p align="center">
+  <em>Go performance. Batteries-included DX. One opinionated path from request to production.</em>
+</p>
+
+<p align="center">
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
+  <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/version-0.1.8-green.svg" alt="Version"></a>
 </p>
 
-## About ZATRANO
+<p align="center">
+  <a href="https://zatrano.com/docs">Documentation</a> ·
+  <a href="https://github.com/zatrano/framework/releases">Releases</a> ·
+  <a href="https://github.com/zatrano/framework">GitHub</a>
+</p>
 
-ZATRANO is a Go web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. ZATRANO takes the pain out of development by easing common tasks used in many web projects, such as:
+## Why ZATRANO?
 
-- Simple, fast routing engine
-- Powerful application container and service providers
-- Multiple back-ends for session and cache storage
-- Expressive database query builder and ORM
-- Database agnostic schema migrations
-- Robust background job processing
-- Real-time event broadcasting
-- Validation, authentication, authorization, mail, and notifications
+Most Go web apps start fast and then slow down in the glue: auth, migrations, queues, mail, validation, sessions, CLI, and project structure. ZATRANO ships those as first-party packages under one coherent application skeleton — so you build product, not scaffolding.
 
-ZATRANO keeps Go’s performance and clarity while giving you an opinionated application structure and the tools required for large, robust applications.
+- **Expressive HTTP stack** — routing, controllers, middleware, requests/responses, views
+- **Full Auth** — register, login, remember me, password reset, email verification, lockout, MFA, multi-device logout, events, guards
+- **Persistence that scales with you** — query builder, schema, migrations, ORM, factories, seeders
+- **Ops-ready core** — cache, queues, mail, notifications, scheduling, health, maintenance, backups
 
-## Learning ZATRANO
-
-You can learn more by reading the [ZATRANO documentation](https://zatrano.com/docs).
-
-Install a tagged release as a Go module:
+## Quick start
 
 ```bash
 go get github.com/zatrano/framework@latest
+# or pin a release
 go get github.com/zatrano/framework@v0.1.8
 ```
 
-Or clone the repository and run the application skeleton:
+Clone the skeleton and run it:
 
 ```bash
 git clone https://github.com/zatrano/framework.git
@@ -47,7 +49,64 @@ go run ./cmd/zatrano key:generate
 go run ./cmd/zatrano serve
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+Open [http://localhost:8080](http://localhost:8080).
+
+Full guides live in the [documentation](https://zatrano.com/docs).
+
+## What you get
+
+| Area | Capabilities |
+|------|----------------|
+| **HTTP** | Router, controllers, middleware (CSRF, CORS, throttle, security headers…), form/JSON/multipart input, cookies, flash, URL generation |
+| **Views** | Layouts, components, Blade-like directives, nested `@foreach`, markdown, file-based pages |
+| **Auth & security** | Guards, remember tokens, password confirmation, email verification, lockout, 2FA, OAuth/WebAuthn/social helpers, encryption, hashing, honeypot, trusted proxies |
+| **Data** | Query builder, schema builder, migrations, ORM (relations, scopes, eager load, soft deletes patterns), Mongo helper, API resources / JSON:API |
+| **Async & mail** | Queues (DB/Redis), notifications, mail, broadcasting, scheduler / cron |
+| **Platform** | Config + `.env`, sessions, cache (incl. Redis), filesystem, localization, validation, collections, pagination |
+| **Tooling** | First-party CLI (`serve`, `migrate`, `make:*`, `about`, …), OpenAPI, GraphQL helpers, docs engine, health checks, observability hooks |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Client[Browser / API client] --> App[Application]
+  App --> HTTP[HTTP · Routing · Middleware]
+  App --> Views[View engine]
+  App --> Domain[Auth · Validation · Events]
+  App --> Data[ORM · Query · Migrations]
+  App --> Async[Queue · Mail · Schedule]
+  App --> Store[(PostgreSQL / MySQL / SQLite · Redis)]
+  CLI[cmd/zatrano] --> App
+```
+
+Opinionated layout: `app/`, `bootstrap/`, `config/`, `routes/`, `views/`, `database/`, `storage/`, plus a rich `core/` of framework packages.
+
+## Who is ZATRANO for?
+
+- Teams that want **Go speed** without inventing a new framework on every project
+- Builders shipping **server-rendered apps and APIs** with shared conventions
+- Engineers who prefer **batteries included** over stitching 20 micro-libraries
+- Products that need **auth, jobs, mail, and migrations** on day one
+
+## Learning ZATRANO
+
+Start here: **[zatrano.com/docs](https://zatrano.com/docs)** — installation, HTTP stack, database/ORM, security, packages, and more.
+
+## Roadmap
+
+| Version | Focus |
+|---------|--------|
+| **v0.2** | Hardening DX, docs depth, starter polish |
+| **v0.3** | Broader production recipes (deploy, observability, scaling patterns) |
+| **v1.0** | Stable public API surface and long-term support commitment |
+
+Current release: **[v0.1.8](https://github.com/zatrano/framework/releases/tag/v0.1.8)**.
+
+## Community
+
+- GitHub: [github.com/zatrano/framework](https://github.com/zatrano/framework)
+- Documentation: [zatrano.com/docs](https://zatrano.com/docs)
+- LinkedIn: [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
 
 ## Contributing
 
