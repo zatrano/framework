@@ -76,11 +76,16 @@ func (r *Request) Query(key string, fallback ...string) string {
 	return value
 }
 
-// Input returns an input value from form, JSON, or query.
+// Input returns an input value from form, multipart, JSON, or query.
 func (r *Request) Input(key string, fallback ...string) string {
 	if err := r.raw.ParseForm(); err == nil {
 		if value := r.raw.Form.Get(key); value != "" {
 			return value
+		}
+	}
+	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
+		if values := r.raw.MultipartForm.Value[key]; len(values) > 0 && values[0] != "" {
+			return values[0]
 		}
 	}
 	if value := r.jsonInput()[key]; value != "" {
@@ -96,6 +101,16 @@ func (r *Request) All() map[string]string {
 	for key, items := range r.raw.Form {
 		if len(items) > 0 {
 			values[key] = items[0]
+		}
+	}
+	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
+		for key, items := range r.raw.MultipartForm.Value {
+			if _, exists := values[key]; exists {
+				continue
+			}
+			if len(items) > 0 {
+				values[key] = items[0]
+			}
 		}
 	}
 	for key, value := range r.jsonInput() {

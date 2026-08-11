@@ -7,7 +7,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.1.7-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.1.8-green.svg" alt="Version"></a>
 </p>
 
 ## About ZATRANO
@@ -33,7 +33,7 @@ Install a tagged release as a Go module:
 
 ```bash
 go get github.com/zatrano/framework@latest
-go get github.com/zatrano/framework@v0.1.7
+go get github.com/zatrano/framework@v0.1.8
 ```
 
 Or clone the repository and run the application skeleton:

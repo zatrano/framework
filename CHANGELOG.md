@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.1.8 - 2026-08-11
+
+### Fixed
+
+- `Request.Input` / `All` now read multipart form field values
+
 ## 0.1.7 - 2026-08-11
 
 ### Changed
