@@ -3,19 +3,17 @@
 @section('title', 'Verify email')
 
 @section('content')
-<div style="max-width:420px;">
-    <h1 style="margin-top:0;color:#3dd6c6;">{{ $title }}</h1>
-    @if($verified)
-    <p style="color:#7dffb3;">Your email is verified.</p>
-    @else
-    <p style="opacity:0.85;">Please verify <strong>{{ $email }}</strong> before continuing.</p>
-    <form method="POST" action="/email/verification-notification">
-        <input type="hidden" name="_token" value="{{ $_token }}">
-        <button type="submit" style="margin-top:1rem;padding:0.85rem 1.25rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Resend verification email</button>
-    </form>
-    @endif
-    @if($flash.success)
-    <p style="color:#7dffb3;font-size:0.9rem;">{{ $flash.success }}</p>
-    @endif
-</div>
+<h1>{{ $title }}</h1>
+@if($verified)
+<p class="auth-alert auth-alert--success">Your email is verified.</p>
+@else
+<p class="auth-divider" style="text-align:left;margin:0.75rem 0 0;">Please verify <strong>{{ $email }}</strong> before continuing.</p>
+<form class="auth-form" method="POST" action="/email/verification-notification">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">Resend verification email</button>
+</form>
+@endif
+@if($flash.success)
+<p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
+@endif
 @endsection

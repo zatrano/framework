@@ -3,77 +3,77 @@
 @section('title', 'Two-factor authentication')
 
 @section('content')
-<div style="max-width:520px;">
-    <h1 style="margin-top:0;color:#3dd6c6;">{{ $title }}</h1>
-    <p style="opacity:0.8;">Protect your account with an authenticator app.</p>
+<h1>{{ $title }}</h1>
+<p class="auth-divider" style="text-align:left;margin:0.75rem 0 0;">Protect your account with an authenticator app.</p>
 
-    @if($enabled)
-    <p style="color:#7dffb3;">Status: <strong>Enabled</strong></p>
+@if($enabled)
+<p class="auth-alert auth-alert--success">Status: <strong>Enabled</strong></p>
 
-    @if($recovery_codes)
-    <h2 style="font-size:1.1rem;color:#3dd6c6;">Recovery codes</h2>
-    <p style="opacity:0.8;font-size:0.9rem;">Copy these now. They will not be shown again.</p>
-    <ul style="list-style:none;padding:0;font-family:ui-monospace,monospace;">
-        @foreach($recovery_codes as $code)
-        <li style="padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.08);">{{ $code }}</li>
-        @endforeach
-    </ul>
-    @endif
+@if($recovery_codes)
+<h2 style="font-family:Syne,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.35rem;">Recovery codes</h2>
+<p class="auth-divider" style="text-align:left;margin:0;">Copy these now. They will not be shown again.</p>
+<ul style="list-style:none;padding:0;margin:0.75rem 0 0;font-family:ui-monospace,monospace;font-size:0.9rem;">
+    @foreach($recovery_codes as $code)
+    <li style="padding:0.4rem 0;border-bottom:1px solid var(--line);">{{ $code }}</li>
+    @endforeach
+</ul>
+@endif
 
-    <form method="POST" action="/user/two-factor/recovery-codes" style="margin-top:1.25rem;">
-        <input type="hidden" name="_token" value="{{ $_token }}">
-        <button type="submit" style="width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Regenerate recovery codes</button>
-    </form>
+<form class="auth-form" method="POST" action="/user/two-factor/recovery-codes" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">Regenerate recovery codes</button>
+</form>
 
-    <form method="POST" action="/user/two-factor/disable" style="margin-top:1rem;">
-        <input type="hidden" name="_token" value="{{ $_token }}">
-        <label for="password" style="display:block;margin:1rem 0 0.35rem;">Current password</label>
-        <input id="password" name="password" type="password" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-        <button type="submit" style="margin-top:1rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#ff8f8f;color:#1a0a0a;font-weight:700;cursor:pointer;">Disable two-factor</button>
-    </form>
-    @else
-    <p style="color:#ff8f8f;">Status: <strong>Disabled</strong></p>
+<form class="auth-form" method="POST" action="/user/two-factor/disable" style="margin-top:0.75rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="password">Current password
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="auth-btn" type="submit" style="background:#b42318;">Disable two-factor</button>
+</form>
+@else
+<p class="auth-alert auth-alert--error">Status: <strong>Disabled</strong></p>
 
-    @if($pending_setup)
-    <h2 style="font-size:1.1rem;color:#3dd6c6;">Finish setup</h2>
-    <p style="opacity:0.85;font-size:0.9rem;">Add this account in your authenticator app.</p>
-    <p style="font-size:0.85rem;word-break:break-all;opacity:0.75;">{{ $setup_url }}</p>
-    <p style="font-family:ui-monospace,monospace;">Secret: <strong>{{ $setup_secret }}</strong></p>
+@if($pending_setup)
+<h2 style="font-family:Syne,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.35rem;">Finish setup</h2>
+<p class="auth-divider" style="text-align:left;margin:0;">Add this account in your authenticator app.</p>
+<p style="font-size:0.85rem;word-break:break-all;color:var(--muted);margin:0.75rem 0 0;">{{ $setup_url }}</p>
+<p style="font-family:ui-monospace,monospace;margin:0.5rem 0 0;">Secret: <strong>{{ $setup_secret }}</strong></p>
 
-    @if($setup_codes)
-    <h3 style="font-size:1rem;color:#3dd6c6;">Recovery codes</h3>
-    <ul style="list-style:none;padding:0;font-family:ui-monospace,monospace;">
-        @foreach($setup_codes as $code)
-        <li style="padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.08);">{{ $code }}</li>
-        @endforeach
-    </ul>
-    @endif
+@if($setup_codes)
+<h3 style="font-family:Syne,sans-serif;font-size:0.95rem;margin:1rem 0 0.35rem;">Recovery codes</h3>
+<ul style="list-style:none;padding:0;margin:0.5rem 0 0;font-family:ui-monospace,monospace;font-size:0.9rem;">
+    @foreach($setup_codes as $code)
+    <li style="padding:0.4rem 0;border-bottom:1px solid var(--line);">{{ $code }}</li>
+    @endforeach
+</ul>
+@endif
 
-    <form method="POST" action="/user/two-factor/confirm" style="margin-top:1.25rem;">
-        <input type="hidden" name="_token" value="{{ $_token }}">
-        <label for="code" style="display:block;margin:1rem 0 0.35rem;">Confirmation code</label>
-        <input id="code" name="code" type="text" autocomplete="one-time-code" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-        <button type="submit" style="margin-top:1rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Confirm &amp; enable</button>
-    </form>
-    @else
-    <form method="POST" action="/user/two-factor/enable" style="margin-top:1.25rem;">
-        <input type="hidden" name="_token" value="{{ $_token }}">
-        <button type="submit" style="width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Enable two-factor authentication</button>
-    </form>
-    @endif
-    @endif
+<form class="auth-form" method="POST" action="/user/two-factor/confirm" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="code">Confirmation code
+        <input id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" required>
+    </label>
+    <button class="auth-btn" type="submit">Confirm &amp; enable</button>
+</form>
+@else
+<form class="auth-form" method="POST" action="/user/two-factor/enable" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">Enable two-factor authentication</button>
+</form>
+@endif
+@endif
 
-    <p style="margin-top:1.5rem;font-size:0.9rem;">
-        <a href="/profile" style="color:#3dd6c6;">Back to profile</a>
-        ·
-        <a href="/user/logout-other-devices" style="color:#3dd6c6;">Logout other devices</a>
-    </p>
+<p class="auth-links" style="margin-top:1.5rem;">
+    <a href="/profile">Back to profile</a>
+    ·
+    <a href="/user/logout-other-devices">Logout other devices</a>
+</p>
 
-    @if($flash.error)
-    <p style="color:#ff8f8f;font-size:0.9rem;">{{ $flash.error }}</p>
-    @endif
-    @if($flash.success)
-    <p style="color:#7dffb3;font-size:0.9rem;">{{ $flash.success }}</p>
-    @endif
-</div>
+@if($flash.error)
+<p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
+@endif
+@if($flash.success)
+<p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
+@endif
 @endsection

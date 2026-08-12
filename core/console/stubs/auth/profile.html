@@ -3,26 +3,28 @@
 @section('title', 'Profile')
 
 @section('content')
-<form method="POST" action="/profile" style="max-width:420px;">
+<h1>{{ $title }}</h1>
+<form class="auth-form" method="POST" action="/profile">
     <input type="hidden" name="_token" value="{{ $_token }}">
-    <h1 style="margin-top:0;color:#3dd6c6;">{{ $title }}</h1>
-    <label for="name" style="display:block;margin:1rem 0 0.35rem;">Name</label>
-    <input id="name" name="name" type="text" value="{{ $name }}" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-    <label for="email" style="display:block;margin:1rem 0 0.35rem;">Email</label>
-    <input id="email" name="email" type="email" value="{{ $email }}" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-    <button type="submit" style="margin-top:1.25rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Save profile</button>
-    <p style="margin-top:1rem;font-size:0.9rem;">
-        <a href="/password/change" style="color:#3dd6c6;">Change password</a>
+    <label for="name">Name
+        <input id="name" name="name" type="text" value="{{ $name }}" autocomplete="name" required>
+    </label>
+    <label for="email">Email
+        <input id="email" name="email" type="email" value="{{ $email }}" autocomplete="email" required>
+    </label>
+    <button class="auth-btn" type="submit">Save profile</button>
+    <p class="auth-links">
+        <a href="/password/change">Change password</a>
         ·
-        <a href="/user/two-factor" style="color:#3dd6c6;">Two-factor</a>
+        <a href="/user/two-factor">Two-factor</a>
         ·
-        <a href="/user/logout-other-devices" style="color:#3dd6c6;">Other devices</a>
+        <a href="/user/logout-other-devices">Other devices</a>
     </p>
     @if($flash.error)
-    <p style="color:#ff8f8f;font-size:0.9rem;">{{ $flash.error }}</p>
+    <p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
     @endif
     @if($flash.success)
-    <p style="color:#7dffb3;font-size:0.9rem;">{{ $flash.success }}</p>
+    <p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
     @endif
 </form>
 @endsection

@@ -3,23 +3,24 @@
 @section('title', 'Logout other devices')
 
 @section('content')
-<form method="POST" action="/user/logout-other-devices" style="max-width:420px;">
+<h1>{{ $title }}</h1>
+<p class="auth-divider" style="text-align:left;margin:0.75rem 0 0;">Enter your password to end all other active sessions. This device stays signed in.</p>
+<form class="auth-form" method="POST" action="/user/logout-other-devices">
     <input type="hidden" name="_token" value="{{ $_token }}">
-    <h1 style="margin-top:0;color:#3dd6c6;">{{ $title }}</h1>
-    <p style="opacity:0.8;">Enter your password to end all other active sessions. This device stays signed in.</p>
-    <label for="password" style="display:block;margin:1rem 0 0.35rem;">Current password</label>
-    <input id="password" name="password" type="password" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-    <button type="submit" style="margin-top:1.25rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">Logout other devices</button>
-    <p style="margin-top:1rem;font-size:0.9rem;">
-        <a href="/profile" style="color:#3dd6c6;">Back to profile</a>
+    <label for="password">Current password
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="auth-btn" type="submit">Logout other devices</button>
+    <p class="auth-links">
+        <a href="/profile">Back to profile</a>
         ·
-        <a href="/user/two-factor" style="color:#3dd6c6;">Two-factor authentication</a>
+        <a href="/user/two-factor">Two-factor authentication</a>
     </p>
     @if($flash.error)
-    <p style="color:#ff8f8f;font-size:0.9rem;">{{ $flash.error }}</p>
+    <p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
     @endif
     @if($flash.success)
-    <p style="color:#7dffb3;font-size:0.9rem;">{{ $flash.success }}</p>
+    <p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
     @endif
 </form>
 @endsection

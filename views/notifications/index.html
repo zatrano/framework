@@ -3,20 +3,24 @@
 @section('title', 'Notifications')
 
 @section('content')
-<div class="shell" style="justify-content:flex-start;padding-top:3rem;max-width:42rem;margin:0 auto;text-align:left;">
-  <h1 style="font-family:Syne,sans-serif;">Notifications</h1>
-  <p style="color:var(--muted);">Inbox for <strong>{{ $notifiableID }}</strong></p>
-  <p>
-    <a href="/notifications/send">Send one</a> ·
-    <a href="/notifications/bulk">Bulk (CSV/XLSX)</a>
-  </p>
-  <ul style="list-style:none;padding:0;width:100%;">
-    @foreach($items as $item)
-    <li style="border-top:1px solid #eee;padding:0.85rem 0;">
-      <strong>{{ $item.Data.subject }}</strong>
-      <div style="color:var(--muted);font-size:0.95rem;">{{ $item.Data.body }}</div>
-    </li>
-    @endforeach
-  </ul>
+<div class="page">
+    <h1>Notifications</h1>
+    <p class="lede">Inbox for <strong>{{ $notifiableID }}</strong></p>
+    <nav class="page-nav" aria-label="Notification actions">
+        <a href="/notifications/send">Send one</a>
+        <a href="/notifications/bulk">Bulk (CSV / XLSX)</a>
+    </nav>
+    @if($items)
+    <ul class="inbox">
+        @foreach($items as $item)
+        <li>
+            <strong>{{ $item.Data.subject }}</strong>
+            <div class="meta">{{ $item.Data.body }}</div>
+        </li>
+        @endforeach
+    </ul>
+    @else
+    <p class="empty">No notifications yet. Send one to see it here.</p>
+    @endif
 </div>
 @endsection

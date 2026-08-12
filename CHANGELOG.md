@@ -2,6 +2,17 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.4 - 2026-08-12
+
+### Added
+
+- Real GitHub OAuth provider (token exchange, user + primary email); stub only for placeholder credentials
+
+### Changed
+
+- Auth scaffold views use ZATRANO brand layout (white / red) instead of unfinished teal demo styles
+- Notification demo pages rebuilt as complete inbox / send / bulk forms
+
 ## 0.2.3 - 2026-08-12
 
 ### Added

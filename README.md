@@ -12,7 +12,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.2.3-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.2.4-green.svg" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@ Most Go web apps start fast and then slow down in the glue: auth, migrations, qu
 ```bash
 go get github.com/zatrano/framework@latest
 # or pin a release
-go get github.com/zatrano/framework@v0.2.3
+go get github.com/zatrano/framework@v0.2.4
 ```
 
 Clone the skeleton and run it:
@@ -100,7 +100,7 @@ Start here: **[zatrano.com/docs](https://zatrano.com/docs)** — installation, H
 | **v0.3** | Broader production recipes (deploy, observability, scaling patterns) |
 | **v1.0** | Stable public API surface and long-term support commitment |
 
-Current release: **[v0.2.3](https://github.com/zatrano/framework/releases/tag/v0.2.3)**.
+Current release: **[v0.2.4](https://github.com/zatrano/framework/releases/tag/v0.2.4)**.
 
 ## Community
 

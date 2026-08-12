@@ -5,30 +5,32 @@
 @endsection
 
 @section('content')
-<form method="POST" action="/login" style="max-width:420px;">
+<h1>@lang('auth.login')</h1>
+<form class="auth-form" method="POST" action="/login">
     <input type="hidden" name="_token" value="{{ $_token }}">
-    <h1 style="margin-top:0;color:#3dd6c6;">@lang('auth.login')</h1>
-    <label for="email" style="display:block;margin:1rem 0 0.35rem;">@lang('auth.email')</label>
-    <input id="email" name="email" type="email" value="{{ $email }}" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-    <label for="password" style="display:block;margin:1rem 0 0.35rem;">@lang('auth.password_label')</label>
-    <input id="password" name="password" type="password" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0b1220;color:inherit;">
-    <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem;font-size:0.9rem;">
+    <label for="email">@lang('auth.email')
+        <input id="email" name="email" type="email" value="{{ $email }}" autocomplete="username" required>
+    </label>
+    <label for="password">@lang('auth.password_label')
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <label class="auth-check" for="remember">
         <input id="remember" name="remember" type="checkbox" value="1">
         @lang('auth.remember_me')
     </label>
-    <button type="submit" style="margin-top:1.25rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">@lang('auth.login')</button>
-    <p style="margin:1.25rem 0 0.75rem;text-align:center;font-size:0.85rem;opacity:0.7;">@lang('auth.or_continue_with')</p>
-    <p style="display:flex;gap:0.75rem;margin:0;">
-        <a href="/login/google" style="flex:1;text-align:center;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);color:inherit;text-decoration:none;">@lang('auth.continue_google')</a>
-        <a href="/login/github" style="flex:1;text-align:center;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);color:inherit;text-decoration:none;">@lang('auth.continue_github')</a>
-    </p>
-    <p style="margin-top:1rem;font-size:0.9rem;"><a href="/forgot-password" style="color:#3dd6c6;">@lang('auth.forgot_password')</a></p>
-    <p style="margin-top:0.5rem;font-size:0.9rem;"><a href="/register" style="color:#3dd6c6;">@lang('auth.register')</a></p>
+    <button class="auth-btn" type="submit">@lang('auth.login')</button>
+    <p class="auth-divider">@lang('auth.or_continue_with')</p>
+    <div class="auth-social">
+        <a href="/login/google">@lang('auth.continue_google')</a>
+        <a href="/login/github">@lang('auth.continue_github')</a>
+    </div>
+    <p class="auth-links"><a href="/forgot-password">@lang('auth.forgot_password')</a></p>
+    <p class="auth-links"><a href="/register">@lang('auth.register')</a></p>
     @if($flash.error)
-    <p style="color:#ff8f8f;font-size:0.9rem;">{{ $flash.error }}</p>
+    <p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
     @endif
     @if($flash.success)
-    <p style="color:#7dffb3;font-size:0.9rem;">{{ $flash.success }}</p>
+    <p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
     @endif
 </form>
 @endsection

@@ -24,21 +24,6 @@ func Google(cfg Config) Provider {
 	return &googleProvider{cfg: cfg, httpClient: &http.Client{Timeout: 15 * time.Second}}
 }
 
-// GitHub builds a GitHub OAuth provider (stub until real credentials are set).
-func GitHub(cfg Config) Provider {
-	if cfg.ClientID == "" {
-		cfg.ClientID = "github-client-id"
-	}
-	if len(cfg.Scopes) == 0 {
-		cfg.Scopes = []string{"read:user", "user:email"}
-	}
-	if isPlaceholderOAuth(cfg.ClientID, cfg.ClientSecret) {
-		return NewStubProvider("github", cfg)
-	}
-	// Real GitHub provider can be added later; keep stub-compatible shape for now.
-	return NewStubProvider("github", cfg)
-}
-
 func isPlaceholderOAuth(clientID, clientSecret string) bool {
 	id := strings.TrimSpace(clientID)
 	secret := strings.TrimSpace(clientSecret)
