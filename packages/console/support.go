@@ -1,9 +1,9 @@
 package console
 
 import (
-	"github.com/zatrano/framework/packages/queue"
-	"github.com/zatrano/framework/packages/cache"
 	"fmt"
+	"github.com/zatrano/framework/packages/cache"
+	"github.com/zatrano/framework/packages/queue"
 	"os"
 	"path/filepath"
 	"strings"

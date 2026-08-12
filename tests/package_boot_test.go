@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"github.com/zatrano/framework/packages/session"
 	"github.com/zatrano/framework/packages/auth"
+	"github.com/zatrano/framework/packages/session"
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap"

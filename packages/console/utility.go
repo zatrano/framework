@@ -1,9 +1,9 @@
 package console
 
 import (
-	"github.com/zatrano/framework/packages/cache"
 	"bufio"
 	"fmt"
+	"github.com/zatrano/framework/packages/cache"
 	"math/rand"
 	"os"
 	"strings"

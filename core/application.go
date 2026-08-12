@@ -122,7 +122,6 @@ func (app *Application) Router() *routing.Router {
 	return app.router
 }
 
-
 // Logger returns the application logger.
 func (app *Application) Logger() *log.Logger {
 	return app.logger
@@ -385,4 +384,3 @@ func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
 	}
 	return middleware.Recover
 }
-

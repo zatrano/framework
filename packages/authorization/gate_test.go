@@ -126,7 +126,7 @@ func TestMiddlewareWithArgs(t *testing.T) {
 	user := fakeUser{id: 9}
 	raw := httptest.NewRequest(stdhttp.MethodGet, "/posts/42", nil)
 	req := http.NewRequest(raw)
-	req.Set("auth.user", user)
+	req.Set("auth.user.web", user)
 	req.SetRouteParams(map[string]string{"id": "42"})
 
 	called := false

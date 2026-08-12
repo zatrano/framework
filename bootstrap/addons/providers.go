@@ -418,7 +418,6 @@ func (p *OTPServiceProvider) Register(app *core.Application) error {
 
 func (p *OTPServiceProvider) Boot(app *core.Application) error { return nil }
 
-
 func resolveFeatures(app *core.Application) *features.Manager {
 	raw, err := app.Make("features")
 	if err != nil {

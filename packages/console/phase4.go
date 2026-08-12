@@ -1,8 +1,8 @@
 package console
 
 import (
-	"github.com/zatrano/framework/packages/schedule"
 	"fmt"
+	"github.com/zatrano/framework/packages/schedule"
 	"os"
 	"path/filepath"
 	"time"

@@ -1,10 +1,10 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/packages/view"
-	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/packages/middleware/csrf"
+	"github.com/zatrano/framework/packages/view"
 )
 
 // AppServiceProvider registers application-level services.
