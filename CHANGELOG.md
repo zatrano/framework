@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.1 - 2026-08-12
+
+### Fixed
+
+- Publish nested heavy-package modules (`packages/mongo`, `packages/webauthn`, `packages/qr`) as `v1.0.0` so consumers can resolve them without local `replace` directives
+
 ## 1.0.0 - 2026-08-12
 
 ### Added
