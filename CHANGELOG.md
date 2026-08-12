@@ -2,6 +2,33 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.0 - 2026-08-12
+
+### Added
+
+- Thin-kernel architecture: first-party code under `packages/`, lean `core/`
+- Boot profiles: `CoreApp`, `MinimalApp`, `App`, `APIApp`, `WebApp`, `DemoApp` + `APP_BOOT` / `bootstrap.FromEnv`
+- Package ecosystem CLI: `package:list|enable|disable|preset|init|install|publish|status|doctor`
+- Addon registry, presets (`api` / `web` / `demo`), config stubs, catalog (`KindService` / `KindLibrary`)
+- Auth parity: per-guard session keys, guard-aware middleware, cache-backed lockout, password broker throttle + silent unknown emails, `MarkEmailAsVerified` + `auth.verified`, 2FA remember-device, challenge lockout, configurable issuer
+- Resolve helpers (`auth.From(app)`, `mail.From(app)`, …) across packages
+- Website is the sole documentation source (repo `docs/` removed)
+
+### Changed
+
+- Import paths `core/X` → `packages/X` for first-party packages
+- Foundation accessors removed from `Application` in favor of package `From` helpers
+- Starter notification demo routes/controllers/views removed
+- README rewritten for the v1 architecture
+
+### Migration
+
+1. `go get github.com/zatrano/framework@v1.0.0`
+2. Rewrite imports to `packages/...`
+3. Replace `app.Auth()` / `app.Mail()` / … with `auth.From(app)` / `mail.From(app)` / …
+4. Set `APP_BOOT` for production (`app|api|web|minimal`)
+5. Enable optional services with `package:enable` / presets
+
 ## 0.2.5 - 2026-08-12
 
 ### Added
