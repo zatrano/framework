@@ -242,7 +242,7 @@ func (r *Repository) LastBatch() (int, error) {
 
 // GetBatch returns migrations in a batch.
 func (r *Repository) GetBatch(batch int) ([]string, error) {
-	rows, err := r.db.Query(`SELECT migration FROM migrations WHERE batch = ? ORDER BY id ASC`, batch)
+	rows, err := r.db.Query(r.q(`SELECT migration FROM migrations WHERE batch = ? ORDER BY id ASC`), batch)
 	if err != nil {
 		return nil, err
 	}
@@ -279,14 +279,35 @@ func (r *Repository) Batches() (map[string]int, error) {
 
 // Log records a migration.
 func (r *Repository) Log(name string, batch int) error {
-	_, err := r.db.Exec(`INSERT INTO migrations (migration, batch) VALUES (?, ?)`, name, batch)
+	_, err := r.db.Exec(r.q(`INSERT INTO migrations (migration, batch) VALUES (?, ?)`), name, batch)
 	return err
 }
 
 // Delete removes a migration record.
 func (r *Repository) Delete(name string) error {
-	_, err := r.db.Exec(`DELETE FROM migrations WHERE migration = ?`, name)
+	_, err := r.db.Exec(r.q(`DELETE FROM migrations WHERE migration = ?`), name)
 	return err
+}
+
+// q rewrites ? placeholders for PostgreSQL ($1, $2, ...).
+func (r *Repository) q(query string) string {
+	switch r.driver {
+	case "pgsql", "postgres", "postgresql":
+		out := make([]byte, 0, len(query)+8)
+		n := 1
+		for i := 0; i < len(query); i++ {
+			if query[i] == '?' {
+				out = append(out, '$')
+				out = append(out, fmt.Sprintf("%d", n)...)
+				n++
+				continue
+			}
+			out = append(out, query[i])
+		}
+		return string(out)
+	default:
+		return query
+	}
 }
 
 // GenerateName creates a timestamped migration name.

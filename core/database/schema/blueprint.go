@@ -384,9 +384,9 @@ func formatDefault(value any) string {
 		return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
 	case bool:
 		if v {
-			return "1"
+			return "TRUE"
 		}
-		return "0"
+		return "FALSE"
 	default:
 		return fmt.Sprint(v)
 	}

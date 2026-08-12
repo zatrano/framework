@@ -175,28 +175,6 @@ func (p *StubProvider) UserFromCode(code string) (*User, error) {
 	}, nil
 }
 
-// GitHub builds a stub GitHub-shaped provider.
-func GitHub(cfg Config) Provider {
-	if cfg.ClientID == "" {
-		cfg.ClientID = "github-client-id"
-	}
-	if len(cfg.Scopes) == 0 {
-		cfg.Scopes = []string{"read:user", "user:email"}
-	}
-	return NewStubProvider("github", cfg)
-}
-
-// Google builds a stub Google-shaped provider.
-func Google(cfg Config) Provider {
-	if cfg.ClientID == "" {
-		cfg.ClientID = "google-client-id"
-	}
-	if len(cfg.Scopes) == 0 {
-		cfg.Scopes = []string{"openid", "profile", "email"}
-	}
-	return NewStubProvider("google", cfg)
-}
-
 func randomState() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {

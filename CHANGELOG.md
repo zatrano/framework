@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.1.10 - 2026-08-12
+
+### Fixed
+
+- PostgreSQL migration repository uses `$1, $2, …` placeholders instead of `?`
+- Boolean column defaults emit `TRUE`/`FALSE` (Postgres-compatible)
+- Database queue `EnsureTable` / queries are dialect-aware (SQLite, MySQL, PostgreSQL)
+
+### Added
+
+- SMTP mailer implicit TLS (`MAIL_ENCRYPTION` / port 465)
+- Real Google OAuth provider (stub when credentials are placeholders)
+
 ## 0.1.9 - 2026-08-12
 
 ### Added

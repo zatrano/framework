@@ -102,25 +102,55 @@ func (q *SyncQueue) Clear() error { return nil }
 type DatabaseQueue struct {
 	db       *sql.DB
 	table    string
+	driver   string
 	handlers map[string]func(map[string]any) error
 	mu       sync.RWMutex
 }
 
 // NewDatabaseQueue creates a database-backed queue.
-func NewDatabaseQueue(db *sql.DB, table string) *DatabaseQueue {
+// Optional driver (sqlite|mysql|pgsql) selects dialect-aware SQL.
+func NewDatabaseQueue(db *sql.DB, table string, driver ...string) *DatabaseQueue {
 	if table == "" {
 		table = "jobs"
+	}
+	d := "sqlite"
+	if len(driver) > 0 && driver[0] != "" {
+		d = driver[0]
 	}
 	return &DatabaseQueue{
 		db:       db,
 		table:    table,
+		driver:   d,
 		handlers: make(map[string]func(map[string]any) error),
 	}
 }
 
 // EnsureTable creates the jobs table if needed.
 func (q *DatabaseQueue) EnsureTable() error {
-	_, err := q.db.Exec(fmt.Sprintf(`
+	var sqlStr string
+	switch q.driver {
+	case "pgsql", "postgres", "postgresql":
+		sqlStr = fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s (
+	id BIGSERIAL PRIMARY KEY,
+	queue VARCHAR(255) NOT NULL DEFAULT 'default',
+	payload TEXT NOT NULL,
+	available_at TIMESTAMP NOT NULL,
+	created_at TIMESTAMP NOT NULL,
+	reserved_at TIMESTAMP NULL
+)`, q.table)
+	case "mysql":
+		sqlStr = fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s (
+	id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	queue VARCHAR(255) NOT NULL DEFAULT 'default',
+	payload TEXT NOT NULL,
+	available_at DATETIME NOT NULL,
+	created_at DATETIME NOT NULL,
+	reserved_at DATETIME NULL
+)`, q.table)
+	default:
+		sqlStr = fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %s (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	queue VARCHAR(255) NOT NULL DEFAULT 'default',
@@ -128,7 +158,9 @@ CREATE TABLE IF NOT EXISTS %s (
 	available_at DATETIME NOT NULL,
 	created_at DATETIME NOT NULL,
 	reserved_at DATETIME NULL
-)`, q.table))
+)`, q.table)
+	}
+	_, err := q.db.Exec(sqlStr)
 	return err
 }
 
@@ -160,7 +192,7 @@ func (q *DatabaseQueue) Push(job NamedJob, delay ...time.Duration) error {
 	now := time.Now()
 	available := now.Add(wait)
 	_, err = q.db.Exec(
-		fmt.Sprintf(`INSERT INTO %s (queue, payload, available_at, created_at) VALUES (?, ?, ?, ?)`, q.table),
+		q.q(fmt.Sprintf(`INSERT INTO %s (queue, payload, available_at, created_at) VALUES (?, ?, ?, ?)`, q.table)),
 		"default", string(raw), available.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05"),
 	)
 	return err
@@ -169,10 +201,10 @@ func (q *DatabaseQueue) Push(job NamedJob, delay ...time.Duration) error {
 // Pop reserves the next available job.
 func (q *DatabaseQueue) Pop() (*ReservedJob, error) {
 	now := time.Now().Format("2006-01-02 15:04:05")
-	row := q.db.QueryRow(fmt.Sprintf(`
+	row := q.db.QueryRow(q.q(fmt.Sprintf(`
 SELECT id, payload FROM %s
 WHERE reserved_at IS NULL AND available_at <= ?
-ORDER BY id ASC LIMIT 1`, q.table), now)
+ORDER BY id ASC LIMIT 1`, q.table)), now)
 
 	var id int64
 	var payload string
@@ -180,7 +212,7 @@ ORDER BY id ASC LIMIT 1`, q.table), now)
 		return nil, err
 	}
 
-	_, err := q.db.Exec(fmt.Sprintf(`UPDATE %s SET reserved_at = ? WHERE id = ?`, q.table), now, id)
+	_, err := q.db.Exec(q.q(fmt.Sprintf(`UPDATE %s SET reserved_at = ? WHERE id = ?`, q.table)), now, id)
 	if err != nil {
 		return nil, err
 	}
@@ -194,13 +226,13 @@ ORDER BY id ASC LIMIT 1`, q.table), now)
 		ID:  id,
 		Job: job,
 		delete: func() error {
-			_, err := q.db.Exec(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, q.table), id)
+			_, err := q.db.Exec(q.q(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, q.table)), id)
 			return err
 		},
 		release: func(delay time.Duration) error {
 			available := time.Now().Add(delay).Format("2006-01-02 15:04:05")
 			_, err := q.db.Exec(
-				fmt.Sprintf(`UPDATE %s SET reserved_at = NULL, available_at = ? WHERE id = ?`, q.table),
+				q.q(fmt.Sprintf(`UPDATE %s SET reserved_at = NULL, available_at = ? WHERE id = ?`, q.table)),
 				available, id,
 			)
 			return err
@@ -219,6 +251,26 @@ func (q *DatabaseQueue) Size() (int, error) {
 func (q *DatabaseQueue) Clear() error {
 	_, err := q.db.Exec(fmt.Sprintf(`DELETE FROM %s`, q.table))
 	return err
+}
+
+func (q *DatabaseQueue) q(query string) string {
+	switch q.driver {
+	case "pgsql", "postgres", "postgresql":
+		out := make([]byte, 0, len(query)+8)
+		n := 1
+		for i := 0; i < len(query); i++ {
+			if query[i] == '?' {
+				out = append(out, '$')
+				out = append(out, fmt.Sprintf("%d", n)...)
+				n++
+				continue
+			}
+			out = append(out, query[i])
+		}
+		return string(out)
+	default:
+		return query
+	}
 }
 
 // Manager resolves queues and registers handlers.

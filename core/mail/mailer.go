@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/smtp"
@@ -102,10 +103,11 @@ func (m *LogMailer) Send(message *Message) error {
 
 // SMTPConfig holds SMTP settings.
 type SMTPConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
+	Host       string
+	Port       string
+	Username   string
+	Password   string
+	Encryption string // "", "tls", "ssl", "starttls"
 }
 
 // SMTPMailer sends mail over SMTP.
@@ -123,13 +125,73 @@ func (m *SMTPMailer) Send(message *Message) error {
 	addr := m.config.Host + ":" + m.config.Port
 	recipients := append(append([]string{}, message.To...), message.Cc...)
 	recipients = append(recipients, message.Bcc...)
+	from := extractAddress(message.From)
+	payload := buildMIME(message)
 
-	var auth smtp.Auth
-	if m.config.Username != "" {
-		auth = smtp.PlainAuth("", m.config.Username, m.config.Password, m.config.Host)
+	if useImplicitTLS(m.config) {
+		return sendSMTPTLS(m.config, addr, from, recipients, payload)
 	}
+	return sendSMTPPlain(m.config, addr, from, recipients, payload)
+}
 
-	return smtp.SendMail(addr, auth, extractAddress(message.From), recipients, buildMIME(message))
+func useImplicitTLS(cfg SMTPConfig) bool {
+	enc := strings.ToLower(strings.TrimSpace(cfg.Encryption))
+	if enc == "ssl" || enc == "tls" {
+		return true
+	}
+	return strings.TrimSpace(cfg.Port) == "465"
+}
+
+func sendSMTPPlain(cfg SMTPConfig, addr, from string, recipients []string, payload []byte) error {
+	var auth smtp.Auth
+	if cfg.Username != "" {
+		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+	}
+	return smtp.SendMail(addr, auth, from, recipients, payload)
+}
+
+func sendSMTPTLS(cfg SMTPConfig, addr, from string, recipients []string, payload []byte) error {
+	tlsCfg := &tls.Config{
+		ServerName: cfg.Host,
+		MinVersion: tls.VersionTLS12,
+	}
+	conn, err := tls.Dial("tcp", addr, tlsCfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	if cfg.Username != "" {
+		if err := client.Auth(smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)); err != nil {
+			return err
+		}
+	}
+	if err := client.Mail(from); err != nil {
+		return err
+	}
+	for _, rcpt := range recipients {
+		if err := client.Rcpt(rcpt); err != nil {
+			return err
+		}
+	}
+	w, err := client.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(payload); err != nil {
+		_ = w.Close()
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return client.Quit()
 }
 
 // BuildMIME renders a message as raw MIME bytes.

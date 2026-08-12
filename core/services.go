@@ -192,10 +192,11 @@ func (app *Application) bootSupportServices() error {
 
 	logMailer := mail.NewLogMailer(app.logger)
 	smtpMailer := mail.NewSMTPMailer(mail.SMTPConfig{
-		Host:     env.Get("MAIL_HOST", "127.0.0.1"),
-		Port:     env.Get("MAIL_PORT", "2525"),
-		Username: env.Get("MAIL_USERNAME"),
-		Password: env.Get("MAIL_PASSWORD"),
+		Host:       env.Get("MAIL_HOST", "127.0.0.1"),
+		Port:       env.Get("MAIL_PORT", "2525"),
+		Username:   env.Get("MAIL_USERNAME"),
+		Password:   env.Get("MAIL_PASSWORD"),
+		Encryption: env.Get("MAIL_ENCRYPTION"),
 	})
 	app.mail = mail.NewManager(
 		env.Get("MAIL_MAILER", "log"),
@@ -217,7 +218,8 @@ func (app *Application) bootSupportServices() error {
 	if app.db != nil {
 		db, err := app.db.DB()
 		if err == nil {
-			dbQueue := queue.NewDatabaseQueue(db, "jobs")
+			driver, _ := app.db.DriverName()
+			dbQueue := queue.NewDatabaseQueue(db, "jobs", driver)
 			_ = dbQueue.EnsureTable()
 			queues["database"] = dbQueue
 		}
@@ -508,7 +510,7 @@ func (app *Application) bootSupportServices() error {
 	app.social.Extend("google", social.Google(social.Config{
 		ClientID:     env.Get("GOOGLE_CLIENT_ID", "google-client-id"),
 		ClientSecret: env.Get("GOOGLE_CLIENT_SECRET", "google-client-secret"),
-		RedirectURL:  redirectBase + "/auth/google/callback",
+		RedirectURL:  env.Get("GOOGLE_REDIRECT_URI", redirectBase+"/auth/google/callback"),
 	}))
 	app.container.Instance("social", app.social)
 
