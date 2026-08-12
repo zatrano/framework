@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.2 - 2026-08-12
+
+### Added
+
+- Template `@if` / `@elseif` numeric comparisons (`$limit == 50`, `$n != 0`)
+
 ## 0.2.1 - 2026-08-12
 
 ### Fixed

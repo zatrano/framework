@@ -243,12 +243,16 @@ func (e *Engine) compileBladeLike(input string) string {
 	// @switch / @case / @default / @break / @endswitch
 	out = compileSwitchBlocks(out)
 
-	// @if / @elseif with nested paths and simple == / !=
+	// @if / @elseif with nested paths and simple == / != (string or number RHS)
 	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
 	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
+	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
+	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
 	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if dataGet . "$1" }}`)
 	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
 	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
+	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
+	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
 	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if dataGet . "$1" }}`)
 	out = strings.ReplaceAll(out, "@else", "{{ else }}")
 	out = strings.ReplaceAll(out, "@endif", "{{ end }}")
