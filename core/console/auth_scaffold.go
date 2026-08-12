@@ -64,13 +64,16 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 	if !viewsOnly {
 		pairs = append(pairs,
 			filePair{"go/user_model.go.stub", []string{"app", "models", "user.go"}},
+			filePair{"go/social_account_model.go.stub", []string{"app", "models", "social_account.go"}},
 			filePair{"go/user_factory.go.stub", []string{"database", "factories", "user_factory.go"}},
 			filePair{"go/user_resource.go.stub", []string{"app", "http", "resources", "user_resource.go"}},
 			filePair{"go/auth_controller.go.stub", []string{"app", "http", "controllers", "web", "auth_controller.go"}},
+			filePair{"go/social_auth_controller.go.stub", []string{"app", "http", "controllers", "web", "social_auth_controller.go"}},
 			filePair{"go/authenticate_middleware.go.stub", []string{"app", "http", "middleware", "authenticate.go"}},
 			filePair{"go/routes_auth.go.stub", []string{"routes", "auth.go"}},
 			filePair{"go/auth_service_provider.go.stub", []string{"app", "providers", "auth_service_provider.go"}},
 			filePair{"go/migration_auth.go.stub", []string{"database", "migrations", "create_auth_tables.go"}},
+			filePair{"go/migration_social_accounts.go.stub", []string{"database", "migrations", "create_social_accounts_table.go"}},
 		)
 	}
 
@@ -110,10 +113,11 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 	} else {
 		fmt.Println("Next steps:")
 		fmt.Println("  1. In database/migrations/migrations.go add:")
-		fmt.Println("     &CreateUsersTable{}, &CreatePasswordResetTokensTable{}, &CreatePersonalAccessTokensTable{},")
+		fmt.Println("     &CreateUsersTable{}, &CreatePasswordResetTokensTable{}, &CreatePersonalAccessTokensTable{}, &CreateSocialAccountsTable{},")
 		fmt.Println("  2. In routes/web.go call: RegisterAuthWeb(app)")
 		fmt.Println("  3. In routes/api.go call: RegisterAuthAPI(app)")
-		fmt.Println("  4. Run: go run ./cmd/zatrano migrate")
+		fmt.Println("  4. Set GOOGLE_*/GITHUB_* env vars for social login (optional)")
+		fmt.Println("  5. Run: go run ./cmd/zatrano migrate")
 	}
 	fmt.Println("Use --force to overwrite existing files. Use --views for views only.")
 	return nil
@@ -187,6 +191,10 @@ func goStubConflicts(stubPath, pkgDir, dst string) (string, error) {
 		if strings.Contains(stub, "CreateUsersTable") &&
 			(strings.Contains(text, "remember_token") || strings.Contains(text, "two_factor_secret") || strings.Contains(text, "CreateUsersTable")) {
 			return fmt.Sprintf("auth tables already in %s", entry.Name()), nil
+		}
+		if strings.Contains(stub, "CreateSocialAccountsTable") &&
+			(strings.Contains(text, "provider_uid") || strings.Contains(text, "CreateSocialAccountsTable")) {
+			return fmt.Sprintf("social accounts already in %s", entry.Name()), nil
 		}
 	}
 	return "", nil

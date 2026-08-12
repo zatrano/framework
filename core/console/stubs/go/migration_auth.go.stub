@@ -15,6 +15,7 @@ func (m *CreateUsersTable) Up(s *schema.Builder) error {
 		table.String("name")
 		table.String("email").Unique()
 		table.String("password")
+		table.String("avatar").Nullable()
 		table.Timestamp("email_verified_at").Nullable()
 		table.String("remember_token", 100).Nullable()
 		table.Text("two_factor_secret").Nullable()

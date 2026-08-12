@@ -17,6 +17,11 @@
         @lang('auth.remember_me')
     </label>
     <button type="submit" style="margin-top:1.25rem;width:100%;padding:0.85rem;border:0;border-radius:8px;background:#3dd6c6;color:#041016;font-weight:700;cursor:pointer;">@lang('auth.login')</button>
+    <p style="margin:1.25rem 0 0.75rem;text-align:center;font-size:0.85rem;opacity:0.7;">@lang('auth.or_continue_with')</p>
+    <p style="display:flex;gap:0.75rem;margin:0;">
+        <a href="/login/google" style="flex:1;text-align:center;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);color:inherit;text-decoration:none;">@lang('auth.continue_google')</a>
+        <a href="/login/github" style="flex:1;text-align:center;padding:0.75rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);color:inherit;text-decoration:none;">@lang('auth.continue_github')</a>
+    </p>
     <p style="margin-top:1rem;font-size:0.9rem;"><a href="/forgot-password" style="color:#3dd6c6;">@lang('auth.forgot_password')</a></p>
     <p style="margin-top:0.5rem;font-size:0.9rem;"><a href="/register" style="color:#3dd6c6;">@lang('auth.register')</a></p>
     @if($flash.error)

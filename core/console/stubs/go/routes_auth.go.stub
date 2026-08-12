@@ -17,6 +17,12 @@ func RegisterAuthWeb(app *core.Application) {
 	router.Post("/login", ctrl.Login).As("login.attempt").Through(app.RateLimiter().Named("login"))
 	router.Post("/logout", ctrl.Logout).As("logout")
 
+	social := &web.SocialAuthController{App: app}
+	router.Get("/login/google", social.GoogleRedirect).As("login.google")
+	router.Get("/auth/google/callback", social.GoogleCallback).As("login.google.callback")
+	router.Get("/login/github", social.GitHubRedirect).As("login.github")
+	router.Get("/auth/github/callback", social.GitHubCallback).As("login.github.callback")
+
 	router.Group("", func(r *Router) {
 		r.Get("/register", ctrl.RegisterForm).As("register")
 		r.Post("/register", ctrl.Register).As("register.store").Through(app.RateLimiter().Named("login"))

@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.3 - 2026-08-12
+
+### Added
+
+- Social login persistence helpers (`social.Persist`) and `make:auth` stubs for Google/GitHub accounts
+- Env keys for `GOOGLE_*` / `GITHUB_*` OAuth credentials in `.env.example`
+
 ## 0.2.2 - 2026-08-12
 
 ### Added

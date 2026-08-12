@@ -516,7 +516,7 @@ func (app *Application) bootSupportServices() error {
 	app.social.Extend("github", social.GitHub(social.Config{
 		ClientID:     env.Get("GITHUB_CLIENT_ID", "github-client-id"),
 		ClientSecret: env.Get("GITHUB_CLIENT_SECRET", "github-client-secret"),
-		RedirectURL:  redirectBase + "/auth/github/callback",
+		RedirectURL:  env.Get("GITHUB_REDIRECT_URI", redirectBase+"/auth/github/callback"),
 	}))
 	app.social.Extend("google", social.Google(social.Config{
 		ClientID:     env.Get("GOOGLE_CLIENT_ID", "google-client-id"),
