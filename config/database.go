@@ -1,6 +1,6 @@
 package config
 
-import "github.com/zatrano/framework/core/env"
+import "github.com/zatrano/framework/packages/env"
 
 // Database returns database configuration.
 func Database() map[string]any {

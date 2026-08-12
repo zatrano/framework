@@ -1,6 +1,6 @@
 package web
 
-import "github.com/zatrano/framework/core/http"
+import "github.com/zatrano/framework/packages/http"
 
 // HomeController serves the welcome page.
 type HomeController struct{}

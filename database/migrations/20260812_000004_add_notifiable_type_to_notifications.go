@@ -1,6 +1,6 @@
 package migrations
 
-import "github.com/zatrano/framework/core/database/schema"
+import "github.com/zatrano/framework/packages/database/schema"
 
 // AddNotifiableTypeToNotifications adds polymorphic type column when upgrading.
 type AddNotifiableTypeToNotifications struct{}

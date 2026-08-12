@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/zatrano/framework/core"
-	"github.com/zatrano/framework/core/http"
+	"github.com/zatrano/framework/packages/http"
 )
 
 // Health registers liveness and readiness routes.

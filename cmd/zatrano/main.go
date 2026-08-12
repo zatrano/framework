@@ -6,11 +6,14 @@ import (
 
 	appconsole "github.com/zatrano/framework/app/console"
 	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/core/console"
+	"github.com/zatrano/framework/packages/console"
 )
 
 func main() {
-	app := bootstrap.App()
+	// APP_BOOT selects the stack: app|api|web|minimal|core|demo
+	// Framework CLI defaults to demo for exploration; production apps usually omit
+	// the default (app) or set APP_BOOT=api|web|minimal.
+	app := bootstrap.FromEnv("demo")
 	cli := console.New(app)
 	appconsole.Register(cli, app)
 

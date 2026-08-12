@@ -2,7 +2,7 @@ package console
 
 import (
 	"github.com/zatrano/framework/core"
-	coreconsole "github.com/zatrano/framework/core/console"
+	coreconsole "github.com/zatrano/framework/packages/console"
 )
 
 // Register registers application console commands.

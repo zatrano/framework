@@ -1,6 +1,6 @@
 package migrations
 
-import "github.com/zatrano/framework/core/database/schema"
+import "github.com/zatrano/framework/packages/database/schema"
 
 // CreateJobsTable creates the jobs table.
 type CreateJobsTable struct{}

@@ -1,0 +1,148 @@
+package console
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/packages/backup"
+)
+
+func registerBackupCommands(console *Application, app *core.Application) {
+	console.Register(
+		&DBBackupCommand{app: app},
+		&DBBackupListCommand{app: app},
+		&DBRestoreCommand{app: app},
+		&MakeProviderCommand{app: app},
+	)
+}
+
+func backupManager(app *core.Application) (*backup.Manager, error) {
+	if err := app.Bootstrap(); err != nil {
+		return nil, err
+	}
+	dbPath := app.Config().GetString("database.connections.sqlite.database", "database/database.sqlite")
+	if !filepath.IsAbs(dbPath) {
+		dbPath = app.BasePath(dbPath)
+	}
+	return backup.New(dbPath, app.BasePath("storage", "backups")), nil
+}
+
+type DBBackupCommand struct{ app *core.Application }
+
+func (c *DBBackupCommand) Name() string        { return "db:backup" }
+func (c *DBBackupCommand) Description() string { return "Create a SQLite database backup" }
+func (c *DBBackupCommand) Handle(args []string) error {
+	mgr, err := backupManager(c.app)
+	if err != nil {
+		return err
+	}
+	label := ""
+	for i := 0; i < len(args); i++ {
+		if (args[i] == "--label" || args[i] == "-l") && i+1 < len(args) {
+			label = args[i+1]
+			i++
+		}
+	}
+	path, err := mgr.Create(label)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Database backup created: %s\n", path)
+	return nil
+}
+
+type DBBackupListCommand struct{ app *core.Application }
+
+func (c *DBBackupListCommand) Name() string        { return "db:backup:list" }
+func (c *DBBackupListCommand) Description() string { return "List database backups" }
+func (c *DBBackupListCommand) Handle(args []string) error {
+	mgr, err := backupManager(c.app)
+	if err != nil {
+		return err
+	}
+	files, err := mgr.List()
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		fmt.Println("No backups found.")
+		return nil
+	}
+	for _, file := range files {
+		info, _ := os.Stat(file)
+		size := int64(0)
+		mod := ""
+		if info != nil {
+			size = info.Size()
+			mod = info.ModTime().Format(time.RFC3339)
+		}
+		fmt.Printf("%s\t%d bytes\t%s\n", filepath.Base(file), size, mod)
+	}
+	return nil
+}
+
+type DBRestoreCommand struct{ app *core.Application }
+
+func (c *DBRestoreCommand) Name() string        { return "db:restore" }
+func (c *DBRestoreCommand) Description() string { return "Restore the database from a backup file" }
+func (c *DBRestoreCommand) Handle(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("backup filename required")
+	}
+	mgr, err := backupManager(c.app)
+	if err != nil {
+		return err
+	}
+	if err := mgr.Restore(args[0]); err != nil {
+		return err
+	}
+	fmt.Printf("Database restored from %s\n", args[0])
+	return nil
+}
+
+type MakeProviderCommand struct{ app *core.Application }
+
+func (c *MakeProviderCommand) Name() string        { return "make:provider" }
+func (c *MakeProviderCommand) Description() string { return "Create a new service provider" }
+func (c *MakeProviderCommand) Handle(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("provider name required")
+	}
+	name := args[0]
+	if !strings.HasSuffix(name, "ServiceProvider") {
+		name += "ServiceProvider"
+	}
+	dir := c.app.BasePath("app", "providers")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, toSnake(name)+".go")
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("provider already exists: %s", path)
+	}
+	content := fmt.Sprintf(`package providers
+
+import "github.com/zatrano/framework/core"
+
+// %s registers application services.
+type %s struct{}
+
+func (p *%s) Register(app *core.Application) {
+	// Bind services into the container.
+}
+
+func (p *%s) Boot(app *core.Application) {
+	// Boot services after all providers are registered.
+}
+`, name, name, name, name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("Provider created: %s\n", path)
+	fmt.Println("Remember to register it in bootstrap/app.go")
+	return nil
+}

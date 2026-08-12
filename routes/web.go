@@ -5,9 +5,9 @@ import (
 
 	"github.com/zatrano/framework/app/http/controllers/web"
 	"github.com/zatrano/framework/core"
-	"github.com/zatrano/framework/core/http"
-	"github.com/zatrano/framework/core/localization"
-	"github.com/zatrano/framework/core/routing"
+	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/localization"
+	"github.com/zatrano/framework/packages/routing"
 )
 
 // Web registers application web routes.
@@ -18,15 +18,6 @@ func Web(app *core.Application) {
 		r.Get("/", c.Index).As("home")
 	})
 
-	notifications := &web.NotificationsController{App: app}
-	routing.Controller(router, notifications, func(r *routing.Router, c *web.NotificationsController) {
-		r.Get("/notifications", c.Index).As("notifications.index")
-		r.Get("/notifications/send", c.SendForm).As("notifications.send")
-		r.Post("/notifications/send", c.Send).As("notifications.send.store")
-		r.Get("/notifications/bulk", c.BulkForm).As("notifications.bulk")
-		r.Post("/notifications/bulk", c.Bulk).As("notifications.bulk.store")
-	})
-
 	router.Post("/locale", func(req *http.Request) *http.Response {
 		locale := strings.TrimSpace(strings.ToLower(req.Input("locale")))
 		langPath := app.BasePath("lang")
@@ -34,9 +25,9 @@ func Web(app *core.Application) {
 			if sess := req.Session(); sess != nil {
 				sess.Put("locale", locale)
 			}
-			if app.Translator() != nil {
-				app.Translator().SetLocale(locale)
-				_ = app.Translator().Load(locale)
+			if localization.From(app) != nil {
+				localization.From(app).SetLocale(locale)
+				_ = localization.From(app).Load(locale)
 			}
 		}
 		return http.Redirect("/")

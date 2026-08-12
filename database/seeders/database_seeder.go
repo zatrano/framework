@@ -1,6 +1,6 @@
 package seeders
 
-import "github.com/zatrano/framework/core/database/seeder"
+import "github.com/zatrano/framework/packages/database/seeder"
 
 // All returns application seeders.
 func All() []seeder.Seeder {

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>Go performance. Batteries-included DX. One opinionated path from request to production.</em>
+  <em>Go performance. Thin kernel. Opt-in packages. One opinionated path from request to production.</em>
 </p>
 
 <p align="center">
@@ -17,28 +17,21 @@
 
 <p align="center">
   <a href="https://zatrano.com/docs">Documentation</a> ·
-  <a href="https://github.com/zatrano/framework/releases">Releases</a> ·
+  <a href="https://zatrano.com/docs/boot-profiles">Boot Profiles</a> ·
+  <a href="https://zatrano.com/docs/package-ecosystem">Packages</a> ·
   <a href="https://github.com/zatrano/framework">GitHub</a>
 </p>
 
 ## Why ZATRANO?
 
-Most Go web apps start fast and then slow down in the glue: auth, migrations, queues, mail, validation, sessions, CLI, and project structure. ZATRANO ships those as first-party packages under one coherent application skeleton — so you build product, not scaffolding.
+Most Go web apps start fast and then slow down in the glue: auth, migrations, queues, mail, validation, sessions, CLI, and project structure. ZATRANO ships those as first-party packages under a **thin kernel** — you choose how much boots.
 
-- **Expressive HTTP stack** — routing, controllers, middleware, requests/responses, views
-- **Full Auth** — register, login, remember me, password reset, email verification, lockout, MFA, multi-device logout, events, guards
-- **Persistence that scales with you** — query builder, schema, migrations, ORM, factories, seeders
-- **Ops-ready core** — cache, queues, mail, notifications, scheduling, health, maintenance, backups
+- **Thin `core/`** — Application, container, catalog, secure HTTP hooks
+- **Foundation** — DB, auth, mail, session, cache, queue, views when you need a web/API stack
+- **Opt-in addons** — mongo, oauth, billing, … via `EnabledAddons` / presets / `APP_BOOT`
+- **Full Auth** — guards, remember me, password reset, email verification, lockout, MFA, trusted devices, multi-device logout
 
 ## Quick start
-
-```bash
-go get github.com/zatrano/framework@latest
-# or pin a release
-go get github.com/zatrano/framework@v0.2.5
-```
-
-Clone the skeleton and run it:
 
 ```bash
 git clone https://github.com/zatrano/framework.git
@@ -46,79 +39,112 @@ cd framework
 cp .env.example .env
 go mod tidy
 go run ./cmd/zatrano key:generate
+
+# Lean production-style boot (optional)
+# echo APP_BOOT=api >> .env
+# go run ./cmd/zatrano package:init api
+
 go run ./cmd/zatrano serve
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
 
-Full guides live in the [documentation](https://zatrano.com/docs).
+`cmd/zatrano` defaults to the **demo** profile when `APP_BOOT` is unset so exploration works. For production set `APP_BOOT=app|api|web|minimal`.
+
+```bash
+go get github.com/zatrano/framework@latest
+```
+
+## Architecture
+
+```text
+core/                 Thin kernel
+bootstrap/            Boot profiles, foundation, EnabledAddons, APP_BOOT
+packages/             First-party packages (auth, orm, mail, mongo, …)
+app/ · routes/ · …    Your application
+```
+
+| Profile | `APP_BOOT` | Boots |
+|---------|------------|-------|
+| `CoreApp` | `core` | Kernel only |
+| `MinimalApp` | `minimal` | Foundation, no addons |
+| `App` | `app` | Minimal + `EnabledAddons` |
+| `APIApp` / `WebApp` | `api` / `web` | Lean presets |
+| `DemoApp` | `demo` | Full demo addons |
+
+```go
+app := bootstrap.FromEnv()       // respects APP_BOOT
+app := bootstrap.APIApp()
+auth.From(app)                   // resolve services — not app.Auth()
+```
+
+```bash
+go run ./cmd/zatrano package:list
+go run ./cmd/zatrano package:init api
+go run ./cmd/zatrano package:doctor
+```
+
+## Documentation
+
+Guides are **only** on the website — there is no `docs/` folder in this repository.
+
+**[https://zatrano.com/docs](https://zatrano.com/docs)**
+
+Start with:
+
+1. [Installation](https://zatrano.com/docs/installation)
+2. [Boot Profiles](https://zatrano.com/docs/boot-profiles)
+3. [Package Ecosystem](https://zatrano.com/docs/package-ecosystem)
+4. [Resolving Services](https://zatrano.com/docs/accessors)
+5. [Authentication](https://zatrano.com/docs/authentication)
+
+Optional addons (MongoDB, OAuth server, Billing, AI, WebAuthn, …) are documented under [Packages](https://zatrano.com/docs/package-ecosystem) on the same site.
 
 ## What you get
 
 | Area | Capabilities |
 |------|----------------|
-| **HTTP** | Router, controllers, middleware (CSRF, CORS, throttle, security headers…), form/JSON/multipart input, cookies, flash, URL generation |
-| **Views** | Layouts, components, Blade-like directives, nested `@foreach`, markdown, file-based pages |
-| **Auth & security** | Guards, remember tokens, password confirmation, email verification, lockout, 2FA, OAuth/WebAuthn/social helpers, encryption, hashing, honeypot, trusted proxies |
-| **Data** | Query builder, schema builder, migrations, ORM (relations, scopes, eager load, soft deletes patterns), Mongo helper, API resources / JSON:API |
-| **Async & mail** | Queues (DB/Redis), notifications (in-app / mail / SMS, single + bulk CSV/XLSX), broadcasting, scheduler / cron |
-| **Platform** | Config + `.env`, sessions, cache (incl. Redis), filesystem, localization, validation, collections, pagination |
-| **Tooling** | First-party CLI (`serve`, `migrate`, `make:*`, `about`, …), OpenAPI, GraphQL helpers, docs engine, health checks, observability hooks |
-
-## Architecture
-
-```mermaid
-flowchart LR
-  Client[Browser / API client] --> App[Application]
-  App --> HTTP[HTTP · Routing · Middleware]
-  App --> Views[View engine]
-  App --> Domain[Auth · Validation · Events]
-  App --> Data[ORM · Query · Migrations]
-  App --> Async[Queue · Mail · Schedule]
-  App --> Store[(PostgreSQL / MySQL / SQLite · Redis)]
-  CLI[cmd/zatrano] --> App
-```
-
-Opinionated layout: `app/`, `bootstrap/`, `config/`, `routes/`, `views/`, `database/`, `storage/`, plus a rich `core/` of framework packages.
+| **HTTP** | Router, controllers, middleware, form/JSON input, cookies, flash, URLs |
+| **Views** | Layouts, components, Blade-like directives, markdown, file-based pages |
+| **Auth & security** | Session guards, 2FA + trusted devices, lockout, OAuth/WebAuthn/social, encryption, hashing |
+| **Data** | Query builder, schema, migrations, ORM, factories, seeders, Mongo addon |
+| **Async & mail** | Queues, notifications, broadcasting, scheduler |
+| **Platform** | Config + `.env`, sessions, cache, filesystem, localization, validation |
+| **Tooling** | CLI (`serve`, `migrate`, `make:*`, `package:*`), OpenAPI, health, docs engine |
 
 ## Who is ZATRANO for?
 
-- Teams that want **Go speed** without inventing a new framework on every project
+- Teams that want **Go speed** without inventing scaffolding on every project
 - Builders shipping **server-rendered apps and APIs** with shared conventions
-- Engineers who prefer **batteries included** over stitching 20 micro-libraries
-- Products that need **auth, jobs, mail, and migrations** on day one
-
-## Learning ZATRANO
-
-Start here: **[zatrano.com/docs](https://zatrano.com/docs)** — installation, HTTP stack, database/ORM, security, packages, and more.
+- Engineers who prefer **batteries included** with **explicit opt-in** for heavy addons
 
 ## Roadmap
 
 | Version | Focus |
 |---------|--------|
-| **v0.2** | Hardening DX, docs depth, starter polish |
-| **v0.3** | Broader production recipes (deploy, observability, scaling patterns) |
-| **v1.0** | Stable public API surface and long-term support commitment |
+| **v0.2** | Package ecosystem, docs depth, auth parity, starter polish |
+| **v0.3** | Production recipes (deploy, observability, scaling) |
+| **v1.0** | Stable public API and long-term support |
 
-Current release: **[v0.2.5](https://github.com/zatrano/framework/releases/tag/v0.2.5)**.
+Current release: **[v0.2.5](https://github.com/zatrano/framework/releases/tag/v0.2.5)** (module line; ecosystem docs describe the current kernel/packages layout).
 
 ## Community
 
-- GitHub: [github.com/zatrano/framework](https://github.com/zatrano/framework)
 - Documentation: [zatrano.com/docs](https://zatrano.com/docs)
+- GitHub: [github.com/zatrano/framework](https://github.com/zatrano/framework)
 - LinkedIn: [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
 
 ## Contributing
 
-Thank you for considering contributing to the ZATRANO framework! Please open an issue or pull request on GitHub. Keep changes focused, include tests when practical, and follow the existing code style (`gofmt`, clear package boundaries).
+Open an issue or pull request on GitHub. Keep changes focused, include tests when practical, and follow existing style (`gofmt`, clear package boundaries). See the [Contribution Guide](https://zatrano.com/docs/contributions).
 
 ## Code of Conduct
 
-In order to ensure that the ZATRANO community is welcoming to all, please be respectful in issues, pull requests, and discussions. Harassment and discrimination are not tolerated.
+Be respectful in issues, pull requests, and discussions. Harassment and discrimination are not tolerated.
 
 ## Security Vulnerabilities
 
-If you discover a security vulnerability within ZATRANO, please send an e-mail to Serhan KARAKOÇ via [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com). All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability within ZATRANO, email Serhan KARAKOÇ at [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com). All reports will be promptly addressed.
 
 ## License
 

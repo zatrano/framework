@@ -1,25 +1,30 @@
 package providers
 
 import (
+	"github.com/zatrano/framework/packages/view"
+	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/core"
-	"github.com/zatrano/framework/core/middleware/csrf"
+	"github.com/zatrano/framework/packages/middleware/csrf"
 )
 
 // AppServiceProvider registers application-level services.
 type AppServiceProvider struct{}
 
 // Register registers bindings into the container.
-func (p *AppServiceProvider) Register(app *core.Application) {
-	// Application-specific bindings go here.
+func (p *AppServiceProvider) Register(app *core.Application) error {
+	return nil
 }
 
 // Boot boots application services.
-func (p *AppServiceProvider) Boot(app *core.Application) {
+func (p *AppServiceProvider) Boot(app *core.Application) error {
 	app.Router().Use(csrf.Except("/api"))
 
-	app.View().Share("appUrl", app.Config().GetString("app.url"))
-	if m := app.Assets(); m != nil && len(m.All()) > 0 {
-		app.View().Share("assetCss", m.URL("css/app.css"))
-		app.View().Share("assetJs", m.URL("js/app.js"))
+	if v := view.From(app); v != nil {
+		v.Share("appUrl", app.Config().GetString("app.url"))
+		if m := assets.From(app); m != nil && len(m.All()) > 0 {
+			v.Share("assetCss", m.URL("css/app.css"))
+			v.Share("assetJs", m.URL("js/app.js"))
+		}
 	}
+	return nil
 }

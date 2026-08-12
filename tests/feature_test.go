@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap"
-	testkit "github.com/zatrano/framework/core/testing"
+	testkit "github.com/zatrano/framework/packages/testing"
 )
 
 func TestHealthEndpoint(t *testing.T) {

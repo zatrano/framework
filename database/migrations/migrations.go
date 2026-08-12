@@ -1,6 +1,6 @@
 package migrations
 
-import "github.com/zatrano/framework/core/database/migration"
+import "github.com/zatrano/framework/packages/database/migration"
 
 // All returns application migrations in order.
 func All() []migration.Migration {

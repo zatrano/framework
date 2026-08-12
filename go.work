@@ -1,0 +1,8 @@
+go 1.25.0
+
+use (
+	.
+	./packages/mongo
+	./packages/qr
+	./packages/webauthn
+)

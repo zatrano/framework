@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/zatrano/framework/core/http"
-	"github.com/zatrano/framework/core/version"
+	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/version"
 )
 
 // HomeController serves API root information.

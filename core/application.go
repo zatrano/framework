@@ -7,157 +7,62 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core/ai"
-	"github.com/zatrano/framework/core/apitoken"
-	"github.com/zatrano/framework/core/assets"
-	"github.com/zatrano/framework/core/audit"
-	"github.com/zatrano/framework/core/auth"
-	"github.com/zatrano/framework/core/authorization"
-	"github.com/zatrano/framework/core/backup"
-	"github.com/zatrano/framework/core/billing"
-	"github.com/zatrano/framework/core/broadcasting"
-	"github.com/zatrano/framework/core/bus"
-	"github.com/zatrano/framework/core/cache"
-	"github.com/zatrano/framework/core/circuit"
-	"github.com/zatrano/framework/core/config"
-	"github.com/zatrano/framework/core/container"
-	appcontext "github.com/zatrano/framework/core/context"
-	"github.com/zatrano/framework/core/database"
-	"github.com/zatrano/framework/core/database/migration"
-	"github.com/zatrano/framework/core/database/query"
-	"github.com/zatrano/framework/core/database/seeder"
-	"github.com/zatrano/framework/core/docs"
-	"github.com/zatrano/framework/core/encryption"
-	"github.com/zatrano/framework/core/enums"
-	"github.com/zatrano/framework/core/env"
-	"github.com/zatrano/framework/core/events"
-	"github.com/zatrano/framework/core/exceptions"
-	"github.com/zatrano/framework/core/features"
-	"github.com/zatrano/framework/core/filesystem"
-	"github.com/zatrano/framework/core/flash"
-	"github.com/zatrano/framework/core/geo"
-	"github.com/zatrano/framework/core/graphql"
-	"github.com/zatrano/framework/core/hashid"
-	"github.com/zatrano/framework/core/hashing"
-	"github.com/zatrano/framework/core/health"
-	"github.com/zatrano/framework/core/http"
-	"github.com/zatrano/framework/core/httpclient"
-	"github.com/zatrano/framework/core/inspector"
-	"github.com/zatrano/framework/core/localization"
-	"github.com/zatrano/framework/core/lock"
-	"github.com/zatrano/framework/core/log"
-	"github.com/zatrano/framework/core/mail"
-	"github.com/zatrano/framework/core/maintenance"
-	"github.com/zatrano/framework/core/middleware"
-	"github.com/zatrano/framework/core/mongo"
-	"github.com/zatrano/framework/core/notification"
-	"github.com/zatrano/framework/core/oauth"
-	"github.com/zatrano/framework/core/observability"
-	"github.com/zatrano/framework/core/octane"
-	"github.com/zatrano/framework/core/orm"
-	"github.com/zatrano/framework/core/otp"
-	"github.com/zatrano/framework/core/pulse"
-	"github.com/zatrano/framework/core/queue"
-	"github.com/zatrano/framework/core/ratelimit"
-	"github.com/zatrano/framework/core/report"
-	"github.com/zatrano/framework/core/routing"
-	"github.com/zatrano/framework/core/schedule"
-	"github.com/zatrano/framework/core/search"
-	"github.com/zatrano/framework/core/session"
-	"github.com/zatrano/framework/core/shorturl"
-	"github.com/zatrano/framework/core/sitemap"
-	"github.com/zatrano/framework/core/social"
-	"github.com/zatrano/framework/core/tenancy"
-	"github.com/zatrano/framework/core/trustedproxy"
-	urlgen "github.com/zatrano/framework/core/url"
-	"github.com/zatrano/framework/core/validation"
-	"github.com/zatrano/framework/core/view"
-	"github.com/zatrano/framework/core/webauthn"
-	"github.com/zatrano/framework/core/webhooks"
-	"github.com/zatrano/framework/core/wellknown"
+	"github.com/zatrano/framework/packages/config"
+	"github.com/zatrano/framework/packages/container"
+	appcontext "github.com/zatrano/framework/packages/context"
+	"github.com/zatrano/framework/packages/encryption"
+	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/packages/exceptions"
+	"github.com/zatrano/framework/packages/hashing"
+	"github.com/zatrano/framework/packages/health"
+	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/log"
+	"github.com/zatrano/framework/packages/maintenance"
+	"github.com/zatrano/framework/packages/middleware"
+	"github.com/zatrano/framework/packages/observability"
+	"github.com/zatrano/framework/packages/ratelimit"
+	"github.com/zatrano/framework/packages/report"
+	"github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/packages/trustedproxy"
+	urlgen "github.com/zatrano/framework/packages/url"
 )
 
 // Provider boots services into the application.
 type Provider interface {
-	Register(app *Application)
-	Boot(app *Application)
+	Register(app *Application) error
+	Boot(app *Application) error
 }
 
 // Application is the ZATRANO application kernel.
+// Foundation and addon services live in the container (see accessors / package From helpers).
+// Kernel fields below are set by BootKernelServices.
 type Application struct {
-	basePath      string
-	container     *container.Container
-	config        *config.Repository
-	router        *routing.Router
-	view          *view.Engine
-	logger        *log.Logger
-	session       *session.Manager
-	db            *database.Manager
-	cache         *cache.Manager
-	events        *events.Dispatcher
-	mail          *mail.Manager
-	queue         *queue.Manager
-	auth          *auth.Manager
-	translator    *localization.Translator
-	scheduler     *schedule.Scheduler
-	httpClient    *httpclient.Client
-	notifications *notification.Manager
-	pushSender    notification.PushSender
-	smsSender     notification.SmsSender
-	broadcast     *broadcasting.Manager
-	files         *filesystem.Manager
-	rateLimiter   *ratelimit.Limiter
-	gate          *authorization.Gate
-	ctx           *appcontext.Store
-	urls          *urlgen.Generator
-	encrypter     *encryption.Encrypter
-	hasher        *hashing.Manager
-	metrics       *observability.Metrics
-	health        *health.Manager
-	features      *features.Manager
-	tenancy       *tenancy.Manager
-	graphql       *graphql.Schema
-	audit         *audit.Manager
-	webhooks      *webhooks.Manager
-	passwords     *auth.PasswordBroker
-	maintenance   *maintenance.Manager
-	tokens        *apitoken.Manager
-	search        *search.Manager
-	inspector     *inspector.Manager
-	assets        *assets.Manifest
-	exceptions    *exceptions.Handler
-	social        *social.Manager
-	enums         *enums.Registry
-	bus           *bus.Bus
-	pulse         *pulse.Dashboard
-	backups       *backup.Manager
-	docs          *docs.Repository
-	billing       *billing.Manager
-	mongo         *mongo.Client
-	oauth         *oauth.Server
-	octane        *octane.Runtime
-	ai            *ai.Manager
-	sitemap       *sitemap.Builder
-	locks         *lock.Manager
-	circuits      *circuit.Manager
-	hashids       *hashid.Hasher
-	shorturls     *shorturl.Manager
-	wellknown     *wellknown.Repository
-	geo           *geo.Resolver
-	reports       *report.Manager
-	webauthn      *webauthn.Manager
-	otp           *otp.Manager
-	migrations    []migration.Migration
-	seeders       []seeder.Seeder
-	providers     []Provider
-	booted        bool
-	environment   string
+	basePath    string
+	container   *container.Container
+	config      *config.Repository
+	router      *routing.Router
+	logger      *log.Logger
+	rateLimiter *ratelimit.Limiter
+	ctx         *appcontext.Store
+	urls        *urlgen.Generator
+	encrypter   *encryption.Encrypter
+	hasher      *hashing.Manager
+	metrics     *observability.Metrics
+	health      *health.Manager
+	maintenance *maintenance.Manager
+	exceptions  *exceptions.Handler
+	reports     *report.Manager
+	httpBridge  HTTPBridge
+	migrations  any
+	seeders     any
+	providers   []Provider
+	booted      bool
+	environment string
 }
 
 // NewApplication creates a new application instance.
@@ -191,6 +96,22 @@ func (app *Application) Container() *container.Container {
 	return app.container
 }
 
+// Make resolves a service from the container.
+func (app *Application) Make(abstract string) (any, error) {
+	if app == nil || app.container == nil {
+		return nil, fmt.Errorf("container unavailable")
+	}
+	return app.container.Make(abstract)
+}
+
+// Bound reports whether a service is registered.
+func (app *Application) Bound(abstract string) bool {
+	if app == nil || app.container == nil {
+		return false
+	}
+	return app.container.Bound(abstract)
+}
+
 // Config returns the config repository.
 func (app *Application) Config() *config.Repository {
 	return app.config
@@ -201,68 +122,30 @@ func (app *Application) Router() *routing.Router {
 	return app.router
 }
 
-// View returns the view engine.
-func (app *Application) View() *view.Engine {
-	return app.view
-}
 
 // Logger returns the application logger.
 func (app *Application) Logger() *log.Logger {
 	return app.logger
 }
 
-// Session returns the session manager.
-func (app *Application) Session() *session.Manager {
-	return app.session
-}
-
-// DB returns the database manager.
-func (app *Application) DB() *database.Manager {
-	return app.db
-}
-
-// Table starts a query builder on a table.
-func (app *Application) Table(table string) (*query.Builder, error) {
-	if app.db == nil {
-		return nil, fmt.Errorf("database not configured")
-	}
-	return app.db.Table(table)
-}
-
-// SetMigrations registers application migrations.
-func (app *Application) SetMigrations(items []migration.Migration) {
+// SetMigrations registers application migrations (typically []migration.Migration).
+func (app *Application) SetMigrations(items any) {
 	app.migrations = items
 }
 
-// Migrations returns registered migrations.
-func (app *Application) Migrations() []migration.Migration {
+// Migrations returns registered migrations (opaque; cast in database helpers).
+func (app *Application) Migrations() any {
 	return app.migrations
 }
 
-// SetSeeders registers application seeders.
-func (app *Application) SetSeeders(items ...seeder.Seeder) {
+// SetSeeders registers application seeders (typically []seeder.Seeder).
+func (app *Application) SetSeeders(items any) {
 	app.seeders = items
 }
 
-// Seeders returns registered seeders.
-func (app *Application) Seeders() []seeder.Seeder {
+// Seeders returns registered seeders (opaque; cast in database helpers).
+func (app *Application) Seeders() any {
 	return app.seeders
-}
-
-// Migrator creates a migrator for registered migrations.
-func (app *Application) Migrator() (*migration.Migrator, error) {
-	if err := app.ensureDatabase(); err != nil {
-		return nil, err
-	}
-	db, err := app.db.DB()
-	if err != nil {
-		return nil, err
-	}
-	driver, err := app.db.DriverName()
-	if err != nil {
-		return nil, err
-	}
-	return migration.NewMigrator(db, driver, app.migrations), nil
 }
 
 // Environment returns the current environment name.
@@ -334,9 +217,19 @@ func (app *Application) Bootstrap() error {
 		})
 		app.config.Load("auth", appconfig.Auth())
 		app.config.Load("notifications", appconfig.Notifications())
+		app.config.Load("oauth", appconfig.OAuth())
+		app.config.Load("mongo", appconfig.Mongo())
+		app.config.Load("webauthn", appconfig.WebAuthn())
+		app.config.Load("billing", appconfig.Billing())
+		app.config.Load("ai", appconfig.AI())
+		app.config.Load("social", appconfig.Social())
 	}
 	if app.environment == "" {
 		app.environment = app.config.GetString("app.env", "local")
+	}
+
+	if err := ensureProductionSecrets(app); err != nil {
+		return err
 	}
 
 	logger, err := log.New(env.Get("LOG_LEVEL", "debug"), app.BasePath("storage", "logs", "zatrano.log"))
@@ -346,68 +239,11 @@ func (app *Application) Bootstrap() error {
 	app.logger = logger
 	app.container.Instance("log", logger)
 
-	if err := app.bootDatabase(); err != nil {
-		return err
-	}
-
-	if err := app.bootSupportServices(); err != nil {
-		return err
-	}
-
-	app.view = view.New(app.BasePath("views"))
-	app.view.EnableCache(!app.IsDebug())
-	app.view.Share("appName", app.config.GetString("app.name", "ZATRANO"))
-	if app.translator != nil {
-		app.view.Share("locale", app.translator.GetLocale())
-		app.view.AddFunc("trans", func(key string) string {
-			return app.translator.Get(key)
-		})
-		app.view.AddFunc("choice", func(key string, number any) string {
-			n := 0
-			switch v := number.(type) {
-			case int:
-				n = v
-			case int64:
-				n = int(v)
-			case float64:
-				n = int(v)
-			case string:
-				if parsed, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-					n = parsed
-				}
-			default:
-				n, _ = strconv.Atoi(fmt.Sprint(number))
-			}
-			return app.translator.Choice(key, n)
-		})
-	}
-	if app.assets != nil {
-		app.view.AddFunc("vite", func(path string) string {
-			return app.assets.URL(path)
-		})
-		app.view.AddFunc("mix", func(path string) string {
-			return app.assets.URL(path)
-		})
-	}
-	app.view.SetEnvironment(app.environment)
-	app.container.Instance("view", app.view)
-	if app.mail != nil {
-		app.mail.SetView(app.view)
-	}
-	if app.scheduler != nil {
-		app.scheduler.SetMutexPath(app.BasePath("storage", "framework", "schedule"))
-	}
-
-	app.session = session.NewManager(
-		app.BasePath("storage", "framework", "sessions"),
-		env.GetInt("SESSION_LIFETIME", 120),
-	)
-	app.container.Instance("session", app.session)
-	if app.auth != nil {
-		app.auth.SetSessionManager(app.session)
-	}
-	if app.passwords != nil {
-		app.passwords.SetSessionManager(app.session)
+	// Kernel only above. Foundation + packages + app providers Register next.
+	for _, provider := range app.providers {
+		if err := provider.Register(app); err != nil {
+			return err
+		}
 	}
 
 	app.router.Use(
@@ -415,38 +251,43 @@ func (app *Application) Bootstrap() error {
 		app.exceptionMiddleware(),
 		middleware.RequestID,
 		middleware.SecurityHeaders,
-		observability.Timing(app.metrics, func(format string, args ...any) {
+	)
+	if app.Metrics() != nil {
+		app.router.Use(observability.Timing(app.Metrics(), func(format string, args ...any) {
 			if app.logger != nil {
 				app.logger.Infof(format, args...)
 			}
-		}),
-		app.sessionMiddleware(),
-		app.localeMiddleware(),
+		}))
+	}
+	if bridge := app.HTTPBridge(); bridge != nil {
+		for _, mw := range bridge.Middleware() {
+			app.router.Use(mw)
+		}
+	}
+	app.router.Use(
 		middleware.TrimStrings(),
 		middleware.ConvertEmptyStringsToNull("password", "password_confirmation", "current_password"),
-		app.viewMiddleware(),
 	)
 	if env.GetBool("CORS_ENABLED", true) {
 		app.router.Use(middleware.CORSFromEnv())
 	}
-	if app.octane != nil {
-		app.router.Use(app.octane.Middleware())
+	if o := middlewareFrom(app, "octane"); o != nil {
+		app.router.Use(o)
 	}
-	if app.maintenance != nil {
-		app.router.Use(app.maintenance.Middleware())
+	if app.Maintenance() != nil {
+		app.router.Use(app.Maintenance().Middleware())
 	}
-	if app.inspector != nil {
-		app.router.Use(app.inspector.Middleware())
+	if o := middlewareFrom(app, "inspector"); o != nil {
+		app.router.Use(o)
 	}
-	if app.audit != nil {
-		app.router.Use(app.audit.Middleware())
+	if o := middlewareFrom(app, "audit"); o != nil {
+		app.router.Use(o)
 	}
 
 	for _, provider := range app.providers {
-		provider.Register(app)
-	}
-	for _, provider := range app.providers {
-		provider.Boot(app)
+		if err := provider.Boot(app); err != nil {
+			return err
+		}
 	}
 
 	// Register named routes after boot.
@@ -477,66 +318,8 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 	if resp == nil {
 		resp = http.Abort(204)
 	}
-
-	if resp.ViewName() != "" && app.view != nil {
-		data := resp.ViewData()
-		if data == nil {
-			data = map[string]any{}
-		}
-		if sess := req.Session(); sess != nil {
-			if token, ok := sess.Get("_csrf_token").(string); ok {
-				data["_token"] = token
-			}
-			data["flash"] = flash.All(req)
-			data["old"] = flash.OldInput(req)
-			data["errors"] = validation.ErrorsFromSession(req)
-			data["errorBags"] = validation.ErrorBagsFromSession(req)
-		} else {
-			data["old"] = map[string]string{}
-			data["errors"] = validation.NewMessageBag(nil)
-			data["errorBags"] = map[string]any{}
-		}
-		authenticated := app.auth != nil && app.auth.Check(req)
-		data["auth"] = authenticated
-		data["guest"] = !authenticated
-		if app.translator != nil {
-			data["locale"] = app.translator.GetLocale()
-			langPath := app.BasePath("lang")
-			data["langPublished"] = localization.Published(langPath)
-			data["locales"] = localization.Options(langPath, app.translator.GetLocale())
-		}
-		var user auth.Authenticatable
-		if authenticated {
-			user = app.auth.User(req)
-			data["user"] = user
-		}
-		if app.gate != nil {
-			data["__can"] = func(ability string, args ...any) bool {
-				return app.gate.Allows(user, ability, args...)
-			}
-		}
-		html, err := app.view.Render(resp.ViewName(), data)
-		if err != nil {
-			if app.IsDebug() {
-				resp = http.HTML(fmt.Sprintf("<h1>View Error</h1><pre>%v</pre>", err)).Status(500)
-			} else {
-				resp = http.Abort(500, "View rendering failed")
-			}
-		} else {
-			resp.SetContent([]byte(html), "text/html; charset=utf-8")
-		}
-	}
-
-	if bag, ok := req.Session().(*session.Bag); ok && bag != nil {
-		_ = app.session.Save(bag)
-		stdhttp.SetCookie(w, &stdhttp.Cookie{
-			Name:     app.session.CookieName(),
-			Value:    bag.ID(),
-			Path:     "/",
-			HttpOnly: true,
-			SameSite: stdhttp.SameSiteLaxMode,
-			MaxAge:   int(time.Hour.Seconds() * 2),
-		})
+	if bridge := app.HTTPBridge(); bridge != nil {
+		resp = bridge.Finalize(w, req, resp)
 	}
 
 	for _, c := range req.Cookies().Apply() {
@@ -596,157 +379,10 @@ func (app *Application) Run(addr string) error {
 	}
 }
 
-func (app *Application) sessionMiddleware() routing.MiddlewareFunc {
-	return func(next routing.HandlerFunc) routing.HandlerFunc {
-		return func(req *http.Request) *http.Response {
-			id := req.Cookie(app.session.CookieName())
-			bag, err := app.session.Start(id)
-			if err == nil {
-				req.SetSession(bag)
-			}
-			return next(req)
-		}
-	}
-}
-
-func (app *Application) localeMiddleware() routing.MiddlewareFunc {
-	return func(next routing.HandlerFunc) routing.HandlerFunc {
-		return func(req *http.Request) *http.Response {
-			if app.translator != nil {
-				langPath := app.BasePath("lang")
-				locale := ""
-				if sess := req.Session(); sess != nil {
-					if raw, ok := sess.Get("locale").(string); ok {
-						locale = strings.TrimSpace(strings.ToLower(raw))
-					}
-				}
-				if locale == "" {
-					locale = negotiateLocale(req.Header("Accept-Language"), localization.Available(langPath))
-				}
-				if locale != "" && localization.HasLocale(langPath, locale) {
-					app.translator.SetLocale(locale)
-					_ = app.translator.Load(locale)
-				}
-				if app.view != nil {
-					app.view.Share("locale", app.translator.GetLocale())
-				}
-			}
-			return next(req)
-		}
-	}
-}
-
-func negotiateLocale(header string, available []string) string {
-	header = strings.TrimSpace(header)
-	if header == "" || len(available) == 0 {
-		return ""
-	}
-	allowed := map[string]string{}
-	for _, code := range available {
-		code = strings.ToLower(strings.TrimSpace(code))
-		allowed[code] = code
-		if i := strings.IndexByte(code, '-'); i > 0 {
-			allowed[code[:i]] = code
-		}
-	}
-	for _, part := range strings.Split(header, ",") {
-		tag := strings.TrimSpace(strings.Split(part, ";")[0])
-		tag = strings.ToLower(tag)
-		if tag == "" || tag == "*" {
-			continue
-		}
-		if code, ok := allowed[tag]; ok {
-			return code
-		}
-		if i := strings.IndexByte(tag, '-'); i > 0 {
-			if code, ok := allowed[tag[:i]]; ok {
-				return code
-			}
-		}
-	}
-	return ""
-}
-
 func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
-	if app.exceptions != nil {
-		return app.exceptions.Middleware()
+	if app.Exceptions() != nil {
+		return app.Exceptions().Middleware()
 	}
 	return middleware.Recover
 }
 
-func (app *Application) viewMiddleware() routing.MiddlewareFunc {
-	return func(next routing.HandlerFunc) routing.HandlerFunc {
-		return func(req *http.Request) *http.Response {
-			resp := next(req)
-			return resp
-		}
-	}
-}
-
-func (app *Application) bootDatabase() error {
-	defaultConn := app.config.GetString("database.default", "sqlite")
-	connections := map[string]database.ConnectionConfig{}
-
-	rawConnections, ok := app.config.Get("database.connections").(map[string]any)
-	if !ok {
-		rawConnections = map[string]any{}
-	}
-
-	for name, raw := range rawConnections {
-		cfgMap, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		connections[name] = database.ConnectionConfig{
-			Driver:   asString(cfgMap["driver"]),
-			Host:     asString(cfgMap["host"]),
-			Port:     asString(cfgMap["port"]),
-			Database: asString(cfgMap["database"]),
-			Username: asString(cfgMap["username"]),
-			Password: asString(cfgMap["password"]),
-			Charset:  asString(cfgMap["charset"]),
-		}
-	}
-
-	app.db = database.NewManager(database.Config{
-		Default:     defaultConn,
-		Connections: connections,
-	}, app.basePath)
-	app.container.Instance("db", app.db)
-
-	db, err := app.db.DB()
-	if err != nil {
-		return err
-	}
-	driver, err := app.db.DriverName()
-	if err != nil {
-		return err
-	}
-	orm.Configure(db, driver)
-	if app.events != nil {
-		orm.SetDispatcher(app.events)
-	}
-	return nil
-}
-
-func (app *Application) ensureDatabase() error {
-	if !app.booted {
-		if err := app.Bootstrap(); err != nil {
-			return err
-		}
-	}
-	if app.db == nil {
-		return fmt.Errorf("database not configured")
-	}
-	return nil
-}
-
-func asString(value any) string {
-	if value == nil {
-		return ""
-	}
-	if s, ok := value.(string); ok {
-		return s
-	}
-	return fmt.Sprint(value)
-}

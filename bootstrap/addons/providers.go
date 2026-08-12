@@ -1,0 +1,472 @@
+package addons
+
+import (
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/packages/ai"
+	"github.com/zatrano/framework/packages/audit"
+	"github.com/zatrano/framework/packages/backup"
+	"github.com/zatrano/framework/packages/billing"
+	"github.com/zatrano/framework/packages/bus"
+	"github.com/zatrano/framework/packages/circuit"
+	"github.com/zatrano/framework/packages/docs"
+	"github.com/zatrano/framework/packages/enums"
+	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/packages/features"
+	"github.com/zatrano/framework/packages/geo"
+	"github.com/zatrano/framework/packages/graphql"
+	"github.com/zatrano/framework/packages/hashid"
+	"github.com/zatrano/framework/packages/inspector"
+	"github.com/zatrano/framework/packages/lock"
+	"github.com/zatrano/framework/packages/mongo"
+	"github.com/zatrano/framework/packages/oauth"
+	"github.com/zatrano/framework/packages/octane"
+	"github.com/zatrano/framework/packages/otp"
+	"github.com/zatrano/framework/packages/pulse"
+	"github.com/zatrano/framework/packages/search"
+	"github.com/zatrano/framework/packages/shorturl"
+	"github.com/zatrano/framework/packages/sitemap"
+	"github.com/zatrano/framework/packages/social"
+	"github.com/zatrano/framework/packages/tenancy"
+	"github.com/zatrano/framework/packages/webauthn"
+	"github.com/zatrano/framework/packages/webhooks"
+	"github.com/zatrano/framework/packages/wellknown"
+)
+
+type FeaturesServiceProvider struct{}
+
+func (p *FeaturesServiceProvider) Register(app *core.Application) error {
+	mgr := features.New()
+	mgr.Activate("welcome_banner")
+	mgr.Deactivate("beta_editor")
+	mgr.Rollout("new_dashboard", 25)
+	app.Container().Instance("features", mgr)
+	return nil
+}
+
+func (p *FeaturesServiceProvider) Boot(app *core.Application) error { return nil }
+
+type TenancyServiceProvider struct{}
+
+func (p *TenancyServiceProvider) Register(app *core.Application) error {
+	mgr := tenancy.New()
+	mgr.Register(tenancy.Tenant{ID: "acme", Name: "Acme Corp", Domain: "acme.localhost"})
+	mgr.Register(tenancy.Tenant{ID: "globex", Name: "Globex", Domain: "globex.localhost"})
+	mgr.SetResolver(mgr.HeaderOrHostResolver())
+	mgr.Bootstrapping(func(t *tenancy.Tenant) error {
+		if app.Context() != nil {
+			app.Context().Put("tenant.id", t.ID)
+			app.Context().Put("tenant.name", t.Name)
+		}
+		return nil
+	})
+	app.Container().Instance("tenancy", mgr)
+	return nil
+}
+
+func (p *TenancyServiceProvider) Boot(app *core.Application) error { return nil }
+
+type GraphQLServiceProvider struct{}
+
+func (p *GraphQLServiceProvider) Register(app *core.Application) error {
+	schema := graphql.NewSchema()
+	schema.Query("health", func(args map[string]any) (any, error) {
+		return "ok", nil
+	})
+	schema.Query("echo", func(args map[string]any) (any, error) {
+		msg, _ := args["message"].(string)
+		if msg == "" {
+			msg = "hello"
+		}
+		return msg, nil
+	})
+	schema.Query("feature", func(args map[string]any) (any, error) {
+		f := resolveFeatures(app)
+		if f == nil {
+			return false, nil
+		}
+		name, _ := args["name"].(string)
+		return f.Active(name), nil
+	})
+	schema.Mutation("ping", func(args map[string]any) (any, error) {
+		return map[string]any{"pong": true}, nil
+	})
+	app.Container().Instance("graphql", schema)
+	return nil
+}
+
+func (p *GraphQLServiceProvider) Boot(app *core.Application) error { return nil }
+
+type AuditServiceProvider struct{}
+
+func (p *AuditServiceProvider) Register(app *core.Application) error {
+	memoryAudit := audit.NewMemoryStore(500)
+	fileAudit, err := audit.NewFileStore(app.BasePath("storage", "logs", "audit.jsonl"))
+	var mgr *audit.Manager
+	if err != nil {
+		if app.Logger() != nil {
+			app.Logger().Errorf("audit store: %v", err)
+		}
+		mgr = audit.New(memoryAudit)
+	} else {
+		mgr = audit.New(&teeAuditStore{primary: memoryAudit, secondary: fileAudit})
+	}
+	app.Container().Instance("audit", mgr)
+	return nil
+}
+
+func (p *AuditServiceProvider) Boot(app *core.Application) error { return nil }
+
+type WebhooksServiceProvider struct{}
+
+func (p *WebhooksServiceProvider) Register(app *core.Application) error {
+	mgr := webhooks.New()
+	mgr.Register(webhooks.Endpoint{
+		URL:    env.Get("WEBHOOK_URL", "https://httpbin.org/post"),
+		Secret: env.Get("WEBHOOK_SECRET", "zatrano-webhook-secret"),
+		Events: []string{"user.created", "demo.ping", "*"},
+	})
+	app.Container().Instance("webhooks", mgr)
+	return nil
+}
+
+func (p *WebhooksServiceProvider) Boot(app *core.Application) error { return nil }
+
+type InspectorServiceProvider struct{}
+
+func (p *InspectorServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("inspector", inspector.New(200))
+	return nil
+}
+
+func (p *InspectorServiceProvider) Boot(app *core.Application) error { return nil }
+
+type SearchServiceProvider struct{}
+
+func (p *SearchServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("search", search.New(search.NewMemoryEngine()))
+	return nil
+}
+
+func (p *SearchServiceProvider) Boot(app *core.Application) error { return nil }
+
+type SocialServiceProvider struct{}
+
+func (p *SocialServiceProvider) Register(app *core.Application) error {
+	mgr := social.New()
+	cfg := app.Config()
+	redirectBase := strings.TrimRight(cfg.GetString("app.url", "http://localhost:8080"), "/")
+	mgr.Extend("github", social.GitHub(social.Config{
+		ClientID:     firstNonEmpty(cfg.GetString("social.github_client_id"), env.Get("GITHUB_CLIENT_ID", "github-client-id")),
+		ClientSecret: firstNonEmpty(cfg.GetString("social.github_client_secret"), env.Get("GITHUB_CLIENT_SECRET", "github-client-secret")),
+		RedirectURL:  firstNonEmpty(cfg.GetString("social.github_redirect_uri"), env.Get("GITHUB_REDIRECT_URI", redirectBase+"/auth/github/callback")),
+	}))
+	mgr.Extend("google", social.Google(social.Config{
+		ClientID:     firstNonEmpty(cfg.GetString("social.google_client_id"), env.Get("GOOGLE_CLIENT_ID", "google-client-id")),
+		ClientSecret: firstNonEmpty(cfg.GetString("social.google_client_secret"), env.Get("GOOGLE_CLIENT_SECRET", "google-client-secret")),
+		RedirectURL:  firstNonEmpty(cfg.GetString("social.google_redirect_uri"), env.Get("GOOGLE_REDIRECT_URI", redirectBase+"/auth/google/callback")),
+	}))
+	app.Container().Instance("social", mgr)
+	return nil
+}
+
+func (p *SocialServiceProvider) Boot(app *core.Application) error { return nil }
+
+type EnumsServiceProvider struct{}
+
+func (p *EnumsServiceProvider) Register(app *core.Application) error {
+	reg := enums.NewRegistry()
+	reg.Register(enums.NewString("post_status", "draft:Draft", "published:Published", "archived:Archived"))
+	reg.Register(enums.NewString("user_role", "admin", "editor", "viewer"))
+	app.Container().Instance("enums", reg)
+	return nil
+}
+
+func (p *EnumsServiceProvider) Boot(app *core.Application) error { return nil }
+
+type BusServiceProvider struct{}
+
+func (p *BusServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("bus", bus.New())
+	return nil
+}
+
+func (p *BusServiceProvider) Boot(app *core.Application) error { return nil }
+
+type PulseServiceProvider struct{}
+
+func (p *PulseServiceProvider) Register(app *core.Application) error {
+	if app.Metrics() == nil {
+		return nil
+	}
+	dash := pulse.New(app.Metrics()).WithExtra(func() map[string]any {
+		extra := map[string]any{}
+		if insp := resolveInspector(app); insp != nil {
+			extra["inspector_entries"] = insp.Count()
+		}
+		if s := resolveSearch(app); s != nil {
+			extra["search_docs"] = s.Count()
+		}
+		return extra
+	})
+	app.Container().Instance("pulse", dash)
+	return nil
+}
+
+func (p *PulseServiceProvider) Boot(app *core.Application) error { return nil }
+
+type BackupServiceProvider struct{}
+
+func (p *BackupServiceProvider) Register(app *core.Application) error {
+	dbPath := app.Config().GetString("database.connections.sqlite.database", "database/database.sqlite")
+	if !filepath.IsAbs(dbPath) {
+		dbPath = app.BasePath(dbPath)
+	}
+	app.Container().Instance("backup", backup.New(dbPath, app.BasePath("storage", "backups")))
+	return nil
+}
+
+func (p *BackupServiceProvider) Boot(app *core.Application) error { return nil }
+
+type DocsServiceProvider struct{}
+
+func (p *DocsServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("docs", docs.New(app.BasePath("docs")))
+	return nil
+}
+
+func (p *DocsServiceProvider) Boot(app *core.Application) error { return nil }
+
+type BillingServiceProvider struct{}
+
+func (p *BillingServiceProvider) Register(app *core.Application) error {
+	baseURL := app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080"))
+	mgr := billing.New(baseURL)
+	if stripeKey := app.Config().GetString("billing.stripe_secret", env.Get("STRIPE_SECRET_KEY", "")); stripeKey != "" {
+		mgr.SetStripeKey(stripeKey)
+	}
+	app.Container().Instance("billing", mgr)
+	return nil
+}
+
+func (p *BillingServiceProvider) Boot(app *core.Application) error { return nil }
+
+type MongoServiceProvider struct{}
+
+func (p *MongoServiceProvider) Register(app *core.Application) error {
+	uri := app.Config().GetString("mongo.uri", env.Get("MONGO_URI", "memory"))
+	app.Container().Instance("mongo", mongo.Connect(uri))
+	return nil
+}
+
+func (p *MongoServiceProvider) Boot(app *core.Application) error { return nil }
+
+type OAuthServiceProvider struct{}
+
+func (p *OAuthServiceProvider) Register(app *core.Application) error {
+	var server *oauth.Server
+	storePath := strings.TrimSpace(app.Config().GetString("oauth.store_path", env.Get("OAUTH_STORE_PATH", "")))
+	if storePath != "" {
+		oa, err := oauth.NewWithStore(storePath)
+		if err != nil {
+			if app.Logger() != nil {
+				app.Logger().Errorf("oauth store: %v", err)
+			}
+			server = oauth.New()
+		} else {
+			server = oa
+		}
+	} else {
+		server = oauth.New()
+	}
+	app.Container().Instance("oauth", server)
+	return nil
+}
+
+func (p *OAuthServiceProvider) Boot(app *core.Application) error { return nil }
+
+type OctaneServiceProvider struct{}
+
+func (p *OctaneServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("octane", octane.New(env.GetInt("OCTANE_WORKERS", 0)))
+	return nil
+}
+
+func (p *OctaneServiceProvider) Boot(app *core.Application) error { return nil }
+
+type AIServiceProvider struct{}
+
+func (p *AIServiceProvider) Register(app *core.Application) error {
+	mgr := ai.New()
+	if apiKey := app.Config().GetString("ai.api_key", env.Get("AI_API_KEY", env.Get("OPENAI_API_KEY"))); apiKey != "" {
+		mgr.Extend("openai", ai.OpenAI(apiKey))
+		mgr.Use("openai")
+	}
+	if driver := app.Config().GetString("ai.driver", env.Get("AI_DRIVER", "")); driver != "" {
+		mgr.Use(driver)
+	}
+	app.Container().Instance("ai", mgr)
+	return nil
+}
+
+func (p *AIServiceProvider) Boot(app *core.Application) error { return nil }
+
+type SitemapServiceProvider struct{}
+
+func (p *SitemapServiceProvider) Register(app *core.Application) error {
+	base := strings.TrimRight(app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080")), "/")
+	builder := sitemap.New(base)
+	builder.Add("/", sitemap.URL{Priority: 1.0, ChangeFreq: "daily"})
+	builder.Add("/up", sitemap.URL{Priority: 0.1, ChangeFreq: "monthly"})
+	app.Container().Instance("sitemap", builder)
+	return nil
+}
+
+func (p *SitemapServiceProvider) Boot(app *core.Application) error { return nil }
+
+type LockServiceProvider struct{}
+
+func (p *LockServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("lock", lock.New())
+	return nil
+}
+
+func (p *LockServiceProvider) Boot(app *core.Application) error { return nil }
+
+type CircuitServiceProvider struct{}
+
+func (p *CircuitServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("circuit", circuit.New(circuit.Settings{
+		FailureThreshold: env.GetInt("CIRCUIT_FAILURE_THRESHOLD", 5),
+		SuccessThreshold: env.GetInt("CIRCUIT_SUCCESS_THRESHOLD", 2),
+		Timeout:          time.Duration(env.GetInt("CIRCUIT_TIMEOUT_SECONDS", 30)) * time.Second,
+	}))
+	return nil
+}
+
+func (p *CircuitServiceProvider) Boot(app *core.Application) error { return nil }
+
+type HashIDServiceProvider struct{}
+
+func (p *HashIDServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("hashid", hashid.New(
+		env.Get("HASHID_SALT", app.Config().GetString("app.key", "zatrano")),
+		env.GetInt("HASHID_MIN_LENGTH", 8),
+	))
+	return nil
+}
+
+func (p *HashIDServiceProvider) Boot(app *core.Application) error { return nil }
+
+type ShortURLServiceProvider struct{}
+
+func (p *ShortURLServiceProvider) Register(app *core.Application) error {
+	base := strings.TrimRight(app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080")), "/")
+	app.Container().Instance("shorturl", shorturl.New(base, env.Get("SHORTURL_PREFIX", "/s")))
+	return nil
+}
+
+func (p *ShortURLServiceProvider) Boot(app *core.Application) error { return nil }
+
+type WellKnownServiceProvider struct{}
+
+func (p *WellKnownServiceProvider) Register(app *core.Application) error {
+	base := strings.TrimRight(app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080")), "/")
+	app.Container().Instance("wellknown", wellknown.New(wellknown.Config{
+		ContactEmail:  env.Get("SECURITY_CONTACT_EMAIL", "security@zatrano.test"),
+		ContactURL:    env.Get("SECURITY_CONTACT_URL", base+"/contact"),
+		Canonical:     base + "/.well-known/security.txt",
+		PolicyURL:     env.Get("SECURITY_POLICY_URL", base+"/documentation"),
+		PreferredLang: env.Get("APP_LOCALE", "en"),
+	}))
+	return nil
+}
+
+func (p *WellKnownServiceProvider) Boot(app *core.Application) error { return nil }
+
+type GeoServiceProvider struct{}
+
+func (p *GeoServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("geo", geo.New())
+	return nil
+}
+
+func (p *GeoServiceProvider) Boot(app *core.Application) error { return nil }
+
+type WebAuthnServiceProvider struct{}
+
+func (p *WebAuthnServiceProvider) Register(app *core.Application) error {
+	cfg := app.Config()
+	rpID := cfg.GetString("webauthn.rp_id", env.Get("WEBAUTHN_RP_ID", ""))
+	rpOrigin := cfg.GetString("webauthn.rp_origin", env.Get("WEBAUTHN_RP_ORIGIN", ""))
+	rpName := cfg.GetString("webauthn.rp_display_name", env.Get("WEBAUTHN_RP_DISPLAY_NAME", env.Get("WEBAUTHN_RP_NAME", env.Get("APP_NAME", "ZATRANO"))))
+	app.Container().Instance("webauthn", webauthn.New(rpID, rpOrigin, rpName))
+	return nil
+}
+
+func (p *WebAuthnServiceProvider) Boot(app *core.Application) error { return nil }
+
+type OTPServiceProvider struct{}
+
+func (p *OTPServiceProvider) Register(app *core.Application) error {
+	app.Container().Instance("otp", otp.New(otp.NewMemoryStore()).WithTTL(5*time.Minute))
+	return nil
+}
+
+func (p *OTPServiceProvider) Boot(app *core.Application) error { return nil }
+
+
+func resolveFeatures(app *core.Application) *features.Manager {
+	raw, err := app.Make("features")
+	if err != nil {
+		return nil
+	}
+	v, _ := raw.(*features.Manager)
+	return v
+}
+
+func resolveInspector(app *core.Application) *inspector.Manager {
+	raw, err := app.Make("inspector")
+	if err != nil {
+		return nil
+	}
+	v, _ := raw.(*inspector.Manager)
+	return v
+}
+
+func resolveSearch(app *core.Application) *search.Manager {
+	raw, err := app.Make("search")
+	if err != nil {
+		return nil
+	}
+	v, _ := raw.(*search.Manager)
+	return v
+}
+
+type teeAuditStore struct {
+	primary   audit.Store
+	secondary audit.Store
+}
+
+func (s *teeAuditStore) Write(event audit.Event) error {
+	if err := s.primary.Write(event); err != nil {
+		return err
+	}
+	return s.secondary.Write(event)
+}
+
+func (s *teeAuditStore) Recent(limit int) ([]audit.Event, error) {
+	return s.primary.Recent(limit)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
