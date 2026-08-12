@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.1 - 2026-08-12
+
+### Fixed
+
+- PostgreSQL inserts use `RETURNING id` (lib/pq does not support `LastInsertId`)
+
 ## 0.2.0 - 2026-08-12
 
 ### Added

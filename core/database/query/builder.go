@@ -11,6 +11,7 @@ import (
 type DBTX interface {
 	Exec(query string, args ...any) (sql.Result, error)
 	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
 }
 
 // Builder builds SQL queries fluently.
@@ -865,19 +866,33 @@ func (b *Builder) Insert(values map[string]any) (int64, error) {
 		return 0, fmt.Errorf("insert values required")
 	}
 	columns := make([]string, 0, len(values))
-	placeholders := make([]string, 0, len(values))
-	args := make([]any, 0, len(values))
-	for column, value := range values {
+	for column := range values {
 		columns = append(columns, column)
+	}
+	sort.Strings(columns)
+	placeholders := make([]string, 0, len(columns))
+	args := make([]any, 0, len(columns))
+	for _, column := range columns {
 		placeholders = append(placeholders, "?")
-		args = append(args, value)
+		args = append(args, values[column])
 	}
 	sqlStr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", b.table, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+	if isPostgresDriver(b.driver) {
+		sqlStr += " RETURNING id"
+		var id int64
+		err := b.db.QueryRow(b.rebind(sqlStr), args...).Scan(&id)
+		return id, err
+	}
 	result, err := b.db.Exec(b.rebind(sqlStr), args...)
 	if err != nil {
 		return 0, err
 	}
-	return result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		// Drivers without LastInsertId (should be rare outside postgres).
+		return 0, nil
+	}
+	return id, nil
 }
 
 // InsertGetID is an alias for Insert.
@@ -1351,4 +1366,13 @@ func scanRows(rows *sql.Rows) ([]map[string]any, error) {
 		results = append(results, row)
 	}
 	return results, rows.Err()
+}
+
+func isPostgresDriver(driver string) bool {
+	switch strings.ToLower(driver) {
+	case "pgsql", "postgres", "postgresql":
+		return true
+	default:
+		return false
+	}
 }
