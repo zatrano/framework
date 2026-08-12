@@ -9,31 +9,32 @@ import (
 )
 
 var (
-	reExtends        = regexp.MustCompile(`(?i)@extends\s*\(\s*['"]([^'"]+)['"]\s*\)`)
-	reSection        = regexp.MustCompile(`(?is)@section\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endsection`)
-	reSectionShow    = regexp.MustCompile(`(?is)@section\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@show`)
-	reYieldDefault   = regexp.MustCompile(`(?i)@yield\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`)
-	reYield          = regexp.MustCompile(`(?i)@yield\s*\(\s*['"]([^'"]+)['"]\s*\)`)
-	reInclude        = regexp.MustCompile(`(?i)@include\s*\(\s*['"]([^'"]+)['"]\s*\)`)
-	reIncludeIf      = regexp.MustCompile(`(?i)@includeIf\s*\(\s*['"]([^'"]+)['"]\s*\)`)
-	reIncludeWhen    = regexp.MustCompile(`(?i)@includeWhen\s*\(\s*\$([a-zA-Z0-9_.]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)`)
-	reIncludeUnless  = regexp.MustCompile(`(?i)@includeUnless\s*\(\s*\$([a-zA-Z0-9_.]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)`)
-	reIncludeFirst   = regexp.MustCompile(`(?i)@includeFirst\s*\(\s*\[([^\]]+)\]\s*\)`)
-	reIncludeData    = regexp.MustCompile(`(?i)@include\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\[[^\]]*\])\s*\)`)
-	reEach           = regexp.MustCompile(`(?i)@each\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)`)
-	reOnce           = regexp.MustCompile(`(?is)@once\s*(.*?)@endonce`)
-	reOnceKey        = regexp.MustCompile(`(?is)@once\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endonce`)
-	reVerbatim       = regexp.MustCompile(`(?is)@verbatim\s*(.*?)@endverbatim`)
-	reSectionShort   = regexp.MustCompile(`(?i)@section\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`)
-	rePush           = regexp.MustCompile(`(?is)@push\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endpush`)
-	rePrepend        = regexp.MustCompile(`(?is)@prepend\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endprepend`)
-	rePushOnce       = regexp.MustCompile(`(?is)@pushOnce\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)(.*?)@endPushOnce`)
-	rePrependOnce    = regexp.MustCompile(`(?is)@prependOnce\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)(.*?)@endPrependOnce`)
-	reStack          = regexp.MustCompile(`(?i)@stack\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)`)
-	reComponent      = regexp.MustCompile(`(?is)@component\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)(.*?)@endcomponent`)
-	reSlot           = regexp.MustCompile(`(?is)@slot\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endslot`)
-	reHasSection     = regexp.MustCompile(`(?is)@hasSection\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endif`)
-	reSectionMissing = regexp.MustCompile(`(?is)@sectionMissing\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endif`)
+	reExtends         = regexp.MustCompile(`(?i)@extends\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+	reSection         = regexp.MustCompile(`(?is)@section\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endsection`)
+	reSectionShow     = regexp.MustCompile(`(?is)@section\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@show`)
+	reYieldDefault    = regexp.MustCompile(`(?i)@yield\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`)
+	reYield           = regexp.MustCompile(`(?i)@yield\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+	reInclude         = regexp.MustCompile(`(?i)@include\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+	reIncludeIf       = regexp.MustCompile(`(?i)@includeIf\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+	reIncludeWhen     = regexp.MustCompile(`(?i)@includeWhen\s*\(\s*\$([a-zA-Z0-9_.]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)`)
+	reIncludeUnless   = regexp.MustCompile(`(?i)@includeUnless\s*\(\s*\$([a-zA-Z0-9_.]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)`)
+	reIncludeFirst    = regexp.MustCompile(`(?i)@includeFirst\s*\(\s*\[([^\]]+)\]\s*\)`)
+	reIncludeData     = regexp.MustCompile(`(?i)@include\s*\(\s*['"]([^'"]+)['"]\s*,\s*(\[[^\]]*\])\s*\)`)
+	reEach            = regexp.MustCompile(`(?i)@each\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_]+)\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)`)
+	reOnce            = regexp.MustCompile(`(?is)@once\s*(.*?)@endonce`)
+	reOnceKey         = regexp.MustCompile(`(?is)@once\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endonce`)
+	reVerbatim        = regexp.MustCompile(`(?is)@verbatim\s*(.*?)@endverbatim`)
+	reSectionShort    = regexp.MustCompile(`(?i)@section\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`)
+	reSectionShortVar = regexp.MustCompile(`(?i)@section\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_.]+)\s*\)`)
+	rePush            = regexp.MustCompile(`(?is)@push\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endpush`)
+	rePrepend         = regexp.MustCompile(`(?is)@prepend\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endprepend`)
+	rePushOnce        = regexp.MustCompile(`(?is)@pushOnce\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)(.*?)@endPushOnce`)
+	rePrependOnce     = regexp.MustCompile(`(?is)@prependOnce\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]+)['"]\s*)?\)(.*?)@endPrependOnce`)
+	reStack           = regexp.MustCompile(`(?i)@stack\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)`)
+	reComponent       = regexp.MustCompile(`(?is)@component\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*(\[[^\]]*\])\s*)?\)(.*?)@endcomponent`)
+	reSlot            = regexp.MustCompile(`(?is)@slot\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endslot`)
+	reHasSection      = regexp.MustCompile(`(?is)@hasSection\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endif`)
+	reSectionMissing  = regexp.MustCompile(`(?is)@sectionMissing\s*\(\s*['"]([^'"]+)['"]\s*\)(.*?)@endif`)
 )
 
 type stackBag struct {
@@ -497,6 +498,12 @@ func extractSections(content string) map[string]string {
 	for _, match := range reSectionShort.FindAllStringSubmatch(content, -1) {
 		if len(match) == 3 {
 			sections[match[1]] = match[2]
+		}
+	}
+	for _, match := range reSectionShortVar.FindAllStringSubmatch(content, -1) {
+		if len(match) == 3 {
+			// Keep Blade echo so later compile turns $var into dataGet.
+			sections[match[1]] = "{{ $" + match[2] + " }}"
 		}
 	}
 	for _, match := range reSectionShow.FindAllStringSubmatch(content, -1) {

@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.1.9 - 2026-08-12
+
+### Added
+
+- Short `@section('name', $var)` form for layout sections with view data variables
+
 ## 0.1.8 - 2026-08-11
 
 ### Fixed

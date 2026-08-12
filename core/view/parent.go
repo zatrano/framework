@@ -57,6 +57,11 @@ func extractParentSectionSources(content string) map[string]string {
 			sections[match[1]] = match[2]
 		}
 	}
+	for _, match := range reSectionShortVar.FindAllStringSubmatch(content, -1) {
+		if len(match) == 3 {
+			sections[match[1]] = "{{ $" + match[2] + " }}"
+		}
+	}
 	for _, match := range reSectionShow.FindAllStringSubmatch(content, -1) {
 		if len(match) == 3 {
 			sections[match[1]] = strings.TrimSpace(match[2])

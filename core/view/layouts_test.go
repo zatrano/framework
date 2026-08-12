@@ -39,6 +39,27 @@ func TestLayoutsExtendsAndYield(t *testing.T) {
 	}
 }
 
+func TestSectionShortVariable(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, "layouts"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "layouts", "app.html"), []byte(`<html><title>@yield('title', 'Default') — App</title>@yield('content')</html>`), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "page.html"), []byte(`@extends('layouts.app')
+@section('title', $pageTitle)
+@section('content')
+ok
+@endsection
+`), 0o644)
+
+	engine := view.New(dir)
+	out, err := engine.Render("page", map[string]any{"pageTitle": "Davetiyelerim"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "<title>Davetiyelerim — App</title>") {
+		t.Fatalf("expected variable section title, got %s", out)
+	}
+}
+
 func TestViewStacks(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(dir, "layouts"), 0o755)

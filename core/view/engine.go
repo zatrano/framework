@@ -186,6 +186,7 @@ func (e *Engine) compileBladeLike(input string) string {
 	out = reExtends.ReplaceAllString(out, "")
 	out = reSection.ReplaceAllString(out, "")
 	out = reSectionShort.ReplaceAllString(out, "")
+	out = reSectionShortVar.ReplaceAllString(out, "")
 	out = reSectionShow.ReplaceAllString(out, "")
 	out = reYieldDefault.ReplaceAllString(out, "")
 	out = reYield.ReplaceAllString(out, "")
