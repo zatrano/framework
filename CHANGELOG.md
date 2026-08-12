@@ -2,6 +2,14 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.2 - 2026-08-13
+
+### Fixed
+
+- `gofmt` clean tree for CI coding-style checks
+- Authorization middleware test uses per-guard request key (`auth.user.{guard}`)
+- GitHub Actions: `actions/checkout@v5`, `actions/setup-go@v6` (Node 24)
+
 ## 1.0.1 - 2026-08-12
 
 ### Fixed

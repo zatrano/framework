@@ -12,7 +12,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.0.1-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.0.2-green.svg" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -83,7 +83,7 @@ Open [http://localhost:8080](http://localhost:8080).
 As a module dependency:
 
 ```bash
-go get github.com/zatrano/framework@v1.0.1
+go get github.com/zatrano/framework@v1.0.2
 # or track the latest tagged release
 go get github.com/zatrano/framework@latest
 ```
@@ -243,7 +243,7 @@ Semantic versioning. Tags: `vMAJOR.MINOR.PATCH` on [GitHub Releases](https://git
 | **v1.x** | Thin kernel + package ecosystem (current) |
 | **v0.2.x** | Pre-ecosystem line (historical) |
 
-Current: **[v1.0.1](https://github.com/zatrano/framework/releases/tag/v1.0.1)**
+Current: **[v1.0.2](https://github.com/zatrano/framework/releases/tag/v1.0.2)**
 
 ## Community
 
