@@ -12,6 +12,7 @@ func (m *CreateNotificationsTable) Name() string {
 func (m *CreateNotificationsTable) Up(s *schema.Builder) error {
 	return s.Create("notifications", func(table *schema.Blueprint) {
 		table.ID()
+		table.String("notifiable_type").Default("recipient")
 		table.String("notifiable_id")
 		table.String("type")
 		table.Text("data")

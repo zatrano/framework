@@ -15,6 +15,11 @@ type Notifiable interface {
 	NotificationID() any
 }
 
+// TypedNotifiable optionally supplies a polymorphic type label.
+type TypedNotifiable interface {
+	NotifiableType() string
+}
+
 // Notification is a message that can be sent through channels.
 type Notification interface {
 	Via() []string
@@ -28,9 +33,18 @@ type Channel interface {
 	Send(notifiable Notifiable, notification Notification) error
 }
 
+// BulkResult summarizes a multi-recipient send.
+type BulkResult struct {
+	Total  int      `json:"total"`
+	Sent   int      `json:"sent"`
+	Failed int      `json:"failed"`
+	Errors []string `json:"errors,omitempty"`
+}
+
 // Manager sends notifications through registered channels.
 type Manager struct {
 	channels map[string]Channel
+	store    *Store
 }
 
 // NewManager creates a notification manager.
@@ -41,6 +55,22 @@ func NewManager() *Manager {
 // Extend registers a channel.
 func (m *Manager) Extend(name string, channel Channel) {
 	m.channels[name] = channel
+}
+
+// SetStore attaches a database notification store for inbox APIs.
+func (m *Manager) SetStore(store *Store) {
+	m.store = store
+}
+
+// Store returns the attached notification store (may be nil).
+func (m *Manager) Store() *Store {
+	return m.store
+}
+
+// Channel returns a registered channel.
+func (m *Manager) Channel(name string) (Channel, bool) {
+	ch, ok := m.channels[name]
+	return ch, ok
 }
 
 // Send sends a notification to a notifiable.
@@ -55,6 +85,20 @@ func (m *Manager) Send(notifiable Notifiable, notification Notification) error {
 		}
 	}
 	return nil
+}
+
+// SendMany sends one notification to many recipients (continues on per-recipient errors).
+func (m *Manager) SendMany(recipients []Recipient, notification Notification) BulkResult {
+	result := BulkResult{Total: len(recipients)}
+	for i, recipient := range recipients {
+		if err := m.Send(recipient, notification); err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, fmt.Sprintf("row %d (%v): %v", i+1, recipient.NotificationID(), err))
+			continue
+		}
+		result.Sent++
+	}
+	return result
 }
 
 // MailChannel sends notifications via mail.
@@ -84,16 +128,22 @@ func (c *MailChannel) Send(notifiable Notifiable, notification Notification) err
 
 // DatabaseChannel stores notifications in the database.
 type DatabaseChannel struct {
-	db    *sql.DB
-	table string
+	db     *sql.DB
+	table  string
+	driver string
 }
 
 // NewDatabaseChannel creates a database notification channel.
-func NewDatabaseChannel(db *sql.DB, table string) *DatabaseChannel {
+// Optional driver (sqlite|mysql|pgsql) rewrites placeholders for PostgreSQL.
+func NewDatabaseChannel(db *sql.DB, table string, driver ...string) *DatabaseChannel {
 	if table == "" {
 		table = "notifications"
 	}
-	return &DatabaseChannel{db: db, table: table}
+	d := "sqlite"
+	if len(driver) > 0 && driver[0] != "" {
+		d = driver[0]
+	}
+	return &DatabaseChannel{db: db, table: table, driver: d}
 }
 
 // Send stores the notification payload.
@@ -106,14 +156,23 @@ func (c *DatabaseChannel) Send(notifiable Notifiable, notification Notification)
 	if err != nil {
 		return err
 	}
+	typ := "recipient"
+	if t, ok := notifiable.(TypedNotifiable); ok && t.NotifiableType() != "" {
+		typ = t.NotifiableType()
+	}
 	_, err = c.db.Exec(
-		fmt.Sprintf(`INSERT INTO %s (notifiable_id, type, data, created_at) VALUES (?, ?, ?, ?)`, c.table),
+		c.q(fmt.Sprintf(`INSERT INTO %s (notifiable_type, notifiable_id, type, data, created_at) VALUES (?, ?, ?, ?, ?)`, c.table)),
+		typ,
 		fmt.Sprint(notifiable.NotificationID()),
 		fmt.Sprintf("%T", notification),
 		string(raw),
-		time.Now().Format("2006-01-02 15:04:05"),
+		time.Now().UTC().Format("2006-01-02 15:04:05"),
 	)
 	return err
+}
+
+func (c *DatabaseChannel) q(query string) string {
+	return rewritePlaceholders(c.driver, query)
 }
 
 // BroadcastChannel publishes notifications to a broadcaster.
@@ -155,3 +214,23 @@ func (Base) ToDatabase(Notifiable) map[string]any { return nil }
 
 // ToBroadcast returns nil by default.
 func (Base) ToBroadcast(Notifiable) map[string]any { return nil }
+
+func rewritePlaceholders(driver, query string) string {
+	switch driver {
+	case "pgsql", "postgres", "postgresql":
+		out := make([]byte, 0, len(query)+8)
+		n := 1
+		for i := 0; i < len(query); i++ {
+			if query[i] == '?' {
+				out = append(out, '$')
+				out = append(out, fmt.Sprintf("%d", n)...)
+				n++
+				continue
+			}
+			out = append(out, query[i])
+		}
+		return string(out)
+	default:
+		return query
+	}
+}

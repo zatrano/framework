@@ -18,6 +18,15 @@ func Web(app *core.Application) {
 		r.Get("/", c.Index).As("home")
 	})
 
+	notifications := &web.NotificationsController{App: app}
+	routing.Controller(router, notifications, func(r *routing.Router, c *web.NotificationsController) {
+		r.Get("/notifications", c.Index).As("notifications.index")
+		r.Get("/notifications/send", c.SendForm).As("notifications.send")
+		r.Post("/notifications/send", c.Send).As("notifications.send.store")
+		r.Get("/notifications/bulk", c.BulkForm).As("notifications.bulk")
+		r.Post("/notifications/bulk", c.Bulk).As("notifications.bulk.store")
+	})
+
 	router.Post("/locale", func(req *http.Request) *http.Response {
 		locale := strings.TrimSpace(strings.ToLower(req.Input("locale")))
 		langPath := app.BasePath("lang")

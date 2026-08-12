@@ -108,6 +108,7 @@ type Application struct {
 	httpClient    *httpclient.Client
 	notifications *notification.Manager
 	pushSender    *notification.MemoryPushSender
+	smsSender     *notification.MemorySmsSender
 	broadcast     *broadcasting.Manager
 	files         *filesystem.Manager
 	rateLimiter   *ratelimit.Limiter
@@ -331,6 +332,7 @@ func (app *Application) Bootstrap() error {
 			},
 		})
 		app.config.Load("auth", appconfig.Auth())
+		app.config.Load("notifications", appconfig.Notifications())
 	}
 	if app.environment == "" {
 		app.environment = app.config.GetString("app.env", "local")

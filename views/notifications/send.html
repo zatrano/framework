@@ -1,0 +1,20 @@
+@extends('layouts.app')
+
+@section('title', 'Send notification')
+
+@section('content')
+<div class="shell" style="justify-content:flex-start;padding-top:3rem;max-width:28rem;margin:0 auto;text-align:left;">
+  <h1 style="font-family:Syne,sans-serif;">Send</h1>
+  <form method="post" action="/notifications/send" style="display:grid;gap:0.75rem;">
+    <input type="hidden" name="_token" value="{{ $csrf }}">
+    <label>ID <input name="id" style="width:100%;"></label>
+    <label>Email <input name="email" type="email" style="width:100%;"></label>
+    <label>Phone <input name="phone" style="width:100%;"></label>
+    <label>Channels <input name="channels" value="database,mail,sms" style="width:100%;"></label>
+    <label>Subject <input name="subject" required style="width:100%;"></label>
+    <label>Body <textarea name="body" rows="4" style="width:100%;"></textarea></label>
+    <button type="submit">Send</button>
+  </form>
+  <p><a href="/notifications">Back</a></p>
+</div>
+@endsection

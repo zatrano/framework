@@ -12,7 +12,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.1.10-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-0.2.0-green.svg" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@ Most Go web apps start fast and then slow down in the glue: auth, migrations, qu
 ```bash
 go get github.com/zatrano/framework@latest
 # or pin a release
-go get github.com/zatrano/framework@v0.1.10
+go get github.com/zatrano/framework@v0.2.0
 ```
 
 Clone the skeleton and run it:
@@ -61,7 +61,7 @@ Full guides live in the [documentation](https://zatrano.com/docs).
 | **Views** | Layouts, components, Blade-like directives, nested `@foreach`, markdown, file-based pages |
 | **Auth & security** | Guards, remember tokens, password confirmation, email verification, lockout, 2FA, OAuth/WebAuthn/social helpers, encryption, hashing, honeypot, trusted proxies |
 | **Data** | Query builder, schema builder, migrations, ORM (relations, scopes, eager load, soft deletes patterns), Mongo helper, API resources / JSON:API |
-| **Async & mail** | Queues (DB/Redis), notifications, mail, broadcasting, scheduler / cron |
+| **Async & mail** | Queues (DB/Redis), notifications (in-app / mail / SMS, single + bulk CSV/XLSX), broadcasting, scheduler / cron |
 | **Platform** | Config + `.env`, sessions, cache (incl. Redis), filesystem, localization, validation, collections, pagination |
 | **Tooling** | First-party CLI (`serve`, `migrate`, `make:*`, `about`, …), OpenAPI, GraphQL helpers, docs engine, health checks, observability hooks |
 
@@ -100,7 +100,7 @@ Start here: **[zatrano.com/docs](https://zatrano.com/docs)** — installation, H
 | **v0.3** | Broader production recipes (deploy, observability, scaling patterns) |
 | **v1.0** | Stable public API surface and long-term support commitment |
 
-Current release: **[v0.1.10](https://github.com/zatrano/framework/releases/tag/v0.1.10)**.
+Current release: **[v0.2.0](https://github.com/zatrano/framework/releases/tag/v0.2.0)**.
 
 ## Community
 

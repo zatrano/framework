@@ -96,6 +96,42 @@ func (b *Builder) HasTable(table string) (bool, error) {
 	return count > 0, err
 }
 
+// HasColumn reports whether a column exists on a table.
+func (b *Builder) HasColumn(table, column string) (bool, error) {
+	var query string
+	switch b.driver {
+	case "sqlite", "sqlite3":
+		// PRAGMA table_info cannot use bound params for table name safely here.
+		rows, err := b.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+		if err != nil {
+			return false, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull, pk int
+			var dflt sql.NullString
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+				return false, err
+			}
+			if strings.EqualFold(name, column) {
+				return true, nil
+			}
+		}
+		return false, rows.Err()
+	case "mysql":
+		query = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`
+	case "pgsql", "postgres", "postgresql":
+		query = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`
+	default:
+		return false, fmt.Errorf("unsupported driver: %s", b.driver)
+	}
+	var count int
+	err := b.db.QueryRow(query, table, column).Scan(&count)
+	return count > 0, err
+}
+
 // Blueprint describes a table definition.
 type Blueprint struct {
 	table    string

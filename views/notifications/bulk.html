@@ -1,0 +1,19 @@
+@extends('layouts.app')
+
+@section('title', 'Bulk notifications')
+
+@section('content')
+<div class="shell" style="justify-content:flex-start;padding-top:3rem;max-width:28rem;margin:0 auto;text-align:left;">
+  <h1 style="font-family:Syne,sans-serif;">Bulk send</h1>
+  <p style="color:var(--muted);">Upload CSV or XLSX with columns: id, email, phone, name.</p>
+  <form method="post" action="/notifications/bulk" enctype="multipart/form-data" style="display:grid;gap:0.75rem;">
+    <input type="hidden" name="_token" value="{{ $csrf }}">
+    <label>File <input type="file" name="file" accept=".csv,.xlsx,.xlsm" required></label>
+    <label>Channels <input name="channels" value="database,mail,sms" style="width:100%;"></label>
+    <label>Subject <input name="subject" required style="width:100%;"></label>
+    <label>Body <textarea name="body" rows="4" style="width:100%;"></textarea></label>
+    <button type="submit">Send bulk</button>
+  </form>
+  <p><a href="/notifications">Back</a></p>
+</div>
+@endsection

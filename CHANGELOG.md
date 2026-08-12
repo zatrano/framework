@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.0 - 2026-08-12
+
+### Added
+
+- Central notifications: in-app (database), mail, and SMS channels for web + API
+- Single and bulk send (`Send` / `SendMany`) with CSV and XLSX recipient import
+- Notification inbox store (list, unread, mark read / mark all read)
+- Demo web UI (`/notifications`) and REST endpoints under `/api/notifications`
+- Lightweight `core/export/xlsx` reader for bulk imports
+
 ## 0.1.10 - 2026-08-12
 
 ### Fixed

@@ -7,5 +7,6 @@ func All() []migration.Migration {
 	return []migration.Migration{
 		&CreateJobsTable{},
 		&CreateNotificationsTable{},
+		&AddNotifiableTypeToNotifications{},
 	}
 }

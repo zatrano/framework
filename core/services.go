@@ -116,6 +116,11 @@ func (app *Application) PushSender() *notification.MemoryPushSender {
 	return app.pushSender
 }
 
+// SmsSender returns the in-memory SMS sender stub.
+func (app *Application) SmsSender() *notification.MemorySmsSender {
+	return app.smsSender
+}
+
 // Broadcaster returns the broadcasting manager.
 func (app *Application) Broadcaster() *broadcasting.Manager {
 	return app.broadcast
@@ -350,9 +355,15 @@ func (app *Application) bootSupportServices() error {
 	app.notifications.Extend("broadcast", notification.NewBroadcastChannel(app.broadcast))
 	app.pushSender = &notification.MemoryPushSender{}
 	app.notifications.Extend("push", notification.NewPushChannel(app.pushSender))
+	app.smsSender = &notification.MemorySmsSender{}
+	smsFrom := env.Get("SMS_FROM", env.Get("APP_NAME", "ZATRANO"))
+	app.notifications.Extend("sms", notification.NewSmsChannel(app.smsSender, smsFrom))
 	if app.db != nil {
 		if db, err := app.db.DB(); err == nil {
-			app.notifications.Extend("database", notification.NewDatabaseChannel(db, "notifications"))
+			driver, _ := app.db.DriverName()
+			app.notifications.Extend("database", notification.NewDatabaseChannel(db, "notifications", driver))
+			store := notification.NewStore(db, "notifications", driver)
+			app.notifications.SetStore(store)
 		}
 	}
 	app.container.Instance("notifications", app.notifications)
