@@ -111,13 +111,13 @@ func (app *Application) Notifications() *notification.Manager {
 	return app.notifications
 }
 
-// PushSender returns the in-memory push notification sender stub.
-func (app *Application) PushSender() *notification.MemoryPushSender {
+// PushSender returns the configured push notification sender (memory or HTTP).
+func (app *Application) PushSender() notification.PushSender {
 	return app.pushSender
 }
 
-// SmsSender returns the in-memory SMS sender stub.
-func (app *Application) SmsSender() *notification.MemorySmsSender {
+// SmsSender returns the configured SMS sender (memory|log|http|twilio).
+func (app *Application) SmsSender() notification.SmsSender {
 	return app.smsSender
 }
 
@@ -154,6 +154,9 @@ func (app *Application) URL() *urlgen.Generator {
 func (app *Application) bootSupportServices() error {
 	app.exceptions = exceptions.New(app.IsDebug() || app.config.GetBool("app.debug", true))
 	app.reports = report.New(200)
+	if webhook := env.Get("ERROR_WEBHOOK_URL", env.Get("REPORT_WEBHOOK_URL", "")); webhook != "" {
+		app.reports.SetWebhook(webhook)
+	}
 	app.exceptions.ReportUsing(app.reports.Reporter())
 	app.exceptions.ReportUsing(func(err error, req *http.Request) {
 		path := ""
@@ -353,10 +356,41 @@ func (app *Application) bootSupportServices() error {
 	app.notifications = notification.NewManager()
 	app.notifications.Extend("mail", notification.NewMailChannel(app.mail))
 	app.notifications.Extend("broadcast", notification.NewBroadcastChannel(app.broadcast))
-	app.pushSender = &notification.MemoryPushSender{}
+	switch strings.ToLower(strings.TrimSpace(env.Get("PUSH_DRIVER", "memory"))) {
+	case "http":
+		app.pushSender = &notification.HTTPPushSender{
+			Endpoint: env.Get("PUSH_URL", ""),
+			Token:    env.Get("PUSH_TOKEN", ""),
+		}
+	default:
+		app.pushSender = &notification.MemoryPushSender{}
+	}
 	app.notifications.Extend("push", notification.NewPushChannel(app.pushSender))
-	app.smsSender = &notification.MemorySmsSender{}
 	smsFrom := env.Get("SMS_FROM", env.Get("APP_NAME", "ZATRANO"))
+	switch strings.ToLower(strings.TrimSpace(env.Get("SMS_DRIVER", "memory"))) {
+	case "log":
+		app.smsSender = &notification.LogSmsSender{
+			Log: func(format string, args ...any) {
+				if app.logger != nil {
+					app.logger.Infof(format, args...)
+				}
+			},
+		}
+	case "http":
+		app.smsSender = &notification.HTTPSmsSender{
+			Endpoint: env.Get("SMS_URL", ""),
+			Token:    env.Get("SMS_TOKEN", ""),
+			Method:   env.Get("SMS_METHOD", "POST"),
+		}
+	case "twilio":
+		app.smsSender = &notification.TwilioSmsSender{
+			AccountSID: env.Get("TWILIO_ACCOUNT_SID", ""),
+			AuthToken:  env.Get("TWILIO_AUTH_TOKEN", ""),
+			From:       env.Get("TWILIO_FROM", smsFrom),
+		}
+	default:
+		app.smsSender = &notification.MemorySmsSender{}
+	}
 	app.notifications.Extend("sms", notification.NewSmsChannel(app.smsSender, smsFrom))
 	if app.db != nil {
 		if db, err := app.db.DB(); err == nil {
@@ -557,12 +591,23 @@ func (app *Application) bootSupportServices() error {
 
 	baseURL := app.config.GetString("app.url", env.Get("APP_URL", "http://localhost:8080"))
 	app.billing = billing.New(baseURL)
+	if stripeKey := env.Get("STRIPE_SECRET_KEY", ""); stripeKey != "" {
+		app.billing.SetStripeKey(stripeKey)
+	}
 	app.container.Instance("billing", app.billing)
 
 	app.mongo = mongo.Connect(env.Get("MONGO_URI", "memory"))
 	app.container.Instance("mongo", app.mongo)
 
-	app.oauth = oauth.New()
+	if storePath := strings.TrimSpace(env.Get("OAUTH_STORE_PATH", "")); storePath != "" {
+		oa, err := oauth.NewWithStore(storePath)
+		if err != nil {
+			return fmt.Errorf("oauth store: %w", err)
+		}
+		app.oauth = oa
+	} else {
+		app.oauth = oauth.New()
+	}
 	app.container.Instance("oauth", app.oauth)
 
 	workers := env.GetInt("OCTANE_WORKERS", 0)
@@ -570,7 +615,11 @@ func (app *Application) bootSupportServices() error {
 	app.container.Instance("octane", app.octane)
 
 	app.ai = ai.New()
-	if driver := env.Get("AI_DRIVER", "fake"); driver != "" {
+	if apiKey := env.Get("AI_API_KEY", env.Get("OPENAI_API_KEY")); apiKey != "" {
+		app.ai.Extend("openai", ai.OpenAI(apiKey))
+		app.ai.Use("openai")
+	}
+	if driver := env.Get("AI_DRIVER", ""); driver != "" {
 		app.ai.Use(driver)
 	}
 	app.container.Instance("ai", app.ai)
@@ -609,9 +658,10 @@ func (app *Application) bootSupportServices() error {
 	app.geo = geo.New()
 	app.container.Instance("geo", app.geo)
 
-	rpID := env.Get("WEBAUTHN_RP_ID", "localhost")
-	rpName := env.Get("WEBAUTHN_RP_NAME", env.Get("APP_NAME", "ZATRANO"))
-	app.webauthn = webauthn.New(rpID, rpName)
+	rpID := env.Get("WEBAUTHN_RP_ID", "")
+	rpOrigin := env.Get("WEBAUTHN_RP_ORIGIN", "")
+	rpName := env.Get("WEBAUTHN_RP_DISPLAY_NAME", env.Get("WEBAUTHN_RP_NAME", env.Get("APP_NAME", "ZATRANO")))
+	app.webauthn = webauthn.New(rpID, rpOrigin, rpName)
 	app.container.Instance("webauthn", app.webauthn)
 
 	app.otp = otp.New(otp.NewMemoryStore()).WithTTL(5 * time.Minute)
@@ -756,7 +806,7 @@ func (app *Application) Billing() *billing.Manager {
 	return app.billing
 }
 
-// Mongo returns the MongoDB stub client.
+// Mongo returns the MongoDB client (real driver or in-memory).
 func (app *Application) Mongo() *mongo.Client {
 	return app.mongo
 }

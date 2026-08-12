@@ -19,7 +19,7 @@ type OctaneStartCommand struct {
 
 func (c *OctaneStartCommand) Name() string { return "octane:start" }
 func (c *OctaneStartCommand) Description() string {
-	return "Start the application with Octane runtime stats"
+	return "Start HTTP serving with Octane metrics and optional GOMAXPROCS worker hint"
 }
 func (c *OctaneStartCommand) Handle(args []string) error {
 	addr := ":8080"

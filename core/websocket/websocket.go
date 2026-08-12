@@ -64,7 +64,7 @@ func acceptKey(key string) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-// Conn is a minimal WebSocket connection.
+// Conn is a WebSocket connection supporting text, binary, and control frames.
 type Conn struct {
 	bufrw *bufio.ReadWriter
 }
@@ -110,12 +110,44 @@ func (c *Conn) ReadMessage() (opcode byte, payload []byte, err error) {
 	if opcode == 0x8 {
 		return opcode, payload, io.EOF
 	}
+	// Auto-reply to ping control frames with a matching pong.
+	if opcode == 0x9 {
+		if err = c.Pong(payload); err != nil {
+			return opcode, payload, err
+		}
+	}
 	return opcode, payload, nil
 }
 
 // WriteText writes a text frame.
 func (c *Conn) WriteText(message string) error {
 	return c.writeFrame(0x1, []byte(message))
+}
+
+// WriteBinary writes a binary frame.
+func (c *Conn) WriteBinary(data []byte) error {
+	return c.writeFrame(0x2, data)
+}
+
+// Ping writes a ping control frame.
+func (c *Conn) Ping(payload []byte) error {
+	return c.writeFrame(0x9, payload)
+}
+
+// Pong writes a pong control frame.
+func (c *Conn) Pong(payload []byte) error {
+	return c.writeFrame(0xA, payload)
+}
+
+// Close writes a close control frame. Optional status is a big-endian uint16
+// followed by an optional UTF-8 reason (RFC 6455).
+func (c *Conn) Close(status ...uint16) error {
+	var payload []byte
+	if len(status) > 0 {
+		payload = make([]byte, 2)
+		binary.BigEndian.PutUint16(payload, status[0])
+	}
+	return c.writeFrame(0x8, payload)
 }
 
 func (c *Conn) writeFrame(opcode byte, payload []byte) error {

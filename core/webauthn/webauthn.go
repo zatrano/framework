@@ -3,81 +3,154 @@ package webauthn
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-webauthn/webauthn/protocol"
+	webauthnlib "github.com/go-webauthn/webauthn/webauthn"
 )
 
-// Challenge is a pending WebAuthn ceremony.
-type Challenge struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	Type      string    `json:"type"` // registration | authentication
-	Challenge string    `json:"challenge"`
-	RPID      string    `json:"rp_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
-
-// CreationOptions is a stub PublicKeyCredentialCreationOptions payload.
+// CreationOptions is returned by BeginRegistration for the browser ceremony.
 type CreationOptions struct {
-	Challenge        string           `json:"challenge"`
-	RPID             string           `json:"rp_id"`
-	RPName           string           `json:"rp_name"`
-	UserID           string           `json:"user_id"`
-	UserName         string           `json:"user_name"`
-	UserDisplayName  string           `json:"user_display_name"`
-	TimeoutMS        int              `json:"timeout_ms"`
-	ChallengeID      string           `json:"challenge_id"`
-	PubKeyCredParams []map[string]any `json:"pub_key_cred_params"`
+	ChallengeID string                       `json:"challenge_id"`
+	Options     *protocol.CredentialCreation `json:"options"`
 }
 
-// RequestOptions is a stub PublicKeyCredentialRequestOptions payload.
+// RequestOptions is returned by BeginLogin for the browser ceremony.
 type RequestOptions struct {
-	Challenge   string `json:"challenge"`
-	RPID        string `json:"rp_id"`
-	TimeoutMS   int    `json:"timeout_ms"`
-	ChallengeID string `json:"challenge_id"`
-	UserID      string `json:"user_id"`
+	ChallengeID string                        `json:"challenge_id"`
+	Options     *protocol.CredentialAssertion `json:"options"`
 }
 
-// Credential is a stub registered authenticator.
+// Credential is a registered authenticator stored in memory.
 type Credential struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
 	PublicKey string    `json:"public_key"`
 	CreatedAt time.Time `json:"created_at"`
+	raw       webauthnlib.Credential
 }
 
-// Manager is an in-memory WebAuthn stub (not production crypto).
+// CredentialStore persists WebAuthn credentials (default: in-memory).
+type CredentialStore interface {
+	CredentialsFor(userID string) []Credential
+	Add(userID string, cred Credential) error
+	Replace(userID string, creds []Credential) error
+}
+
+type memoryStore struct {
+	mu    sync.RWMutex
+	creds map[string][]Credential
+}
+
+func newMemoryStore() *memoryStore {
+	return &memoryStore{creds: make(map[string][]Credential)}
+}
+
+func (s *memoryStore) CredentialsFor(userID string) []Credential {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]Credential, len(s.creds[userID]))
+	copy(out, s.creds[userID])
+	return out
+}
+
+func (s *memoryStore) Add(userID string, cred Credential) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.creds[userID] = append(s.creds[userID], cred)
+	return nil
+}
+
+func (s *memoryStore) Replace(userID string, creds []Credential) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cp := make([]Credential, len(creds))
+	copy(cp, creds)
+	s.creds[userID] = cp
+	return nil
+}
+
+type pendingSession struct {
+	UserID   string
+	UserName string
+	Display  string
+	Type     string // registration | authentication
+	Session  webauthnlib.SessionData
+}
+
+// Manager wraps go-webauthn with an in-memory credential store.
 type Manager struct {
-	mu          sync.RWMutex
-	rpID        string
-	rpName      string
-	ttl         time.Duration
-	challenges  map[string]Challenge
-	credentials map[string][]Credential // userID -> creds
+	mu       sync.Mutex
+	wa       *webauthnlib.WebAuthn
+	initErr  error
+	rpID     string
+	rpOrigin string
+	rpName   string
+	store    CredentialStore
+	sessions map[string]pendingSession
+	users    map[string]*userRecord // name/display cache
 }
 
-// New creates a WebAuthn stub manager.
-func New(rpID, rpName string) *Manager {
-	if strings.TrimSpace(rpID) == "" {
-		rpID = "localhost"
+type userRecord struct {
+	ID      string
+	Name    string
+	Display string
+}
+
+// New creates a WebAuthn manager. RPID and origin are required for ceremonies;
+// missing config yields clear errors from Begin*/Finish* (no accept-any stub).
+func New(rpID, rpOrigin, rpDisplayName string) *Manager {
+	rpID = strings.TrimSpace(rpID)
+	rpOrigin = strings.TrimSpace(rpOrigin)
+	rpDisplayName = strings.TrimSpace(rpDisplayName)
+	if rpDisplayName == "" {
+		rpDisplayName = "ZATRANO"
 	}
-	if strings.TrimSpace(rpName) == "" {
-		rpName = "ZATRANO"
+	m := &Manager{
+		rpID:     rpID,
+		rpOrigin: rpOrigin,
+		rpName:   rpDisplayName,
+		store:    newMemoryStore(),
+		sessions: make(map[string]pendingSession),
+		users:    make(map[string]*userRecord),
 	}
-	return &Manager{
-		rpID:        rpID,
-		rpName:      rpName,
-		ttl:         5 * time.Minute,
-		challenges:  make(map[string]Challenge),
-		credentials: make(map[string][]Credential),
+	if rpID == "" || rpOrigin == "" {
+		m.initErr = fmt.Errorf("webauthn: WEBAUTHN_RP_ID and WEBAUTHN_RP_ORIGIN are required")
+		return m
 	}
+	wa, err := webauthnlib.New(&webauthnlib.Config{
+		RPID:          rpID,
+		RPDisplayName: rpDisplayName,
+		RPOrigins:     []string{rpOrigin},
+	})
+	if err != nil {
+		m.initErr = fmt.Errorf("webauthn: %w", err)
+		return m
+	}
+	m.wa = wa
+	return m
+}
+
+// SetStore replaces the credential store (nil resets to in-memory).
+func (m *Manager) SetStore(store CredentialStore) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if store == nil {
+		m.store = newMemoryStore()
+		return
+	}
+	m.store = store
 }
 
 // BeginRegistration starts a registration ceremony.
 func (m *Manager) BeginRegistration(userID, userName, displayName string) (*CreationOptions, error) {
+	if err := m.ensure(); err != nil {
+		return nil, err
+	}
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
 		return nil, fmt.Errorf("webauthn: user id required")
@@ -88,138 +161,202 @@ func (m *Manager) BeginRegistration(userID, userName, displayName string) (*Crea
 	if displayName == "" {
 		displayName = userName
 	}
-	ch, err := m.createChallenge(userID, "registration")
+	user := m.user(userID, userName, displayName)
+	creation, session, err := m.wa.BeginRegistration(user)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("webauthn: begin registration: %w", err)
 	}
-	return &CreationOptions{
-		Challenge:       ch.Challenge,
-		RPID:            m.rpID,
-		RPName:          m.rpName,
-		UserID:          userID,
-		UserName:        userName,
-		UserDisplayName: displayName,
-		TimeoutMS:       int(m.ttl / time.Millisecond),
-		ChallengeID:     ch.ID,
-		PubKeyCredParams: []map[string]any{
-			{"type": "public-key", "alg": -7},
-			{"type": "public-key", "alg": -257},
-		},
-	}, nil
+	challengeID := randomID()
+	m.mu.Lock()
+	m.users[userID] = &userRecord{ID: userID, Name: userName, Display: displayName}
+	m.sessions[challengeID] = pendingSession{
+		UserID:   userID,
+		UserName: userName,
+		Display:  displayName,
+		Type:     "registration",
+		Session:  *session,
+	}
+	m.mu.Unlock()
+	return &CreationOptions{ChallengeID: challengeID, Options: creation}, nil
 }
 
-// FinishRegistration stores a stub credential (accepts any non-empty credential id).
-func (m *Manager) FinishRegistration(challengeID, credentialID, publicKey string) (*Credential, error) {
-	ch, err := m.takeChallenge(challengeID, "registration")
+// FinishRegistration verifies the authenticator attestation response JSON.
+func (m *Manager) FinishRegistration(challengeID string, responseJSON []byte) (*Credential, error) {
+	if err := m.ensure(); err != nil {
+		return nil, err
+	}
+	pending, err := m.takeSession(challengeID, "registration")
 	if err != nil {
 		return nil, err
 	}
-	credentialID = strings.TrimSpace(credentialID)
-	if credentialID == "" {
-		return nil, fmt.Errorf("webauthn: credential id required")
+	parsed, err := protocol.ParseCredentialCreationResponseBytes(responseJSON)
+	if err != nil {
+		return nil, fmt.Errorf("webauthn: parse registration response: %w", err)
 	}
-	if publicKey == "" {
-		publicKey = "stub-public-key"
+	user := m.user(pending.UserID, pending.UserName, pending.Display)
+	cred, err := m.wa.CreateCredential(user, pending.Session, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("webauthn: finish registration: %w", err)
 	}
-	cred := Credential{
-		ID:        credentialID,
-		UserID:    ch.UserID,
-		PublicKey: publicKey,
+	stored := Credential{
+		ID:        base64.RawURLEncoding.EncodeToString(cred.ID),
+		UserID:    pending.UserID,
+		PublicKey: base64.RawURLEncoding.EncodeToString(cred.PublicKey),
 		CreatedAt: time.Now().UTC(),
+		raw:       *cred,
 	}
-	m.mu.Lock()
-	m.credentials[ch.UserID] = append(m.credentials[ch.UserID], cred)
-	m.mu.Unlock()
-	return &cred, nil
+	if err := m.store.Add(pending.UserID, stored); err != nil {
+		return nil, err
+	}
+	return &stored, nil
 }
 
 // BeginLogin starts an authentication ceremony.
 func (m *Manager) BeginLogin(userID string) (*RequestOptions, error) {
+	if err := m.ensure(); err != nil {
+		return nil, err
+	}
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
 		return nil, fmt.Errorf("webauthn: user id required")
 	}
-	m.mu.RLock()
-	creds := m.credentials[userID]
-	m.mu.RUnlock()
+	creds := m.store.CredentialsFor(userID)
 	if len(creds) == 0 {
 		return nil, fmt.Errorf("webauthn: no credentials for user")
 	}
-	ch, err := m.createChallenge(userID, "authentication")
-	if err != nil {
-		return nil, err
+	m.mu.Lock()
+	rec := m.users[userID]
+	m.mu.Unlock()
+	name, display := userID, userID
+	if rec != nil {
+		name, display = rec.Name, rec.Display
 	}
-	return &RequestOptions{
-		Challenge:   ch.Challenge,
-		RPID:        m.rpID,
-		TimeoutMS:   int(m.ttl / time.Millisecond),
-		ChallengeID: ch.ID,
-		UserID:      userID,
-	}, nil
+	user := m.user(userID, name, display)
+	assertion, session, err := m.wa.BeginLogin(user)
+	if err != nil {
+		return nil, fmt.Errorf("webauthn: begin login: %w", err)
+	}
+	challengeID := randomID()
+	m.mu.Lock()
+	m.sessions[challengeID] = pendingSession{
+		UserID:   userID,
+		UserName: name,
+		Display:  display,
+		Type:     "authentication",
+		Session:  *session,
+	}
+	m.mu.Unlock()
+	return &RequestOptions{ChallengeID: challengeID, Options: assertion}, nil
 }
 
-// FinishLogin verifies a stub assertion (credential must exist for the challenge user).
-func (m *Manager) FinishLogin(challengeID, credentialID string) (bool, error) {
-	ch, err := m.takeChallenge(challengeID, "authentication")
+// FinishLogin verifies the authenticator assertion response JSON.
+func (m *Manager) FinishLogin(challengeID string, responseJSON []byte) (bool, error) {
+	if err := m.ensure(); err != nil {
+		return false, err
+	}
+	pending, err := m.takeSession(challengeID, "authentication")
 	if err != nil {
 		return false, err
 	}
-	credentialID = strings.TrimSpace(credentialID)
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for _, cred := range m.credentials[ch.UserID] {
-		if cred.ID == credentialID {
-			return true, nil
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(responseJSON)
+	if err != nil {
+		return false, fmt.Errorf("webauthn: parse login response: %w", err)
+	}
+	user := m.user(pending.UserID, pending.UserName, pending.Display)
+	cred, err := m.wa.ValidateLogin(user, pending.Session, parsed)
+	if err != nil {
+		return false, fmt.Errorf("webauthn: finish login: %w", err)
+	}
+	// Persist updated authenticator counter / flags.
+	id := base64.RawURLEncoding.EncodeToString(cred.ID)
+	existing := m.store.CredentialsFor(pending.UserID)
+	for i := range existing {
+		if existing[i].ID == id {
+			existing[i].raw = *cred
+			existing[i].PublicKey = base64.RawURLEncoding.EncodeToString(cred.PublicKey)
+			_ = m.store.Replace(pending.UserID, existing)
+			break
 		}
 	}
-	return false, fmt.Errorf("webauthn: unknown credential")
+	return true, nil
 }
 
-// CredentialsFor returns registered stub credentials for a user.
+// CredentialsFor returns registered credentials for a user.
 func (m *Manager) CredentialsFor(userID string) []Credential {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make([]Credential, len(m.credentials[userID]))
-	copy(out, m.credentials[userID])
-	return out
+	return m.store.CredentialsFor(userID)
 }
 
-func (m *Manager) createChallenge(userID, typ string) (Challenge, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return Challenge{}, err
+func (m *Manager) ensure() error {
+	if m.wa != nil {
+		return nil
 	}
-	idRaw := make([]byte, 16)
-	if _, err := rand.Read(idRaw); err != nil {
-		return Challenge{}, err
+	if m.initErr != nil {
+		return m.initErr
 	}
-	ch := Challenge{
-		ID:        base64.RawURLEncoding.EncodeToString(idRaw),
-		UserID:    userID,
-		Type:      typ,
-		Challenge: base64.RawURLEncoding.EncodeToString(raw),
-		RPID:      m.rpID,
-		ExpiresAt: time.Now().Add(m.ttl),
-	}
-	m.mu.Lock()
-	m.challenges[ch.ID] = ch
-	m.mu.Unlock()
-	return ch, nil
+	return fmt.Errorf("webauthn: WEBAUTHN_RP_ID and WEBAUTHN_RP_ORIGIN are required")
 }
 
-func (m *Manager) takeChallenge(id, typ string) (Challenge, error) {
+func (m *Manager) takeSession(id, typ string) (pendingSession, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ch, ok := m.challenges[id]
+	s, ok := m.sessions[id]
 	if !ok {
-		return Challenge{}, fmt.Errorf("webauthn: challenge not found")
+		return pendingSession{}, fmt.Errorf("webauthn: challenge not found")
 	}
-	delete(m.challenges, id)
-	if time.Now().After(ch.ExpiresAt) {
-		return Challenge{}, fmt.Errorf("webauthn: challenge expired")
+	delete(m.sessions, id)
+	if s.Type != typ {
+		return pendingSession{}, fmt.Errorf("webauthn: challenge type mismatch")
 	}
-	if ch.Type != typ {
-		return Challenge{}, fmt.Errorf("webauthn: challenge type mismatch")
+	if !s.Session.Expires.IsZero() && time.Now().After(s.Session.Expires) {
+		return pendingSession{}, fmt.Errorf("webauthn: challenge expired")
 	}
-	return ch, nil
+	return s, nil
+}
+
+func (m *Manager) user(userID, name, display string) *userEntity {
+	creds := m.store.CredentialsFor(userID)
+	libCreds := make([]webauthnlib.Credential, 0, len(creds))
+	for _, c := range creds {
+		libCreds = append(libCreds, c.raw)
+	}
+	return &userEntity{
+		id:      []byte(userID),
+		name:    name,
+		display: display,
+		creds:   libCreds,
+	}
+}
+
+type userEntity struct {
+	id      []byte
+	name    string
+	display string
+	creds   []webauthnlib.Credential
+}
+
+func (u *userEntity) WebAuthnID() []byte                            { return u.id }
+func (u *userEntity) WebAuthnName() string                          { return u.name }
+func (u *userEntity) WebAuthnDisplayName() string                   { return u.display }
+func (u *userEntity) WebAuthnCredentials() []webauthnlib.Credential { return u.creds }
+
+func randomID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// MarshalJSON omits internal raw credential bytes from API responses.
+func (c Credential) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		ID        string    `json:"id"`
+		UserID    string    `json:"user_id"`
+		PublicKey string    `json:"public_key"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	return json.Marshal(alias{
+		ID:        c.ID,
+		UserID:    c.UserID,
+		PublicKey: c.PublicKey,
+		CreatedAt: c.CreatedAt,
+	})
 }

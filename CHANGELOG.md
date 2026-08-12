@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 0.2.5 - 2026-08-12
+
+### Added
+
+- Localization: `make:lang`, `@choice` view helper, `Accept-Language` negotiation
+- Real drivers: scannable QR, ip-api geo lookup, OpenAI-compatible AI, report webhooks, Twilio/HTTP SMS, HTTP push, MongoDB URI mode, Stripe billing mode
+- OAuth PKCE + refresh tokens + optional JSON store; WebAuthn via go-webauthn
+- WebSocket binary / ping / pong / close frames
+
+### Changed
+
+- Expanded localization documentation and removed stub banners from packages that now run for real when configured
+
 ## 0.2.4 - 2026-08-12
 
 ### Added

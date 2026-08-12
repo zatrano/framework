@@ -1,8 +1,14 @@
 package notification
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"sync"
+	"time"
 )
 
 // PushNotification optionally supplies a push payload.
@@ -45,7 +51,56 @@ func (s *MemoryPushSender) Last() (PushEntry, bool) {
 	return s.Entries[len(s.Entries)-1], true
 }
 
-// PushChannel sends notifications via a push sender stub.
+// HTTPPushSender POSTs JSON to a webhook endpoint.
+// Body: {"token":"...","payload":{...}} with Authorization: Bearer {Token}.
+type HTTPPushSender struct {
+	Endpoint string
+	Token    string
+	Client   *http.Client
+}
+
+// Send delivers the push via HTTP.
+func (s *HTTPPushSender) Send(deviceToken string, payload map[string]any) error {
+	if strings.TrimSpace(s.Endpoint) == "" {
+		return fmt.Errorf("notification: PUSH_URL / HTTPPushSender.Endpoint is required")
+	}
+	body, err := json.Marshal(map[string]any{
+		"token":   deviceToken,
+		"payload": payload,
+	})
+	if err != nil {
+		return err
+	}
+	client := s.Client
+	if client == nil {
+		client = &http.Client{Timeout: 15 * time.Second}
+	}
+	req, err := http.NewRequest(http.MethodPost, s.Endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	if s.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.Token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg := strings.TrimSpace(string(raw))
+		if msg == "" {
+			msg = resp.Status
+		}
+		return fmt.Errorf("notification: push http %d: %s", resp.StatusCode, msg)
+	}
+	return nil
+}
+
+// PushChannel sends notifications via a push sender.
 type PushChannel struct {
 	sender PushSender
 }

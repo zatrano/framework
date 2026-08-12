@@ -9,7 +9,11 @@ import (
 	"github.com/zatrano/framework/core/routing"
 )
 
-// Runtime tracks concurrent request serving (Octane-like surface).
+// Runtime tracks concurrent request metrics and worker hints.
+//
+// This is not a multi-process application server. Metrics middleware is real
+// (request counts / in-flight / peak). The octane:start command sets GOMAXPROCS
+// from the worker hint and serves the normal HTTP application via Application.Run.
 type Runtime struct {
 	workers   int
 	startedAt time.Time
@@ -18,7 +22,7 @@ type Runtime struct {
 	peak      atomic.Int64
 }
 
-// New creates a runtime with the given worker hint.
+// New creates a runtime with the given worker hint (GOMAXPROCS guidance).
 func New(workers int) *Runtime {
 	if workers <= 0 {
 		workers = runtime.NumCPU()
@@ -29,12 +33,12 @@ func New(workers int) *Runtime {
 	}
 }
 
-// Workers returns the configured worker count.
+// Workers returns the configured worker count hint.
 func (r *Runtime) Workers() int {
 	return r.workers
 }
 
-// SetWorkers updates the worker hint.
+// SetWorkers updates the worker hint used by octane:start for GOMAXPROCS.
 func (r *Runtime) SetWorkers(n int) {
 	if n > 0 {
 		r.workers = n
@@ -55,7 +59,7 @@ func (r *Runtime) Stats() map[string]any {
 	}
 }
 
-// Middleware tracks in-flight and total requests.
+// Middleware tracks in-flight and total requests (real metrics).
 func (r *Runtime) Middleware() routing.MiddlewareFunc {
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {

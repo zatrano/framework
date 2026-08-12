@@ -1,8 +1,14 @@
 package notification
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"sync"
+	"time"
 )
 
 // SmsMessage is an SMS payload.
@@ -66,6 +72,142 @@ func (s *LogSmsSender) Send(message *SmsMessage) error {
 		log = func(format string, args ...any) { fmt.Printf(format+"\n", args...) }
 	}
 	log("sms to=%s from=%s body=%s", message.To, message.From, message.Body)
+	return nil
+}
+
+// HTTPSmsSender POSTs SMS payloads to a generic HTTP endpoint.
+// Default: POST JSON {to,body,from} with Authorization: Bearer {Token}.
+// Set Form=true to send application/x-www-form-urlencoded instead.
+type HTTPSmsSender struct {
+	Endpoint   string
+	Method     string
+	Token      string
+	AuthHeader string // full Authorization header value; overrides Token when set
+	Form       bool
+	Client     *http.Client
+}
+
+// Send delivers the SMS via HTTP.
+func (s *HTTPSmsSender) Send(message *SmsMessage) error {
+	if message == nil {
+		return nil
+	}
+	if strings.TrimSpace(s.Endpoint) == "" {
+		return fmt.Errorf("notification: SMS_URL / HTTPSmsSender.Endpoint is required")
+	}
+	method := strings.ToUpper(strings.TrimSpace(s.Method))
+	if method == "" {
+		method = http.MethodPost
+	}
+	client := s.Client
+	if client == nil {
+		client = &http.Client{Timeout: 15 * time.Second}
+	}
+
+	var body io.Reader
+	contentType := "application/json"
+	if s.Form {
+		contentType = "application/x-www-form-urlencoded"
+		values := url.Values{}
+		values.Set("To", message.To)
+		values.Set("Body", message.Body)
+		values.Set("From", message.From)
+		body = strings.NewReader(values.Encode())
+	} else {
+		payload, err := json.Marshal(map[string]string{
+			"to":   message.To,
+			"body": message.Body,
+			"from": message.From,
+		})
+		if err != nil {
+			return err
+		}
+		body = strings.NewReader(string(payload))
+	}
+
+	req, err := http.NewRequest(method, s.Endpoint, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+	if s.AuthHeader != "" {
+		req.Header.Set("Authorization", s.AuthHeader)
+	} else if s.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.Token)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg := strings.TrimSpace(string(raw))
+		if msg == "" {
+			msg = resp.Status
+		}
+		return fmt.Errorf("notification: sms http %d: %s", resp.StatusCode, msg)
+	}
+	return nil
+}
+
+// TwilioSmsSender delivers SMS via the Twilio REST API.
+type TwilioSmsSender struct {
+	AccountSID string
+	AuthToken  string
+	From       string
+	Client     *http.Client
+}
+
+// Send delivers the SMS through Twilio.
+func (s *TwilioSmsSender) Send(message *SmsMessage) error {
+	if message == nil {
+		return nil
+	}
+	sid := strings.TrimSpace(s.AccountSID)
+	token := strings.TrimSpace(s.AuthToken)
+	if sid == "" || token == "" {
+		return fmt.Errorf("notification: TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required")
+	}
+	from := message.From
+	if from == "" {
+		from = s.From
+	}
+	if from == "" {
+		return fmt.Errorf("notification: twilio From is required")
+	}
+	endpoint := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Messages.json", sid)
+	values := url.Values{}
+	values.Set("To", message.To)
+	values.Set("From", from)
+	values.Set("Body", message.Body)
+
+	client := s.Client
+	if client == nil {
+		client = &http.Client{Timeout: 15 * time.Second}
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(sid, token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg := strings.TrimSpace(string(raw))
+		if msg == "" {
+			msg = resp.Status
+		}
+		return fmt.Errorf("notification: twilio sms %d: %s", resp.StatusCode, msg)
+	}
 	return nil
 }
 

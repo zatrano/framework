@@ -239,6 +239,10 @@ func (e *Engine) compileBladeLike(input string) string {
 
 	// @lang('key')
 	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ trans "$1" }}`)
+	// @choice('key', $count)
+	out = replaceAllRegex(out, `@choice\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ choice "$1" (dataGet . "$2") }}`)
+	// @choice('key', 3)
+	out = replaceAllRegex(out, `@choice\s*\(\s*['"]([^'"]+)['"]\s*,\s*(-?[0-9]+)\s*\)`, `{{ choice "$1" $2 }}`)
 
 	// @switch / @case / @default / @break / @endswitch
 	out = compileSwitchBlocks(out)

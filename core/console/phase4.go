@@ -15,6 +15,7 @@ func registerPhase4Commands(console *Application, app *core.Application) {
 		&ScheduleListCommand{app: app},
 		&MakeNotificationCommand{app: app},
 		&LangPublishCommand{app: app},
+		&MakeLangCommand{app: app},
 	)
 }
 

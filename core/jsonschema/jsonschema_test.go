@@ -6,6 +6,10 @@ import (
 	"github.com/zatrano/framework/core/jsonschema"
 )
 
+func ptrFloat(v float64) *float64 { return &v }
+func ptrInt(v int) *int           { return &v }
+func ptrBool(v bool) *bool        { return &v }
+
 func TestValidateObject(t *testing.T) {
 	schema := jsonschema.Schema{
 		Type:     "object",
@@ -34,5 +38,47 @@ func TestValidateArray(t *testing.T) {
 	}
 	if !jsonschema.Valid(schema, []any{"a", "b"}) {
 		t.Fatal("expected valid array")
+	}
+}
+
+func TestValidateEnumMinMaxLengthPatternAdditional(t *testing.T) {
+	schema := jsonschema.Schema{
+		Type: "object",
+		Properties: map[string]jsonschema.Schema{
+			"role": {
+				Type: "string",
+				Enum: []any{"admin", "user"},
+			},
+			"age": {
+				Type:    "integer",
+				Minimum: ptrFloat(18),
+				Maximum: ptrFloat(120),
+			},
+			"code": {
+				Type:      "string",
+				MinLength: ptrInt(2),
+				MaxLength: ptrInt(8),
+				Pattern:   `^[A-Z]+$`,
+			},
+		},
+		AdditionalProperties: ptrBool(false),
+	}
+
+	if !jsonschema.Valid(schema, map[string]any{
+		"role": "admin",
+		"age":  30,
+		"code": "AB",
+	}) {
+		t.Fatal("expected valid")
+	}
+
+	errs := jsonschema.Validate(schema, map[string]any{
+		"role":  "guest",
+		"age":   10,
+		"code":  "a",
+		"extra": true,
+	})
+	if len(errs) < 4 {
+		t.Fatalf("expected multiple errors, got %v", errs)
 	}
 }

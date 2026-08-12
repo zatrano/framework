@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -107,8 +108,8 @@ type Application struct {
 	scheduler     *schedule.Scheduler
 	httpClient    *httpclient.Client
 	notifications *notification.Manager
-	pushSender    *notification.MemoryPushSender
-	smsSender     *notification.MemorySmsSender
+	pushSender    notification.PushSender
+	smsSender     notification.SmsSender
 	broadcast     *broadcasting.Manager
 	files         *filesystem.Manager
 	rateLimiter   *ratelimit.Limiter
@@ -361,6 +362,24 @@ func (app *Application) Bootstrap() error {
 		app.view.AddFunc("trans", func(key string) string {
 			return app.translator.Get(key)
 		})
+		app.view.AddFunc("choice", func(key string, number any) string {
+			n := 0
+			switch v := number.(type) {
+			case int:
+				n = v
+			case int64:
+				n = int(v)
+			case float64:
+				n = int(v)
+			case string:
+				if parsed, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+					n = parsed
+				}
+			default:
+				n, _ = strconv.Atoi(fmt.Sprint(number))
+			}
+			return app.translator.Choice(key, n)
+		})
 	}
 	if app.assets != nil {
 		app.view.AddFunc("vite", func(path string) string {
@@ -601,6 +620,9 @@ func (app *Application) localeMiddleware() routing.MiddlewareFunc {
 						locale = strings.TrimSpace(strings.ToLower(raw))
 					}
 				}
+				if locale == "" {
+					locale = negotiateLocale(req.Header("Accept-Language"), localization.Available(langPath))
+				}
 				if locale != "" && localization.HasLocale(langPath, locale) {
 					app.translator.SetLocale(locale)
 					_ = app.translator.Load(locale)
@@ -612,6 +634,37 @@ func (app *Application) localeMiddleware() routing.MiddlewareFunc {
 			return next(req)
 		}
 	}
+}
+
+func negotiateLocale(header string, available []string) string {
+	header = strings.TrimSpace(header)
+	if header == "" || len(available) == 0 {
+		return ""
+	}
+	allowed := map[string]string{}
+	for _, code := range available {
+		code = strings.ToLower(strings.TrimSpace(code))
+		allowed[code] = code
+		if i := strings.IndexByte(code, '-'); i > 0 {
+			allowed[code[:i]] = code
+		}
+	}
+	for _, part := range strings.Split(header, ",") {
+		tag := strings.TrimSpace(strings.Split(part, ";")[0])
+		tag = strings.ToLower(tag)
+		if tag == "" || tag == "*" {
+			continue
+		}
+		if code, ok := allowed[tag]; ok {
+			return code
+		}
+		if i := strings.IndexByte(tag, '-'); i > 0 {
+			if code, ok := allowed[tag[:i]]; ok {
+				return code
+			}
+		}
+	}
+	return ""
 }
 
 func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
