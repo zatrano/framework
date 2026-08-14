@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- User-facing errors return localization keys (`auth.email_taken`, `auth.lockout`, …)
+- `make:auth` controller stub translates flashes via `localization` + `lang/tr|en/auth.json`
+- Built-in `localization/defaults/{en,tr}/auth.json` catalogs
+
 ## 1.2.0
 
 - Cache-backed lockout via `SetLockoutCache` (boot wires `cache.From(app)`)

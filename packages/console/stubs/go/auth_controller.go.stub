@@ -9,6 +9,7 @@ import (
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/localization"
 	"github.com/zatrano/framework/packages/mail"
 	"github.com/zatrano/framework/packages/validation"
 )
@@ -16,6 +17,20 @@ import (
 // AuthController handles all authentication screens and actions.
 type AuthController struct {
 	App *core.Application
+}
+
+func (c *AuthController) lang(key string, replace ...map[string]string) string {
+	if tr := localization.From(c.App); tr != nil {
+		return tr.Get(key, replace...)
+	}
+	return key
+}
+
+func (c *AuthController) authMsg(err error) string {
+	if err == nil {
+		return ""
+	}
+	return c.lang(err.Error())
 }
 
 func (c *AuthController) LoginForm(req *Request) *Response {
@@ -33,9 +48,9 @@ func (c *AuthController) Login(req *Request) *Response {
 	if v.Fails() {
 		flash.Old(req, req.Only("email"))
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed", "errors": v.Errors().Message()}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields"), "errors": v.Errors().Message()}).Status(422)
 		}
-		return flash.WithError(req, "Please fix the highlighted fields.", "/login")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/login")
 	}
 	remember, _ := req.BooleanOK("remember")
 	ok, err := auth.From(c.App).Attempt(req, map[string]string{
@@ -50,31 +65,31 @@ func (c *AuthController) Login(req *Request) *Response {
 		}
 		if errors.Is(err, auth.ErrLockout) {
 			if req.WantsJSON() {
-				return JSON(map[string]any{"message": err.Error()}).Status(429)
+				return JSON(map[string]any{"message": c.authMsg(err)}).Status(429)
 			}
-			return flash.WithError(req, "Too many login attempts.", "/login")
+			return flash.WithError(req, c.lang("auth.lockout"), "/login")
 		}
-		return JSON(map[string]any{"message": err.Error()}).Status(500)
+		return JSON(map[string]any{"message": c.authMsg(err)}).Status(500)
 	}
 	if !ok {
 		flash.Old(req, req.Only("email"))
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Invalid credentials"}).Status(401)
+			return JSON(map[string]any{"message": c.lang("auth.invalid_credentials")}).Status(401)
 		}
-		return flash.WithError(req, "Invalid credentials", "/login")
+		return flash.WithError(req, c.lang("auth.invalid_credentials"), "/login")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Authenticated", "redirect": auth.IntendedURL(req, "/")})
+		return JSON(map[string]any{"message": c.lang("auth.welcome_back"), "redirect": auth.IntendedURL(req, "/")})
 	}
-	return flash.WithSuccess(req, "Welcome back!", auth.PullIntendedURL(req, "/"))
+	return flash.WithSuccess(req, c.lang("auth.welcome_back"), auth.PullIntendedURL(req, "/"))
 }
 
 func (c *AuthController) Logout(req *Request) *Response {
 	_ = auth.From(c.App).Logout(req)
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Logged out"})
+		return JSON(map[string]any{"message": c.lang("auth.logged_out")})
 	}
-	return flash.WithSuccess(req, "You have been logged out.", "/login")
+	return flash.WithSuccess(req, c.lang("auth.logged_out"), "/login")
 }
 
 func (c *AuthController) RegisterForm(req *Request) *Response {
@@ -93,9 +108,9 @@ func (c *AuthController) Register(req *Request) *Response {
 	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
 		flash.Old(req, req.Only("name", "email"))
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, "Please fix the highlighted fields.", "/register")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/register")
 	}
 	user, err := auth.From(c.App).Register(req, map[string]any{
 		"name": req.Input("name"), "email": req.Input("email"), "password": req.Input("password"),
@@ -103,14 +118,14 @@ func (c *AuthController) Register(req *Request) *Response {
 	if err != nil {
 		flash.Old(req, req.Only("name", "email"))
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/register")
+		return flash.WithError(req, c.authMsg(err), "/register")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Registered", "id": user.AuthID()}).Status(201)
+		return JSON(map[string]any{"message": c.lang("auth.account_ready"), "id": user.AuthID()}).Status(201)
 	}
-	return flash.WithSuccess(req, "Welcome! Your account is ready.", "/")
+	return flash.WithSuccess(req, c.lang("auth.account_ready"), "/")
 }
 
 func (c *AuthController) ProfileForm(req *Request) *Response {
@@ -127,20 +142,20 @@ func (c *AuthController) UpdateProfile(req *Request) *Response {
 	v := validation.Make(req.All(), map[string]string{"name": "required|min:2", "email": "required|email"})
 	if v.Fails() {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, "Please fix the highlighted fields.", "/profile")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/profile")
 	}
 	if err := auth.From(c.App).UpdateProfile(req, req.Input("name"), req.Input("email")); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/profile")
+		return flash.WithError(req, c.authMsg(err), "/profile")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Profile updated."})
+		return JSON(map[string]any{"message": c.lang("auth.profile_updated")})
 	}
-	return flash.WithSuccess(req, "Profile updated.", "/profile")
+	return flash.WithSuccess(req, c.lang("auth.profile_updated"), "/profile")
 }
 
 func (c *AuthController) ChangePasswordForm(req *Request) *Response {
@@ -153,20 +168,20 @@ func (c *AuthController) ChangePassword(req *Request) *Response {
 	})
 	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, "Please fix the highlighted fields.", "/password/change")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/password/change")
 	}
 	if err := auth.From(c.App).ChangePassword(req, req.Input("current_password"), req.Input("password")); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/password/change")
+		return flash.WithError(req, c.authMsg(err), "/password/change")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Password updated."})
+		return JSON(map[string]any{"message": c.lang("auth.password_updated")})
 	}
-	return flash.WithSuccess(req, "Password updated.", "/")
+	return flash.WithSuccess(req, c.lang("auth.password_updated"), "/")
 }
 
 func (c *AuthController) TwoFactorForm(req *Request) *Response {
@@ -201,9 +216,9 @@ func (c *AuthController) EnableTwoFactor(req *Request) *Response {
 	secret, url, codes, err := auth.From(c.App).EnableTwoFactor(auth.From(c.App).User(req))
 	if err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Put("auth.two_factor_setup", map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
@@ -211,15 +226,15 @@ func (c *AuthController) EnableTwoFactor(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
 	}
-	return flash.WithSuccess(req, "Confirm with an authenticator code.", "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_confirm_hint"), "/user/two-factor")
 }
 
 func (c *AuthController) ConfirmTwoFactor(req *Request) *Response {
 	if err := auth.From(c.App).ConfirmTwoFactor(auth.From(c.App).User(req), req.Input("code")); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Forget("auth.two_factor_setup")
@@ -227,29 +242,29 @@ func (c *AuthController) ConfirmTwoFactor(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, "Two-factor authentication enabled.", "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_enabled"), "/user/two-factor")
 }
 
 func (c *AuthController) DisableTwoFactor(req *Request) *Response {
 	if err := auth.From(c.App).DisableTwoFactor(auth.From(c.App).User(req), auth.NormalizePasswordField(req)); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, "Two-factor authentication disabled.", "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_disabled"), "/user/two-factor")
 }
 
 func (c *AuthController) RegenerateRecoveryCodes(req *Request) *Response {
 	codes, err := auth.From(c.App).ReplaceRecoveryCodes(auth.From(c.App).User(req))
 	if err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Flash("auth.two_factor_recovery_codes", codes)
@@ -257,7 +272,7 @@ func (c *AuthController) RegenerateRecoveryCodes(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"recovery_codes": codes})
 	}
-	return flash.WithSuccess(req, "Recovery codes regenerated.", "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.recovery_regenerated"), "/user/two-factor")
 }
 
 func (c *AuthController) LogoutOtherDevicesForm(req *Request) *Response {
@@ -267,14 +282,14 @@ func (c *AuthController) LogoutOtherDevicesForm(req *Request) *Response {
 func (c *AuthController) LogoutOtherDevices(req *Request) *Response {
 	if err := auth.From(c.App).LogoutOtherDevices(req, auth.NormalizePasswordField(req)); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(422)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, err.Error(), "/user/logout-other-devices")
+		return flash.WithError(req, c.authMsg(err), "/user/logout-other-devices")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, "Other devices logged out.", "/user/logout-other-devices")
+	return flash.WithSuccess(req, c.lang("auth.other_devices_logged_out"), "/user/logout-other-devices")
 }
 
 func (c *AuthController) ForgotForm(req *Request) *Response {
@@ -289,28 +304,28 @@ func (c *AuthController) Forgot(req *Request) *Response {
 	if v.Fails() {
 		flash.Old(req, req.Only("email"))
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, "Please provide a valid email.", "/forgot-password")
+		return flash.WithError(req, c.lang("auth.provide_email"), "/forgot-password")
 	}
 	email := req.Input("email")
 	resetURL := c.App.URL().To("/reset-password")
 	if err := auth.Passwords(c.App).SendResetLink(email, resetURL); err != nil {
 		if errors.Is(err, auth.ErrResetThrottled) {
 			if req.WantsJSON() {
-				return JSON(map[string]any{"message": "Please wait before retrying."}).Status(429)
+				return JSON(map[string]any{"message": c.lang("auth.reset_throttled")}).Status(429)
 			}
-			return flash.WithError(req, "Please wait before retrying.", "/forgot-password")
+			return flash.WithError(req, c.lang("auth.reset_throttled"), "/forgot-password")
 		}
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "If the account exists, a reset link was sent."})
+			return JSON(map[string]any{"message": c.lang("auth.reset_link_if_exists")})
 		}
-		return flash.WithSuccess(req, "If the account exists, a reset link was sent.", "/forgot-password")
+		return flash.WithSuccess(req, c.lang("auth.reset_link_if_exists"), "/forgot-password")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "If the account exists, a reset link was sent."})
+		return JSON(map[string]any{"message": c.lang("auth.reset_link_if_exists")})
 	}
-	return flash.WithSuccess(req, "If the account exists, a reset link was sent.", "/forgot-password")
+	return flash.WithSuccess(req, c.lang("auth.reset_link_if_exists"), "/forgot-password")
 }
 
 func (c *AuthController) ResetForm(req *Request) *Response {
@@ -328,20 +343,20 @@ func (c *AuthController) Reset(req *Request) *Response {
 	})
 	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Validation failed"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, "Invalid reset payload.", "/reset-password")
+		return flash.WithError(req, c.lang("auth.invalid_reset_payload"), "/reset-password")
 	}
 	if err := auth.Passwords(c.App).Reset(req.Input("email"), req.Input("token"), req.Input("password")); err != nil {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": err.Error()}).Status(400)
+			return JSON(map[string]any{"message": c.authMsg(err)}).Status(400)
 		}
-		return flash.WithError(req, err.Error(), "/reset-password")
+		return flash.WithError(req, c.authMsg(err), "/reset-password")
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Password has been reset."})
+		return JSON(map[string]any{"message": c.lang("auth.password_reset")})
 	}
-	return flash.WithSuccess(req, "Password has been reset. You can sign in.", "/login")
+	return flash.WithSuccess(req, c.lang("auth.password_reset"), "/login")
 }
 
 func (c *AuthController) Notice(req *Request) *Response {
@@ -356,11 +371,11 @@ func (c *AuthController) Notice(req *Request) *Response {
 func (c *AuthController) Send(req *Request) *Response {
 	user := auth.From(c.App).User(req)
 	if user == nil {
-		return JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+		return JSON(map[string]any{"message": c.lang("auth.unauthenticated")}).Status(401)
 	}
 	if auth.HasVerifiedEmail(user) {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Already verified."})
+			return JSON(map[string]any{"message": c.lang("auth.already_verified")})
 		}
 		return Redirect("/")
 	}
@@ -373,13 +388,13 @@ func (c *AuthController) Send(req *Request) *Response {
 	}
 	_ = mail.From(c.App).To(email, "Verify Email Address", "Please verify your email:\n\n"+link)
 	if req.WantsJSON() {
-		payload := map[string]any{"message": "Verification link sent."}
+		payload := map[string]any{"message": c.lang("auth.verify_email_sent")}
 		if c.App.IsDebug() {
 			payload["url"] = link
 		}
 		return JSON(payload)
 	}
-	return flash.WithSuccess(req, "Verification link sent.", "/email/verify")
+	return flash.WithSuccess(req, c.lang("auth.verify_email_sent"), "/email/verify")
 }
 
 func (c *AuthController) Verify(req *Request) *Response {
@@ -401,12 +416,12 @@ func (c *AuthController) Verify(req *Request) *Response {
 		return JSON(map[string]any{"message": "Invalid email hash"}).Status(403)
 	}
 	if err := auth.From(c.App).MarkEmailAsVerified(req, user); err != nil {
-		return JSON(map[string]any{"message": err.Error()}).Status(500)
+		return JSON(map[string]any{"message": c.authMsg(err)}).Status(500)
 	}
 	if req.WantsJSON() {
-		return JSON(map[string]any{"message": "Email verified."})
+		return JSON(map[string]any{"message": c.lang("auth.email_verified")})
 	}
-	return flash.WithSuccess(req, "Email verified.", "/")
+	return flash.WithSuccess(req, c.lang("auth.email_verified"), "/")
 }
 
 
@@ -417,9 +432,9 @@ func (c *AuthController) ConfirmPasswordForm(req *Request) *Response {
 func (c *AuthController) ConfirmPassword(req *Request) *Response {
 	if !auth.From(c.App).ConfirmPassword(req, auth.NormalizePasswordField(req)) {
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Invalid password"}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.invalid_password")}).Status(422)
 		}
-		return flash.WithError(req, "Invalid password", "/confirm-password")
+		return flash.WithError(req, c.lang("auth.invalid_password"), "/confirm-password")
 	}
 	auth.MarkPasswordConfirmed(req)
 	if req.WantsJSON() {
@@ -438,14 +453,14 @@ func (c *AuthController) TwoFactorChallenge(req *Request) *Response {
 	if err != nil || !ok {
 		if errors.Is(err, auth.ErrLockout) {
 			if req.WantsJSON() {
-				return JSON(map[string]any{"message": "Too many attempts. Try again later."}).Status(429)
+				return JSON(map[string]any{"message": c.lang("auth.lockout")}).Status(429)
 			}
-			return flash.WithError(req, "Too many attempts. Try again later.", "/two-factor-challenge")
+			return flash.WithError(req, c.lang("auth.lockout"), "/two-factor-challenge")
 		}
 		if req.WantsJSON() {
-			return JSON(map[string]any{"message": "Invalid authentication code."}).Status(422)
+			return JSON(map[string]any{"message": c.lang("auth.invalid_code")}).Status(422)
 		}
-		return flash.WithError(req, "Invalid authentication code.", "/two-factor-challenge")
+		return flash.WithError(req, c.lang("auth.invalid_code"), "/two-factor-challenge")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"authenticated": true})

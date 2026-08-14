@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -137,7 +138,7 @@ func (m *Manager) EnableTwoFactor(user Authenticatable) (secret, otpauthURL stri
 func (m *Manager) ConfirmTwoFactor(user Authenticatable, code string) error {
 	secret, _, _ := m.twoFactorValues(user)
 	if secret == "" || !totp.Verify(secret, strings.TrimSpace(code)) {
-		return fmt.Errorf("invalid two-factor code")
+		return errors.New("auth.invalid_code")
 	}
 	return m.updateTwoFactor(user, map[string]any{"two_factor_confirmed_at": time.Now().UTC()})
 }
@@ -145,7 +146,7 @@ func (m *Manager) ConfirmTwoFactor(user Authenticatable, code string) error {
 // DisableTwoFactor removes all second-factor data after password confirmation.
 func (m *Manager) DisableTwoFactor(user Authenticatable, password string) error {
 	if user == nil || !hashing.Check(password, user.AuthPassword()) {
-		return fmt.Errorf("current password is incorrect")
+		return ErrCurrentPassword
 	}
 	return m.updateTwoFactor(user, map[string]any{
 		"two_factor_secret": nil, "two_factor_recovery_codes": nil, "two_factor_confirmed_at": nil,
@@ -221,7 +222,7 @@ func (m *Manager) ChallengeTwoFactor(req *http.Request, code string, rememberDev
 				return false, ErrLockout
 			}
 		}
-		return false, fmt.Errorf("invalid two-factor code")
+		return false, errors.New("auth.invalid_code")
 	}
 	if m.lockouts != nil {
 		m.lockouts.clear(twoFactorLockoutKey(req, id))

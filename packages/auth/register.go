@@ -27,29 +27,29 @@ type PasswordUpdater interface {
 // Register creates a user and optionally logs them in.
 func (m *Manager) Register(req *http.Request, attrs map[string]any, login ...bool) (Authenticatable, error) {
 	if m == nil || m.Guard() == nil {
-		return nil, fmt.Errorf("auth guard unavailable")
+		return nil, ErrGuardUnavailable
 	}
 	provider := m.Guard().Provider()
 	creator, ok := provider.(UserCreator)
 	if !ok || creator == nil {
-		return nil, fmt.Errorf("user provider does not support registration")
+		return nil, ErrProviderNoRegister
 	}
 
 	email := strings.TrimSpace(fmt.Sprint(attrs["email"]))
 	if email == "" {
-		return nil, fmt.Errorf("email is required")
+		return nil, ErrEmailRequired
 	}
 	existing, err := provider.RetrieveByCredentials(map[string]string{"email": email})
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, fmt.Errorf("email already taken")
+		return nil, ErrEmailTaken
 	}
 
 	password := strings.TrimSpace(fmt.Sprint(attrs["password"]))
 	if password == "" {
-		return nil, fmt.Errorf("password is required")
+		return nil, ErrPasswordRequired
 	}
 	hashed, err := hashing.Hash(password)
 	if err != nil {
@@ -83,13 +83,13 @@ func (m *Manager) Register(req *http.Request, attrs map[string]any, login ...boo
 func (m *Manager) ChangePassword(req *http.Request, current, next string) error {
 	user := m.User(req)
 	if user == nil {
-		return fmt.Errorf("unauthenticated")
+		return ErrUnauthenticated
 	}
 	if !hashing.Check(current, user.AuthPassword()) {
-		return fmt.Errorf("current password is incorrect")
+		return ErrCurrentPassword
 	}
 	if strings.TrimSpace(next) == "" {
-		return fmt.Errorf("new password is required")
+		return ErrNewPasswordRequired
 	}
 	hashed, err := hashing.Hash(next)
 	if err != nil {
@@ -121,7 +121,7 @@ func (m *Manager) ChangePassword(req *http.Request, current, next string) error 
 		}
 	}
 	if !updated {
-		return fmt.Errorf("user provider does not support password updates")
+		return ErrProviderNoPassword
 	}
 
 	m.Guard().clearRememberCookie(req, user)

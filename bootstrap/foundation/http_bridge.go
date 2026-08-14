@@ -140,7 +140,13 @@ func (b *httpBridge) localeMiddleware() routing.MiddlewareFunc {
 					}
 				}
 				if locale == "" {
-					locale = negotiateLocale(req.Header("Accept-Language"), localization.Available(langPath))
+					// Prefer APP_LOCALE (translator default) over Accept-Language.
+					configured := strings.TrimSpace(strings.ToLower(tr.GetLocale()))
+					if configured != "" && localization.HasLocale(langPath, configured) {
+						locale = configured
+					} else {
+						locale = negotiateLocale(req.Header("Accept-Language"), localization.Available(langPath))
+					}
 				}
 				if locale != "" && localization.HasLocale(langPath, locale) {
 					tr.SetLocale(locale)

@@ -37,4 +37,4 @@ Config: `auth.two_factor.issuer`, `auth.two_factor.remember_device_days`, `auth.
 zatrano make:auth
 ```
 
-Wire `RegisterAuthWeb(app)` / `RegisterAuthAPI(app)` from your routes.
+Wire `RegisterAuthWeb(app)` / `RegisterAuthAPI(app)` from your routes. Scaffold flashes use `auth.*` locale keys (`APP_LOCALE` + `lang/{locale}/auth.json`). Package errors such as `auth.ErrEmailTaken` return those keys from `Error()`.

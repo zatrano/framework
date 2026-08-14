@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"errors"
 	"fmt"
 	stdhttp "net/http"
 	"net/http/httptest"
@@ -129,8 +130,8 @@ func TestRegisterAndChangePassword(t *testing.T) {
 	_, err = manager.Register(req, map[string]any{
 		"name": "Dup", "email": "ada@zatrano.test", "password": "secret1",
 	}, false)
-	if err == nil || err.Error() != "email already taken" {
-		t.Fatalf("expected email already taken, got %v", err)
+	if err == nil || !errors.Is(err, auth.ErrEmailTaken) {
+		t.Fatalf("expected ErrEmailTaken, got %v", err)
 	}
 
 	if err := manager.ChangePassword(req, "wrong", "secret2"); err == nil {

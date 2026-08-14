@@ -513,10 +513,10 @@ func (m *Manager) ViaRemember(req *http.Request) bool          { return m.Guard(
 func (m *Manager) LogoutOtherDevices(req *http.Request, password string) error {
 	user := m.User(req)
 	if user == nil {
-		return fmt.Errorf("unauthenticated")
+		return ErrUnauthenticated
 	}
 	if !hashing.Check(password, user.AuthPassword()) {
-		return fmt.Errorf("current password is incorrect")
+		return ErrCurrentPassword
 	}
 	if rp, ok := m.Guard().Provider().(RememberTokenProvider); ok {
 		if err := rp.UpdateRememberToken(user, ""); err != nil {

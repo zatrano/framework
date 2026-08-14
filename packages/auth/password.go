@@ -260,7 +260,7 @@ func (b *PasswordBroker) SendResetLink(email, resetURL string) error {
 func (b *PasswordBroker) Reset(email, token, password string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if !b.tokens.Exists(email, token) {
-		return fmt.Errorf("invalid or expired reset token")
+		return ErrResetTokenInvalid
 	}
 	user, err := b.users.RetrieveByCredentials(map[string]string{"email": email})
 	if err != nil {

@@ -12,12 +12,12 @@ import (
 func (m *Manager) UpdateProfile(req *http.Request, name, email string) error {
 	user := m.User(req)
 	if user == nil {
-		return fmt.Errorf("unauthenticated")
+		return ErrUnauthenticated
 	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
-		return fmt.Errorf("name and email are required")
+		return ErrNameEmailRequired
 	}
 
 	currentEmail := EmailForVerification(user)
@@ -29,13 +29,13 @@ func (m *Manager) UpdateProfile(req *http.Request, name, email string) error {
 			return err
 		}
 		if existing != nil && fmt.Sprint(existing.AuthID()) != fmt.Sprint(user.AuthID()) {
-			return fmt.Errorf("email already taken")
+			return ErrEmailTaken
 		}
 	}
 
 	updater, ok := m.Guard().Provider().(AttributeUpdater)
 	if !ok {
-		return fmt.Errorf("user provider does not support profile updates")
+		return ErrProviderNoProfile
 	}
 	if err := updater.UpdateAttributes(user.AuthID(), attrs); err != nil {
 		return err

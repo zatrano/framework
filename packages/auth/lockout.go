@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,7 +11,7 @@ import (
 )
 
 // ErrLockout is returned when login attempts are temporarily throttled.
-var ErrLockout = fmt.Errorf("too many login attempts")
+var ErrLockout = errors.New("auth.lockout")
 
 // AttemptCounter is optional shared storage for lockouts (typically a cache store).
 type AttemptCounter interface {
