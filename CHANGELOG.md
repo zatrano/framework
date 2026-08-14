@@ -2,6 +2,18 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.3 - 2026-08-14
+
+### Added
+
+- Auth user-facing errors as localization keys (`auth.email_taken`, `auth.lockout`, …)
+- Built-in `localization/defaults/{en,tr}/auth.json`
+- `make:auth` HTML stubs fully use `@lang('auth.*')`; controller stub uses `lang()` / `authMsg()`
+
+### Changed
+
+- Locale middleware priority: session → **APP_LOCALE** → Accept-Language (browser no longer overrides configured locale by default)
+
 ## 1.0.2 - 2026-08-13
 
 ### Fixed
