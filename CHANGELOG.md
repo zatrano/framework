@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.5 - 2026-08-15
+
+### Fixed
+
+- Remove unused `rewriteAlias` (staticcheck U1000) left after foreach parent-scope rewrite
+
 ## 1.0.4 - 2026-08-15
 
 ### Fixed

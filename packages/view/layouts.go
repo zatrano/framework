@@ -357,19 +357,6 @@ func (e *Engine) expandEach(content string, seen []string, bags map[string]*stac
 	return out, firstErr
 }
 
-func rewriteAlias(partial, alias string) string {
-	if alias == "" {
-		return partial
-	}
-	reWhole := regexp.MustCompile(`\{\{\s*\$` + regexp.QuoteMeta(alias) + `\s*\}\}`)
-	partial = reWhole.ReplaceAllString(partial, `{{ . }}`)
-	reRaw := regexp.MustCompile(`\{!!\s*\$` + regexp.QuoteMeta(alias) + `\s*!!\}`)
-	partial = reRaw.ReplaceAllString(partial, `{{ . }}`)
-	reField := regexp.MustCompile(`\$` + regexp.QuoteMeta(alias) + `\.([a-zA-Z0-9_]+)`)
-	partial = reField.ReplaceAllString(partial, `$$$1`)
-	return partial
-}
-
 func applyOnce(content string, once map[string]bool) string {
 	if once == nil {
 		once = map[string]bool{}
