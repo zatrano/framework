@@ -12,7 +12,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.0.3-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.0.5-green.svg" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -22,6 +22,16 @@
   <a href="https://zatrano.com/docs/package-ecosystem">Package Ecosystem</a> ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
 </p>
+
+---
+
+## The story
+
+ZATRANO did not start as a weekend experiment. Since **February 2018**, it has been shaped in real products — the hard lessons of shipping, iterating, and living with an application framework day after day. Routing, views, auth, persistence, and the rest grew into a coherent toolkit because they had to earn their place in production, not because a checklist said so.
+
+In **August 2026**, that long private journey opened to the world: ZATRANO became **open source** under the MIT license. The thin-kernel **v1** line is the public face of years of craft — the same opinionated Go web stack, now shared so other artisans can build on it, fork it, and push it further.
+
+Eight years of quiet work. One clear release. Welcome aboard.
 
 ---
 
@@ -83,8 +93,6 @@ Open [http://localhost:8080](http://localhost:8080).
 As a module dependency:
 
 ```bash
-go get github.com/zatrano/framework@v1.0.3
-# or track the latest tagged release
 go get github.com/zatrano/framework@latest
 ```
 
