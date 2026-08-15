@@ -292,3 +292,56 @@ func TestUnlessInsideForeach(t *testing.T) {
 		t.Fatalf("parent @unless lost inside template: %s", out)
 	}
 }
+
+func TestForeachRootDottedCollection(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, "partials"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "partials", "pagination.html"), []byte(`
+@if($pagination.Pages > 1)
+<nav class="pager">
+@foreach($pagination.Links as $link)
+@if($link.Active)
+<span class="cur">{{ $link.Label }}</span>
+@else
+<a href="{{ $link.URL }}">{{ $link.Label }}</a>
+@endif
+@endforeach
+@if($pagination.HasNext)
+<a class="next" href="{{ $pagination.NextURL }}">next</a>
+@endif
+</nav>
+@endif
+`), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "index.html"), []byte(`
+@foreach($invitations as $inv)
+<p class="inv">{{ $inv.Venue }}</p>
+@endforeach
+@include('partials.pagination')
+`), 0o644)
+
+	engine := view.New(dir)
+	out, err := engine.Render("index", map[string]any{
+		"invitations": []map[string]any{{"Venue": "Hall A"}},
+		"pagination": map[string]any{
+			"Pages":   3,
+			"HasNext": true,
+			"NextURL": "?p=2",
+			"Links": []map[string]any{
+				{"Label": "1", "URL": "?p=1", "Active": true},
+				{"Label": "2", "URL": "?p=2", "Active": false},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `class="inv">Hall A`) {
+		t.Fatalf("list missing: %s", out)
+	}
+	if !strings.Contains(out, `class="cur">1`) || !strings.Contains(out, `href="?p=2">2`) {
+		t.Fatalf("pagination links missing: %s", out)
+	}
+	if !strings.Contains(out, `class="next" href="?p=2"`) {
+		t.Fatalf("pagination HasNext missing: %s", out)
+	}
+}

@@ -285,6 +285,10 @@ func (e *Engine) compileBladeLike(input string) (string, error) {
 }
 
 func compileForeachBlocks(input string) string {
+	return compileForeachBlocksScoped(input, nil)
+}
+
+func compileForeachBlocksScoped(input string, aliases map[string]bool) string {
 	const openTag = "@foreach"
 	const closeTag = "@endforeach"
 	for {
@@ -331,10 +335,16 @@ func compileForeachBlocks(input string) string {
 		keyAlias := match[2]
 		alias := match[3]
 		body := input[bodyStart:end]
-		// Nested @foreach first (while $section.pages paths are still intact).
-		body = compileForeachBlocks(body)
+		childAliases := copyForeachAliases(aliases)
+		childAliases[alias] = true
+		if keyAlias != "" {
+			childAliases[keyAlias] = true
+		}
+		// Nested loops see parent aliases (section.pages → $section); root dotted
+		// paths stay dataGet $ "pagination.Links".
+		body = compileForeachBlocksScoped(body, childAliases)
+		coll := foreachCollectionExpr(path, aliases)
 		var compiled string
-		coll := foreachCollectionExpr(path)
 		if keyAlias != "" {
 			if len(alias) >= len(keyAlias) {
 				body = rewriteNamedRangeAlias(body, alias)
@@ -354,10 +364,20 @@ func compileForeachBlocks(input string) string {
 	}
 }
 
-// foreachCollectionExpr compiles $nav / $section.pages into a Go pipeline.
-// Root paths use the Execute root `$`; dotted paths use the leading alias
-// (e.g. section.pages → dataGet $section "pages") for nested loops.
-func foreachCollectionExpr(path string) string {
+func copyForeachAliases(src map[string]bool) map[string]bool {
+	dst := make(map[string]bool, len(src)+2)
+	for k, v := range src {
+		if v {
+			dst[k] = true
+		}
+	}
+	return dst
+}
+
+// foreachCollectionExpr compiles $nav / $pagination.Links / $section.pages.
+// If the dotted head is an in-scope range alias, use dataGet $head "rest";
+// otherwise treat the full path as root data (dataGet $ "path").
+func foreachCollectionExpr(path string, aliases map[string]bool) string {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return `dataGet $ ""`
@@ -365,7 +385,10 @@ func foreachCollectionExpr(path string) string {
 	if i := strings.IndexByte(path, '.'); i > 0 {
 		head := path[:i]
 		rest := path[i+1:]
-		return fmt.Sprintf(`dataGet $%s %q`, head, rest)
+		if aliases[head] {
+			return fmt.Sprintf(`dataGet $%s %q`, head, rest)
+		}
+		return fmt.Sprintf(`dataGet $ %q`, path)
 	}
 	return fmt.Sprintf(`dataGet $ %q`, path)
 }
@@ -495,8 +518,9 @@ func compileForelseBlocks(input string) string {
 		main, empty := splitForelseEmpty(match[3])
 		main = rewriteNamedRangeAlias(main, alias)
 		main = rewriteForeachParentLookups(main, alias)
+		coll := foreachCollectionExpr(path, nil)
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet $ %q)) }}{{ range $__zfi, $%s := %s }}%s{{ end }}{{ else }}%s{{ end }}`, path, alias, foreachCollectionExpr(path), main, empty))
+		b.WriteString(fmt.Sprintf(`{{ if not (empty (%s)) }}{{ range $__zfi, $%s := %s }}%s{{ end }}{{ else }}%s{{ end }}`, coll, alias, coll, main, empty))
 		return b.String()
 	})
 }

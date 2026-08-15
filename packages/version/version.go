@@ -8,7 +8,7 @@ import (
 
 var (
 	mu      sync.RWMutex
-	current = "1.0.7"
+	current = "1.0.8"
 )
 
 // Set overrides the runtime version (tests / build injection).

@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.8 - 2026-08-15
+
+### Fixed
+
+- Foreach root dotted collection vs range-alias head: `@foreach($pagination.Links as $link)` → `dataGet $ "pagination.Links"`; nested `@foreach($section.pages …)` still uses `$section` when the head is an in-scope alias
+
 ## 1.0.7 - 2026-08-15
 
 ### Fixed
