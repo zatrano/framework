@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.6 - 2026-08-15
+
+### Fixed
+
+- Nested `@foreach($section.pages as $link)` (docs sidebar): compile inner loops before parent rewrite; dotted collections resolve via `$section`; `@if($link.active)` uses the range var correctly
+- Parent lookups in loops use Go’s stable Execute root `$` (avoids nested `$__zparent` overwrite)
+
 ## 1.0.5 - 2026-08-15
 
 ### Fixed

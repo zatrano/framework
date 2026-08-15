@@ -55,6 +55,53 @@ func TestForeachPreservesParentScopeAndCSRF(t *testing.T) {
 	}
 }
 
+func TestNestedForeachSectionPages(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "nav.html"), []byte(`
+@foreach($nav as $section)
+<section data-title="{{ $section.title }}">
+@foreach($section.pages as $link)
+@if($link.active)
+<a class="active" href="{{ $link.href }}">{{ $link.title }}</a>
+@else
+<a href="{{ $link.href }}">{{ $link.title }}</a>
+@endif
+@endforeach
+</section>
+@endforeach
+@if($prev)
+<span class="prev">{{ $prev.title }}</span>
+@endif
+`), 0o644)
+
+	engine := view.New(dir)
+	out, err := engine.Render("nav", map[string]any{
+		"nav": []map[string]any{{
+			"title": "Prologue",
+			"pages": []map[string]any{
+				{"title": "Overview", "href": "/docs", "active": true},
+				{"title": "Releases", "href": "/docs/releases", "active": false},
+			},
+		}},
+		"prev": map[string]any{"title": "Home", "slug": ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `data-title="Prologue"`) {
+		t.Fatalf("section title missing: %s", out)
+	}
+	if !strings.Contains(out, `class="active" href="/docs">Overview`) {
+		t.Fatalf("active link missing: %s", out)
+	}
+	if !strings.Contains(out, `href="/docs/releases">Releases`) {
+		t.Fatalf("inactive link missing: %s", out)
+	}
+	if !strings.Contains(out, `class="prev">Home`) {
+		t.Fatalf("prev missing: %s", out)
+	}
+}
+
 func TestIfInequalityOperators(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "pager.html"), []byte(`
