@@ -214,3 +214,81 @@ func TestCsrfMetaNotBrokenByCsrf(t *testing.T) {
 		t.Fatalf("csrf missing: %s", out)
 	}
 }
+
+func TestUnlessInsideForeach(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "list.html"), []byte(`
+@foreach($invitations as $inv)
+<div class="row">
+@unless($inv.AdminExtras)
+<span class="venue">{{ $inv.Venue }}</span>
+@endunless
+@isset($inv.EditHref)
+<a class="edit" href="{{ $inv.EditHref }}">edit</a>
+@endisset
+@empty($inv.Venue)
+<span class="empty-venue">none</span>
+@endempty
+<select>
+@foreach($inv.Cats as $cat)
+<option @selected($cat.Selected)>{{ $cat.Label }}</option>
+@endforeach
+</select>
+</div>
+@endforeach
+@unless($show_admin_extras)
+<p class="parent-unless">hidden-when-admin</p>
+@endunless
+`), 0o644)
+
+	engine := view.New(dir)
+	out, err := engine.Render("list", map[string]any{
+		"show_admin_extras": false,
+		"invitations": []map[string]any{
+			{
+				"AdminExtras": false,
+				"Venue":       "Hall A",
+				"EditHref":    "/edit/1",
+				"Cats": []map[string]any{
+					{"Label": "One", "Selected": true},
+					{"Label": "Two", "Selected": false},
+				},
+			},
+			{
+				"AdminExtras": true,
+				"Venue":       "Hall B",
+				"Cats":        []map[string]any{},
+			},
+			{
+				"AdminExtras": false,
+				"Venue":       "",
+				"EditHref":    "/edit/3",
+				"Cats":        []map[string]any{},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `class="venue">Hall A`) {
+		t.Fatalf("unless should show venue when AdminExtras false: %s", out)
+	}
+	if strings.Contains(out, `class="venue">Hall B`) {
+		t.Fatalf("unless should hide venue when AdminExtras true: %s", out)
+	}
+	if !strings.Contains(out, `class="edit" href="/edit/1"`) {
+		t.Fatalf("isset EditHref missing: %s", out)
+	}
+	if !strings.Contains(out, `class="empty-venue">none`) {
+		t.Fatalf("empty Venue missing: %s", out)
+	}
+	if !strings.Contains(out, `selected>One`) && !strings.Contains(out, `selected="">One`) && !strings.Contains(out, ` selected>One`) {
+		// attrBool typically emits ` selected` or selected="selected"
+		if !strings.Contains(out, "One") || !strings.Contains(strings.ToLower(out), "selected") {
+			t.Fatalf("@selected inside foreach missing: %s", out)
+		}
+	}
+	if !strings.Contains(out, `class="parent-unless">hidden-when-admin`) {
+		t.Fatalf("parent @unless lost inside template: %s", out)
+	}
+}

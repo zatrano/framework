@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.7 - 2026-08-15
+
+### Fixed
+
+- Foreach alias rewrite: `@unless` / `@isset` / `@empty` and form attrs (`@selected` / `@checked` / …) compile `__ZRV_*` and `__ZPARENT__.*` (same precedence as `@if`) so loops no longer leave raw `@unless` + early `{{ end }}` → `undefined variable "$inv"`
+- `@elseif(__ZRV_alias__)` replacement uses `$$$1` (literal `$alias`), not `$$1`
+
 ## 1.0.6 - 2026-08-15
 
 ### Fixed

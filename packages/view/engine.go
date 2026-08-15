@@ -235,8 +235,11 @@ func (e *Engine) compileBladeLike(input string) (string, error) {
 	out = replaceAllRegex(out, `@class\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ classAttr (dataGet . "$1") }}`)
 	out = replaceAllRegex(out, `@style\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ styleAttr (dataGet . "$1") }}`)
 
-	// Form boolean attributes
+	// Form boolean attributes (ZPARENT / ZRV before bare $ — foreach alias rewrite).
 	for _, attr := range []string{"checked", "selected", "disabled", "readonly", "required"} {
+		out = replaceAllRegex(out, `@`+attr+`\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ attrBool (dataGet $ "$1") "`+attr+`" }}`)
+		out = replaceAllRegex(out, `@`+attr+`\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ attrBool (dataGet $$$1 "$2") "`+attr+`" }}`)
+		out = replaceAllRegex(out, `@`+attr+`\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ attrBool $$$1 "`+attr+`" }}`)
 		out = replaceAllRegex(out, `@`+attr+`\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ attrBool (dataGet . "$1") "`+attr+`" }}`)
 	}
 
@@ -255,13 +258,7 @@ func (e *Engine) compileBladeLike(input string) (string, error) {
 		return "", err
 	}
 
-	out = replaceAllRegex(out, `@unless\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if not (dataGet . "$1") }}`)
-	out = strings.ReplaceAll(out, "@endunless", "{{ end }}")
-
-	out = replaceAllRegex(out, `@isset\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if issetPath . "$1" }}`)
-	out = strings.ReplaceAll(out, "@endisset", "{{ end }}")
-	out = replaceAllRegex(out, `@empty\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if empty (dataGet . "$1") }}`)
-	out = strings.ReplaceAll(out, "@endempty", "{{ end }}")
+	out = compileUnlessIssetEmpty(out)
 
 	// Form / auth directives — @csrfMeta before @csrf (prefix collision).
 	out = strings.ReplaceAll(out, "@csrfMeta", `<meta name="csrf-token" content="{{ dataGet . "_token" }}">`)
@@ -693,7 +690,7 @@ func compileIfDirectives(out string) string {
 		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ if $$$1 }}`},
 		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if dataGet . "$1" }}`},
 		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ else if dataGet $$$1 "$2" }}`},
-		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ else if $$1 }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ else if $$$1 }}`},
 		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if dataGet . "$1" }}`},
 	}
 	for _, r := range rules {
@@ -702,6 +699,38 @@ func compileIfDirectives(out string) string {
 	// @else must not match @elseif (already consumed).
 	out = replaceAllRegex(out, `@else\b`, `{{ else }}`)
 	out = strings.ReplaceAll(out, "@endif", "{{ end }}")
+	return out
+}
+
+// compileUnlessIssetEmpty compiles @unless / @isset / @empty with the same
+// ZPARENT / ZRV / $ precedence as @if (foreach alias rewrite leaves tokens).
+func compileUnlessIssetEmpty(out string) string {
+	type rule struct {
+		pattern string
+		repl    string
+	}
+	rules := []rule{
+		{`@unless\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if not (dataGet $ "$1") }}`},
+		{`@unless\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ if not (dataGet $$$1 "$2") }}`},
+		{`@unless\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ if not $$$1 }}`},
+		{`@unless\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if not (dataGet . "$1") }}`},
+
+		{`@isset\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if issetPath $ "$1" }}`},
+		{`@isset\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ if issetPath $$$1 "$2" }}`},
+		{`@isset\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ if $$$1 }}`},
+		{`@isset\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if issetPath . "$1" }}`},
+
+		{`@empty\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if empty (dataGet $ "$1") }}`},
+		{`@empty\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ if empty (dataGet $$$1 "$2") }}`},
+		{`@empty\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ if empty $$$1 }}`},
+		{`@empty\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if empty (dataGet . "$1") }}`},
+	}
+	for _, r := range rules {
+		out = replaceAllRegex(out, r.pattern, r.repl)
+	}
+	out = strings.ReplaceAll(out, "@endunless", "{{ end }}")
+	out = strings.ReplaceAll(out, "@endisset", "{{ end }}")
+	out = strings.ReplaceAll(out, "@endempty", "{{ end }}")
 	return out
 }
 
@@ -749,14 +778,22 @@ func defaultFuncs() template.FuncMap {
 			_, ok := data[key]
 			return ok
 		},
-		"issetPath": func(data map[string]any, path string) bool {
+		"issetPath": func(data any, path string) bool {
 			if data == nil || path == "" {
 				return false
 			}
 			parts := strings.Split(path, ".")
 			if len(parts) == 1 {
-				_, ok := data[parts[0]]
-				return ok
+				switch m := data.(type) {
+				case map[string]any:
+					_, ok := m[parts[0]]
+					return ok
+				case map[string]string:
+					_, ok := m[parts[0]]
+					return ok
+				default:
+					return dataGet(data, path) != nil
+				}
 			}
 			parent := dataGet(data, strings.Join(parts[:len(parts)-1], "."))
 			if parent == nil {
