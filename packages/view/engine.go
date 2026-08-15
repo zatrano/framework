@@ -138,7 +138,10 @@ func (e *Engine) compile(name string) (*template.Template, error) {
 		return nil, err
 	}
 
-	parsed := e.compileBladeLike(resolved)
+	parsed, err := e.compileBladeLike(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("view [%s] compile error: %w", name, err)
+	}
 	tmpl, err := template.New(name).Funcs(funcMap).Parse(parsed)
 	if err != nil {
 		return nil, fmt.Errorf("view [%s] compile error: %w", name, err)
@@ -162,7 +165,7 @@ func (e *Engine) pathFor(name string) string {
 }
 
 // compileBladeLike converts a small Blade-like syntax into Go templates.
-func (e *Engine) compileBladeLike(input string) string {
+func (e *Engine) compileBladeLike(input string) (string, error) {
 	out := input
 
 	// Preserve verbatim blocks from further compilation.
@@ -247,19 +250,10 @@ func (e *Engine) compileBladeLike(input string) string {
 	// @switch / @case / @default / @break / @endswitch
 	out = compileSwitchBlocks(out)
 
-	// @if / @elseif with nested paths and simple == / != (string or number RHS)
-	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if dataGet . "$1" }}`)
-	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`)
-	out = replaceAllRegex(out, `@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if dataGet . "$1" }}`)
-	out = strings.ReplaceAll(out, "@else", "{{ else }}")
-	out = strings.ReplaceAll(out, "@endif", "{{ end }}")
+	out = compileIfDirectives(out)
+	if err := rejectUnsupportedIfDirectives(out); err != nil {
+		return "", err
+	}
 
 	out = replaceAllRegex(out, `@unless\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if not (dataGet . "$1") }}`)
 	out = strings.ReplaceAll(out, "@endunless", "{{ end }}")
@@ -269,9 +263,9 @@ func (e *Engine) compileBladeLike(input string) string {
 	out = replaceAllRegex(out, `@empty\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if empty (dataGet . "$1") }}`)
 	out = strings.ReplaceAll(out, "@endempty", "{{ end }}")
 
-	// Form / auth directives
-	out = strings.ReplaceAll(out, "@csrf", `<input type="hidden" name="_token" value="{{ dataGet . "_token" }}">`)
+	// Form / auth directives — @csrfMeta before @csrf (prefix collision).
 	out = strings.ReplaceAll(out, "@csrfMeta", `<meta name="csrf-token" content="{{ dataGet . "_token" }}">`)
+	out = strings.ReplaceAll(out, "@csrf", `<input type="hidden" name="_token" value="{{ dataGet . "_token" }}">`)
 	out = replaceAllRegex(out, `@method\s*\(\s*['"]([^'"]+)['"]\s*\)`, `<input type="hidden" name="_method" value="$1">`)
 	out = replaceAllRegex(out, `@old\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`, `{{ old . "$1" "$2" }}`)
 	out = replaceAllRegex(out, `@old\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ old . "$1" }}`)
@@ -290,7 +284,7 @@ func (e *Engine) compileBladeLike(input string) string {
 		out = strings.ReplaceAll(out, key, escapeVerbatim(body))
 	}
 
-	return restoreRangeVarTokens(out)
+	return restoreRangeVarTokens(out), nil
 }
 
 func compileForeachBlocks(input string) string {
@@ -349,12 +343,16 @@ func compileForeachBlocks(input string) string {
 				body = rewriteNamedRangeAlias(body, keyAlias)
 				body = rewriteNamedRangeAlias(body, alias)
 			}
+			body = rewriteForeachParentLookups(body, alias)
 			body = compileForeachBlocks(body)
-			compiled = fmt.Sprintf(`{{ range $%s, $%s := dataGet . %q }}%s{{ end }}`, keyAlias, alias, path, body)
+			compiled = fmt.Sprintf(`{{ $__zparent := . }}{{ range $%s, $%s := dataGet $__zparent %q }}%s{{ end }}`, keyAlias, alias, path, body)
 		} else {
-			body = rewriteAlias(body, alias)
+			// Named range alone is not enough: Go templates still set `.` to each
+			// element. Capture parent and rewrite remaining root lookups.
+			body = rewriteNamedRangeAlias(body, alias)
+			body = rewriteForeachParentLookups(body, alias)
 			body = compileForeachBlocks(body)
-			compiled = fmt.Sprintf(`{{ range dataGet . %q }}%s{{ end }}`, path, body)
+			compiled = fmt.Sprintf(`{{ $__zparent := . }}{{ range $__zfi, $%s := dataGet $__zparent %q }}%s{{ end }}`, alias, path, body)
 		}
 		input = input[:start] + compiled + input[end+len(closeTag):]
 	}
@@ -385,6 +383,57 @@ func rewriteNamedRangeAlias(body, alias string) string {
 	body = reWhole.ReplaceAllString(body, "{{ "+token+" }}")
 	reRawWhole := mustCompile(`\{!!\s*\$` + regexp.QuoteMeta(alias) + `\s*!!\}`)
 	body = reRawWhole.ReplaceAllString(body, "{{ "+token+" }}")
+	// Remaining $alias.field / $alias (for @if($alias.x), comparisons, etc.)
+	reAnyField := mustCompile(`\$` + regexp.QuoteMeta(alias) + `\.([a-zA-Z0-9_]+)`)
+	body = reAnyField.ReplaceAllString(body, token+".$1")
+	reAnyWhole := mustCompile(`\$` + regexp.QuoteMeta(alias) + `\b`)
+	body = reAnyWhole.ReplaceAllString(body, token)
+	return body
+}
+
+// rewriteForeachParentLookups rewrites root $vars inside a foreach body to read
+// from $__zparent (captured before range), since `.` becomes the loop element.
+func rewriteForeachParentLookups(body, itemAlias string) string {
+	reBrace := mustCompile(`\{\{\s*\$([a-zA-Z0-9_.]+)\s*\}\}`)
+	body = reBrace.ReplaceAllStringFunc(body, func(m string) string {
+		match := reBrace.FindStringSubmatch(m)
+		if len(match) != 2 {
+			return m
+		}
+		path := match[1]
+		if path == itemAlias || strings.HasPrefix(path, itemAlias+".") || strings.HasPrefix(path, "__ZRV_") {
+			return m
+		}
+		return fmt.Sprintf(`{{ dataGet $__zparent %q }}`, path)
+	})
+	reRaw := mustCompile(`\{!!\s*\$([a-zA-Z0-9_.]+)\s*!!\}`)
+	body = reRaw.ReplaceAllStringFunc(body, func(m string) string {
+		match := reRaw.FindStringSubmatch(m)
+		if len(match) != 2 {
+			return m
+		}
+		path := match[1]
+		if path == itemAlias || strings.HasPrefix(path, itemAlias+".") || strings.HasPrefix(path, "__ZRV_") {
+			return m
+		}
+		return fmt.Sprintf(`{{ safeStr (dataGet $__zparent %q) }}`, path)
+	})
+	// Directive / comparison paths: $foo → __ZPARENT__.foo (compiled later).
+	reAny := mustCompile(`\$([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)`)
+	body = reAny.ReplaceAllStringFunc(body, func(m string) string {
+		path := strings.TrimPrefix(m, "$")
+		if path == itemAlias || strings.HasPrefix(path, itemAlias+".") {
+			return m
+		}
+		if strings.HasPrefix(path, "__ZRV_") || strings.HasPrefix(path, "__ZPARENT__") || path == "__zparent" || path == "__zfi" {
+			return m
+		}
+		// Skip already rewritten mustache (no leading $ left there).
+		return "__ZPARENT__." + path
+	})
+	// @csrf reads _token from parent scope (`.` is the loop item).
+	body = strings.ReplaceAll(body, "@csrfMeta", `<meta name="csrf-token" content="{{ dataGet $__zparent "_token" }}">`)
+	body = strings.ReplaceAll(body, "@csrf", `<input type="hidden" name="_token" value="{{ dataGet $__zparent "_token" }}">`)
 	return body
 }
 
@@ -413,9 +462,10 @@ func compileForelseBlocks(input string) string {
 		path := match[1]
 		alias := match[2]
 		main, empty := splitForelseEmpty(match[3])
-		main = rewriteAlias(main, alias)
+		main = rewriteNamedRangeAlias(main, alias)
+		main = rewriteForeachParentLookups(main, alias)
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet . %q)) }}{{ range dataGet . %q }}%s{{ end }}{{ else }}%s{{ end }}`, path, path, main, empty))
+		b.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet . %q)) }}{{ $__zparent := . }}{{ range $__zfi, $%s := dataGet $__zparent %q }}%s{{ end }}{{ else }}%s{{ end }}`, path, alias, path, main, empty))
 		return b.String()
 	})
 }
@@ -508,6 +558,134 @@ func replaceAllRegex(input, pattern, repl string) string {
 	return re.ReplaceAllString(input, repl)
 }
 
+func compileIfDirectives(out string) string {
+	type rule struct {
+		pattern string
+		repl    string
+	}
+	// More specific operators first (>= before >, etc.).
+	rules := []rule{
+		// Parent-scope field (foreach) vs quoted string / number / inequalities / other vars
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ if eq (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ if ne (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGe (dataGet $__zparent "$1") $2 }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLe (dataGet $__zparent "$1") $2 }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGt (dataGet $__zparent "$1") $2 }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLt (dataGet $__zparent "$1") $2 }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if eq (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if ne (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>=\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGe (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<=\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLe (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGt (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLt (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@if\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ if dataGet $__zparent "$1" }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ else if eq (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ else if ne (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGe (dataGet $__zparent "$1") $2 }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLe (dataGet $__zparent "$1") $2 }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGt (dataGet $__zparent "$1") $2 }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLt (dataGet $__zparent "$1") $2 }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if eq (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if ne (printf "%v" (dataGet $__zparent "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>=\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGe (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<=\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLe (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*>\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGt (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*<\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLt (dataGet $__zparent "$1") (dataGet $__zparent "$2") }}`},
+		{`@elseif\s*\(\s*__ZPARENT__\.([a-zA-Z0-9_.]+)\s*\)`, `{{ else if dataGet $__zparent "$1" }}`},
+
+		// Range-var field vs quoted string
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ if eq (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ if ne (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ else if eq (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ else if ne (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+
+		// Range-var field vs number / inequalities
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGe (dataGet $$1 "$2") $3 }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLe (dataGet $$1 "$2") $3 }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGt (dataGet $$1 "$2") $3 }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLt (dataGet $$1 "$2") $3 }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if eq (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if ne (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGe (dataGet $$1 "$2") $3 }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLe (dataGet $$1 "$2") $3 }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGt (dataGet $$1 "$2") $3 }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLt (dataGet $$1 "$2") $3 }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if eq (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if ne (printf "%v" (dataGet $$1 "$2")) "$3" }}`},
+
+		// Range-var field vs other $var
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGe (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLe (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGt (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLt (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGe (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLe (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*>\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGt (dataGet $$1 "$2") (dataGet . "$3") }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*<\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLt (dataGet $$1 "$2") (dataGet . "$3") }}`},
+
+		// Root $var vs quoted string / number / inequalities / other $var
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGe (dataGet . "$1") $2 }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLe (dataGet . "$1") $2 }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpGt (dataGet . "$1") $2 }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if cmpLt (dataGet . "$1") $2 }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGe (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLe (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpGt (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if cmpLt (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if eq (printf "%v" (dataGet . "$1")) (printf "%v" (dataGet . "$2")) }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if ne (printf "%v" (dataGet . "$1")) (printf "%v" (dataGet . "$2")) }}`},
+
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*['"]([^'"]*)['"]\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*['"]([^'"]*)['"]\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGe (dataGet . "$1") $2 }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLe (dataGet . "$1") $2 }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpGt (dataGet . "$1") $2 }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if cmpLt (dataGet . "$1") $2 }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) "$2" }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGe (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLe (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*>\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpGt (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*<\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if cmpLt (dataGet . "$1") (dataGet . "$2") }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*==\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if eq (printf "%v" (dataGet . "$1")) (printf "%v" (dataGet . "$2")) }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*!=\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if ne (printf "%v" (dataGet . "$1")) (printf "%v" (dataGet . "$2")) }}`},
+
+		// Truthiness
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ if dataGet $$1 "$2" }}`},
+		{`@if\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ if $$1 }}`},
+		{`@if\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ if dataGet . "$1" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\.([a-zA-Z0-9_]+)\s*\)`, `{{ else if dataGet $$1 "$2" }}`},
+		{`@elseif\s*\(\s*__ZRV_([a-zA-Z0-9_]+)__\s*\)`, `{{ else if $$1 }}`},
+		{`@elseif\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ else if dataGet . "$1" }}`},
+	}
+	for _, r := range rules {
+		out = replaceAllRegex(out, r.pattern, r.repl)
+	}
+	// @else must not match @elseif (already consumed).
+	out = replaceAllRegex(out, `@else\b`, `{{ else }}`)
+	out = strings.ReplaceAll(out, "@endif", "{{ end }}")
+	return out
+}
+
+func rejectUnsupportedIfDirectives(out string) error {
+	re := mustCompile(`(?i)@(?:else)?if\s*\(`)
+	loc := re.FindStringIndex(out)
+	if loc == nil {
+		return nil
+	}
+	end := loc[1] + 80
+	if end > len(out) {
+		end = len(out)
+	}
+	snippet := strings.TrimSpace(out[loc[0]:end])
+	snippet = strings.ReplaceAll(snippet, "\n", " ")
+	return fmt.Errorf("unsupported @if/@elseif expression (supported: truthiness, ==, !=, >, >=, <, <=): %s", snippet)
+}
+
 func defaultFuncs() template.FuncMap {
 	return template.FuncMap{
 		"upper": strings.ToUpper,
@@ -520,6 +698,10 @@ func defaultFuncs() template.FuncMap {
 		"safeStr":       safeStr,
 		"dataGet":       dataGet,
 		"json":          toJSON,
+		"cmpGt":         cmpGt,
+		"cmpGe":         cmpGe,
+		"cmpLt":         cmpLt,
+		"cmpLe":         cmpLe,
 		"classAttr":     classAttr,
 		"styleAttr":     styleAttr,
 		"attrBool":      attrBool,

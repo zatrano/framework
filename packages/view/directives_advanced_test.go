@@ -12,7 +12,7 @@ import (
 func TestAdvancedViewDirectives(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(dir, "partials"), 0o755)
-	_ = os.WriteFile(filepath.Join(dir, "partials", "row.html"), []byte(`<li>{{ $title }}</li>`), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "partials", "row.html"), []byte(`<li>{{ $item.title }}</li>`), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "partials", "empty.html"), []byte(`<p>none</p>`), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "partials", "optional.html"), []byte(`<span>optional</span>`), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "page.html"), []byte(`
@@ -124,12 +124,12 @@ func TestExtendedViewDirectives(t *testing.T) {
 @endunless
 <ul>
 @foreach($users as $user)
-<li class="foreach">{{ $name }}</li>
+<li class="foreach">{{ $user.name }}</li>
 @endforeach
 </ul>
 <ul class="forelse">
 @forelse($tags as $tag)
-<li>{{ $label }}</li>
+<li>{{ $tag.label }}</li>
 @empty
 <li class="empty-tags">none</li>
 @endforelse

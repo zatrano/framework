@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.0.4 - 2026-08-15
+
+### Fixed
+
+- Routing: trailing slash normalization on dispatch (`/dashboard/` → `/dashboard`; `/` unchanged; query string kept) — seen integrating davet.link
+- Views: `@foreach` / `@forelse` / `@each` keep parent scope (`$var`, `$category.ID`, `@csrf` / `_token`) while row fields use `$item.*`
+- Views: `@if` / `@elseif` compile `>`, `>=`, `<`, `<=` (numeric); nested `@if`/`@else` inside `@include` partials stay matched
+- Views: unsupported `@if` operators fail fast with a clear compile error (no silent raw leftover / `{{else}}` drift)
+
+### Migration
+
+- Inside `@foreach($items as $item)`, prefer `$item.field` for row data. Bare `$field` now resolves against the **parent** view data (not the loop element). Templates that relied on the old “`.` = item” short names should switch to the alias prefix.
+
 ## 1.0.3 - 2026-08-14
 
 ### Added

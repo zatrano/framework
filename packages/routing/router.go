@@ -222,6 +222,8 @@ func (r *Router) Route(name string) (*Route, bool) {
 
 // Dispatch finds a matching route and executes it.
 func (r *Router) Dispatch(req *http.Request) *http.Response {
+	normalizeDispatchPath(req)
+
 	for _, route := range r.routes {
 		if route.Method != req.Method() {
 			continue
@@ -350,4 +352,16 @@ func compilePath(path string, wheres map[string]string) ([]string, *regexp.Regex
 		pattern = "^/$"
 	}
 	return names, regexp.MustCompile(pattern)
+}
+
+// normalizeDispatchPath strips a trailing slash from the request path (except "/")
+// so /dashboard and /dashboard/ match the same route. Query string is untouched.
+func normalizeDispatchPath(req *http.Request) {
+	if req == nil || req.Raw() == nil || req.Raw().URL == nil {
+		return
+	}
+	path := req.Raw().URL.Path
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		req.Raw().URL.Path = strings.TrimRight(path, "/")
+	}
 }

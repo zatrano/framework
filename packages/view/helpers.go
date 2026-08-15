@@ -344,3 +344,86 @@ func bladeValueExpr(val string) string {
 	}
 	return fmt.Sprintf("%q", val)
 }
+
+func toFloat64(v any) (float64, bool) {
+	if v == nil {
+		return 0, false
+	}
+	switch x := v.(type) {
+	case int:
+		return float64(x), true
+	case int8:
+		return float64(x), true
+	case int16:
+		return float64(x), true
+	case int32:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	case uint:
+		return float64(x), true
+	case uint8:
+		return float64(x), true
+	case uint16:
+		return float64(x), true
+	case uint32:
+		return float64(x), true
+	case uint64:
+		return float64(x), true
+	case float32:
+		return float64(x), true
+	case float64:
+		return x, true
+	case string:
+		var f float64
+		if _, err := fmt.Sscanf(strings.TrimSpace(x), "%f", &f); err == nil {
+			return f, true
+		}
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(rv.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(rv.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return rv.Float(), true
+	}
+	return 0, false
+}
+
+func cmpGt(a, b any) bool {
+	if af, aok := toFloat64(a); aok {
+		if bf, bok := toFloat64(b); bok {
+			return af > bf
+		}
+	}
+	return fmt.Sprint(a) > fmt.Sprint(b)
+}
+
+func cmpGe(a, b any) bool {
+	if af, aok := toFloat64(a); aok {
+		if bf, bok := toFloat64(b); bok {
+			return af >= bf
+		}
+	}
+	return fmt.Sprint(a) >= fmt.Sprint(b)
+}
+
+func cmpLt(a, b any) bool {
+	if af, aok := toFloat64(a); aok {
+		if bf, bok := toFloat64(b); bok {
+			return af < bf
+		}
+	}
+	return fmt.Sprint(a) < fmt.Sprint(b)
+}
+
+func cmpLe(a, b any) bool {
+	if af, aok := toFloat64(a); aok {
+		if bf, bok := toFloat64(b); bok {
+			return af <= bf
+		}
+	}
+	return fmt.Sprint(a) <= fmt.Sprint(b)
+}

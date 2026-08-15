@@ -333,10 +333,11 @@ func (e *Engine) expandEach(content string, seen []string, bags map[string]*stac
 			}
 			return "<!-- each error: " + err.Error() + " -->"
 		}
-		partial = rewriteAlias(partial, alias)
+		partial = rewriteNamedRangeAlias(partial, alias)
+		partial = rewriteForeachParentLookups(partial, alias)
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet . "%s")) }}`, collection))
-		sb.WriteString(fmt.Sprintf(`{{ range dataGet . "%s" }}`, collection))
+		sb.WriteString(fmt.Sprintf(`{{ $__zparent := . }}{{ range $__zfi, $%s := dataGet $__zparent "%s" }}`, alias, collection))
 		sb.WriteString(partial)
 		sb.WriteString(`{{ end }}`)
 		if emptyName != "" {
