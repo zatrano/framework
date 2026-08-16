@@ -1,0 +1,130 @@
+package database_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/zatrano/framework/packages/database"
+	"github.com/zatrano/framework/packages/database/query"
+	"github.com/zatrano/framework/packages/database/schema"
+)
+
+func TestBuildDSNAllDrivers(t *testing.T) {
+	cases := []struct {
+		name       string
+		cfg        database.ConnectionConfig
+		wantDriver string
+		wantSubstr string
+	}{
+		{
+			name:       "mysql",
+			cfg:        database.ConnectionConfig{Driver: "mysql", Host: "127.0.0.1", Port: "3306", Database: "zatrano", Username: "root", Password: "x"},
+			wantDriver: "mysql",
+			wantSubstr: "root:x@tcp(127.0.0.1:3306)/zatrano",
+		},
+		{
+			name:       "pgsql",
+			cfg:        database.ConnectionConfig{Driver: "pgsql", Host: "127.0.0.1", Port: "5432", Database: "zatrano", Username: "postgres", Password: "x", SSLMode: "require"},
+			wantDriver: "postgres",
+			wantSubstr: "user=postgres",
+		},
+		{
+			name:       "pgsql-ssl",
+			cfg:        database.ConnectionConfig{Driver: "pgsql", Host: "h", Port: "5432", Database: "d", Username: "u", Password: "p", SSLMode: "verify-full"},
+			wantDriver: "postgres",
+			wantSubstr: "sslmode=verify-full",
+		},
+		{
+			name:       "mssql",
+			cfg:        database.ConnectionConfig{Driver: "mssql", Host: "127.0.0.1", Port: "1433", Database: "zatrano", Username: "sa", Password: "Secret"},
+			wantDriver: "sqlserver",
+			wantSubstr: "database=zatrano",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			driver, dsn, err := database.BuildDSN(tc.cfg, t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if driver != tc.wantDriver {
+				t.Fatalf("driver=%q want %q", driver, tc.wantDriver)
+			}
+			if !strings.Contains(dsn, tc.wantSubstr) {
+				t.Fatalf("dsn %q missing %q", dsn, tc.wantSubstr)
+			}
+		})
+	}
+}
+
+func TestSchemaCreateSQLAllDrivers(t *testing.T) {
+	drivers := []string{"sqlite", "mysql", "pgsql", "mssql"}
+	for _, driver := range drivers {
+		t.Run(driver, func(t *testing.T) {
+			bp := schema.NewBlueprint("products", driver)
+			bp.ID()
+			bp.String("name")
+			bp.ForeignID("user_id").Constrained("users").CascadeOnDelete()
+			bp.JSON("meta")
+			bp.Boolean("active")
+			bp.Timestamps()
+			sql, err := bp.ToCreateSQL()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(sql, "CREATE TABLE products") {
+				t.Fatalf("bad sql: %s", sql)
+			}
+			switch driver {
+			case "mysql":
+				if !strings.Contains(sql, "BIGINT UNSIGNED") || !strings.Contains(sql, "JSON") {
+					t.Fatalf("mysql types: %s", sql)
+				}
+				// ForeignID must match ID unsigned
+				if strings.Count(sql, "BIGINT UNSIGNED") < 2 {
+					t.Fatalf("ForeignID should be UNSIGNED: %s", sql)
+				}
+			case "pgsql":
+				if !strings.Contains(sql, "BIGSERIAL") || !strings.Contains(sql, "JSONB") {
+					t.Fatalf("pgsql types: %s", sql)
+				}
+			case "mssql":
+				if !strings.Contains(sql, "IDENTITY(1,1)") || !strings.Contains(sql, "DATETIME2") {
+					t.Fatalf("mssql types: %s", sql)
+				}
+			case "sqlite":
+				if !strings.Contains(sql, "INTEGER") {
+					t.Fatalf("sqlite types: %s", sql)
+				}
+			}
+			if !strings.Contains(sql, "REFERENCES users(id)") {
+				t.Fatalf("missing FK: %s", sql)
+			}
+		})
+	}
+}
+
+func TestSchemaAlterSQLiteUsesAddColumn(t *testing.T) {
+	bp := schema.NewBlueprint("products", "sqlite")
+	bp.String("sku")
+	stmts, err := bp.ToAlterSQL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stmts) != 1 || !strings.Contains(stmts[0], "ADD COLUMN") {
+		t.Fatalf("got %#v", stmts)
+	}
+}
+
+func TestQueryRebindPostgresAndMSSQL(t *testing.T) {
+	pg := query.New(nil, "pgsql", "users")
+	sql, _ := pg.Where("email", "a@b.c").ToSQL()
+	if !strings.Contains(sql, "$1") {
+		t.Fatalf("pgsql rebind: %s", sql)
+	}
+	ms := query.New(nil, "mssql", "users")
+	sql, _ = ms.Where("email", "a@b.c").ToSQL()
+	if !strings.Contains(sql, "@p1") {
+		t.Fatalf("mssql rebind: %s", sql)
+	}
+}

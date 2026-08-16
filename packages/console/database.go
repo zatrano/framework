@@ -3,6 +3,7 @@ package console
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/microsoft/go-mssqldb"
 )
 
 func registerDatabaseCommands(console *Application, app *core.Application) {
@@ -107,7 +109,7 @@ type DBCreateCommand struct {
 
 func (c *DBCreateCommand) Name() string { return "db:create" }
 func (c *DBCreateCommand) Description() string {
-	return "Create the application database (MySQL/PostgreSQL)"
+	return "Create the application database (MySQL/PostgreSQL/SQL Server)"
 }
 func (c *DBCreateCommand) Handle(args []string) error {
 	_ = env.Load(c.app.BasePath(".env"))
@@ -121,19 +123,21 @@ func (c *DBCreateCommand) Handle(args []string) error {
 		return createMySQLDatabase()
 	case "pgsql", "postgres", "postgresql":
 		return createPostgresDatabase()
+	case "mssql", "sqlserver":
+		return createMSSQLDatabase()
 	default:
 		return fmt.Errorf("db:create does not support driver [%s]", driver)
 	}
 }
 
 func createMySQLDatabase() error {
-	name := env.Get("DB_DATABASE", "zatrano")
+	name := env.GetNonEmpty("DB_DATABASE", "zatrano")
 	if name == "" {
 		return fmt.Errorf("DB_DATABASE is empty")
 	}
 	host := env.Get("DB_HOST", "127.0.0.1")
-	port := env.Get("DB_PORT", "3306")
-	user := env.Get("DB_USERNAME", "root")
+	port := env.GetNonEmpty("DB_PORT", "3306")
+	user := env.GetNonEmpty("DB_USERNAME", "root")
 	pass := env.Get("DB_PASSWORD", "")
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/?parseTime=true&loc=Local", user, pass, host, port)
 	db, err := sql.Open("mysql", dsn)
@@ -153,15 +157,16 @@ func createMySQLDatabase() error {
 }
 
 func createPostgresDatabase() error {
-	name := env.Get("DB_DATABASE", "zatrano")
+	name := env.GetNonEmpty("DB_DATABASE", "zatrano")
 	if name == "" {
 		return fmt.Errorf("DB_DATABASE is empty")
 	}
 	host := env.Get("DB_HOST", "127.0.0.1")
-	port := env.Get("DB_PORT", "5432")
-	user := env.Get("DB_USERNAME", "postgres")
+	port := env.GetNonEmpty("DB_PORT", "5432")
+	user := env.GetNonEmpty("DB_USERNAME", "postgres")
 	pass := env.Get("DB_PASSWORD", "")
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", host, port, user, pass)
+	ssl := env.GetNonEmpty("DB_SSLMODE", "disable")
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s", host, port, user, pass, ssl)
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return err
@@ -178,11 +183,47 @@ func createPostgresDatabase() error {
 		fmt.Printf("Database [%s] already exists.\n", name)
 		return nil
 	}
-	// Identifier quoting — only allow simple names.
 	if strings.ContainsAny(name, "\"';\\") {
 		return fmt.Errorf("invalid database name [%s]", name)
 	}
 	if _, err := db.Exec(`CREATE DATABASE "` + name + `"`); err != nil {
+		return err
+	}
+	fmt.Printf("Database [%s] created.\n", name)
+	return nil
+}
+
+func createMSSQLDatabase() error {
+	name := env.GetNonEmpty("DB_DATABASE", "zatrano")
+	if name == "" {
+		return fmt.Errorf("DB_DATABASE is empty")
+	}
+	if strings.ContainsAny(name, "';\\[]") {
+		return fmt.Errorf("invalid database name [%s]", name)
+	}
+	host := env.Get("DB_HOST", "127.0.0.1")
+	port := env.GetNonEmpty("DB_PORT", "1433")
+	user := env.GetNonEmpty("DB_USERNAME", "sa")
+	pass := env.Get("DB_PASSWORD", "")
+	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=master",
+		url.QueryEscape(user), url.QueryEscape(pass), host, port)
+	db, err := sql.Open("sqlserver", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := db.Ping(); err != nil {
+		return err
+	}
+	var exists int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sys.databases WHERE name = @p1`, name).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		fmt.Printf("Database [%s] already exists.\n", name)
+		return nil
+	}
+	if _, err := db.Exec("CREATE DATABASE [" + name + "]"); err != nil {
 		return err
 	}
 	fmt.Printf("Database [%s] created.\n", name)

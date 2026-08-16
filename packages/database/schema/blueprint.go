@@ -63,6 +63,9 @@ func (b *Builder) Rename(from, to string) error {
 	case "mysql":
 		_, err := b.db.Exec(fmt.Sprintf("RENAME TABLE %s TO %s", from, to))
 		return err
+	case "mssql", "sqlserver":
+		_, err := b.db.Exec(fmt.Sprintf("EXEC sp_rename '%s', '%s'", from, to))
+		return err
 	case "sqlite", "sqlite3", "pgsql", "postgres", "postgresql":
 		_, err := b.db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", from, to))
 		return err
@@ -82,17 +85,14 @@ func (b *Builder) HasTable(table string) (bool, error) {
 		query = `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?`
 	case "pgsql", "postgres", "postgresql":
 		query = `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`
+	case "mssql", "sqlserver":
+		query = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = @p1`
 	default:
 		return false, fmt.Errorf("unsupported driver: %s", b.driver)
 	}
 
 	var count int
-	var err error
-	if strings.HasPrefix(b.driver, "pg") {
-		err = b.db.QueryRow(query, table).Scan(&count)
-	} else {
-		err = b.db.QueryRow(query, table).Scan(&count)
-	}
+	err := b.db.QueryRow(query, table).Scan(&count)
 	return count > 0, err
 }
 
@@ -101,7 +101,6 @@ func (b *Builder) HasColumn(table, column string) (bool, error) {
 	var query string
 	switch b.driver {
 	case "sqlite", "sqlite3":
-		// PRAGMA table_info cannot use bound params for table name safely here.
 		rows, err := b.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 		if err != nil {
 			return false, err
@@ -124,6 +123,8 @@ func (b *Builder) HasColumn(table, column string) (bool, error) {
 		query = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`
 	case "pgsql", "postgres", "postgresql":
 		query = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`
+	case "mssql", "sqlserver":
+		query = `SELECT COUNT(*) FROM information_schema.columns WHERE table_name = @p1 AND column_name = @p2`
 	default:
 		return false, fmt.Errorf("unsupported driver: %s", b.driver)
 	}
@@ -258,10 +259,10 @@ func (b *Blueprint) JSON(name string) *Column {
 	return col
 }
 
-// ForeignID adds an unsigned big integer foreign id column.
+// ForeignID adds an unsigned big integer foreign id column (matches ID() on MySQL).
 // Use Constrained(table) to append REFERENCES on CREATE TABLE; CascadeOnDelete sets ON DELETE CASCADE.
 func (b *Blueprint) ForeignID(name string) *Column {
-	col := &Column{Name: name, Type: "biginteger", Change: "add"}
+	col := &Column{Name: name, Type: "foreignid", Change: "add"}
 	b.columns = append(b.columns, col)
 	return col
 }
@@ -334,7 +335,14 @@ func (b *Blueprint) ToAlterSQL() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			statements = append(statements, fmt.Sprintf("ALTER TABLE %s ADD %s", b.table, def))
+			add := "ADD"
+			switch b.driver {
+			case "sqlite", "sqlite3":
+				add = "ADD COLUMN"
+			case "mssql", "sqlserver":
+				add = "ADD"
+			}
+			statements = append(statements, fmt.Sprintf("ALTER TABLE %s %s %s", b.table, add, def))
 		}
 	}
 	return statements, nil
@@ -356,6 +364,8 @@ func (b *Blueprint) columnSQL(col *Column) (string, error) {
 			// INTEGER PRIMARY KEY is autoincrement in SQLite.
 		case "pgsql", "postgres", "postgresql":
 			// SERIAL handled in typeSQL
+		case "mssql", "sqlserver":
+			// IDENTITY handled in typeSQL
 		}
 	}
 
@@ -390,26 +400,37 @@ func (b *Blueprint) typeSQL(col *Column) (string, error) {
 			return "BIGINT UNSIGNED", nil
 		case "pgsql", "postgres", "postgresql":
 			return "BIGSERIAL", nil
+		case "mssql", "sqlserver":
+			return "BIGINT IDENTITY(1,1)", nil
 		default:
 			return "INTEGER", nil
+		}
+	case "foreignid":
+		switch b.driver {
+		case "mysql":
+			return "BIGINT UNSIGNED", nil
+		default:
+			return "BIGINT", nil
 		}
 	case "string":
 		return fmt.Sprintf("VARCHAR(%d)", col.Length), nil
 	case "text":
-		return "TEXT", nil
+		switch b.driver {
+		case "mssql", "sqlserver":
+			return "NVARCHAR(MAX)", nil
+		default:
+			return "TEXT", nil
+		}
 	case "integer":
 		return "INTEGER", nil
 	case "biginteger":
-		switch b.driver {
-		case "mysql":
-			return "BIGINT", nil
-		default:
-			return "BIGINT", nil
-		}
+		return "BIGINT", nil
 	case "boolean":
 		switch b.driver {
 		case "mysql":
 			return "TINYINT(1)", nil
+		case "mssql", "sqlserver":
+			return "BIT", nil
 		default:
 			return "BOOLEAN", nil
 		}
@@ -417,6 +438,8 @@ func (b *Blueprint) typeSQL(col *Column) (string, error) {
 		switch b.driver {
 		case "pgsql", "postgres", "postgresql":
 			return "TIMESTAMP", nil
+		case "mssql", "sqlserver":
+			return "DATETIME2", nil
 		default:
 			return "DATETIME", nil
 		}
@@ -424,6 +447,10 @@ func (b *Blueprint) typeSQL(col *Column) (string, error) {
 		switch b.driver {
 		case "pgsql", "postgres", "postgresql":
 			return "JSONB", nil
+		case "mysql":
+			return "JSON", nil
+		case "mssql", "sqlserver":
+			return "NVARCHAR(MAX)", nil
 		default:
 			return "TEXT", nil
 		}

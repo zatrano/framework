@@ -28,7 +28,29 @@ jobs:
           --health-cmd="mysqladmin ping"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
+          --health-retries=5
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: zatrano
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d zatrano"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
       redis:
         image: redis:7.0
         ports:
@@ -65,7 +87,7 @@ jobs:
       - name: Download modules
         run: go mod download
 
-      - name: Execute tests
+      - name: Unit tests (sqlite)
         run: go test ./...
         env:
           APP_ENV: testing
@@ -77,6 +99,34 @@ jobs:
           SESSION_DRIVER: file
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: 6379
+          MONGO_URI: memory
+
+      - name: Live MySQL smoke
+        run: go test ./packages/database -run TestLiveDriverSmoke -count=1
+        env:
+          ZATRANO_LIVE_DB: '1'
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: zatrano
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+
+      - name: Live PostgreSQL smoke
+        run: go test ./packages/database -run TestLiveDriverSmoke -count=1
+        env:
+          ZATRANO_LIVE_DB: '1'
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_DATABASE: zatrano
+          DB_USERNAME: postgres
+          DB_PASSWORD: secret
+          DB_SSLMODE: disable
+
+      - name: Mongo package tests
+        working-directory: packages/mongo
+        run: go test . -count=1
 
   windows_tests:
     runs-on: windows-2022
@@ -122,3 +172,4 @@ jobs:
           CACHE_STORE: file
           QUEUE_CONNECTION: sync
           SESSION_DRIVER: file
+          MONGO_URI: memory

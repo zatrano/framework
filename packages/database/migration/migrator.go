@@ -197,6 +197,13 @@ func (r *Repository) CreateRepository() error {
 			migration VARCHAR(255) NOT NULL,
 			batch INT NOT NULL
 		)`
+	case "mssql", "sqlserver":
+		sqlStr = `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'migrations')
+		CREATE TABLE migrations (
+			id BIGINT IDENTITY(1,1) PRIMARY KEY,
+			migration VARCHAR(255) NOT NULL,
+			batch INT NOT NULL
+		)`
 	default:
 		sqlStr = `CREATE TABLE IF NOT EXISTS migrations (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -289,25 +296,30 @@ func (r *Repository) Delete(name string) error {
 	return err
 }
 
-// q rewrites ? placeholders for PostgreSQL ($1, $2, ...).
+// q rewrites ? placeholders for PostgreSQL ($1…) and SQL Server (@p1…).
 func (r *Repository) q(query string) string {
 	switch r.driver {
 	case "pgsql", "postgres", "postgresql":
-		out := make([]byte, 0, len(query)+8)
-		n := 1
-		for i := 0; i < len(query); i++ {
-			if query[i] == '?' {
-				out = append(out, '$')
-				out = append(out, fmt.Sprintf("%d", n)...)
-				n++
-				continue
-			}
-			out = append(out, query[i])
-		}
-		return string(out)
+		return rebindPlaceholders(query, "$%d")
+	case "mssql", "sqlserver":
+		return rebindPlaceholders(query, "@p%d")
 	default:
 		return query
 	}
+}
+
+func rebindPlaceholders(query, format string) string {
+	out := make([]byte, 0, len(query)+8)
+	n := 1
+	for i := 0; i < len(query); i++ {
+		if query[i] == '?' {
+			out = append(out, fmt.Sprintf(format, n)...)
+			n++
+			continue
+		}
+		out = append(out, query[i])
+	}
+	return string(out)
 }
 
 // GenerateName creates a timestamped migration name.

@@ -27,6 +27,20 @@ func Get(key string, fallback ...string) string {
 	return ""
 }
 
+// GetNonEmpty is like Get but treats blank/whitespace values as unset (uses fallback).
+// Prefer this for credentials where `.env` may contain `DB_USERNAME=`.
+func GetNonEmpty(key string, fallback ...string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	if len(fallback) > 0 {
+		return fallback[0]
+	}
+	return ""
+}
+
 // GetBool returns an environment variable as bool.
 func GetBool(key string, fallback ...bool) bool {
 	value, ok := os.LookupEnv(key)

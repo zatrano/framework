@@ -2,6 +2,26 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.1.2 - 2026-08-16
+
+### Added
+
+- SQL Server (`mssql` / `sqlserver`) connection, schema, migrations, query placeholders (`@pN`), `db:create`
+- Docker Compose profiles: `postgres`, `mysql`, `mssql`, `mongo`
+- Driver dialect tests + SQLite smoke; optional live smoke via `ZATRANO_LIVE_DB=1`
+- `env.GetNonEmpty` so blank `.env` credentials fall back to driver defaults
+- `DB_SSLMODE` for PostgreSQL
+
+### Fixed
+
+- Runtime database config now uses `config.Database()` (pgsql default user was wrongly `root`)
+- MySQL `ForeignID` is `BIGINT UNSIGNED` (matches `ID()`)
+- MySQL JSON columns use native `JSON` type
+- SQLite alter uses `ADD COLUMN`
+- Insert returns `LastInsertId` errors instead of silent `0`
+- Mongo addon fails boot when a real URI cannot ping
+- Removed `go.work` / `go.work.sum` (use `go.mod` `replace` only)
+
 ## 1.1.1 - 2026-08-16
 
 ### Added

@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/microsoft/go-mssqldb"
 	_ "modernc.org/sqlite"
 )
 
@@ -28,6 +30,7 @@ type ConnectionConfig struct {
 	Username string
 	Password string
 	Charset  string
+	SSLMode  string // pgsql: disable|require|verify-full|…
 }
 
 // Manager manages database connections.
@@ -153,7 +156,6 @@ func (m *Manager) dsn(cfg ConnectionConfig) (string, string, error) {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return "", "", err
 		}
-		// Create file if missing.
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			f, createErr := os.Create(path)
 			if createErr != nil {
@@ -171,9 +173,23 @@ func (m *Manager) dsn(cfg ConnectionConfig) (string, string, error) {
 			cfg.Username, cfg.Password, cfg.Host, defaultPort(cfg.Port, "3306"), cfg.Database, charset)
 		return "mysql", dsn, nil
 	case "pgsql", "postgres", "postgresql":
-		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			cfg.Host, defaultPort(cfg.Port, "5432"), cfg.Username, cfg.Password, cfg.Database)
+		ssl := cfg.SSLMode
+		if ssl == "" {
+			ssl = "disable"
+		}
+		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			cfg.Host, defaultPort(cfg.Port, "5432"), cfg.Username, cfg.Password, cfg.Database, ssl)
 		return "postgres", dsn, nil
+	case "mssql", "sqlserver":
+		query := url.Values{}
+		query.Set("database", cfg.Database)
+		u := &url.URL{
+			Scheme:   "sqlserver",
+			User:     url.UserPassword(cfg.Username, cfg.Password),
+			Host:     fmt.Sprintf("%s:%s", cfg.Host, defaultPort(cfg.Port, "1433")),
+			RawQuery: query.Encode(),
+		}
+		return "sqlserver", u.String(), nil
 	default:
 		return "", "", fmt.Errorf("unsupported database driver [%s]", cfg.Driver)
 	}
@@ -190,6 +206,12 @@ func (m *Manager) DriverName(name ...string) (string, error) {
 		return "", fmt.Errorf("database connection [%s] not configured", connName)
 	}
 	return strings.ToLower(cfg.Driver), nil
+}
+
+// BuildDSN exposes DSN building for tests (driver name, dsn, error).
+func BuildDSN(cfg ConnectionConfig, basePath string) (string, string, error) {
+	m := &Manager{basePath: basePath}
+	return m.dsn(cfg)
 }
 
 func defaultPort(port, fallback string) string {

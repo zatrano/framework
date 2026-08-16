@@ -56,6 +56,7 @@ func BootDatabase(app *core.Application) error {
 			Username: asString(cfgMap["username"]),
 			Password: asString(cfgMap["password"]),
 			Charset:  asString(cfgMap["charset"]),
+			SSLMode:  asString(cfgMap["sslmode"]),
 		}
 	}
 

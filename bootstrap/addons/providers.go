@@ -1,6 +1,7 @@
 package addons
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -258,7 +259,11 @@ type MongoServiceProvider struct{}
 
 func (p *MongoServiceProvider) Register(app *core.Application) error {
 	uri := app.Config().GetString("mongo.uri", env.Get("MONGO_URI", "memory"))
-	app.Container().Instance("mongo", mongo.Connect(uri))
+	client := mongo.Connect(uri)
+	if err := client.Ping(); err != nil {
+		return fmt.Errorf("mongo: %w", err)
+	}
+	app.Container().Instance("mongo", client)
 	return nil
 }
 

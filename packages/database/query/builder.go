@@ -431,6 +431,8 @@ func (b *Builder) InRandomOrder() *Builder {
 	switch strings.ToLower(b.driver) {
 	case "mysql":
 		return b.OrderByRaw("RAND()")
+	case "mssql", "sqlserver":
+		return b.OrderByRaw("NEWID()")
 	default:
 		return b.OrderByRaw("RANDOM()")
 	}
@@ -883,14 +885,19 @@ func (b *Builder) Insert(values map[string]any) (int64, error) {
 		err := b.db.QueryRow(b.rebind(sqlStr), args...).Scan(&id)
 		return id, err
 	}
+	if isSQLServerDriver(b.driver) {
+		sqlStr += " OUTPUT INSERTED.id"
+		var id int64
+		err := b.db.QueryRow(b.rebind(sqlStr), args...).Scan(&id)
+		return id, err
+	}
 	result, err := b.db.Exec(b.rebind(sqlStr), args...)
 	if err != nil {
 		return 0, err
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		// Drivers without LastInsertId (should be rare outside postgres).
-		return 0, nil
+		return 0, err
 	}
 	return id, nil
 }
@@ -947,6 +954,40 @@ func (b *Builder) Upsert(values map[string]any, uniqueBy []string, update ...str
 		}
 		sb.WriteString(" ON DUPLICATE KEY UPDATE ")
 		sb.WriteString(strings.Join(sets, ", "))
+	case isSQLServerDriver(driver):
+		// MERGE … USING (VALUES …) — uniqueBy is the match key.
+		srcCols := make([]string, 0, len(columns))
+		for i, col := range columns {
+			srcCols = append(srcCols, fmt.Sprintf("? AS %s", col))
+			_ = i
+		}
+		onParts := make([]string, 0, len(uniqueBy))
+		for _, col := range uniqueBy {
+			onParts = append(onParts, fmt.Sprintf("target.%s = source.%s", col, col))
+		}
+		setParts := make([]string, 0, len(updateCols))
+		for _, col := range updateCols {
+			setParts = append(setParts, fmt.Sprintf("target.%s = source.%s", col, col))
+		}
+		insertCols := strings.Join(columns, ", ")
+		insertVals := make([]string, 0, len(columns))
+		for _, col := range columns {
+			insertVals = append(insertVals, "source."+col)
+		}
+		merge := fmt.Sprintf(
+			"MERGE INTO %s AS target USING (SELECT %s) AS source ON %s WHEN MATCHED THEN UPDATE SET %s WHEN NOT MATCHED THEN INSERT (%s) VALUES (%s);",
+			b.table,
+			strings.Join(srcCols, ", "),
+			strings.Join(onParts, " AND "),
+			strings.Join(setParts, ", "),
+			insertCols,
+			strings.Join(insertVals, ", "),
+		)
+		result, err := b.db.Exec(b.rebind(merge), args...)
+		if err != nil {
+			return 0, err
+		}
+		return result.RowsAffected()
 	default:
 		// sqlite / postgres
 		sets := make([]string, 0, len(updateCols))
@@ -1282,20 +1323,34 @@ func (b *Builder) compileWheres(clauses []whereClause) (string, []any) {
 }
 
 func (b *Builder) rebind(sqlStr string) string {
-	if b.driver != "pgsql" && b.driver != "postgres" && b.driver != "postgresql" {
+	switch {
+	case isPostgresDriver(b.driver):
+		var sb strings.Builder
+		arg := 1
+		for i := 0; i < len(sqlStr); i++ {
+			if sqlStr[i] == '?' {
+				sb.WriteString(fmt.Sprintf("$%d", arg))
+				arg++
+				continue
+			}
+			sb.WriteByte(sqlStr[i])
+		}
+		return sb.String()
+	case isSQLServerDriver(b.driver):
+		var sb strings.Builder
+		arg := 1
+		for i := 0; i < len(sqlStr); i++ {
+			if sqlStr[i] == '?' {
+				sb.WriteString(fmt.Sprintf("@p%d", arg))
+				arg++
+				continue
+			}
+			sb.WriteByte(sqlStr[i])
+		}
+		return sb.String()
+	default:
 		return sqlStr
 	}
-	var sb strings.Builder
-	arg := 1
-	for i := 0; i < len(sqlStr); i++ {
-		if sqlStr[i] == '?' {
-			sb.WriteString(fmt.Sprintf("$%d", arg))
-			arg++
-			continue
-		}
-		sb.WriteByte(sqlStr[i])
-	}
-	return sb.String()
 }
 
 func (b *Builder) compileLock() string {
@@ -1371,6 +1426,15 @@ func scanRows(rows *sql.Rows) ([]map[string]any, error) {
 func isPostgresDriver(driver string) bool {
 	switch strings.ToLower(driver) {
 	case "pgsql", "postgres", "postgresql":
+		return true
+	default:
+		return false
+	}
+}
+
+func isSQLServerDriver(driver string) bool {
+	switch strings.ToLower(driver) {
+	case "mssql", "sqlserver":
 		return true
 	default:
 		return false

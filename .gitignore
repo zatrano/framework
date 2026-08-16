@@ -1,4 +1,7 @@
 .env
+# Local Go workspace — use go.mod replace directives, not go.work
+go.work
+go.work.sum
 # Track application locale JSON; ignore only local overrides if needed.
 # /lang/
 *.exe
