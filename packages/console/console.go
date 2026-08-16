@@ -204,11 +204,26 @@ type MakeControllerCommand struct {
 func (c *MakeControllerCommand) Name() string        { return "make:controller" }
 func (c *MakeControllerCommand) Description() string { return "Create a new controller class" }
 func (c *MakeControllerCommand) Handle(args []string) error {
-	if len(args) == 0 {
+	pkg := "web"
+	var nameArgs []string
+	for _, arg := range args {
+		switch arg {
+		case "--api":
+			pkg = "api"
+		case "--admin":
+			pkg = "admin"
+		default:
+			if strings.HasPrefix(arg, "-") {
+				continue
+			}
+			nameArgs = append(nameArgs, arg)
+		}
+	}
+	if len(nameArgs) == 0 {
 		return fmt.Errorf("controller name required")
 	}
-	name := strings.TrimSuffix(args[0], "Controller") + "Controller"
-	dir := c.app.BasePath("app", "http", "controllers", "web")
+	name := strings.TrimSuffix(nameArgs[0], "Controller") + "Controller"
+	dir := c.app.BasePath("app", "http", "controllers", pkg)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -216,7 +231,7 @@ func (c *MakeControllerCommand) Handle(args []string) error {
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("controller already exists: %s", path)
 	}
-	content := fmt.Sprintf(`package web
+	content := fmt.Sprintf(`package %s
 
 import . "github.com/zatrano/framework/packages/http"
 
@@ -227,8 +242,12 @@ func (c *%s) Index(req *Request) *Response {
 		"message": "%s",
 	})
 }
-`, name, name, name)
-	return os.WriteFile(path, []byte(content), 0o644)
+`, pkg, name, name, name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("Created: %s\n", path)
+	return nil
 }
 
 type MakeMiddlewareCommand struct {

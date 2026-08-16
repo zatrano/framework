@@ -24,7 +24,7 @@ func Database() map[string]any {
 				"host":     env.Get("DB_HOST", "127.0.0.1"),
 				"port":     env.Get("DB_PORT", "5432"),
 				"database": env.Get("DB_DATABASE", "zatrano"),
-				"username": env.Get("DB_USERNAME", "root"),
+				"username": env.Get("DB_USERNAME", "postgres"),
 				"password": env.Get("DB_PASSWORD", ""),
 			},
 		},

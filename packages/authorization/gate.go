@@ -318,16 +318,27 @@ func (p *PendingGate) Authorize(ability string, arguments ...any) error {
 // Middleware authorizes an ability using the authenticated user.
 // currentUser should return an Authenticatable (e.g. auth.From(app).User(req)).
 // Optional arguments are forwarded to the gate (e.g. route model ids).
+// HTML clients get redirects/abort; JSON clients get JSON 401/403 (same contract as auth.Middleware).
 func Middleware(gate *Gate, currentUser func(*http.Request) any, ability string, arguments ...any) routing.MiddlewareFunc {
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
 			user := asAuthenticatable(currentUser(req))
 			if user == nil {
-				return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+				if req != nil && req.WantsJSON() {
+					return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+				}
+				return http.Redirect("/auth/login")
 			}
 			args := resolveMiddlewareArgs(req, arguments...)
 			if err := gate.Authorize(user, ability, args...); err != nil {
-				return ResponseFor(err)
+				if req != nil && req.WantsJSON() {
+					return ResponseFor(err)
+				}
+				msg := "This action is unauthorized."
+				if ae, ok := err.(AuthorizationException); ok && ae.Message != "" {
+					msg = ae.Message
+				}
+				return http.Abort(403, msg)
 			}
 			return next(req)
 		}
@@ -340,14 +351,21 @@ func MiddlewareAny(gate *Gate, currentUser func(*http.Request) any, abilities []
 		return func(req *http.Request) *http.Response {
 			user := asAuthenticatable(currentUser(req))
 			if user == nil {
-				return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+				if req != nil && req.WantsJSON() {
+					return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+				}
+				return http.Redirect("/auth/login")
 			}
 			args := resolveMiddlewareArgs(req, arguments...)
 			if !gate.Any(user, abilities, args...) {
-				return ResponseFor(AuthorizationException{
+				err := AuthorizationException{
 					Ability: strings.Join(abilities, "|"),
 					Message: "This action is unauthorized.",
-				})
+				}
+				if req != nil && req.WantsJSON() {
+					return ResponseFor(err)
+				}
+				return http.Abort(403, err.Message)
 			}
 			return next(req)
 		}

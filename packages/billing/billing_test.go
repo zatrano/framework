@@ -26,6 +26,12 @@ func TestBillingFlow(t *testing.T) {
 	if err != nil || session.URL == "" {
 		t.Fatalf("checkout=%v err=%v", session, err)
 	}
+	pay, err := m.CheckoutPayment(cus.ID, "usd", []billing.PaymentLineItem{
+		{Name: "Setup fee", Amount: 2500, Quantity: 1},
+	})
+	if err != nil || pay.URL == "" {
+		t.Fatalf("checkout payment=%v err=%v", pay, err)
+	}
 	inv, err := m.Invoice(cus.ID, 1999, "usd")
 	if err != nil || inv.Status != "paid" {
 		t.Fatalf("invoice=%v err=%v", inv, err)

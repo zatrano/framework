@@ -1,6 +1,7 @@
 package view_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,7 +168,13 @@ Body
 `), 0o644)
 
 	engine := view.New(dir)
-	engine.AddFunc("trans", func(key string) string {
+	engine.AddFunc("trans", func(args ...any) string {
+		key := ""
+		if len(args) == 1 {
+			key = fmt.Sprint(args[0])
+		} else if len(args) >= 2 {
+			key = fmt.Sprint(args[1])
+		}
 		if key == "messages.welcome" {
 			return "Welcome"
 		}

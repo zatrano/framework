@@ -13,7 +13,30 @@ services:
       QUEUE_CONNECTION: database
       CACHE_STORE: file
       MAIL_MAILER: log
+      # With profile postgres (`docker compose --profile postgres up`), prefer:
+      # DB_CONNECTION: pgsql
+      # DB_HOST: postgres
+      # DB_PORT: "5432"
+      # DB_DATABASE: zatrano
+      # DB_USERNAME: zatrano
+      # DB_PASSWORD: secret
     volumes:
       - ./storage:/app/storage
       - ./database:/app/database
     command: ["/app/zatrano", "serve", "--port", "8080"]
+
+  # Optional PostgreSQL — start with: docker compose --profile postgres up
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: zatrano
+      POSTGRES_USER: zatrano
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -51,6 +51,13 @@ type RuleFunc func(v *Validator, field, value, param string) bool
 // PresenceChecker looks up whether a value exists in storage (unique/exists).
 type PresenceChecker func(table, column, value string) (exists bool, err error)
 
+var defaultPresenceChecker PresenceChecker
+
+// SetDefaultPresenceChecker configures unique/exists lookups for Make/ValidateForm when a validator has none.
+func SetDefaultPresenceChecker(fn PresenceChecker) {
+	defaultPresenceChecker = fn
+}
+
 var customRules = map[string]RuleFunc{}
 
 // Extend registers a custom validation rule.
@@ -989,7 +996,14 @@ func (v *Validator) check(rule, field, value, param string) bool {
 }
 
 func (v *Validator) checkPresence(param, value string, unique bool) bool {
-	if value == "" || v.presenceChecker == nil {
+	if value == "" {
+		return true
+	}
+	checker := v.presenceChecker
+	if checker == nil {
+		checker = defaultPresenceChecker
+	}
+	if checker == nil {
 		return true
 	}
 	parts := strings.Split(param, ",")
@@ -998,7 +1012,7 @@ func (v *Validator) checkPresence(param, value string, unique bool) bool {
 	}
 	table := strings.TrimSpace(parts[0])
 	column := strings.TrimSpace(parts[1])
-	exists, err := v.presenceChecker(table, column, value)
+	exists, err := checker(table, column, value)
 	if err != nil {
 		return false
 	}

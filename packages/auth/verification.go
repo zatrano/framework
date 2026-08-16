@@ -59,7 +59,7 @@ func VerifyEmailMiddleware(manager *Manager, guards ...string) routing.Middlewar
 				if req.WantsJSON() {
 					return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
 				}
-				return http.Redirect("/login")
+				return http.Redirect("/auth/login")
 			}
 			if HasVerifiedEmail(user) {
 				return next(req)
@@ -67,7 +67,7 @@ func VerifyEmailMiddleware(manager *Manager, guards ...string) routing.Middlewar
 			if req.WantsJSON() {
 				return http.JSON(map[string]any{"message": "Your email address is not verified."}).Status(403)
 			}
-			return http.Redirect("/email/verify")
+			return http.Redirect("/auth/email/verify")
 		}
 	}
 }

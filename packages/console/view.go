@@ -23,7 +23,29 @@ func (c *MakeViewCommand) Handle(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("view name required")
 	}
-	name := strings.ReplaceAll(args[0], "\\", "/")
+	layout := "app"
+	layoutSet := false
+	var nameArg string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--layout=") {
+			layout = strings.TrimSpace(strings.TrimPrefix(arg, "--layout="))
+			layoutSet = true
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if nameArg == "" {
+			nameArg = arg
+		}
+	}
+	if nameArg == "" {
+		return fmt.Errorf("view name required")
+	}
+	if layout == "" {
+		layout = "app"
+	}
+	name := strings.ReplaceAll(nameArg, "\\", "/")
 	name = strings.Trim(name, "/")
 	name = strings.TrimSuffix(name, ".html")
 	parts := strings.Split(name, ".")
@@ -44,7 +66,25 @@ func (c *MakeViewCommand) Handle(args []string) error {
 	}
 	base := filepath.Base(rel)
 	path := filepath.Join(dir, base+".html")
-	content := fmt.Sprintf(`@extends('layouts.app')
+	isAuth := strings.HasPrefix(strings.ToLower(strings.ReplaceAll(name, "\\", "/")), "auth/") ||
+		strings.HasPrefix(strings.ToLower(name), "auth.") ||
+		strings.EqualFold(parts[0], "auth")
+	if isAuth && !layoutSet {
+		layout = "auth"
+	}
+	title := toExported(strings.ReplaceAll(base, "-", " "))
+	var content string
+	if isAuth {
+		content = fmt.Sprintf(`@extends('layouts.%s')
+
+@section('title', '%s')
+
+@section('content')
+  <h1>%s</h1>
+@endsection
+`, layout, base, title)
+	} else {
+		content = fmt.Sprintf(`@extends('layouts.%s')
 
 @section('title', '%s')
 
@@ -54,18 +94,7 @@ func (c *MakeViewCommand) Handle(args []string) error {
     @csrf
   </form>
 @endsection
-`, base, toExported(strings.ReplaceAll(base, "-", " ")))
-	if strings.HasPrefix(strings.ToLower(strings.ReplaceAll(name, "\\", "/")), "auth/") ||
-		strings.HasPrefix(strings.ToLower(name), "auth.") ||
-		strings.EqualFold(parts[0], "auth") {
-		content = fmt.Sprintf(`@extends('layouts.auth')
-
-@section('title', '%s')
-
-@section('content')
-  <h1>%s</h1>
-@endsection
-`, base, toExported(strings.ReplaceAll(base, "-", " ")))
+`, layout, base, title)
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err

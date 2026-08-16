@@ -36,7 +36,9 @@ func (c *MakeResourceCommand) Handle(args []string) error {
 import "github.com/zatrano/framework/app/models"
 
 // %s transforms a models.%s into an API resource array.
-// Use with core/resources: resources.JSON(model, %s)
+// Use with packages/resources (github.com/zatrano/framework/packages/resources):
+//
+//	resources.JSON(model, %s)
 func %s(model models.%s) map[string]any {
 	return map[string]any{
 		"id": model.ID,

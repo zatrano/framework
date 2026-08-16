@@ -23,8 +23,36 @@ func (c *MakeLangCommand) Handle(args []string) error {
 		return fmt.Errorf("locale code required (example: make:lang de)")
 	}
 	locale := strings.ToLower(strings.TrimSpace(args[0]))
+	group := ""
+	rest := args[1:]
+	for _, a := range rest {
+		a = strings.TrimSpace(a)
+		if strings.HasPrefix(a, "--group=") {
+			group = strings.TrimSpace(strings.TrimPrefix(a, "--group="))
+		}
+	}
 	if locale == "" || strings.ContainsAny(locale, `/\`) {
 		return fmt.Errorf("invalid locale code")
+	}
+	if group != "" {
+		if strings.ContainsAny(group, `/\`) {
+			return fmt.Errorf("invalid group name")
+		}
+		dir := c.app.BasePath("lang", locale)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		dest := filepath.Join(dir, group+".json")
+		if _, err := os.Stat(dest); err == nil {
+			fmt.Printf("Skipped (exists): %s\n", dest)
+			return nil
+		}
+		body := "{\n  \"example\": \"Example string\"\n}\n"
+		if err := os.WriteFile(dest, []byte(body), 0o644); err != nil {
+			return err
+		}
+		fmt.Printf("Created: %s\n", dest)
+		return nil
 	}
 
 	source := "en"

@@ -144,13 +144,26 @@ func mergeLocaleDir(root, locale string, lines map[string]string) error {
 	return nil
 }
 
-// Get returns a translation string with replacements.
+// Get returns a translation string with replacements for the active locale.
 // Replacements use :name placeholders.
 func (t *Translator) Get(key string, replace ...map[string]string) string {
 	t.mu.RLock()
 	locale := t.locale
+	t.mu.RUnlock()
+	return t.GetFor(locale, key, replace...)
+}
+
+// GetFor returns a translation for an explicit locale (request-safe; ignores active SetLocale races).
+func (t *Translator) GetFor(locale, key string, replace ...map[string]string) string {
+	if t == nil {
+		return key
+	}
+	t.mu.RLock()
 	fallback := t.fallback
 	t.mu.RUnlock()
+	if locale == "" {
+		locale = fallback
+	}
 
 	value, ok := t.lookup(locale, key)
 	if !ok {
@@ -160,7 +173,7 @@ func (t *Translator) Get(key string, replace ...map[string]string) string {
 		value = key
 	}
 
-	if len(replace) > 0 {
+	if len(replace) > 0 && replace[0] != nil {
 		for name, replacement := range replace[0] {
 			value = strings.ReplaceAll(value, ":"+name, replacement)
 		}

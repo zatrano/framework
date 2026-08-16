@@ -60,14 +60,14 @@ func (b *Builder) DropIfExists(table string) error {
 // Rename renames a table.
 func (b *Builder) Rename(from, to string) error {
 	switch b.driver {
-	case "sqlite", "sqlite3":
+	case "mysql":
+		_, err := b.db.Exec(fmt.Sprintf("RENAME TABLE %s TO %s", from, to))
+		return err
+	case "sqlite", "sqlite3", "pgsql", "postgres", "postgresql":
 		_, err := b.db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", from, to))
 		return err
 	default:
-		_, err := b.db.Exec(fmt.Sprintf("RENAME TABLE %s TO %s", from, to))
-		if err != nil {
-			_, err = b.db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", from, to))
-		}
+		_, err := b.db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", from, to))
 		return err
 	}
 }
@@ -152,6 +152,8 @@ type Column struct {
 	DefaultValue  any
 	Comment       string
 	Change        string // add|modify|drop
+	References    string // referenced table for inline FK (CREATE TABLE)
+	OnDelete      string // e.g. CASCADE
 }
 
 // NewBlueprint creates a blueprint.
@@ -257,10 +259,23 @@ func (b *Blueprint) JSON(name string) *Column {
 }
 
 // ForeignID adds an unsigned big integer foreign id column.
+// Use Constrained(table) to append REFERENCES on CREATE TABLE; CascadeOnDelete sets ON DELETE CASCADE.
 func (b *Blueprint) ForeignID(name string) *Column {
 	col := &Column{Name: name, Type: "biginteger", Change: "add"}
 	b.columns = append(b.columns, col)
 	return col
+}
+
+// Constrained registers an inline foreign key REFERENCES clause for Create (references table.id).
+func (c *Column) Constrained(table string) *Column {
+	c.References = table
+	return c
+}
+
+// CascadeOnDelete sets ON DELETE CASCADE on the column's REFERENCES clause.
+func (c *Column) CascadeOnDelete() *Column {
+	c.OnDelete = "CASCADE"
+	return c
 }
 
 // DropColumn drops columns (alter mode).
@@ -355,6 +370,13 @@ func (b *Blueprint) columnSQL(col *Column) (string, error) {
 	}
 	if col.DefaultValue != nil {
 		parts = append(parts, fmt.Sprintf("DEFAULT %s", formatDefault(col.DefaultValue)))
+	}
+	if col.References != "" {
+		ref := fmt.Sprintf("REFERENCES %s(id)", col.References)
+		if col.OnDelete != "" {
+			ref += " ON DELETE " + col.OnDelete
+		}
+		parts = append(parts, ref)
 	}
 
 	return strings.Join(parts, " "), nil

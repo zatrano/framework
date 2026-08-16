@@ -1,5 +1,6 @@
 .env
-/lang/
+# Track application locale JSON; ignore only local overrides if needed.
+# /lang/
 *.exe
 *.exe~
 *.dll

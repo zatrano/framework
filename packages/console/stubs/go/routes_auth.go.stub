@@ -7,26 +7,44 @@ import (
 	. "github.com/zatrano/framework/packages/routing"
 )
 
-// RegisterAuthWeb registers session authentication web routes.
+// RegisterAuthWeb registers session authentication web routes under /auth.
 // Wire from Web(): RegisterAuthWeb(app)
 func RegisterAuthWeb(app *core.Application) {
 	router := app.Router()
 	ctrl := &web.AuthController{App: app}
-
-	router.Get("/login", ctrl.LoginForm).As("login")
-	router.Post("/login", ctrl.Login).As("login.attempt").Through(app.RateLimiter().Named("login"))
-	router.Post("/logout", ctrl.Logout).As("logout")
-
 	social := &web.SocialAuthController{App: app}
-	router.Get("/login/google", social.GoogleRedirect).As("login.google")
-	router.Get("/auth/google/callback", social.GoogleCallback).As("login.google.callback")
-	router.Get("/login/github", social.GitHubRedirect).As("login.github")
-	router.Get("/auth/github/callback", social.GitHubCallback).As("login.github.callback")
 
-	router.Group("", func(r *Router) {
-		r.Get("/register", ctrl.RegisterForm).As("register")
-		r.Post("/register", ctrl.Register).As("register.store").Through(app.RateLimiter().Named("login"))
-	}, auth.RedirectIfAuthenticated(auth.From(app), "/"))
+	router.Group("/auth", func(r *Router) {
+		r.Get("/login", ctrl.LoginForm).As("login")
+		r.Post("/login", ctrl.Login).As("login.attempt").Through(app.RateLimiter().Named("login"))
+		r.Post("/logout", ctrl.Logout).As("logout")
+
+		r.Get("/google/login", social.GoogleRedirect).As("login.google")
+		r.Get("/google/callback", social.GoogleCallback).As("login.google.callback")
+		r.Get("/github/login", social.GitHubRedirect).As("login.github")
+		r.Get("/github/callback", social.GitHubCallback).As("login.github.callback")
+
+		r.Group("", func(g *Router) {
+			g.Get("/register", ctrl.RegisterForm).As("register")
+			g.Post("/register", ctrl.Register).As("register.store").Through(app.RateLimiter().Named("login"))
+		}, auth.RedirectIfAuthenticated(auth.From(app), "/"))
+
+		r.Get("/two-factor-challenge", ctrl.TwoFactorChallengeForm).As("two-factor.challenge")
+		r.Post("/two-factor-challenge", ctrl.TwoFactorChallenge).As("two-factor.challenge.store")
+
+		r.Get("/forgot-password", ctrl.ForgotForm).As("password.request")
+		r.Post("/forgot-password", ctrl.Forgot).As("password.email").Through(app.RateLimiter().Named("login"))
+		r.Get("/reset-password", ctrl.ResetForm).As("password.reset")
+		r.Post("/reset-password", ctrl.Reset).As("password.update")
+		r.Get("/email/verify/{id}", ctrl.Verify).As("verification.verify")
+
+		r.Group("", func(g *Router) {
+			g.Get("/confirm-password", ctrl.ConfirmPasswordForm).As("password.confirm")
+			g.Post("/confirm-password", ctrl.ConfirmPassword).As("password.confirm.store")
+			g.Get("/email/verify", ctrl.Notice).As("verification.notice")
+			g.Post("/email/verification-notification", ctrl.Send).As("verification.send")
+		}, auth.Middleware(auth.From(app)))
+	})
 
 	router.Group("", func(r *Router) {
 		r.Get("/profile", ctrl.ProfileForm).As("profile")
@@ -40,45 +58,33 @@ func RegisterAuthWeb(app *core.Application) {
 		r.Post("/user/two-factor/recovery-codes", ctrl.RegenerateRecoveryCodes).As("two-factor.recovery-codes")
 		r.Get("/user/logout-other-devices", ctrl.LogoutOtherDevicesForm).As("logout-other-devices")
 		r.Post("/user/logout-other-devices", ctrl.LogoutOtherDevices).As("logout-other-devices.store")
-		r.Get("/confirm-password", ctrl.ConfirmPasswordForm).As("password.confirm")
-		r.Post("/confirm-password", ctrl.ConfirmPassword).As("password.confirm.store")
-		r.Get("/email/verify", ctrl.Notice).As("verification.notice")
-		r.Post("/email/verification-notification", ctrl.Send).As("verification.send")
 	}, auth.Middleware(auth.From(app)))
 
 	// Example verified-only group — wrap routes that require a verified email:
 	// auth.Middleware(auth.From(app)), auth.VerifyEmailMiddleware(auth.From(app))
-
-	router.Get("/two-factor-challenge", ctrl.TwoFactorChallengeForm).As("two-factor.challenge")
-	router.Post("/two-factor-challenge", ctrl.TwoFactorChallenge).As("two-factor.challenge.store")
-
-	router.Get("/forgot-password", ctrl.ForgotForm).As("password.request")
-	router.Post("/forgot-password", ctrl.Forgot).As("password.email").Through(app.RateLimiter().Named("login"))
-	router.Get("/reset-password", ctrl.ResetForm).As("password.reset")
-	router.Post("/reset-password", ctrl.Reset).As("password.update")
-	router.Get("/email/verify/{id}", ctrl.Verify).As("verification.verify")
 }
 
-// RegisterAuthAPI registers JSON authentication API routes under /api.
+// RegisterAuthAPI registers JSON authentication API routes under /api/auth.
 // Wire from API(): RegisterAuthAPI(app)
 func RegisterAuthAPI(app *core.Application) {
 	ctrl := &web.AuthController{App: app}
 
-	app.Router().Group("/api", func(api *Router) {
+	app.Router().Group("/api/auth", func(api *Router) {
 		api.Post("/login", ctrl.Login).As("api.login").Through(app.RateLimiter().Named("login"))
 		api.Post("/register", ctrl.Register).As("api.register").Through(app.RateLimiter().Named("login"))
 		api.Post("/password/forgot", ctrl.Forgot).As("api.password.forgot").Through(app.RateLimiter().Named("login"))
 		api.Post("/password/reset", ctrl.Reset).As("api.password.reset")
-		api.Post("/auth/two-factor/challenge", ctrl.TwoFactorChallenge).As("api.auth.two-factor.challenge")
+		api.Post("/two-factor/challenge", ctrl.TwoFactorChallenge).As("api.auth.two-factor.challenge")
 		api.Group("", func(r *Router) {
 			r.Post("/logout", ctrl.Logout).As("api.logout")
 			r.Post("/profile", ctrl.UpdateProfile).As("api.profile.update")
 			r.Post("/password/change", ctrl.ChangePassword).As("api.password.change")
-			r.Post("/auth/logout-other-devices", ctrl.LogoutOtherDevices).As("api.auth.logout-other-devices")
-			r.Post("/auth/two-factor/enable", ctrl.EnableTwoFactor).As("api.auth.two-factor.enable")
-			r.Post("/auth/two-factor/confirm", ctrl.ConfirmTwoFactor).As("api.auth.two-factor.confirm")
-			r.Post("/auth/two-factor/disable", ctrl.DisableTwoFactor).As("api.auth.two-factor.disable")
-			r.Post("/auth/two-factor/recovery-codes", ctrl.RegenerateRecoveryCodes).As("api.auth.two-factor.recovery-codes")
+			r.Post("/logout-other-devices", ctrl.LogoutOtherDevices).As("api.auth.logout-other-devices")
+			r.Post("/two-factor/enable", ctrl.EnableTwoFactor).As("api.auth.two-factor.enable")
+			r.Post("/two-factor/confirm", ctrl.ConfirmTwoFactor).As("api.auth.two-factor.confirm")
+			r.Post("/two-factor/disable", ctrl.DisableTwoFactor).As("api.auth.two-factor.disable")
+			r.Post("/two-factor/recovery-codes", ctrl.RegenerateRecoveryCodes).As("api.auth.two-factor.recovery-codes")
+			r.Post("/confirm-password", ctrl.ConfirmPassword).As("api.auth.confirm-password")
 		}, auth.Middleware(auth.From(app)))
 	})
 }

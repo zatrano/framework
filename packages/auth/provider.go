@@ -56,6 +56,8 @@ type DatabaseUserProvider struct {
 	table      string
 	idColumn   string
 	passColumn string
+	// Hydrate maps a DB row to an Authenticatable (e.g. *models.User). When nil, GenericUser is used.
+	Hydrate func(row map[string]any) Authenticatable
 }
 
 // NewDatabaseUserProvider creates a database user provider.
@@ -69,6 +71,22 @@ func NewDatabaseUserProvider(db *sql.DB, driver, table string) *DatabaseUserProv
 	}
 }
 
+// WithHydrate sets a row→user mapper and returns the provider.
+func (p *DatabaseUserProvider) WithHydrate(fn func(row map[string]any) Authenticatable) *DatabaseUserProvider {
+	p.Hydrate = fn
+	return p
+}
+
+func (p *DatabaseUserProvider) hydrate(row map[string]any) Authenticatable {
+	if row == nil {
+		return nil
+	}
+	if p.Hydrate != nil {
+		return p.Hydrate(row)
+	}
+	return &GenericUser{Attributes: row}
+}
+
 // RetrieveByID finds a user by id.
 func (p *DatabaseUserProvider) RetrieveByID(id any) (Authenticatable, error) {
 	row, err := query.New(p.db, p.driver, p.table).Where(p.idColumn, id).First()
@@ -78,7 +96,7 @@ func (p *DatabaseUserProvider) RetrieveByID(id any) (Authenticatable, error) {
 		}
 		return nil, err
 	}
-	return &GenericUser{Attributes: row}, nil
+	return p.hydrate(row), nil
 }
 
 // RetrieveByCredentials finds a user by login credentials (excluding password).
@@ -102,7 +120,7 @@ func (p *DatabaseUserProvider) RetrieveByCredentials(credentials map[string]stri
 		}
 		return nil, err
 	}
-	return &GenericUser{Attributes: row}, nil
+	return p.hydrate(row), nil
 }
 
 // ValidateCredentials validates the password.

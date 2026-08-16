@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/zatrano/framework/app/providers"
 	"github.com/zatrano/framework/bootstrap/addons"
@@ -19,18 +20,18 @@ func App() *core.Application {
 	return app
 }
 
-// APIApp boots foundation + PresetAPI addons + app providers.
+// APIApp boots foundation + PresetAPI ∪ EnabledAddons + app providers.
 func APIApp() *core.Application {
-	app, err := Boot(foundation.Providers(), PresetAPI, ApplicationProviders()...)
+	app, err := Boot(foundation.Providers(), mergeAddonNames(PresetAPI, EnabledAddons), ApplicationProviders()...)
 	if err != nil {
 		panic(err)
 	}
 	return app
 }
 
-// WebApp boots foundation + PresetWeb addons + app providers.
+// WebApp boots foundation + PresetWeb ∪ EnabledAddons + app providers.
 func WebApp() *core.Application {
-	app, err := Boot(foundation.Providers(), PresetWeb, ApplicationProviders()...)
+	app, err := Boot(foundation.Providers(), mergeAddonNames(PresetWeb, EnabledAddons), ApplicationProviders()...)
 	if err != nil {
 		panic(err)
 	}
@@ -80,6 +81,23 @@ func Boot(foundationProviders []core.Provider, addonNames []string, appProviders
 	application.RegisterProviders(selected...)
 	application.RegisterProviders(appProviders...)
 	return application, nil
+}
+
+// mergeAddonNames concatenates preset + EnabledAddons with first-seen order, skipping blanks/dupes.
+func mergeAddonNames(lists ...[]string) []string {
+	seen := make(map[string]bool)
+	out := make([]string, 0)
+	for _, list := range lists {
+		for _, name := range list {
+			name = strings.TrimSpace(name)
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // ApplicationProviders returns app-layer service providers (routes, auth wiring, etc.).

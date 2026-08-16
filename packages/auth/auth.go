@@ -566,7 +566,7 @@ func Middleware(manager *Manager, guards ...string) routing.MiddlewareFunc {
 					return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
 				}
 				CaptureIntendedFromRequest(req)
-				return http.Redirect("/login")
+				return http.Redirect("/auth/login")
 			}
 			req.Set("user", user)
 			req.Set("auth.guard", guardName)

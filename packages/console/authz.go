@@ -35,20 +35,17 @@ func (c *MakePolicyCommand) Handle(args []string) error {
 	path := filepath.Join(dir, toSnake(name)+".go")
 	content := fmt.Sprintf(`package policies
 
-import (
-	"github.com/zatrano/framework/packages/auth"
-	"github.com/zatrano/framework/packages/authorization"
-)
+import "github.com/zatrano/framework/packages/authorization"
 
 func New%s() *authorization.Policy {
 	return authorization.NewPolicy().
-		Define("view", func(user auth.Authenticatable, arguments ...any) bool {
+		Define("view", func(user authorization.Authenticatable, arguments ...any) bool {
 			return user != nil
 		}).
-		Define("update", func(user auth.Authenticatable, arguments ...any) bool {
+		Define("update", func(user authorization.Authenticatable, arguments ...any) bool {
 			return user != nil
 		}).
-		Define("delete", func(user auth.Authenticatable, arguments ...any) bool {
+		Define("delete", func(user authorization.Authenticatable, arguments ...any) bool {
 			return user != nil
 		})
 }

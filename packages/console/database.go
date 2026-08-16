@@ -1,6 +1,7 @@
 package console
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/database"
+	"github.com/zatrano/framework/packages/env"
+
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 func registerDatabaseCommands(console *Application, app *core.Application) {
@@ -17,6 +22,7 @@ func registerDatabaseCommands(console *Application, app *core.Application) {
 		&MigrateRollbackCommand{app: app},
 		&MigrateStatusCommand{app: app},
 		&MigrateFreshCommand{app: app},
+		&DBCreateCommand{app: app},
 		&DBSeedCommand{app: app},
 		&MakeModelCommand{app: app},
 		&MakeMigrationCommand{app: app},
@@ -92,6 +98,95 @@ func (c *MigrateFreshCommand) Handle(args []string) error {
 		return err
 	}
 	return migrator.Fresh()
+}
+
+// DBCreateCommand creates the configured MySQL/PostgreSQL database.
+type DBCreateCommand struct {
+	app *core.Application
+}
+
+func (c *DBCreateCommand) Name() string { return "db:create" }
+func (c *DBCreateCommand) Description() string {
+	return "Create the application database (MySQL/PostgreSQL)"
+}
+func (c *DBCreateCommand) Handle(args []string) error {
+	_ = env.Load(c.app.BasePath(".env"))
+
+	driver := strings.ToLower(env.Get("DB_CONNECTION", "sqlite"))
+	switch driver {
+	case "sqlite", "sqlite3":
+		fmt.Println("SQLite does not require db:create; the database file is created on first connection.")
+		return nil
+	case "mysql":
+		return createMySQLDatabase()
+	case "pgsql", "postgres", "postgresql":
+		return createPostgresDatabase()
+	default:
+		return fmt.Errorf("db:create does not support driver [%s]", driver)
+	}
+}
+
+func createMySQLDatabase() error {
+	name := env.Get("DB_DATABASE", "zatrano")
+	if name == "" {
+		return fmt.Errorf("DB_DATABASE is empty")
+	}
+	host := env.Get("DB_HOST", "127.0.0.1")
+	port := env.Get("DB_PORT", "3306")
+	user := env.Get("DB_USERNAME", "root")
+	pass := env.Get("DB_PASSWORD", "")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/?parseTime=true&loc=Local", user, pass, host, port)
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := db.Ping(); err != nil {
+		return err
+	}
+	quoted := "`" + strings.ReplaceAll(name, "`", "``") + "`"
+	if _, err := db.Exec("CREATE DATABASE IF NOT EXISTS " + quoted); err != nil {
+		return err
+	}
+	fmt.Printf("Database [%s] created (or already exists).\n", name)
+	return nil
+}
+
+func createPostgresDatabase() error {
+	name := env.Get("DB_DATABASE", "zatrano")
+	if name == "" {
+		return fmt.Errorf("DB_DATABASE is empty")
+	}
+	host := env.Get("DB_HOST", "127.0.0.1")
+	port := env.Get("DB_PORT", "5432")
+	user := env.Get("DB_USERNAME", "postgres")
+	pass := env.Get("DB_PASSWORD", "")
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", host, port, user, pass)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := db.Ping(); err != nil {
+		return err
+	}
+	var exists bool
+	if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", name).Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		fmt.Printf("Database [%s] already exists.\n", name)
+		return nil
+	}
+	// Identifier quoting — only allow simple names.
+	if strings.ContainsAny(name, "\"';\\") {
+		return fmt.Errorf("invalid database name [%s]", name)
+	}
+	if _, err := db.Exec(`CREATE DATABASE "` + name + `"`); err != nil {
+		return err
+	}
+	fmt.Printf("Database [%s] created.\n", name)
+	return nil
 }
 
 type DBSeedCommand struct {
@@ -194,15 +289,15 @@ func (m *%s) Name() string {
 	return "%s_%s"
 }
 
-func (m *%s) Up(schema *schema.Builder) error {
-	return schema.Create("table_name", func(table *schema.Blueprint) {
+func (m *%s) Up(s *schema.Builder) error {
+	return s.Create("table_name", func(table *schema.Blueprint) {
 		table.ID()
 		table.Timestamps()
 	})
 }
 
-func (m *%s) Down(schema *schema.Builder) error {
-	return schema.DropIfExists("table_name")
+func (m *%s) Down(s *schema.Builder) error {
+	return s.DropIfExists("table_name")
 }
 `, structName, structName, stamp, description, structName, structName)
 
@@ -210,7 +305,14 @@ func (m *%s) Down(schema *schema.Builder) error {
 		return err
 	}
 	fmt.Printf("Migration created: %s\n", path)
-	fmt.Println("Remember to register it in database/migrations/migrations.go")
+	regPath := filepath.Join(dir, "migrations.go")
+	if registered, err := appendToAllSlice(regPath, "&"+structName+"{}"); err != nil {
+		return err
+	} else if registered {
+		fmt.Printf("Registered in %s\n", regPath)
+	} else {
+		fmt.Println("Remember to register it in database/migrations/migrations.go")
+	}
 	return nil
 }
 
@@ -253,8 +355,70 @@ func (s *%s) Run() error {
 		return err
 	}
 	fmt.Printf("Seeder created: %s\n", path)
-	fmt.Println("Remember to register it in database/seeders/database_seeder.go")
+	regPath := filepath.Join(dir, "database_seeder.go")
+	if registered, err := appendToAllSlice(regPath, "&"+name+"{}"); err != nil {
+		return err
+	} else if registered {
+		fmt.Printf("Registered in %s\n", regPath)
+	} else {
+		fmt.Println("Remember to register it in database/seeders/database_seeder.go")
+	}
 	return nil
+}
+
+// appendToAllSlice inserts entry into a file's `func All()` return slice when present.
+// Returns true when the entry was appended (or already present).
+func appendToAllSlice(path, entry string) (bool, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	src := string(body)
+	allIdx := strings.Index(src, "func All()")
+	if allIdx < 0 {
+		return false, nil
+	}
+	if strings.Contains(src, entry) {
+		return true, nil
+	}
+	rest := src[allIdx:]
+	retIdx := strings.Index(rest, "return")
+	if retIdx < 0 {
+		return false, nil
+	}
+	braceOpen := strings.Index(rest[retIdx:], "{")
+	if braceOpen < 0 {
+		return false, nil
+	}
+	braceOpen += retIdx
+	depth := 0
+	closeAt := -1
+	for i := braceOpen; i < len(rest); i++ {
+		switch rest[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				closeAt = i
+			}
+		}
+		if closeAt >= 0 {
+			break
+		}
+	}
+	if closeAt < 0 {
+		return false, nil
+	}
+	absClose := allIdx + closeAt
+	out := src[:absClose] + "\t\t" + entry + ",\n" + src[absClose:]
+	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func pluralize(name string) string {

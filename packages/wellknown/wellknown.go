@@ -68,7 +68,7 @@ func (r *Repository) SecurityTxtHandler() routing.HandlerFunc {
 // ChangePasswordHandler serves /.well-known/change-password redirect target hint.
 func (r *Repository) ChangePasswordHandler(loginPath string) routing.HandlerFunc {
 	if loginPath == "" {
-		loginPath = "/login"
+		loginPath = "/auth/login"
 	}
 	return func(req *http.Request) *http.Response {
 		return http.Redirect(loginPath, 302)

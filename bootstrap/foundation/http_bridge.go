@@ -63,10 +63,16 @@ func (b *httpBridge) Finalize(w stdhttp.ResponseWriter, req *http.Request, resp 
 		data["auth"] = authenticated
 		data["guest"] = !authenticated
 		if tr := localization.From(app); tr != nil {
-			data["locale"] = tr.GetLocale()
+			locale := tr.GetLocale()
+			if req != nil {
+				if v, ok := req.Get("locale").(string); ok && strings.TrimSpace(v) != "" {
+					locale = strings.TrimSpace(v)
+				}
+			}
+			data["locale"] = locale
 			langPath := app.BasePath("lang")
 			data["langPublished"] = localization.Published(langPath)
-			data["locales"] = localization.Options(langPath, tr.GetLocale())
+			data["locales"] = localization.Options(langPath, locale)
 		}
 		var user authorization.Authenticatable
 		if authenticated {
@@ -151,9 +157,10 @@ func (b *httpBridge) localeMiddleware() routing.MiddlewareFunc {
 				if locale != "" && localization.HasLocale(langPath, locale) {
 					tr.SetLocale(locale)
 					_ = tr.Load(locale)
+					req.Set("locale", locale)
 				}
 				if engine := view.From(b.app); engine != nil {
-					engine.Share("locale", tr.GetLocale())
+					engine.Share("locale", locale)
 				}
 			}
 			return next(req)

@@ -243,8 +243,10 @@ func (e *Engine) compileBladeLike(input string) (string, error) {
 		out = replaceAllRegex(out, `@`+attr+`\s*\(\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ attrBool (dataGet . "$1") "`+attr+`" }}`)
 	}
 
-	// @lang('key')
-	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ trans "$1" }}`)
+	// @lang with replacements before bare @lang (prefix).
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*['"]([^'"]*)['"]\s*\]\s*\)`, `{{ trans (dataGet . "locale") "$1" (dict "$2" "$3") }}`)
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*\$([a-zA-Z0-9_.]+)\s*\]\s*\)`, `{{ trans (dataGet . "locale") "$1" (dict "$2" (dataGet . "$3")) }}`)
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ trans (dataGet . "locale") "$1" }}`)
 	// @choice('key', $count)
 	out = replaceAllRegex(out, `@choice\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ choice "$1" (dataGet . "$2") }}`)
 	// @choice('key', 3)
@@ -859,8 +861,15 @@ func defaultFuncs() template.FuncMap {
 		"error": func(data map[string]any, key string, bagName ...string) string {
 			return errorIn(lookupErrorBag(data, bagName...), key)
 		},
-		"trans": func(key string) string {
-			return key
+		"trans": func(args ...any) string {
+			if len(args) == 0 {
+				return ""
+			}
+			if len(args) == 1 {
+				return fmt.Sprint(args[0])
+			}
+			// locale, key [, replace map]
+			return fmt.Sprint(args[1])
 		},
 		"can": func(data map[string]any, ability string, args ...any) bool {
 			if data == nil {

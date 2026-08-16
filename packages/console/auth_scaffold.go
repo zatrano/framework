@@ -28,14 +28,32 @@ func (c *MakeAuthCommand) Description() string {
 func (c *MakeAuthCommand) Handle(args []string) error {
 	force := false
 	viewsOnly := false
+	socialProviders := []string{"google", "github"} // default both when social stubs enabled
+	socialFlagSet := false
 	for _, arg := range args {
-		switch arg {
-		case "--force", "-f":
+		switch {
+		case arg == "--force" || arg == "-f":
 			force = true
-		case "--views":
+		case arg == "--views":
 			viewsOnly = true
+		case strings.HasPrefix(arg, "--social="):
+			socialFlagSet = true
+			raw := strings.TrimSpace(strings.TrimPrefix(arg, "--social="))
+			socialProviders = nil
+			for _, p := range strings.Split(raw, ",") {
+				p = strings.ToLower(strings.TrimSpace(p))
+				if p == "google" || p == "github" {
+					socialProviders = appendUnique(socialProviders, p)
+				}
+			}
 		}
 	}
+	if !socialFlagSet {
+		socialProviders = []string{"google", "github"}
+	}
+	wantGoogle := containsStr(socialProviders, "google")
+	wantGitHub := containsStr(socialProviders, "github")
+	wantSocial := !viewsOnly && (wantGoogle || wantGitHub)
 
 	stubRoot := c.stubRoot()
 
@@ -64,20 +82,25 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 	if !viewsOnly {
 		pairs = append(pairs,
 			filePair{"go/user_model.go.stub", []string{"app", "models", "user.go"}},
-			filePair{"go/social_account_model.go.stub", []string{"app", "models", "social_account.go"}},
 			filePair{"go/user_factory.go.stub", []string{"database", "factories", "user_factory.go"}},
 			filePair{"go/user_resource.go.stub", []string{"app", "http", "resources", "user_resource.go"}},
 			filePair{"go/auth_controller.go.stub", []string{"app", "http", "controllers", "web", "auth_controller.go"}},
-			filePair{"go/social_auth_controller.go.stub", []string{"app", "http", "controllers", "web", "social_auth_controller.go"}},
 			filePair{"go/authenticate_middleware.go.stub", []string{"app", "http", "middleware", "authenticate.go"}},
 			filePair{"go/routes_auth.go.stub", []string{"routes", "auth.go"}},
 			filePair{"go/auth_service_provider.go.stub", []string{"app", "providers", "auth_service_provider.go"}},
 			filePair{"go/migration_auth.go.stub", []string{"database", "migrations", "create_auth_tables.go"}},
-			filePair{"go/migration_social_accounts.go.stub", []string{"database", "migrations", "create_social_accounts_table.go"}},
 		)
+		if wantSocial {
+			pairs = append(pairs,
+				filePair{"go/social_account_model.go.stub", []string{"app", "models", "social_account.go"}},
+				filePair{"go/social_auth_controller.go.stub", []string{"app", "http", "controllers", "web", "social_auth_controller.go"}},
+				filePair{"go/migration_social_accounts.go.stub", []string{"database", "migrations", "create_social_accounts_table.go"}},
+			)
+		}
 	}
 
 	created, skipped := 0, 0
+	var routesAuthPath, loginViewPath, registerViewPath string
 	for _, pair := range pairs {
 		src := filepath.Join(stubRoot, filepath.FromSlash(pair.stub))
 		dst := c.app.BasePath(pair.dest...)
@@ -86,7 +109,11 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 		}
 		if !force {
 			if _, err := os.Stat(dst); err == nil {
-				fmt.Printf("Skipped (exists): %s\n", dst)
+				if strings.HasSuffix(dst, "auth_service_provider.go") {
+					fmt.Printf("Skipped (exists): %s — add gates/policies manually or use --force\n", dst)
+				} else {
+					fmt.Printf("Skipped (exists): %s\n", dst)
+				}
 				skipped++
 				continue
 			}
@@ -105,6 +132,30 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 		}
 		fmt.Printf("Created: %s\n", dst)
 		created++
+		switch pair.stub {
+		case "go/routes_auth.go.stub":
+			routesAuthPath = dst
+		case "auth/login.html":
+			loginViewPath = dst
+		case "auth/register.html":
+			registerViewPath = dst
+		}
+	}
+
+	if !viewsOnly && routesAuthPath != "" {
+		if err := filterAuthSocialRoutes(routesAuthPath, wantGoogle, wantGitHub); err != nil {
+			return err
+		}
+	}
+	if loginViewPath != "" {
+		if err := filterAuthSocialLinks(loginViewPath, wantGoogle, wantGitHub); err != nil {
+			return err
+		}
+	}
+	if registerViewPath != "" {
+		if err := filterAuthSocialLinks(registerViewPath, wantGoogle, wantGitHub); err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("\nAuth scaffold ready (%d created, %d skipped).\n", created, skipped)
@@ -113,13 +164,29 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 	} else {
 		fmt.Println("Next steps:")
 		fmt.Println("  1. In database/migrations/migrations.go add:")
-		fmt.Println("     &CreateUsersTable{}, &CreatePasswordResetTokensTable{}, &CreatePersonalAccessTokensTable{}, &CreateSocialAccountsTable{},")
+		migLine := "     &CreateUsersTable{}, &CreatePasswordResetTokensTable{}, &CreatePersonalAccessTokensTable{},"
+		if wantSocial {
+			migLine += " &CreateSocialAccountsTable{},"
+		}
+		fmt.Println(migLine)
 		fmt.Println("  2. In routes/web.go call: RegisterAuthWeb(app)")
 		fmt.Println("  3. In routes/api.go call: RegisterAuthAPI(app)")
-		fmt.Println("  4. Set GOOGLE_*/GITHUB_* env vars for social login (optional)")
-		fmt.Println("  5. Run: go run ./cmd/zatrano migrate")
+		if wantSocial {
+			var envs []string
+			if wantGoogle {
+				envs = append(envs, "GOOGLE_*")
+			}
+			if wantGitHub {
+				envs = append(envs, "GITHUB_*")
+			}
+			fmt.Printf("  4. Set %s env vars for social login (optional)\n", strings.Join(envs, "/"))
+			fmt.Println("  5. Run: go run ./cmd/zatrano migrate")
+		} else {
+			fmt.Println("  4. Run: go run ./cmd/zatrano migrate")
+		}
 	}
 	fmt.Println("Use --force to overwrite existing files. Use --views for views only.")
+	fmt.Println("Use --social=google|github|google,github to select OAuth providers.")
 	return nil
 }
 
@@ -235,4 +302,79 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func containsStr(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
+func appendUnique(list []string, v string) []string {
+	if containsStr(list, v) {
+		return list
+	}
+	return append(list, v)
+}
+
+func filterAuthSocialRoutes(path string, wantGoogle, wantGitHub bool) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(body), "\n")
+	var out []string
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		isGoogle := strings.Contains(lower, "google")
+		isGitHub := strings.Contains(lower, "github")
+		if strings.Contains(line, "social :=") || strings.Contains(line, "social:=") {
+			if !wantGoogle && !wantGitHub {
+				continue
+			}
+			out = append(out, line)
+			continue
+		}
+		if isGoogle && !wantGoogle && (strings.Contains(line, "router.Get") || strings.Contains(line, "social.")) {
+			continue
+		}
+		if isGitHub && !wantGitHub && (strings.Contains(line, "router.Get") || strings.Contains(line, "social.")) {
+			continue
+		}
+		out = append(out, line)
+	}
+	// Drop unused social controller binding when no provider routes remain.
+	if !wantGoogle && !wantGitHub {
+		filtered := out[:0]
+		for _, line := range out {
+			if strings.Contains(line, "SocialAuthController") {
+				continue
+			}
+			filtered = append(filtered, line)
+		}
+		out = filtered
+	}
+	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
+}
+
+func filterAuthSocialLinks(path string, wantGoogle, wantGitHub bool) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(body)
+	if !wantGoogle {
+		text = regexp.MustCompile(`(?m)^[ \t]*<a href="/login/google">.*</a>[ \t]*\r?\n`).ReplaceAllString(text, "")
+	}
+	if !wantGitHub {
+		text = regexp.MustCompile(`(?m)^[ \t]*<a href="/login/github">.*</a>[ \t]*\r?\n`).ReplaceAllString(text, "")
+	}
+	if !wantGoogle && !wantGitHub {
+		text = regexp.MustCompile(`(?m)^[ \t]*<p class="auth-divider">.*</p>[ \t]*\r?\n`).ReplaceAllString(text, "")
+		text = regexp.MustCompile(`(?ms)[ \t]*<div class="auth-social">.*?</div>[ \t]*\r?\n`).ReplaceAllString(text, "")
+	}
+	return os.WriteFile(path, []byte(text), 0o644)
 }

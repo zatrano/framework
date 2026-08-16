@@ -120,7 +120,11 @@ func ResponseFor(req *http.Request, err error) *http.Response {
 		if req != nil {
 			FlashErrors(req, e.Errors, e.Bag)
 			WithInput(req)
-			return http.RedirectBack(req, "/")
+			fallback := req.Path()
+			if fallback == "" {
+				fallback = "/"
+			}
+			return http.RedirectBack(req, fallback)
 		}
 		return http.JSON(map[string]any{
 			"message": "Validation failed",

@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/zatrano/framework/packages/broadcasting"
 	"github.com/zatrano/framework/packages/cache"
 	"github.com/zatrano/framework/packages/database"
+	"github.com/zatrano/framework/packages/database/query"
 	"github.com/zatrano/framework/packages/env"
 	"github.com/zatrano/framework/packages/events"
 	"github.com/zatrano/framework/packages/filesystem"
@@ -28,6 +30,7 @@ import (
 	"github.com/zatrano/framework/packages/redisx"
 	"github.com/zatrano/framework/packages/schedule"
 	"github.com/zatrano/framework/packages/session"
+	"github.com/zatrano/framework/packages/validation"
 	"github.com/zatrano/framework/packages/view"
 )
 
@@ -77,6 +80,21 @@ func BootDatabase(app *core.Application) error {
 	if ev := events.From(app); ev != nil {
 		orm.SetDispatcher(ev)
 	}
+	validation.SetDefaultPresenceChecker(func(table, column, value string) (bool, error) {
+		table = strings.TrimSpace(table)
+		column = strings.TrimSpace(column)
+		if table == "" || column == "" {
+			return false, nil
+		}
+		row, err := query.New(db, driver, table).Where(column, value).First()
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return false, nil
+			}
+			return false, err
+		}
+		return row != nil, nil
+	})
 	return nil
 }
 
@@ -447,8 +465,31 @@ func BootViewSession(app *core.Application) error {
 	engine.Share("appName", app.Config().GetString("app.name", "ZATRANO"))
 	if tr := localization.From(app); tr != nil {
 		engine.Share("locale", tr.GetLocale())
-		engine.AddFunc("trans", func(key string) string {
-			return tr.Get(key)
+		engine.AddFunc("trans", func(localeOrKey string, args ...any) string {
+			locale := ""
+			key := localeOrKey
+			var replace map[string]string
+			if len(args) == 0 {
+				return tr.Get(key)
+			}
+			// trans .locale "key" [replace]
+			if s, ok := args[0].(string); ok {
+				locale = localeOrKey
+				key = s
+				if len(args) > 1 {
+					replace = coerceStringMap(args[1])
+				}
+				return tr.GetFor(locale, key, replace)
+			}
+			replace = coerceStringMap(args[0])
+			return tr.Get(key, replace)
+		})
+		engine.AddFunc("dict", func(pairs ...any) map[string]string {
+			out := map[string]string{}
+			for i := 0; i+1 < len(pairs); i += 2 {
+				out[fmt.Sprint(pairs[i])] = fmt.Sprint(pairs[i+1])
+			}
+			return out
 		})
 		engine.AddFunc("choice", func(key string, number any) string {
 			n := 0
@@ -509,6 +550,23 @@ func asString(value any) string {
 		return s
 	}
 	return fmt.Sprint(value)
+}
+
+func coerceStringMap(v any) map[string]string {
+	if v == nil {
+		return nil
+	}
+	if m, ok := v.(map[string]string); ok {
+		return m
+	}
+	if m, ok := v.(map[string]any); ok {
+		out := make(map[string]string, len(m))
+		for k, val := range m {
+			out[k] = asString(val)
+		}
+		return out
+	}
+	return nil
 }
 
 func asInt(value any) (int, bool) {

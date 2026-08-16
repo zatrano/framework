@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/zatrano/framework/bootstrap"
 	"github.com/zatrano/framework/core"
 )
 
@@ -22,6 +23,16 @@ func (c *MakeEnumCommand) Description() string { return "Create a string enum sc
 func (c *MakeEnumCommand) Handle(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("enum name required")
+	}
+	enabled := false
+	for _, name := range bootstrap.EnabledAddons {
+		if strings.EqualFold(strings.TrimSpace(name), "enums") {
+			enabled = true
+			break
+		}
+	}
+	if !enabled {
+		fmt.Println("Warning: enums addon is not in EnabledAddons — run `package:enable enums` to register the registry at boot.")
 	}
 	name := args[0]
 	structName := toExported(name)

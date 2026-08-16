@@ -192,7 +192,7 @@ func (m *Manager) Subscribe(customerID, name, priceID string, trialDays ...int) 
 	}
 
 	if m.StripeEnabled() {
-		session, err := m.createStripeCheckout(customerID, priceID, trial)
+		session, err := m.createStripeCheckout(customerID, priceID, trial, "subscription")
 		if err != nil {
 			return nil, err
 		}
@@ -320,6 +320,7 @@ func (m *Manager) OnTrial(customerID, name string) bool {
 }
 
 // Checkout creates a hosted checkout session URL (Stripe Checkout when configured).
+// With Stripe, uses mode=payment for one-time price checkout.
 func (m *Manager) Checkout(customerID, priceID string) (*CheckoutSession, error) {
 	if _, err := m.Customer(customerID); err != nil {
 		return nil, err
@@ -328,7 +329,7 @@ func (m *Manager) Checkout(customerID, priceID string) (*CheckoutSession, error)
 		return nil, fmt.Errorf("billing: price_id is required")
 	}
 	if m.StripeEnabled() {
-		session, err := m.createStripeCheckout(customerID, priceID, 0)
+		session, err := m.createStripeCheckout(customerID, priceID, 0, "payment")
 		if err != nil {
 			return nil, err
 		}
@@ -350,20 +351,108 @@ func (m *Manager) Checkout(customerID, priceID string) (*CheckoutSession, error)
 	return session, nil
 }
 
-func (m *Manager) createStripeCheckout(customerID, priceID string, trialDays int) (*CheckoutSession, error) {
+// PaymentLineItem is an ad-hoc checkout line (amount in the smallest currency unit).
+type PaymentLineItem struct {
+	Name     string
+	Amount   int64
+	Quantity int64
+}
+
+// CheckoutPayment creates a Stripe Checkout Session with mode=payment and inline price_data.
+func (m *Manager) CheckoutPayment(customerID, currency string, lineItems []PaymentLineItem) (*CheckoutSession, error) {
+	if _, err := m.Customer(customerID); err != nil {
+		return nil, err
+	}
+	if len(lineItems) == 0 {
+		return nil, fmt.Errorf("billing: line_items are required")
+	}
+	if currency == "" {
+		currency = "usd"
+	}
+	currency = strings.ToLower(currency)
+
+	if m.StripeEnabled() {
+		m.mu.RLock()
+		successURL := m.successURL
+		cancelURL := m.cancelURL
+		m.mu.RUnlock()
+
+		form := url.Values{}
+		form.Set("mode", "payment")
+		form.Set("customer", customerID)
+		form.Set("success_url", successURL+"?session_id={CHECKOUT_SESSION_ID}")
+		form.Set("cancel_url", cancelURL)
+		for i, item := range lineItems {
+			qty := item.Quantity
+			if qty <= 0 {
+				qty = 1
+			}
+			if item.Name == "" {
+				return nil, fmt.Errorf("billing: line_items[%d].name is required", i)
+			}
+			if item.Amount <= 0 {
+				return nil, fmt.Errorf("billing: line_items[%d].amount must be positive", i)
+			}
+			prefix := fmt.Sprintf("line_items[%d]", i)
+			form.Set(prefix+"[price_data][currency]", currency)
+			form.Set(prefix+"[price_data][unit_amount]", fmt.Sprintf("%d", item.Amount))
+			form.Set(prefix+"[price_data][product_data][name]", item.Name)
+			form.Set(prefix+"[quantity]", fmt.Sprintf("%d", qty))
+		}
+		raw, err := m.stripeForm(http.MethodPost, "https://api.stripe.com/v1/checkout/sessions", form)
+		if err != nil {
+			return nil, err
+		}
+		id := stringField(raw, "id")
+		checkoutURL := stringField(raw, "url")
+		status := stringField(raw, "status")
+		if status == "" {
+			status = "open"
+		}
+		if id == "" || checkoutURL == "" {
+			return nil, fmt.Errorf("billing: stripe checkout session incomplete")
+		}
+		session := &CheckoutSession{
+			ID:         id,
+			CustomerID: customerID,
+			URL:        checkoutURL,
+			Status:     status,
+		}
+		m.mu.Lock()
+		m.checkouts[session.ID] = session
+		m.mu.Unlock()
+		return session, nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	session := &CheckoutSession{
+		ID:         "cs_" + uuid.New()[:8],
+		CustomerID: customerID,
+		Status:     "open",
+	}
+	session.URL = fmt.Sprintf("%s/billing/checkout/%s", m.baseURL, session.ID)
+	m.checkouts[session.ID] = session
+	return session, nil
+}
+
+func (m *Manager) createStripeCheckout(customerID, priceID string, trialDays int, mode string) (*CheckoutSession, error) {
+	if mode == "" {
+		mode = "subscription"
+	}
 	m.mu.RLock()
 	successURL := m.successURL
 	cancelURL := m.cancelURL
 	m.mu.RUnlock()
 
 	form := url.Values{}
-	form.Set("mode", "subscription")
+	form.Set("mode", mode)
 	form.Set("customer", customerID)
 	form.Set("success_url", successURL+"?session_id={CHECKOUT_SESSION_ID}")
 	form.Set("cancel_url", cancelURL)
 	form.Set("line_items[0][price]", priceID)
 	form.Set("line_items[0][quantity]", "1")
-	if trialDays > 0 {
+	if mode == "subscription" && trialDays > 0 {
 		form.Set("subscription_data[trial_period_days]", fmt.Sprintf("%d", trialDays))
 	}
 	raw, err := m.stripeForm(http.MethodPost, "https://api.stripe.com/v1/checkout/sessions", form)

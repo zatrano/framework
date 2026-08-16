@@ -2,6 +2,40 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.1.0 - 2026-08-16
+
+Ecommerce shop integration fixes (ZATRANO-001…029 subset).
+
+### Added
+
+- `WebApp` / `APIApp` merge `Preset* ∪ EnabledAddons`
+- `db:create` CLI (mysql/pgsql)
+- Billing `Checkout` uses Stripe `mode=payment`; `CheckoutPayment` with `price_data` line items
+- `schema.ForeignID(...).Constrained(...).CascadeOnDelete()`
+- `make:controller --api` / `--admin`; `make:view --layout=`; `make:lang --group=`; `make:auth --social=`
+- Auth provider `WithHydrate` for ORM `*models.User` mapping
+- Validation `SetDefaultPresenceChecker` (foundation wires DB unique/exists)
+- `@lang('key', ['name' => …])` replacements; request-locale-aware `trans`
+- Docker Compose `postgres` profile
+
+### Fixed
+
+- CLI default `FromEnv("app")` (was `demo`)
+- `make:migration` param shadowing (`s *schema.Builder`)
+- Auth routes/middleware/wellknown under `/auth/*` and `/api/auth/*`
+- Authorization middleware HTML redirect/abort (not JSON-only)
+- Form validation `RedirectBack` fallback = current path
+- pgsql default username `postgres`; schema `Rename` for pgsql
+- `package:enable` preserves `enabled.go` header comments
+- Policy stub uses `authorization.Authenticatable`
+- Resource stub comment → `packages/resources`
+- `lang/` no longer gitignored by default
+
+### Deferred
+
+- `make:model --translation` (ZATRANO-015)
+- `make:*` CoreApp-only boot (ZATRANO-019) — partial risk remains if broken migrations block compile
+
 ## 1.0.8 - 2026-08-15
 
 ### Fixed

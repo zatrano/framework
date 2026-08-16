@@ -81,7 +81,7 @@ func ConfirmPasswordMiddleware(manager *Manager, within ...time.Duration) routin
 				if req.WantsJSON() {
 					return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
 				}
-				return http.Redirect("/login")
+				return http.Redirect("/auth/login")
 			}
 			if PasswordConfirmed(req, ttl) {
 				return next(req)
@@ -92,7 +92,7 @@ func ConfirmPasswordMiddleware(manager *Manager, within ...time.Duration) routin
 					"confirm": "/api/auth/confirm-password",
 				}).Status(423)
 			}
-			return http.Redirect("/confirm-password")
+			return http.Redirect("/auth/confirm-password")
 		}
 	}
 }

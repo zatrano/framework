@@ -19,7 +19,7 @@ import (
 
 const (
 	sessionOAuthStatePrefix = "oauth_state_"
-	pathLogin               = "/login"
+	pathLogin               = "/auth/login"
 )
 
 // SocialAuthController handles Google/GitHub OAuth login/register.
