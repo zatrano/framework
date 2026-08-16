@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.3 - 2026-08-16
+
+### Fixed
+
+- Default `packages/version` string was still `1.2.1` after the 1.2.2 cut
+- `gofmt` on `make:model` `Name()` alignment (`packages/console/database.go`)
+
 ## 1.2.2 - 2026-08-16
 
 ### Added
