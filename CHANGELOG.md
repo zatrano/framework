@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.1 - 2026-08-16
+
+### Fixed
+
+- Default SQLite driver module require uses `v1.0.0` (proxy-resolvable) instead of `v0.0.0`
+
 ## 1.2.0 - 2026-08-16
 
 ### Added

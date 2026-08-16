@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.11.0
-	github.com/zatrano/framework/packages/database/driver/sqlite v0.0.0
+	github.com/zatrano/framework/packages/database/driver/sqlite v1.0.0
 	github.com/zatrano/framework/packages/mongo v1.0.0
 	github.com/zatrano/framework/packages/webauthn v1.0.0
 	golang.org/x/crypto v0.52.0

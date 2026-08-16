@@ -209,10 +209,10 @@ func goGetDrivers(basePath string, drivers []string) error {
 		// Local replace path for framework checkout; published tags use module path@version.
 		local := filepath.Join(basePath, "packages", "database", "driver", d)
 		if st, err := os.Stat(local); err == nil && st.IsDir() {
-			args = append(args, mod+"@v0.0.0")
+			args = append(args, mod+"@v1.0.0")
 			continue
 		}
-		args = append(args, mod+"@latest")
+		args = append(args, mod+"@v1.0.0")
 	}
 	if len(args) == 1 {
 		return nil
@@ -264,7 +264,7 @@ func ensureDriverReplaces(basePath string, drivers []string) error {
 			src = src + "\nreplace (\n" + line + ")\n"
 		}
 		// also require
-		req := fmt.Sprintf("\t%s v0.0.0\n", mod)
+		req := fmt.Sprintf("\t%s v1.0.0\n", mod)
 		if !strings.Contains(src, mod+" ") {
 			if idx := strings.Index(src, "require ("); idx >= 0 {
 				src = src[:idx+9] + "\n" + req + src[idx+9:]
