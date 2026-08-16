@@ -73,11 +73,12 @@ func Table[T any]() string {
 	return toSnake(pluralize(name))
 }
 
-// Query starts a new query for model T.
+// Query starts a new query for model T (honours Connection() on the model).
 func Query[T any]() *Querier[T] {
 	table := Table[T]()
+	db, driver := dbAndDriver[T]()
 	return &Querier[T]{
-		builder:    query.New(DB, Driver, table),
+		builder:    query.New(db, driver, table),
 		table:      table,
 		softDelete: hasSoftDeletes[T](),
 	}
@@ -126,7 +127,7 @@ func Create[T any](attrs map[string]any) (*T, error) {
 		return nil, err
 	}
 
-	id, err := query.New(DB, Driver, Table[T]()).Insert(attrs)
+	id, err := tableQuery[T]().Insert(attrs)
 	if err != nil {
 		return nil, err
 	}
@@ -868,7 +869,7 @@ func InsertMany[T any](rows []map[string]any) (int64, error) {
 		}
 		prepared = append(prepared, attrs)
 	}
-	n, err := query.New(DB, Driver, Table[T]()).InsertBatch(prepared)
+	n, err := tableQuery[T]().InsertBatch(prepared)
 	if err != nil {
 		return 0, err
 	}
@@ -1011,7 +1012,7 @@ func Save[T any](model *T) error {
 		if err := dispatchModel("updating", model); err != nil {
 			return err
 		}
-		_, err := query.New(DB, Driver, Table[T]()).Where(keyName, keyVal).Update(attrs)
+		_, err := tableQuery[T]().Where(keyName, keyVal).Update(attrs)
 		if err != nil {
 			return err
 		}
@@ -1028,7 +1029,7 @@ func Save[T any](model *T) error {
 	if err := dispatchModel("creating", model); err != nil {
 		return err
 	}
-	id, err := query.New(DB, Driver, Table[T]()).Insert(attrs)
+	id, err := tableQuery[T]().Insert(attrs)
 	if err != nil {
 		return err
 	}

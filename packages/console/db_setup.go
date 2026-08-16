@@ -24,7 +24,7 @@ type DBSetupCommand struct {
 
 func (c *DBSetupCommand) Name() string { return "db:setup" }
 func (c *DBSetupCommand) Description() string {
-	return "Choose SQL databases (single or multi), link drivers, write .env"
+	return "Choose databases (SQL + Mongo, single or multi), link drivers, write .env"
 }
 func (c *DBSetupCommand) Handle(args []string) error {
 	driversFlag := flagValue(args, "--drivers")
@@ -96,8 +96,21 @@ func (c *DBSetupCommand) Handle(args []string) error {
 	fmt.Println()
 	fmt.Println("Enabled connections:", strings.Join(selected, ", "))
 	fmt.Println("Default:", defaultName)
-	fmt.Println("Multi-DB: app.DB().Connection(\"pgsql\") // named connection")
-	fmt.Println("Next: go run ./cmd/zatrano db:create && go run ./cmd/zatrano migrate")
+	fmt.Println("Multi-DB env: DB_CONNECTIONS=mysql,pgsql,mongo  DB_MYSQL_HOST=…  DB_PGSQL_DATABASE=…  DB_MONGO_URI=…")
+	fmt.Println(`Model: func (m *Order) Connection() string { return "pgsql" }`)
+	fmt.Println(`CLI:   go run ./cmd/zatrano make:model Order --connection=pgsql`)
+	hasSQL := false
+	for _, s := range selected {
+		if !database.IsDocumentStore(s) {
+			hasSQL = true
+			break
+		}
+	}
+	if hasSQL {
+		fmt.Println("Next: go run ./cmd/zatrano db:create && go run ./cmd/zatrano migrate")
+	} else {
+		fmt.Println(`Next: resolve container key "mongo" (document API ready)`)
+	}
 	return nil
 }
 
@@ -283,15 +296,21 @@ func updateEnvDatabase(path string, drivers []string, defaultName string) error 
 	if err != nil {
 		if os.IsNotExist(err) {
 			content := fmt.Sprintf("DB_CONNECTION=%s\nDB_CONNECTIONS=%s\n", defaultName, strings.Join(drivers, ","))
+			content += envDriverHints(drivers)
 			return os.WriteFile(path, []byte(content), 0o644)
 		}
 		return err
 	}
 	lines := strings.Split(string(body), "\n")
-	out := make([]string, 0, len(lines)+2)
+	out := make([]string, 0, len(lines)+8)
 	seenConn, seenList := false, false
+	seen := map[string]bool{}
 	for _, line := range lines {
 		trim := strings.TrimSpace(line)
+		key := envKeyOf(trim)
+		if key != "" {
+			seen[key] = true
+		}
 		if strings.HasPrefix(trim, "DB_CONNECTION=") {
 			out = append(out, "DB_CONNECTION="+defaultName)
 			seenConn = true
@@ -310,7 +329,66 @@ func updateEnvDatabase(path string, drivers []string, defaultName string) error 
 	if !seenList {
 		out = append(out, "DB_CONNECTIONS="+strings.Join(drivers, ","))
 	}
+	for _, line := range strings.Split(strings.TrimSuffix(envDriverHints(drivers), "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		key := envKeyOf(line)
+		if key != "" && seen[key] {
+			continue
+		}
+		out = append(out, line)
+	}
 	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
+}
+
+func envKeyOf(line string) string {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return ""
+	}
+	if i := strings.IndexByte(line, '='); i > 0 {
+		return line[:i]
+	}
+	return ""
+}
+
+func envDriverHints(drivers []string) string {
+	var b strings.Builder
+	for _, d := range drivers {
+		switch d {
+		case "mongo":
+			b.WriteString("DB_MONGO_URI=memory\n")
+			b.WriteString("MONGO_URI=memory\n")
+			b.WriteString("DB_MONGO_DATABASE=zatrano\n")
+		case "mysql":
+			b.WriteString("# DB_MYSQL_HOST=127.0.0.1\n")
+			b.WriteString("# DB_MYSQL_PORT=3306\n")
+			b.WriteString("# DB_MYSQL_DATABASE=zatrano\n")
+			b.WriteString("# DB_MYSQL_USERNAME=root\n")
+			b.WriteString("# DB_MYSQL_PASSWORD=\n")
+		case "pgsql":
+			b.WriteString("# DB_PGSQL_HOST=127.0.0.1\n")
+			b.WriteString("# DB_PGSQL_PORT=5432\n")
+			b.WriteString("# DB_PGSQL_DATABASE=zatrano\n")
+			b.WriteString("# DB_PGSQL_USERNAME=postgres\n")
+			b.WriteString("# DB_PGSQL_PASSWORD=\n")
+			b.WriteString("# DB_PGSQL_SSLMODE=disable\n")
+		case "mssql":
+			b.WriteString("# DB_MSSQL_HOST=127.0.0.1\n")
+			b.WriteString("# DB_MSSQL_PORT=1433\n")
+			b.WriteString("# DB_MSSQL_DATABASE=zatrano\n")
+			b.WriteString("# DB_MSSQL_USERNAME=sa\n")
+			b.WriteString("# DB_MSSQL_PASSWORD=\n")
+		case "oracle":
+			b.WriteString("# DB_ORACLE_HOST=127.0.0.1\n")
+			b.WriteString("# DB_ORACLE_PORT=1521\n")
+			b.WriteString("# DB_ORACLE_SERVICE=FREEPDB1\n")
+			b.WriteString("# DB_ORACLE_USERNAME=system\n")
+			b.WriteString("# DB_ORACLE_PASSWORD=\n")
+		}
+	}
+	return b.String()
 }
 
 func uniqueStrings(in []string) []string {

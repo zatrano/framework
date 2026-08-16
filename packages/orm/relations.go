@@ -58,7 +58,8 @@ func WithCount[Parent any, Related any](parents []Parent, foreignKey string, loc
 	}
 
 	relatedTable := Table[Related]()
-	rows, err := query.New(DB, Driver, relatedTable).
+	db, driver := dbAndDriver[Related]()
+	rows, err := query.New(db, driver, relatedTable).
 		SelectRaw(foreignKey+", COUNT(*) as aggregate").
 		WhereIn(foreignKey, keys).
 		GroupBy(foreignKey).
@@ -115,7 +116,8 @@ func BelongsToMany[Parent any, Related any](
 		return nil, err
 	}
 
-	rows, err := query.New(DB, Driver, pivotTable).Where(foreignPivotKey, parentID).Get()
+	db, driver := dbAndDriver[Parent]()
+	rows, err := query.New(db, driver, pivotTable).Where(foreignPivotKey, parentID).Get()
 	if err != nil {
 		return nil, err
 	}

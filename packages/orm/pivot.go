@@ -152,8 +152,9 @@ func applyRelationExists[Parent, Related any](q *Querier[Parent], not bool, fore
 	relatedTable := Table[Related]()
 	parentTable := q.table
 
+	db, driver := dbAndDriver[Parent]()
 	subQ := &Querier[Related]{
-		builder:    query.New(DB, Driver, relatedTable),
+		builder:    query.New(db, driver, relatedTable),
 		table:      relatedTable,
 		softDelete: hasSoftDeletes[Related](),
 	}

@@ -95,9 +95,9 @@ func DefaultPort(port, fallback string) string {
 	return port
 }
 
-// KnownDrivers lists first-party optional SQL drivers (install via db:setup).
+// KnownDrivers lists first-party optional database drivers (install via db:setup).
 func KnownDrivers() []string {
-	return []string{"sqlite", "mysql", "pgsql", "mssql", "oracle"}
+	return []string{"sqlite", "mysql", "pgsql", "mssql", "oracle", "mongo"}
 }
 
 // DriverModulePath returns the Go module path for a first-party driver.
@@ -113,6 +113,8 @@ func DriverModulePath(name string) string {
 		return "github.com/zatrano/framework/packages/database/driver/mssql"
 	case "oracle", "ora":
 		return "github.com/zatrano/framework/packages/database/driver/oracle"
+	case "mongo", "mongodb":
+		return "github.com/zatrano/framework/packages/database/driver/mongo"
 	default:
 		return ""
 	}
@@ -131,7 +133,14 @@ func NormalizeDriverName(name string) string {
 		return "mssql"
 	case "oracle", "ora":
 		return "oracle"
+	case "mongo", "mongodb":
+		return "mongo"
 	default:
 		return strings.ToLower(strings.TrimSpace(name))
 	}
+}
+
+// IsDocumentStore reports whether the driver is a document database (not SQL).
+func IsDocumentStore(name string) bool {
+	return NormalizeDriverName(name) == "mongo"
 }

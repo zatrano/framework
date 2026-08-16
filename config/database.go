@@ -12,10 +12,11 @@ import (
 // Env:
 //
 //	DB_CONNECTION=mysql                 # default connection name
-//	DB_CONNECTIONS=mysql,pgsql,sqlite   # enabled connections (multi-DB); default = DB_CONNECTION only
+//	DB_CONNECTIONS=mysql,pgsql,mongo    # enabled connections (multi-DB); default = DB_CONNECTION only
 //
 // Shared fallbacks: DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_SSLMODE, DB_SERVICE
 // Per-connection overrides: DB_<NAME>_HOST, DB_<NAME>_PORT, … (e.g. DB_MYSQL_HOST, DB_PGSQL_DATABASE)
+// Mongo: DB_MONGO_URI / MONGO_URI, DB_MONGO_DATABASE
 func Database() map[string]any {
 	defaultName := database.NormalizeDriverName(env.GetNonEmpty("DB_CONNECTION", "sqlite"))
 	enabled := parseEnabledConnections(env.Get("DB_CONNECTIONS", ""), defaultName)
@@ -111,6 +112,19 @@ func connectionConfig(name, defaultName string) map[string]any {
 			"service":  firstNonEmpty(env.Get(prefix+"SERVICE"), env.GetNonEmpty("DB_SERVICE", ""), firstNonEmpty(env.Get(prefix+"DATABASE"), env.GetNonEmpty("DB_DATABASE", "FREEPDB1"))),
 			"username": firstNonEmpty(env.Get(prefix+"USERNAME"), pick(shared, env.GetNonEmpty("DB_USERNAME", "system")), "system"),
 			"password": pass,
+		}
+	case "mongo":
+		uri := firstNonEmpty(
+			env.Get(prefix+"URI"),
+			env.Get("DB_MONGO_URI"),
+			env.Get("MONGO_URI"),
+			pick(shared, "memory"),
+			"memory",
+		)
+		return map[string]any{
+			"driver":   "mongo",
+			"uri":      uri,
+			"database": firstNonEmpty(env.Get(prefix+"DATABASE"), env.Get("MONGO_DATABASE"), "zatrano"),
 		}
 	default:
 		return map[string]any{

@@ -12,7 +12,7 @@
   <a href="https://github.com/zatrano/framework/actions"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.1-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.2-green.svg" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -57,7 +57,7 @@ Nothing optional is magic-loaded. You pick a **boot profile** and enable only th
 │  bootstrap/   APP_BOOT · EnabledAddons · presets        │
 ├──────────────────┬──────────────────────────────────────┤
 │  foundation      │  service addons (opt-in)             │
-│  auth db mail …  │  mongo oauth billing ai webauthn … │
+│  auth db mail …  │  oauth billing ai webauthn …        │
 ├──────────────────┴──────────────────────────────────────┤
 │  core/   thin kernel                                    │
 └─────────────────────────────────────────────────────────┘
@@ -74,8 +74,8 @@ Nothing optional is magic-loaded. You pick a **boot profile** and enable only th
 ## Requirements
 
 - Go **1.25+**
-- SQLite (default), MySQL, or PostgreSQL
-- Optional: Redis, MongoDB, Stripe, OpenAI — only if you enable those addons
+- SQLite (default); MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup`
+- Optional: Redis, Stripe, OpenAI — only if you enable those addons
 
 ## Quick start
 
@@ -132,6 +132,56 @@ go run ./cmd/zatrano serve
 
 `cmd/zatrano` defaults to **app** when `APP_BOOT` is unset. Set `APP_BOOT` explicitly before shipping. Scaffold commands (`make:*`) always boot with `CoreApp()` (no database).
 
+## Databases (single & multi)
+
+Drivers are **opt-in modules**. Default checkout links **SQLite** only. Install engines with:
+
+```bash
+go run ./cmd/zatrano db:setup
+# or non-interactive:
+go run ./cmd/zatrano db:setup --drivers=sqlite,mysql,pgsql,mongo --default=mysql --yes
+```
+
+Supported: `sqlite` · `mysql` · `pgsql` · `mssql` · `oracle` · `mongo` (same list as SQL — Mongo is not a special-case-only addon path).
+
+### Env
+
+```env
+DB_CONNECTION=mysql
+DB_CONNECTIONS=mysql,pgsql,mongo
+
+DB_HOST=127.0.0.1
+DB_MYSQL_HOST=127.0.0.1
+DB_MYSQL_DATABASE=shop
+DB_PGSQL_HOST=127.0.0.1
+DB_PGSQL_DATABASE=analytics
+DB_PGSQL_USERNAME=postgres
+DB_MONGO_URI=mongodb://localhost:27017
+DB_MONGO_DATABASE=zatrano
+```
+
+Per-connection keys: `DB_<NAME>_HOST`, `_PORT`, `_DATABASE`, `_USERNAME`, `_PASSWORD`, `_SSLMODE`, `_SERVICE`, `_URI`.
+
+### Models pick a connection
+
+```go
+type Order struct {
+    orm.Model
+    Total int64 `db:"total"`
+}
+
+func (m *Order) TableName() string  { return "orders" }
+func (m *Order) Connection() string { return "pgsql" } // must appear in DB_CONNECTIONS
+```
+
+```bash
+go run ./cmd/zatrano make:model Order --connection=pgsql
+```
+
+Runtime: `app.DB().Connection("pgsql")` for SQL; Mongo binds as container key `mongo` (and `mongo.<name>` when the connection name is not `mongo`).
+
+Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) · [MongoDB](https://zatrano.com/docs/mongodb).
+
 ## Boot profiles
 
 | API | `APP_BOOT` | Boots |
@@ -166,16 +216,17 @@ Full guide: [Boot Profiles](https://zatrano.com/docs/boot-profiles).
 go run ./cmd/zatrano package:list
 go run ./cmd/zatrano package:list --libraries
 go run ./cmd/zatrano package:status
-go run ./cmd/zatrano package:enable mongo
+go run ./cmd/zatrano package:enable oauth
 go run ./cmd/zatrano package:preset api --merge
 go run ./cmd/zatrano package:doctor
 ```
 
 | Kind | Enable? | Examples |
 |------|---------|----------|
-| **Service** | Yes — `EnabledAddons` / preset | `mongo`, `oauth`, `billing`, `ai`, `social` |
+| **Service** | Yes — `EnabledAddons` / preset | `oauth`, `billing`, `ai`, `social` |
 | **Library** | No — just `import` | `collection`, `totp`, `support` |
-| **Heavy** | Only when needed | `mongo`, `webauthn`, `qr` (separate modules) |
+| **Heavy** | Only when needed | `webauthn`, `qr` (separate modules); DB engines via `db:setup` |
+| **Database** | `db:setup` | `sqlite`, `mysql`, `pgsql`, `mssql`, `oracle`, `mongo` |
 
 Resolve from the container:
 
@@ -185,7 +236,7 @@ auth.Passwords(app)
 mail.From(app)
 session.From(app)
 database.Migrator(app)
-mongo.From(app) // nil unless addon enabled
+mongo.From(app) // nil unless mongo is in DB_CONNECTIONS / db:setup (or legacy addon)
 ```
 
 Guide: [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).

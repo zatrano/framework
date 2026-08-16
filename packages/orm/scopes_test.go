@@ -31,7 +31,7 @@ func TestLocalScopesHelpers(t *testing.T) {
 
 func TestGlobalScopeRegistry(t *testing.T) {
 	orm.ClearGlobalScopes[scopeUser]()
-	orm.AddGlobalScope[scopeUser]("active", func(q *orm.Querier[scopeUser]) *orm.Querier[scopeUser] {
+	orm.AddGlobalScope("active", func(q *orm.Querier[scopeUser]) *orm.Querier[scopeUser] {
 		return q.Where("active", true)
 	})
 	q := orm.Query[scopeUser]().WithoutGlobalScope("active")
@@ -43,7 +43,7 @@ func TestGlobalScopeRegistry(t *testing.T) {
 
 func TestNamedLocalScope(t *testing.T) {
 	orm.ClearLocalScopes[scopeUser]()
-	orm.RegisterScope[scopeUser]("admins", func(q *orm.Querier[scopeUser]) *orm.Querier[scopeUser] {
+	orm.RegisterScope("admins", func(q *orm.Querier[scopeUser]) *orm.Querier[scopeUser] {
 		return q.Where("role", "admin")
 	})
 	if !orm.HasScope[scopeUser]("admins") {

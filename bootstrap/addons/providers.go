@@ -258,6 +258,9 @@ func (p *BillingServiceProvider) Boot(app *core.Application) error { return nil 
 type MongoServiceProvider struct{}
 
 func (p *MongoServiceProvider) Register(app *core.Application) error {
+	if app.Bound("mongo") {
+		return nil // already wired via db:setup / BootDatabase
+	}
 	uri := app.Config().GetString("mongo.uri", env.Get("MONGO_URI", "memory"))
 	client := mongo.Connect(uri)
 	if err := client.Ping(); err != nil {

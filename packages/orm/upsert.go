@@ -3,8 +3,6 @@ package orm
 import (
 	"fmt"
 	"time"
-
-	"github.com/zatrano/framework/packages/database/query"
 )
 
 // Upsert inserts attrs or updates listed columns when uniqueBy conflicts.
@@ -47,5 +45,5 @@ func Upsert[T any](attrs map[string]any, uniqueBy []string, update ...string) (i
 			updateCols = append(updateCols, "updated_at")
 		}
 	}
-	return query.New(DB, Driver, Table[T]()).Upsert(attrs, uniqueBy, updateCols...)
+	return tableQuery[T]().Upsert(attrs, uniqueBy, updateCols...)
 }

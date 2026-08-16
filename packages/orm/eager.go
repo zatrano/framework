@@ -269,7 +269,8 @@ func LoadBelongsToMany[Parent, Related any](
 		return nil
 	}
 
-	pivotRows, err := query.New(DB, Driver, pivotTable).WhereIn(foreignPivotKey, keys).Get()
+	db, driver := dbAndDriver[Parent]()
+	pivotRows, err := query.New(db, driver, pivotTable).WhereIn(foreignPivotKey, keys).Get()
 	if err != nil {
 		return err
 	}

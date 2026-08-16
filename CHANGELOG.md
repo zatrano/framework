@@ -2,6 +2,20 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.2 - 2026-08-16
+
+### Added
+
+- ORM model `Connection() string` routes queries to a named SQL connection (`DB_CONNECTIONS`)
+- `make:model --connection=pgsql` stubs `Connection()` on the model
+- MongoDB as a first-class `db:setup` driver (`packages/database/driver/mongo`) alongside SQL engines
+- Multi-DB env hints from `db:setup` (`DB_MONGO_URI`, `DB_MYSQL_*`, `DB_PGSQL_*`, …)
+- README section: single/multi database + model connection selection
+
+### Changed
+
+- Mongo boots from `DB_CONNECTIONS` / `DB_MONGO_URI` (legacy `package:enable mongo` still works if not already bound)
+
 ## 1.2.1 - 2026-08-16
 
 ### Fixed

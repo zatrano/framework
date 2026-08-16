@@ -24,6 +24,7 @@ type ConnectionConfig struct {
 	Charset  string
 	SSLMode  string // pgsql / oracle
 	Service  string // oracle service name
+	URI      string // mongo URI (mongodb://… or memory)
 }
 
 // Manager manages database connections.

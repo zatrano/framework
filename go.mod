@@ -47,6 +47,7 @@ require (
 )
 
 replace (
+	github.com/zatrano/framework/packages/database/driver/mongo => ./packages/database/driver/mongo
 	github.com/zatrano/framework/packages/database/driver/mssql => ./packages/database/driver/mssql
 	github.com/zatrano/framework/packages/database/driver/mysql => ./packages/database/driver/mysql
 	github.com/zatrano/framework/packages/database/driver/oracle => ./packages/database/driver/oracle

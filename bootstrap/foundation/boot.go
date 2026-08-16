@@ -24,6 +24,7 @@ import (
 	"github.com/zatrano/framework/packages/httpclient"
 	"github.com/zatrano/framework/packages/localization"
 	"github.com/zatrano/framework/packages/mail"
+	mongopkg "github.com/zatrano/framework/packages/mongo"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
 	"github.com/zatrano/framework/packages/queue"
@@ -48,7 +49,7 @@ func BootDatabase(app *core.Application) error {
 		if !ok {
 			continue
 		}
-		connections[name] = database.ConnectionConfig{
+		cfg := database.ConnectionConfig{
 			Driver:   asString(cfgMap["driver"]),
 			Host:     asString(cfgMap["host"]),
 			Port:     asString(cfgMap["port"]),
@@ -58,11 +59,34 @@ func BootDatabase(app *core.Application) error {
 			Charset:  asString(cfgMap["charset"]),
 			SSLMode:  asString(cfgMap["sslmode"]),
 			Service:  asString(cfgMap["service"]),
+			URI:      asString(cfgMap["uri"]),
+		}
+		if database.IsDocumentStore(cfg.Driver) || database.IsDocumentStore(name) {
+			if err := bootMongoConnection(app, name, cfg); err != nil {
+				return err
+			}
+			continue
+		}
+		connections[name] = cfg
+	}
+
+	if len(connections) == 0 {
+		if database.IsDocumentStore(defaultConn) {
+			return nil
+		}
+		return fmt.Errorf("no SQL database connections configured")
+	}
+
+	sqlDefault := defaultConn
+	if _, ok := connections[sqlDefault]; !ok {
+		for name := range connections {
+			sqlDefault = name
+			break
 		}
 	}
 
 	mgr := database.NewManager(database.Config{
-		Default:     defaultConn,
+		Default:     sqlDefault,
 		Connections: connections,
 	}, app.BasePath())
 	app.Container().Instance("db", mgr)
@@ -76,6 +100,17 @@ func BootDatabase(app *core.Application) error {
 		return err
 	}
 	orm.Configure(db, driver)
+	orm.SetConnectionResolver(func(name string) (*sql.DB, string, error) {
+		conn, err := mgr.Connection(name)
+		if err != nil {
+			return nil, "", err
+		}
+		d, err := mgr.DriverName(name)
+		if err != nil {
+			return nil, "", err
+		}
+		return conn, d, nil
+	})
 	if enc := app.Encrypter(); enc != nil {
 		orm.SetCastEncrypter(enc)
 	}
@@ -97,6 +132,25 @@ func BootDatabase(app *core.Application) error {
 		}
 		return row != nil, nil
 	})
+	return nil
+}
+
+func bootMongoConnection(app *core.Application, name string, cfg database.ConnectionConfig) error {
+	uri := strings.TrimSpace(cfg.URI)
+	if uri == "" {
+		uri = strings.TrimSpace(cfg.Database)
+	}
+	if uri == "" {
+		uri = env.Get("MONGO_URI", "memory")
+	}
+	client := mongopkg.Connect(uri)
+	if err := client.Ping(); err != nil {
+		return fmt.Errorf("mongo connection [%s]: %w", name, err)
+	}
+	app.Container().Instance("mongo", client)
+	if name != "" && name != "mongo" {
+		app.Container().Instance("mongo."+name, client)
+	}
 	return nil
 }
 

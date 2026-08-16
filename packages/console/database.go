@@ -258,14 +258,17 @@ type MakeModelCommand struct {
 }
 
 func (c *MakeModelCommand) Name() string        { return "make:model" }
-func (c *MakeModelCommand) Description() string { return "Create a new ORM model (--translation, -m)" }
+func (c *MakeModelCommand) Description() string {
+	return "Create a new ORM model (--connection=, --translation, -m)"
+}
 func (c *MakeModelCommand) Handle(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("model name required")
 	}
 	name := args[0]
 	withMigration := false
-	translation := "" // "", "columns" (name_tr/name_en), "json"
+	translation := ""
+	connection := ""
 	for _, arg := range args[1:] {
 		switch {
 		case arg == "-m" || arg == "--migration":
@@ -282,6 +285,10 @@ func (c *MakeModelCommand) Handle(args []string) error {
 			default:
 				return fmt.Errorf("unknown --translation mode %q (want columns|json)", mode)
 			}
+		case strings.HasPrefix(arg, "--connection="):
+			connection = database.NormalizeDriverName(strings.TrimPrefix(arg, "--connection="))
+		case arg == "--connection" || arg == "-c":
+			return fmt.Errorf("use --connection=pgsql (value required)")
 		}
 	}
 
@@ -295,7 +302,7 @@ func (c *MakeModelCommand) Handle(args []string) error {
 	}
 
 	table := toSnake(pluralize(name))
-	content := modelStub(name, table, translation)
+	content := modelStub(name, table, translation, connection)
 
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
@@ -308,7 +315,16 @@ func (c *MakeModelCommand) Handle(args []string) error {
 	return nil
 }
 
-func modelStub(name, table, translation string) string {
+func modelStub(name, table, translation, connection string) string {
+	connMethod := ""
+	if connection != "" {
+		connMethod = fmt.Sprintf(`
+
+func (m *%s) Connection() string {
+	return %q
+}
+`, name, connection)
+	}
 	switch translation {
 	case "json":
 		return fmt.Sprintf(`package models
@@ -327,7 +343,7 @@ func (m *%s) TableName() string {
 func (m *%s) Casts() map[string]string {
 	return map[string]string{"translations": "json"}
 }
-`, name, name, table, name)
+%s`, name, name, table, name, connMethod)
 	case "columns":
 		return fmt.Sprintf(`package models
 
@@ -342,7 +358,7 @@ type %s struct {
 func (m *%s) TableName() string {
 	return "%s"
 }
-`, name, name, table)
+%s`, name, name, table, connMethod)
 	default:
 		return fmt.Sprintf(`package models
 
@@ -356,7 +372,7 @@ type %s struct {
 func (m *%s) TableName() string {
 	return "%s"
 }
-`, name, name, table)
+%s`, name, name, table, connMethod)
 	}
 }
 
