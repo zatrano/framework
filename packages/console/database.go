@@ -212,16 +212,30 @@ type MakeModelCommand struct {
 }
 
 func (c *MakeModelCommand) Name() string        { return "make:model" }
-func (c *MakeModelCommand) Description() string { return "Create a new ORM model" }
+func (c *MakeModelCommand) Description() string { return "Create a new ORM model (--translation, -m)" }
 func (c *MakeModelCommand) Handle(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("model name required")
 	}
 	name := args[0]
 	withMigration := false
+	translation := "" // "", "columns" (name_tr/name_en), "json"
 	for _, arg := range args[1:] {
-		if arg == "-m" || arg == "--migration" {
+		switch {
+		case arg == "-m" || arg == "--migration":
 			withMigration = true
+		case arg == "--translation" || arg == "-t":
+			translation = "columns"
+		case strings.HasPrefix(arg, "--translation="):
+			mode := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--translation=")))
+			switch mode {
+			case "", "columns", "true", "1":
+				translation = "columns"
+			case "json":
+				translation = "json"
+			default:
+				return fmt.Errorf("unknown --translation mode %q (want columns|json)", mode)
+			}
 		}
 	}
 
@@ -234,7 +248,57 @@ func (c *MakeModelCommand) Handle(args []string) error {
 		return fmt.Errorf("model already exists: %s", path)
 	}
 
-	content := fmt.Sprintf(`package models
+	table := toSnake(pluralize(name))
+	content := modelStub(name, table, translation)
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("Model created: %s\n", path)
+
+	if withMigration {
+		return writeModelMigration(c.app, name, table, translation)
+	}
+	return nil
+}
+
+func modelStub(name, table, translation string) string {
+	switch translation {
+	case "json":
+		return fmt.Sprintf(`package models
+
+import "github.com/zatrano/framework/packages/orm"
+
+type %s struct {
+	orm.Model
+	Translations map[string]string `+"`"+`db:"translations" json:"translations"`+"`"+`
+}
+
+func (m *%s) TableName() string {
+	return "%s"
+}
+
+func (m *%s) Casts() map[string]string {
+	return map[string]string{"translations": "json"}
+}
+`, name, name, table, name)
+	case "columns":
+		return fmt.Sprintf(`package models
+
+import "github.com/zatrano/framework/packages/orm"
+
+type %s struct {
+	orm.Model
+	NameTr string `+"`"+`db:"name_tr" json:"name_tr"`+"`"+`
+	NameEn string `+"`"+`db:"name_en" json:"name_en"`+"`"+`
+}
+
+func (m *%s) TableName() string {
+	return "%s"
+}
+`, name, name, table)
+	default:
+		return fmt.Sprintf(`package models
 
 import "github.com/zatrano/framework/packages/orm"
 
@@ -246,16 +310,67 @@ type %s struct {
 func (m *%s) TableName() string {
 	return "%s"
 }
-`, name, name, toSnake(pluralize(name)))
+`, name, name, table)
+	}
+}
+
+func writeModelMigration(app *core.Application, modelName, table, translation string) error {
+	description := "create_" + table + "_table"
+	stamp := time.Now().Format("20060102_150405")
+	structName := toExported(description)
+	fileName := stamp + "_" + description + ".go"
+
+	dir := app.BasePath("database", "migrations")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, fileName)
+
+	columns := `		table.String("name")`
+	switch translation {
+	case "json":
+		columns = `		table.Text("translations")`
+	case "columns":
+		columns = `		table.String("name_tr")
+		table.String("name_en")`
+	}
+
+	content := fmt.Sprintf(`package migrations
+
+import "github.com/zatrano/framework/packages/database/schema"
+
+type %s struct{}
+
+func (m *%s) Name() string {
+	return "%s_%s"
+}
+
+func (m *%s) Up(s *schema.Builder) error {
+	return s.Create("%s", func(table *schema.Blueprint) {
+		table.ID()
+%s
+		table.Timestamps()
+	})
+}
+
+func (m *%s) Down(s *schema.Builder) error {
+	return s.DropIfExists("%s")
+}
+`, structName, structName, stamp, description, structName, table, columns, structName, table)
 
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("Model created: %s\n", path)
-
-	if withMigration {
-		return (&MakeMigrationCommand{app: c.app}).Handle([]string{"create_" + toSnake(pluralize(name)) + "_table"})
+	fmt.Printf("Migration created: %s\n", path)
+	regPath := filepath.Join(dir, "migrations.go")
+	if registered, err := appendToAllSlice(regPath, "&"+structName+"{}"); err != nil {
+		return err
+	} else if registered {
+		fmt.Printf("Registered in %s\n", regPath)
+	} else {
+		fmt.Println("Remember to register it in database/migrations/migrations.go")
 	}
+	_ = modelName
 	return nil
 }
 

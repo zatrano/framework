@@ -2,6 +2,17 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.1.1 - 2026-08-16
+
+### Added
+
+- `make:model --translation` / `-t` → `name_tr` / `name_en` fields; `--translation=json` → JSON `translations` cast (ZATRANO-015)
+- `make:model -m` writes a table-specific migration (correct table name + translation columns when requested)
+
+### Fixed
+
+- `make:*` CLI commands boot with `CoreApp()` (no DB/session); other commands still use `FromEnv("app")` (ZATRANO-019)
+
 ## 1.1.0 - 2026-08-16
 
 Ecommerce shop integration fixes (ZATRANO-001…029 subset).
@@ -30,11 +41,6 @@ Ecommerce shop integration fixes (ZATRANO-001…029 subset).
 - Policy stub uses `authorization.Authenticatable`
 - Resource stub comment → `packages/resources`
 - `lang/` no longer gitignored by default
-
-### Deferred
-
-- `make:model --translation` (ZATRANO-015)
-- `make:*` CoreApp-only boot (ZATRANO-019) — partial risk remains if broken migrations block compile
 
 ## 1.0.8 - 2026-08-15
 
