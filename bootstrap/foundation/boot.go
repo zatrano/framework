@@ -540,10 +540,10 @@ func BootViewSession(app *core.Application) error {
 			replace = coerceStringMap(args[0])
 			return tr.Get(key, replace)
 		})
-		engine.AddFunc("dict", func(pairs ...any) map[string]string {
-			out := map[string]string{}
+		engine.AddFunc("dict", func(pairs ...any) map[string]any {
+			out := map[string]any{}
 			for i := 0; i+1 < len(pairs); i += 2 {
-				out[fmt.Sprint(pairs[i])] = fmt.Sprint(pairs[i+1])
+				out[fmt.Sprint(pairs[i])] = pairs[i+1]
 			}
 			return out
 		})

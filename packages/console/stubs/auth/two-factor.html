@@ -21,12 +21,12 @@
 </ul>
 @endif
 
-<form class="auth-form" method="POST" action="/user/two-factor/recovery-codes" style="margin-top:1.25rem;">
+<form class="auth-form" method="POST" action="/auth/user/two-factor/recovery-codes" style="margin-top:1.25rem;">
     <input type="hidden" name="_token" value="{{ $_token }}">
     <button class="auth-btn" type="submit">@lang('auth.regenerate_recovery_codes')</button>
 </form>
 
-<form class="auth-form" method="POST" action="/user/two-factor/disable" style="margin-top:0.75rem;">
+<form class="auth-form" method="POST" action="/auth/user/two-factor/disable" style="margin-top:0.75rem;">
     <input type="hidden" name="_token" value="{{ $_token }}">
     <label for="password">@lang('auth.current_password')
         <input id="password" name="password" type="password" autocomplete="current-password" required>
@@ -51,7 +51,7 @@
 </ul>
 @endif
 
-<form class="auth-form" method="POST" action="/user/two-factor/confirm" style="margin-top:1.25rem;">
+<form class="auth-form" method="POST" action="/auth/user/two-factor/confirm" style="margin-top:1.25rem;">
     <input type="hidden" name="_token" value="{{ $_token }}">
     <label for="code">@lang('auth.confirmation_code')
         <input id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" required>
@@ -59,7 +59,7 @@
     <button class="auth-btn" type="submit">@lang('auth.confirm_and_enable')</button>
 </form>
 @else
-<form class="auth-form" method="POST" action="/user/two-factor/enable" style="margin-top:1.25rem;">
+<form class="auth-form" method="POST" action="/auth/user/two-factor/enable" style="margin-top:1.25rem;">
     <input type="hidden" name="_token" value="{{ $_token }}">
     <button class="auth-btn" type="submit">@lang('auth.enable_two_factor_auth')</button>
 </form>
@@ -67,9 +67,9 @@
 @endif
 
 <p class="auth-links" style="margin-top:1.5rem;">
-    <a href="/profile">@lang('auth.back_to_profile')</a>
+    <a href="/auth/profile">@lang('auth.back_to_profile')</a>
     ·
-    <a href="/user/logout-other-devices">@lang('auth.logout_other_devices')</a>
+    <a href="/auth/user/logout-other-devices">@lang('auth.logout_other_devices')</a>
 </p>
 
 @if($flash.error)

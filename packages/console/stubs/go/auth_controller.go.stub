@@ -144,18 +144,18 @@ func (c *AuthController) UpdateProfile(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, c.lang("auth.form_fields"), "/profile")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/profile")
 	}
 	if err := auth.From(c.App).UpdateProfile(req, req.Input("name"), req.Input("email")); err != nil {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/profile")
+		return flash.WithError(req, c.authMsg(err), "/auth/profile")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"message": c.lang("auth.profile_updated")})
 	}
-	return flash.WithSuccess(req, c.lang("auth.profile_updated"), "/profile")
+	return flash.WithSuccess(req, c.lang("auth.profile_updated"), "/auth/profile")
 }
 
 func (c *AuthController) ChangePasswordForm(req *Request) *Response {
@@ -170,13 +170,13 @@ func (c *AuthController) ChangePassword(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
 		}
-		return flash.WithError(req, c.lang("auth.form_fields"), "/password/change")
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/password/change")
 	}
 	if err := auth.From(c.App).ChangePassword(req, req.Input("current_password"), req.Input("password")); err != nil {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/password/change")
+		return flash.WithError(req, c.authMsg(err), "/auth/password/change")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"message": c.lang("auth.password_updated")})
@@ -218,7 +218,7 @@ func (c *AuthController) EnableTwoFactor(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Put("auth.two_factor_setup", map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
@@ -226,7 +226,7 @@ func (c *AuthController) EnableTwoFactor(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
 	}
-	return flash.WithSuccess(req, c.lang("auth.two_factor_confirm_hint"), "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_confirm_hint"), "/auth/user/two-factor")
 }
 
 func (c *AuthController) ConfirmTwoFactor(req *Request) *Response {
@@ -234,7 +234,7 @@ func (c *AuthController) ConfirmTwoFactor(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Forget("auth.two_factor_setup")
@@ -242,7 +242,7 @@ func (c *AuthController) ConfirmTwoFactor(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, c.lang("auth.two_factor_enabled"), "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_enabled"), "/auth/user/two-factor")
 }
 
 func (c *AuthController) DisableTwoFactor(req *Request) *Response {
@@ -250,12 +250,12 @@ func (c *AuthController) DisableTwoFactor(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, c.lang("auth.two_factor_disabled"), "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.two_factor_disabled"), "/auth/user/two-factor")
 }
 
 func (c *AuthController) RegenerateRecoveryCodes(req *Request) *Response {
@@ -264,7 +264,7 @@ func (c *AuthController) RegenerateRecoveryCodes(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/user/two-factor")
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
 	}
 	if sess := req.Session(); sess != nil {
 		sess.Flash("auth.two_factor_recovery_codes", codes)
@@ -272,7 +272,7 @@ func (c *AuthController) RegenerateRecoveryCodes(req *Request) *Response {
 	if req.WantsJSON() {
 		return JSON(map[string]any{"recovery_codes": codes})
 	}
-	return flash.WithSuccess(req, c.lang("auth.recovery_regenerated"), "/user/two-factor")
+	return flash.WithSuccess(req, c.lang("auth.recovery_regenerated"), "/auth/user/two-factor")
 }
 
 func (c *AuthController) LogoutOtherDevicesForm(req *Request) *Response {
@@ -284,12 +284,12 @@ func (c *AuthController) LogoutOtherDevices(req *Request) *Response {
 		if req.WantsJSON() {
 			return JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
 		}
-		return flash.WithError(req, c.authMsg(err), "/user/logout-other-devices")
+		return flash.WithError(req, c.authMsg(err), "/auth/user/logout-other-devices")
 	}
 	if req.WantsJSON() {
 		return JSON(map[string]any{"ok": true})
 	}
-	return flash.WithSuccess(req, c.lang("auth.other_devices_logged_out"), "/user/logout-other-devices")
+	return flash.WithSuccess(req, c.lang("auth.other_devices_logged_out"), "/auth/user/logout-other-devices")
 }
 
 func (c *AuthController) ForgotForm(req *Request) *Response {
@@ -423,7 +423,6 @@ func (c *AuthController) Verify(req *Request) *Response {
 	}
 	return flash.WithSuccess(req, c.lang("auth.email_verified"), "/")
 }
-
 
 func (c *AuthController) ConfirmPasswordForm(req *Request) *Response {
 	return View("auth/confirm-password", map[string]any{"title": "Confirm Password"})

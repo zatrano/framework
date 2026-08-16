@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.4 - 2026-08-16
+
+### Fixed
+
+- `make:auth` profile / password / 2FA / logout-other-devices routes and stubs under `/auth/*` (ZATRANO-030)
+- Foundation view `dict` returns `map[string]any` so `<x-*>` `mergeDict` works (ZATRANO-031)
+
 ## 1.2.3 - 2026-08-16
 
 ### Fixed
