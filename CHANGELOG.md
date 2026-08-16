@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.5 - 2026-08-16
+
+### Fixed
+
+- `@lang` inside `@foreach` reads locale from Execute root (`$`), not the loop item (ZATRANO-032)
+
 ## 1.2.4 - 2026-08-16
 
 ### Fixed

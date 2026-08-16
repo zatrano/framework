@@ -244,9 +244,10 @@ func (e *Engine) compileBladeLike(input string) (string, error) {
 	}
 
 	// @lang with replacements before bare @lang (prefix).
-	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*['"]([^'"]*)['"]\s*\]\s*\)`, `{{ trans (dataGet . "locale") "$1" (dict "$2" "$3") }}`)
-	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*\$([a-zA-Z0-9_.]+)\s*\]\s*\)`, `{{ trans (dataGet . "locale") "$1" (dict "$2" (dataGet . "$3")) }}`)
-	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ trans (dataGet . "locale") "$1" }}`)
+	// Locale always from Execute root (`$`): inside @foreach `.` is the item and has no locale.
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*['"]([^'"]*)['"]\s*\]\s*\)`, `{{ trans (dataGet $ "locale") "$1" (dict "$2" "$3") }}`)
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*,\s*\[\s*['"]([^'"]+)['"]\s*=>\s*\$([a-zA-Z0-9_.]+)\s*\]\s*\)`, `{{ trans (dataGet $ "locale") "$1" (dict "$2" (dataGet . "$3")) }}`)
+	out = replaceAllRegex(out, `@lang\s*\(\s*['"]([^'"]+)['"]\s*\)`, `{{ trans (dataGet $ "locale") "$1" }}`)
 	// @choice('key', $count)
 	out = replaceAllRegex(out, `@choice\s*\(\s*['"]([^'"]+)['"]\s*,\s*\$([a-zA-Z0-9_.]+)\s*\)`, `{{ choice "$1" (dataGet . "$2") }}`)
 	// @choice('key', 3)

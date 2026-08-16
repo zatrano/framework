@@ -345,3 +345,50 @@ func TestForeachRootDottedCollection(t *testing.T) {
 		t.Fatalf("pagination HasNext missing: %s", out)
 	}
 }
+
+func TestLangInsideForeachUsesRootLocale(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "shop.html"), []byte(`
+<p class="out">@lang('shop.add_to_cart')</p>
+@foreach($variants as $variant)
+<button class="btn" data-sku="{{ $variant.sku }}">@lang('shop.add_to_cart')</button>
+<span class="greet">@lang('shop.hello', ['name' => 'Ada'])</span>
+@endforeach
+`), 0o644)
+
+	engine := view.New(dir)
+	// Match foundation typed signature: trans(locale string, key string, replace...)
+	engine.AddFunc("trans", func(locale string, key string, _ ...any) string {
+		if locale != "tr" {
+			t.Fatalf("locale=%q want tr (dot must not be the loop item)", locale)
+		}
+		switch key {
+		case "shop.add_to_cart":
+			return "Sepete ekle"
+		case "shop.hello":
+			return "Merhaba Ada"
+		default:
+			return key
+		}
+	})
+
+	out, err := engine.Render("shop", map[string]any{
+		"locale": "tr",
+		"variants": []map[string]any{
+			{"sku": "A1"},
+			{"sku": "B2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `class="out">Sepete ekle`) {
+		t.Fatalf("lang outside foreach: %s", out)
+	}
+	if strings.Count(out, `>Sepete ekle</button>`) != 2 {
+		t.Fatalf("lang inside foreach missing: %s", out)
+	}
+	if strings.Count(out, `class="greet">Merhaba Ada`) != 2 {
+		t.Fatalf("lang with replace inside foreach: %s", out)
+	}
+}
