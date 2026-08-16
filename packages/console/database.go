@@ -257,7 +257,7 @@ type MakeModelCommand struct {
 	app *core.Application
 }
 
-func (c *MakeModelCommand) Name() string        { return "make:model" }
+func (c *MakeModelCommand) Name() string { return "make:model" }
 func (c *MakeModelCommand) Description() string {
 	return "Create a new ORM model (--connection=, --translation, -m)"
 }
