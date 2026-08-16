@@ -118,8 +118,9 @@ type StubProvider struct {
 }
 
 // NewStubProvider creates a stub OAuth provider.
+// Authorize URLs stay on the app origin (no oauth.* subdomain).
 func NewStubProvider(name string, cfg Config) *StubProvider {
-	base := "https://oauth.zatrano.test/" + name
+	base := stubAuthorizeBase(name, cfg)
 	return &StubProvider{
 		name: name,
 		cfg:  cfg,
@@ -149,6 +150,18 @@ func (p *StubProvider) RedirectURL(state string) string {
 		values.Set("scope", strings.Join(p.cfg.Scopes, " "))
 	}
 	return p.base + "/authorize?" + values.Encode()
+}
+
+func stubAuthorizeBase(name string, cfg Config) string {
+	name = strings.TrimSpace(strings.ToLower(name))
+	if name == "" {
+		name = "oauth"
+	}
+	origin := "http://localhost:8080"
+	if u, err := url.Parse(strings.TrimSpace(cfg.RedirectURL)); err == nil && u.Scheme != "" && u.Host != "" {
+		origin = u.Scheme + "://" + u.Host
+	}
+	return origin + "/oauth/" + name
 }
 
 func (p *StubProvider) UserFromCode(code string) (*User, error) {

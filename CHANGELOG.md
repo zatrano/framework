@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.6 - 2026-08-16
+
+### Fixed
+
+- Social OAuth stub authorize URL uses app origin (`/oauth/{provider}/authorize`), not `oauth.zatrano.test` (ZATRANO-033)
+- `SocialServiceProvider.Boot` registers same-origin stub authorize handlers when credentials are placeholders
+
 ## 1.2.5 - 2026-08-16
 
 ### Fixed

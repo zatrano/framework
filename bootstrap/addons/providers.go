@@ -174,7 +174,27 @@ func (p *SocialServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *SocialServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *SocialServiceProvider) Boot(app *core.Application) error {
+	if app == nil || app.Router() == nil {
+		return nil
+	}
+	mgr := social.From(app)
+	if mgr == nil {
+		return nil
+	}
+	for _, name := range []string{"google", "github"} {
+		prov, err := mgr.Driver(name)
+		if err != nil {
+			continue
+		}
+		stub, ok := prov.(*social.StubProvider)
+		if !ok {
+			continue
+		}
+		app.Router().Get("/oauth/"+name+"/authorize", stub.AuthorizeHandler()).As("social." + name + ".stub")
+	}
+	return nil
+}
 
 type EnumsServiceProvider struct{}
 
