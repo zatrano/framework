@@ -14,6 +14,7 @@ func TestCliUsesCoreBoot(t *testing.T) {
 		{[]string{"make:model", "Post"}, true},
 		{[]string{"make:auth"}, true},
 		{[]string{"make:controller", "X", "--api"}, true},
+		{[]string{"db:setup", "--drivers=sqlite"}, true},
 		{[]string{"list"}, false},
 	}
 	for _, tc := range cases {

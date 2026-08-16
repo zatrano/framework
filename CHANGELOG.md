@@ -2,6 +2,20 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.0 - 2026-08-16
+
+### Added
+
+- Optional SQL driver modules: `sqlite`, `mysql`, `pgsql`, `mssql`, `oracle` (lean default: SQLite only)
+- `zatrano db:setup` — interactive / `--drivers=` multi-select, writes `bootstrap/database_drivers.go`, `go get`s only selected drivers
+- Multi-database config: `DB_CONNECTIONS` + per-connection `DB_<NAME>_HOST` overrides; `app.DB().Connection("pgsql")`
+- Oracle dialector, schema types, query placeholders (`:n`), migrations table
+- Docker Compose `oracle` profile
+
+### Changed
+
+- Root `go.mod` no longer pulls MySQL/PostgreSQL/MSSQL drivers unless installed via `db:setup`
+
 ## 1.1.2 - 2026-08-16
 
 ### Added

@@ -79,8 +79,22 @@ services:
       timeout: 5s
       retries: 10
 
+  # docker compose --profile oracle up
+  oracle:
+    profiles: ["oracle"]
+    image: gvenzl/oracle-free:23-slim
+    environment:
+      ORACLE_PASSWORD: secret
+      APP_USER: zatrano
+      APP_USER_PASSWORD: secret
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+
 volumes:
   postgres_data:
   mysql_data:
   mssql_data:
   mongo_data:
+  oracle_data:

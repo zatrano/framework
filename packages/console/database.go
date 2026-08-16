@@ -12,10 +12,6 @@ import (
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/database"
 	"github.com/zatrano/framework/packages/env"
-
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/microsoft/go-mssqldb"
 )
 
 func registerDatabaseCommands(console *Application, app *core.Application) {
@@ -30,6 +26,7 @@ func registerDatabaseCommands(console *Application, app *core.Application) {
 		&MakeMigrationCommand{app: app},
 		&MakeSeederCommand{app: app},
 	)
+	registerDBSetupCommand(console, app)
 }
 
 type MigrateCommand struct {
@@ -109,22 +106,24 @@ type DBCreateCommand struct {
 
 func (c *DBCreateCommand) Name() string { return "db:create" }
 func (c *DBCreateCommand) Description() string {
-	return "Create the application database (MySQL/PostgreSQL/SQL Server)"
+	return "Create the application database (MySQL/PostgreSQL/SQL Server/Oracle)"
 }
 func (c *DBCreateCommand) Handle(args []string) error {
 	_ = env.Load(c.app.BasePath(".env"))
 
 	driver := strings.ToLower(env.Get("DB_CONNECTION", "sqlite"))
-	switch driver {
-	case "sqlite", "sqlite3":
+	switch database.NormalizeDriverName(driver) {
+	case "sqlite":
 		fmt.Println("SQLite does not require db:create; the database file is created on first connection.")
 		return nil
 	case "mysql":
 		return createMySQLDatabase()
-	case "pgsql", "postgres", "postgresql":
+	case "pgsql":
 		return createPostgresDatabase()
-	case "mssql", "sqlserver":
+	case "mssql":
 		return createMSSQLDatabase()
+	case "oracle":
+		return createOracleDatabase()
 	default:
 		return fmt.Errorf("db:create does not support driver [%s]", driver)
 	}
@@ -227,6 +226,12 @@ func createMSSQLDatabase() error {
 		return err
 	}
 	fmt.Printf("Database [%s] created.\n", name)
+	return nil
+}
+
+func createOracleDatabase() error {
+	fmt.Println("Oracle: create the pluggable/service database with your DBA tools (db:create is a no-op).")
+	fmt.Println("Set DB_HOST, DB_PORT=1521, DB_SERVICE (or DB_DATABASE), DB_USERNAME, DB_PASSWORD.")
 	return nil
 }
 

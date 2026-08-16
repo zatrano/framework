@@ -1,13 +1,11 @@
 module github.com/zatrano/framework
 
-go 1.25.7
+go 1.25.0
 
 require (
-	github.com/go-sql-driver/mysql v1.9.3
 	github.com/joho/godotenv v1.5.1
-	github.com/lib/pq v1.10.9
-	github.com/microsoft/go-mssqldb v1.8.2
 	github.com/redis/go-redis/v9 v9.11.0
+	github.com/zatrano/framework/packages/database/driver/sqlite v0.0.0
 	github.com/zatrano/framework/packages/mongo v1.0.0
 	github.com/zatrano/framework/packages/webauthn v1.0.0
 	golang.org/x/crypto v0.52.0
@@ -15,7 +13,6 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -24,8 +21,6 @@ require (
 	github.com/go-webauthn/webauthn v0.17.4 // indirect
 	github.com/go-webauthn/x v0.2.6 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
-	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
-	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -52,6 +47,11 @@ require (
 )
 
 replace (
+	github.com/zatrano/framework/packages/database/driver/mssql => ./packages/database/driver/mssql
+	github.com/zatrano/framework/packages/database/driver/mysql => ./packages/database/driver/mysql
+	github.com/zatrano/framework/packages/database/driver/oracle => ./packages/database/driver/oracle
+	github.com/zatrano/framework/packages/database/driver/pgsql => ./packages/database/driver/pgsql
+	github.com/zatrano/framework/packages/database/driver/sqlite => ./packages/database/driver/sqlite
 	github.com/zatrano/framework/packages/mongo => ./packages/mongo
 	github.com/zatrano/framework/packages/qr => ./packages/qr
 	github.com/zatrano/framework/packages/webauthn => ./packages/webauthn

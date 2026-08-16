@@ -1,12 +1,13 @@
 package database_test
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/zatrano/framework/packages/database/query"
 	"github.com/zatrano/framework/packages/database/schema"
-	_ "modernc.org/sqlite"
-	"database/sql"
+
+	_ "github.com/zatrano/framework/packages/database/driver/sqlite"
 )
 
 func TestSQLiteSmokeCreateInsertSelect(t *testing.T) {

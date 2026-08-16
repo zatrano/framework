@@ -101,8 +101,11 @@ jobs:
           REDIS_PORT: 6379
           MONGO_URI: memory
 
-      - name: Live MySQL smoke
-        run: go test ./packages/database -run TestLiveDriverSmoke -count=1
+      - name: Link MySQL driver + live smoke
+        run: |
+          go run ./cmd/zatrano db:setup --drivers=sqlite,mysql --default=mysql --yes
+          go test ./packages/database -run TestLiveDriverSmoke -count=1
+          go run ./cmd/zatrano db:setup --drivers=sqlite --default=sqlite --yes
         env:
           ZATRANO_LIVE_DB: '1'
           DB_CONNECTION: mysql
@@ -112,8 +115,11 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: ''
 
-      - name: Live PostgreSQL smoke
-        run: go test ./packages/database -run TestLiveDriverSmoke -count=1
+      - name: Link PostgreSQL driver + live smoke
+        run: |
+          go run ./cmd/zatrano db:setup --drivers=sqlite,pgsql --default=pgsql --yes
+          go test ./packages/database -run TestLiveDriverSmoke -count=1
+          go run ./cmd/zatrano db:setup --drivers=sqlite --default=sqlite --yes
         env:
           ZATRANO_LIVE_DB: '1'
           DB_CONNECTION: pgsql

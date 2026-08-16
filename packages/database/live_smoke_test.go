@@ -7,17 +7,10 @@ import (
 
 	"github.com/zatrano/framework/packages/database/query"
 	"github.com/zatrano/framework/packages/database/schema"
-
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/microsoft/go-mssqldb"
 )
 
-// Live driver smoke tests. Set ZATRANO_LIVE_DB=1 and matching DB_* env vars.
-//
-// MySQL:  ZATRANO_LIVE_DB=1 DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=zatrano DB_USERNAME=root go test ./packages/database -run Live -count=1
-// Postgres: ZATRANO_LIVE_DB=1 DB_CONNECTION=pgsql DB_USERNAME=postgres DB_PASSWORD=secret DB_DATABASE=zatrano go test ./packages/database -run Live -count=1
-// SQL Server: ZATRANO_LIVE_DB=1 DB_CONNECTION=mssql DB_USERNAME=sa DB_PASSWORD=Your_strong_Password123 DB_DATABASE=master go test ./packages/database -run Live -count=1
+// Live driver smoke tests. Drivers must already be linked (db:setup).
+// Set ZATRANO_LIVE_DB=1 and DB_CONNECTION=mysql|pgsql|mssql|oracle.
 
 func TestLiveDriverSmoke(t *testing.T) {
 	if os.Getenv("ZATRANO_LIVE_DB") != "1" {
@@ -27,6 +20,16 @@ func TestLiveDriverSmoke(t *testing.T) {
 	if driver == "" {
 		t.Fatal("DB_CONNECTION required")
 	}
+	norm := normalizeDriver(driver)
+	sqlName := map[string]string{
+		"mysql": "mysql", "pgsql": "postgres", "mssql": "sqlserver", "oracle": "oracle",
+	}[norm]
+	if sqlName == "" {
+		t.Fatalf("unsupported %q", driver)
+	}
+	if !driverLinked(sqlName) {
+		t.Skipf("SQL driver %q not linked — run db:setup --drivers=%s", sqlName, norm)
+	}
 
 	db, err := openLive(t, driver)
 	if err != nil {
@@ -34,7 +37,7 @@ func TestLiveDriverSmoke(t *testing.T) {
 	}
 	defer db.Close()
 
-	s := schema.New(db, normalizeDriver(driver))
+	s := schema.New(db, norm)
 	_ = s.DropIfExists("zatrano_live_smoke")
 	if err := s.Create("zatrano_live_smoke", func(bp *schema.Blueprint) {
 		bp.ID()
@@ -45,8 +48,7 @@ func TestLiveDriverSmoke(t *testing.T) {
 	}
 	defer func() { _ = s.DropIfExists("zatrano_live_smoke") }()
 
-	b := query.New(db, normalizeDriver(driver), "zatrano_live_smoke")
-	id, err := b.Insert(map[string]any{"name": "ok"})
+	id, err := query.New(db, norm, "zatrano_live_smoke").Insert(map[string]any{"name": "ok"})
 	if err != nil {
 		t.Fatalf("insert: %v", err)
 	}
@@ -54,7 +56,7 @@ func TestLiveDriverSmoke(t *testing.T) {
 		t.Fatalf("expected insert id > 0, got %d", id)
 	}
 
-	rows, err := query.New(db, normalizeDriver(driver), "zatrano_live_smoke").Where("name", "ok").Get()
+	rows, err := query.New(db, norm, "zatrano_live_smoke").Where("name", "ok").Get()
 	if err != nil {
 		t.Fatalf("select: %v", err)
 	}
@@ -63,12 +65,23 @@ func TestLiveDriverSmoke(t *testing.T) {
 	}
 }
 
+func driverLinked(name string) bool {
+	for _, d := range sql.Drivers() {
+		if d == name {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeDriver(d string) string {
 	switch d {
 	case "postgres", "postgresql":
 		return "pgsql"
 	case "sqlserver":
 		return "mssql"
+	case "ora":
+		return "oracle"
 	default:
 		return d
 	}
@@ -96,6 +109,12 @@ func openLive(t *testing.T, driver string) (*sql.DB, error) {
 		port := envOr("DB_PORT", "1433")
 		dsn := "sqlserver://" + user + ":" + pass + "@" + host + ":" + port + "?database=" + dbName
 		return sql.Open("sqlserver", dsn)
+	case "oracle":
+		user := envOr("DB_USERNAME", "system")
+		port := envOr("DB_PORT", "1521")
+		svc := envOr("DB_SERVICE", dbName)
+		dsn := "oracle://" + user + ":" + pass + "@" + host + ":" + port + "/" + svc
+		return sql.Open("oracle", dsn)
 	default:
 		t.Fatalf("unsupported live driver %q", driver)
 		return nil, nil

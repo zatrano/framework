@@ -433,6 +433,8 @@ func (b *Builder) InRandomOrder() *Builder {
 		return b.OrderByRaw("RAND()")
 	case "mssql", "sqlserver":
 		return b.OrderByRaw("NEWID()")
+	case "oracle", "ora":
+		return b.OrderByRaw("DBMS_RANDOM.VALUE")
 	default:
 		return b.OrderByRaw("RANDOM()")
 	}
@@ -1325,32 +1327,28 @@ func (b *Builder) compileWheres(clauses []whereClause) (string, []any) {
 func (b *Builder) rebind(sqlStr string) string {
 	switch {
 	case isPostgresDriver(b.driver):
-		var sb strings.Builder
-		arg := 1
-		for i := 0; i < len(sqlStr); i++ {
-			if sqlStr[i] == '?' {
-				sb.WriteString(fmt.Sprintf("$%d", arg))
-				arg++
-				continue
-			}
-			sb.WriteByte(sqlStr[i])
-		}
-		return sb.String()
+		return rebindIndexed(sqlStr, "$%d")
 	case isSQLServerDriver(b.driver):
-		var sb strings.Builder
-		arg := 1
-		for i := 0; i < len(sqlStr); i++ {
-			if sqlStr[i] == '?' {
-				sb.WriteString(fmt.Sprintf("@p%d", arg))
-				arg++
-				continue
-			}
-			sb.WriteByte(sqlStr[i])
-		}
-		return sb.String()
+		return rebindIndexed(sqlStr, "@p%d")
+	case isOracleDriver(b.driver):
+		return rebindIndexed(sqlStr, ":%d")
 	default:
 		return sqlStr
 	}
+}
+
+func rebindIndexed(sqlStr, format string) string {
+	var sb strings.Builder
+	arg := 1
+	for i := 0; i < len(sqlStr); i++ {
+		if sqlStr[i] == '?' {
+			sb.WriteString(fmt.Sprintf(format, arg))
+			arg++
+			continue
+		}
+		sb.WriteByte(sqlStr[i])
+	}
+	return sb.String()
 }
 
 func (b *Builder) compileLock() string {
@@ -1435,6 +1433,15 @@ func isPostgresDriver(driver string) bool {
 func isSQLServerDriver(driver string) bool {
 	switch strings.ToLower(driver) {
 	case "mssql", "sqlserver":
+		return true
+	default:
+		return false
+	}
+}
+
+func isOracleDriver(driver string) bool {
+	switch strings.ToLower(driver) {
+	case "oracle", "ora":
 		return true
 	default:
 		return false
