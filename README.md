@@ -30,15 +30,19 @@
 
 ---
 
+
+
 ## The story
 
-ZATRANO did not start as a weekend experiment. Since **February 2018**, it has been shaped in real products — the hard lessons of shipping, iterating, and living with an application framework day after day. Routing, views, auth, persistence, and the rest grew into a coherent toolkit because they had to earn their place in production, not because a checklist said so.
+ZATRANO began in **February 2018** as the internal spine of real applications — not a public demo, not a portfolio piece. For years it lived where frameworks are judged hardest: behind logins, migrations, queues, mail, and the quiet pressure of production uptime. Pieces were added only when a shipped product needed them; pieces were rewritten when they failed that test.
 
-In **August 2026**, that long private journey opened to the world: ZATRANO became **open source** under the MIT license. The thin-kernel **v1** line is the public face of years of craft — the same opinionated Go web stack, now shared so other artisans can build on it, fork it, and push it further.
+What you see in **v1** is that long private maturity made explicit. In **August 2026** the same stack was opened under the MIT license so others can build on work that already survived contact with the real world — not a greenfield rewrite dressed up as history.
 
-Eight years of quiet work. One clear release. Welcome aboard.
+Eight years in the dark. Then the doors opened. Welcome aboard.
 
 ---
+
+
 
 ## What is ZATRANO?
 
@@ -46,12 +50,14 @@ ZATRANO is an opinionated Go web framework: routing, views, validation, ORM, aut
 
 **v1.0** is the thin-kernel release:
 
-| Layer | Location | Role |
-|-------|----------|------|
-| **Kernel** | `core/` | `Application`, container, catalog, secure HTTP hooks |
-| **Foundation** | `bootstrap/foundation` | DB, auth, mail, session, cache, queue, views |
-| **Service addons** | `packages/*` | Optional container services (`mongo`, `oauth`, `billing`, …) |
-| **Library addons** | `packages/*` | Import-only helpers (`collection`, `totp`, `support`, …) |
+
+| Layer              | Location               | Role                                                         |
+| ------------------ | ---------------------- | ------------------------------------------------------------ |
+| **Kernel**         | `core/`                | `Application`, container, catalog, secure HTTP hooks         |
+| **Foundation**     | `bootstrap/foundation` | DB, auth, mail, session, cache, queue, views                 |
+| **Service addons** | `packages/`*           | Optional container services (`mongo`, `oauth`, `billing`, …) |
+| **Library addons** | `packages/`*           | Import-only helpers (`collection`, `totp`, `support`, …)     |
+
 
 Nothing optional is magic-loaded. You pick a **boot profile** and enable only the addons you need.
 
@@ -62,25 +68,31 @@ Nothing optional is magic-loaded. You pick a **boot profile** and enable only th
 │  bootstrap/   APP_BOOT · EnabledAddons · presets        │
 ├──────────────────┬──────────────────────────────────────┤
 │  foundation      │  service addons (opt-in)             │
-│  auth db mail …  │  oauth billing ai webauthn …        │
+│  auth db mail …  │  oauth billing ai webauthn …         │
 ├──────────────────┴──────────────────────────────────────┤
 │  core/   thin kernel                                    │
 └─────────────────────────────────────────────────────────┘
 ```
+
+
 
 ## Why teams choose it
 
 - **Go speed** with a coherent application skeleton — not 20 micro-libraries glued by hand
 - **Opt-in weight** — health binary stays lean; API/web apps take foundation; demos can load everything
 - **Batteries included** — auth (guards, 2FA, lockout, trusted devices), ORM, migrations, queues, mail, notifications, localization
-- **One CLI** — `serve`, `migrate`, `make:*`, `package:enable|preset|doctor`, …
+- **One CLI** — `serve`, `migrate`, `make:`*, `package:enable|preset|doctor`, …
 - **Docs that live with the product** — [zatrano.com/docs](https://zatrano.com/docs)
+
+
 
 ## Requirements
 
 - Go **1.25+**
 - SQLite (default); MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup`
 - Optional: Redis, Stripe, OpenAI — only if you enable those addons
+
+
 
 ## Quick start
 
@@ -117,6 +129,8 @@ As a module dependency:
 go get github.com/zatrano/framework@latest
 ```
 
+
+
 ### First production-shaped boot
 
 ```bash
@@ -135,7 +149,7 @@ go run ./cmd/zatrano migrate
 go run ./cmd/zatrano serve
 ```
 
-`cmd/zatrano` defaults to **app** when `APP_BOOT` is unset. Set `APP_BOOT` explicitly before shipping. Scaffold commands (`make:*`) always boot with `CoreApp()` (no database).
+`cmd/zatrano` defaults to **app** when `APP_BOOT` is unset. Set `APP_BOOT` explicitly before shipping. Scaffold commands (`make:`*) always boot with `CoreApp()` (no database).
 
 ## Databases (single & multi)
 
@@ -189,13 +203,15 @@ Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.co
 
 ## Boot profiles
 
-| API | `APP_BOOT` | Boots |
-|-----|------------|-------|
-| `CoreApp()` | `core` | Kernel only |
-| `MinimalApp()` | `minimal` | Foundation + your routes, no addons |
-| `App()` | `app` | Minimal + `EnabledAddons` |
-| `APIApp()` / `WebApp()` | `api` / `web` | Lean presets |
-| `DemoApp()` | `demo` | Full demo addon set |
+
+| API                     | `APP_BOOT`    | Boots                               |
+| ----------------------- | ------------- | ----------------------------------- |
+| `CoreApp()`             | `core`        | Kernel only                         |
+| `MinimalApp()`          | `minimal`     | Foundation + your routes, no addons |
+| `App()`                 | `app`         | Minimal + `EnabledAddons`           |
+| `APIApp()` / `WebApp()` | `api` / `web` | Lean presets                        |
+| `DemoApp()`             | `demo`        | Full demo addon set                 |
+
 
 ```go
 import (
@@ -226,12 +242,14 @@ go run ./cmd/zatrano package:preset api --merge
 go run ./cmd/zatrano package:doctor
 ```
 
-| Kind | Enable? | Examples |
-|------|---------|----------|
-| **Service** | Yes — `EnabledAddons` / preset | `oauth`, `billing`, `ai`, `social` |
-| **Library** | No — just `import` | `collection`, `totp`, `support` |
-| **Heavy** | Only when needed | `webauthn`, `qr` (separate modules); DB engines via `db:setup` |
-| **Database** | `db:setup` | `sqlite`, `mysql`, `pgsql`, `mssql`, `oracle`, `mongo` |
+
+| Kind         | Enable?                        | Examples                                                       |
+| ------------ | ------------------------------ | -------------------------------------------------------------- |
+| **Service**  | Yes — `EnabledAddons` / preset | `oauth`, `billing`, `ai`, `social`                             |
+| **Library**  | No — just `import`             | `collection`, `totp`, `support`                                |
+| **Heavy**    | Only when needed               | `webauthn`, `qr` (separate modules); DB engines via `db:setup` |
+| **Database** | `db:setup`                     | `sqlite`, `mysql`, `pgsql`, `mssql`, `oracle`, `mongo`         |
+
 
 Resolve from the container:
 
@@ -265,17 +283,21 @@ Guide: [Authentication](https://zatrano.com/docs/authentication).
 
 ## What ships in the box
 
-| Area | Capabilities |
-|------|----------------|
-| **HTTP** | Router, controllers, middleware (CSRF, CORS, throttle, security), requests/responses, cookies, flash, URLs |
-| **Views** | Layouts, components, Blade-like directives, markdown, file-based pages |
-| **Validation** | Rules, form requests, error bags |
-| **Data** | Query builder, schema, migrations, ORM (relations, scopes, eager load), factories, seeders |
+
+| Area                | Capabilities                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **HTTP**            | Router, controllers, middleware (CSRF, CORS, throttle, security), requests/responses, cookies, flash, URLs             |
+| **Views**           | Layouts, components, Blade-like directives, markdown, file-based pages                                                 |
+| **Validation**      | Rules, form requests, error bags                                                                                       |
+| **Data**            | Query builder, schema, migrations, ORM (relations, scopes, eager load), factories, seeders                             |
 | **Auth & security** | Guards, 2FA, lockout, API tokens, encryption, hashing, honeypot, trusted proxies, OAuth server, social login, WebAuthn |
-| **Async** | Queues (sync/DB/Redis), notifications (database/mail/SMS/push), broadcasting, scheduler |
-| **Platform** | Config + `.env`, sessions, cache, filesystem, localization, health, maintenance, backups |
-| **Tooling** | CLI, OpenAPI, GraphQL helpers, docs engine, inspector, observability hooks |
-| **Addons** | MongoDB, billing (Stripe), AI chat, search, webhooks, sitemaps, short URLs, … |
+| **Async**           | Queues (sync/DB/Redis), notifications (database/mail/SMS/push), broadcasting, scheduler                                |
+| **Platform**        | Config + `.env`, sessions, cache, filesystem, localization, health, maintenance, backups                               |
+| **Tooling**         | CLI, OpenAPI, GraphQL helpers, docs engine, inspector, observability hooks                                             |
+| **Addons**          | MongoDB, billing (Stripe), AI chat, search, webhooks, sitemaps, short URLs, …                                          |
+
+
+
 
 ## Project layout
 
@@ -291,20 +313,26 @@ packages/            First-party packages (framework module)
 core/                Thin kernel
 ```
 
+
+
 ## Documentation
 
-All guides are on the website — **this repository has no `docs/` tree**.
+All guides are on the website — **this repository has no** `docs/` **tree**.
 
 **[https://zatrano.com/docs](https://zatrano.com/docs)**
 
-| Start here | |
-|------------|--|
-| [Installation](https://zatrano.com/docs/installation) | Clone, key, serve |
-| [Boot Profiles](https://zatrano.com/docs/boot-profiles) | `APP_BOOT`, Minimal / API / Demo |
-| [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor |
-| [Resolving Services](https://zatrano.com/docs/accessors) | `From(app)` migration table |
-| [Authentication](https://zatrano.com/docs/authentication) | Full auth surface |
-| [Release Notes](https://zatrano.com/docs/releases) | Version history |
+
+| Start here                                                      |                                  |
+| --------------------------------------------------------------- | -------------------------------- |
+| [Installation](https://zatrano.com/docs/installation)           | Clone, key, serve                |
+| [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Demo |
+| [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor          |
+| [Resolving Services](https://zatrano.com/docs/accessors)        | `From(app)` migration table      |
+| [Authentication](https://zatrano.com/docs/authentication)       | Full auth surface                |
+| [Release Notes](https://zatrano.com/docs/releases)              | Version history                  |
+
+
+
 
 ## Breaking changes in 1.0
 
@@ -318,10 +346,12 @@ Upgrade: `go get github.com/zatrano/framework@v1.0.0` then fix imports and resol
 
 Semantic versioning. Tags: `vMAJOR.MINOR.PATCH` on [GitHub Releases](https://github.com/zatrano/framework/releases).
 
-| Line | Meaning |
-|------|---------|
-| **v1.x** | Thin kernel + package ecosystem (current) |
-| **v0.2.x** | Pre-ecosystem line (historical) |
+
+| Line       | Meaning                                   |
+| ---------- | ----------------------------------------- |
+| **v1.x**   | Thin kernel + package ecosystem (current) |
+| **v0.2.x** | Pre-ecosystem line (historical)           |
+
 
 Current: **[v1.0.3](https://github.com/zatrano/framework/releases/tag/v1.0.3)**
 
@@ -330,6 +360,8 @@ Current: **[v1.0.3](https://github.com/zatrano/framework/releases/tag/v1.0.3)**
 - Docs: [zatrano.com/docs](https://zatrano.com/docs)
 - Source: [github.com/zatrano/framework](https://github.com/zatrano/framework)
 - LinkedIn: [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
+
+
 
 ## Contributing
 
