@@ -13,6 +13,11 @@ type PersistResult struct {
 
 // Persistence stores social identities against application users.
 // Apps implement this (typically with ORM) or use the make:auth stubs.
+//
+// Avatar contract: CreateUser/SyncUser must write the provider picture onto the
+// authenticatable user (canonical profile photo). UpsertAccount may also store
+// a snapshot on the social_accounts row, but applications must not use that
+// field for display — only the user avatar.
 type Persistence interface {
 	FindUserIDByProvider(provider, providerID string) (userID int64, err error)
 	FindUserIDByEmail(email string) (userID int64, err error)
@@ -22,6 +27,7 @@ type Persistence interface {
 }
 
 // Persist finds or creates an app user for the social identity, then upserts the provider link.
+// Provider Avatar is passed to CreateUser/SyncUser so it lands on the auth user.
 func Persist(store Persistence, socialUser *User) (*PersistResult, error) {
 	if store == nil {
 		return nil, fmt.Errorf("social: persistence is nil")

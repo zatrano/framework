@@ -3,6 +3,10 @@ package models
 import "github.com/zatrano/framework/packages/orm"
 
 // SocialAccount links a third-party OAuth identity to a user.
+//
+// Avatar is an optional provider snapshot only. Do not use it for profile UI,
+// APIs, or mail — always read models.User.Avatar (Persist/SyncUser copies the
+// provider picture onto the user record).
 type SocialAccount struct {
 	orm.Model
 	UserID      int64   `db:"user_id" json:"user_id"`
@@ -11,7 +15,7 @@ type SocialAccount struct {
 	ProviderUID string  `db:"provider_uid" json:"provider_uid"`
 	Name        *string `db:"name" json:"name,omitempty"`
 	Email       *string `db:"email" json:"email,omitempty"`
-	Avatar      *string `db:"avatar" json:"avatar,omitempty"`
+	Avatar      *string `db:"avatar" json:"avatar,omitempty"` // provider snapshot; not for display
 	AccessToken *string `db:"access_token" json:"-"`
 }
 

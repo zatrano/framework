@@ -13,7 +13,7 @@ type User struct {
 	Name                   string     `db:"name" json:"name"`
 	Email                  string     `db:"email" json:"email"`
 	Password               string     `db:"password" json:"-"`
-	Avatar                 string     `db:"avatar" json:"avatar,omitempty"`
+	Avatar                 string     `db:"avatar" json:"avatar,omitempty"` // canonical profile photo (incl. from social Persist)
 	RememberToken          *string    `db:"remember_token" json:"-"`
 	EmailVerifiedAt        *time.Time `db:"email_verified_at" json:"email_verified_at,omitempty"`
 	TwoFactorSecret        *string    `db:"two_factor_secret" json:"-"`

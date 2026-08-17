@@ -147,6 +147,7 @@ func (p *ormSocialPersistence) CreateUser(name, email, avatar string, emailVerif
 	if err != nil {
 		return 0, err
 	}
+	// Canonical profile photo lives on User — never read SocialAccount.Avatar for UI.
 	user := &models.User{
 		Name:     name,
 		Email:    email,
@@ -173,6 +174,7 @@ func (p *ormSocialPersistence) SyncUser(userID int64, name, avatar string, email
 		user.Name = name
 		changed = true
 	}
+	// Copy provider avatar onto the auth user (system of record for display).
 	if avatar != "" && user.Avatar != avatar {
 		user.Avatar = avatar
 		changed = true
@@ -223,6 +225,7 @@ func (p *ormSocialPersistence) UpsertAccount(userID int64, socialUser *social.Us
 	if email != "" {
 		account.Email = &email
 	}
+	// Keep a provider snapshot on the link row; display still uses User.Avatar only.
 	if avatar != "" {
 		account.Avatar = &avatar
 	}
