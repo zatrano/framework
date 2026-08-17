@@ -102,8 +102,12 @@ func (f *Filter) indexes(key string) []uint64 {
 		h2 = 0x9e3779b97f4a7c15
 	}
 	out := make([]uint64, f.k)
-	for i := uint64(0); i < uint64(f.k); i++ {
-		out[i] = (h1 + i*h2) % f.m
+	k := f.k
+	if k < 0 {
+		k = 0
+	}
+	for i := 0; i < k; i++ {
+		out[i] = (h1 + uint64(i)*h2) % f.m // #nosec G115 -- i is non-negative and bounded by k
 	}
 	return out
 }
