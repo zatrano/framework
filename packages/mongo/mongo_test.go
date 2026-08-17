@@ -32,3 +32,29 @@ func TestMongoCRUD(t *testing.T) {
 		t.Fatal("delete failed")
 	}
 }
+
+func TestMongoOperatorInjectionRejected(t *testing.T) {
+	client := mongo.Connect("memory")
+	col := client.Database("zatrano").Collection("users")
+	_, _ = col.InsertOne(map[string]any{"email": "ada@example.com", "role": "user"})
+	_, _ = col.InsertOne(map[string]any{"email": "root@example.com", "role": "admin"})
+
+	// Operator-style nested filter must not match everything.
+	docs, err := col.Find(map[string]any{
+		"role": map[string]any{"$ne": "user"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) != 0 {
+		t.Fatalf("operator injection should not match docs, got %d", len(docs))
+	}
+
+	docs, err = col.Find(map[string]any{"$where": "true"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) != 0 {
+		t.Fatalf("$where must not return all docs, got %d", len(docs))
+	}
+}

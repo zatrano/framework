@@ -2,6 +2,25 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.7 - 2026-08-17
+
+### Security
+
+- Session IDs restricted to hex; path traversal via cookie blocked
+- Query builder sanitizes OrderBy/GroupBy/Having/Where/Join identifiers and operators
+- Mongo equality filters reject `$` operator injection
+- Password-reset / email verification hashes use SHA-256
+- Session cookie `Secure` when HTTPS or `SESSION_SECURE=true`
+- HTTP server Read/Write/Idle timeouts
+- `packages/safepath`: shared path containment; static `public/` and `LocalDisk` reject traversal
+- Upload `StoreAs` basenames filenames; `X-Max-Upload` cannot raise server cap (`MAX_UPLOAD_BYTES`)
+- WebSocket `Upgrade` defaults to same-origin Origin checks (`UpgradeWithCheckOrigin` / `AllowAnyOrigin`)
+- Production ignores `TRUSTED_PROXIES=*` unless `TRUST_PROXIES_ALLOW_STAR=true`
+- CSRF `Middleware` protects all paths by default (scaffold still uses `csrf.Except("/api")`)
+- Cookie jar / `Make` honor `COOKIE_SECURE` / `SESSION_SECURE`; XSRF cookie sets `Secure` on HTTPS
+- CI: `.github/workflows/security.yml` (vet, race subset, staticcheck, gosec, govulncheck, fuzz smoke)
+- Docs: `SECURITY_AUDIT.md`, `SECURITY_REPORT.md`, `docs/security/testing.md`, security demo app
+
 ## 1.2.6 - 2026-08-16
 
 ### Fixed

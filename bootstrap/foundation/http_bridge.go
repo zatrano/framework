@@ -9,6 +9,7 @@ import (
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/authorization"
+	"github.com/zatrano/framework/packages/env"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/localization"
@@ -108,6 +109,7 @@ func (b *httpBridge) Finalize(w stdhttp.ResponseWriter, req *http.Request, resp 
 				Value:    bag.ID(),
 				Path:     "/",
 				HttpOnly: true,
+				Secure:   req.Secure() || env.GetBool("SESSION_SECURE", false),
 				SameSite: stdhttp.SameSiteLaxMode,
 				MaxAge:   int(time.Hour.Seconds() * 2),
 			})

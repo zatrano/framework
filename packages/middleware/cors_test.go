@@ -46,3 +46,22 @@ func TestCORSWildcard(t *testing.T) {
 		t.Fatal("expected *")
 	}
 }
+
+func TestCORSCredentialsNotWithWildcard(t *testing.T) {
+	mw := middleware.CORSWith(middleware.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowCredentials: true,
+	})
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"ok": true})
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "https://evil.example")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("origin=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
+	}
+	if resp.Headers().Get("Access-Control-Allow-Credentials") != "" {
+		t.Fatal("credentials must not be set with wildcard origin")
+	}
+}

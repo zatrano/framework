@@ -1,0 +1,68 @@
+name: security
+
+on:
+  push:
+    branches: [main, '*.x']
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: security-fast
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - name: Download modules
+        run: go mod download
+      - name: go vet
+        run: go vet ./...
+      - name: Unit + security regression tests
+        run: |
+          go test ./packages/database/query/ ./packages/session/ ./packages/auth/ ./packages/middleware/... ./packages/http/ ./packages/routing/ ./packages/view/ ./packages/filesystem/ ./packages/safepath/ ./packages/websocket/ ./packages/trustedproxy/ ./packages/cookie/ -count=1
+          go test -C packages/mongo -count=1
+      - name: Fuzz smoke (identifiers)
+        run: go test ./packages/database/query/ -run=^$ -fuzz=FuzzSanitizeIdentifier -fuzztime=15s
+
+  race:
+    name: race-detector
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - run: go mod download
+      - name: go test -race (security-sensitive)
+        run: go test -race ./packages/session/ ./packages/auth/ ./packages/ratelimit/ ./packages/middleware/... -count=1
+
+  static:
+    name: gosec-govulncheck-staticcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - run: go mod download
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
+          staticcheck ./...
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+      - name: gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.2
+          gosec -quiet -exclude-generated ./...

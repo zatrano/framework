@@ -2,7 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -296,7 +296,7 @@ func (b *PasswordBroker) TokenValid(email, token string) bool {
 }
 
 func hashToken(token string) string {
-	sum := sha1.Sum([]byte(token))
+	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
 

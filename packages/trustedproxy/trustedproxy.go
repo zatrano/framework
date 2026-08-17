@@ -35,6 +35,8 @@ func Middleware(proxies ...string) routing.MiddlewareFunc {
 }
 
 // FromEnv builds middleware from TRUSTED_PROXIES (comma-separated CIDRs/IPs, or *).
+// In production (APP_ENV=production or empty/production-like), "*" is ignored unless
+// TRUST_PROXIES_ALLOW_STAR=true is set explicitly — wildcard trust enables IP/Host spoofing.
 func FromEnv() routing.MiddlewareFunc {
 	raw := strings.TrimSpace(env.Get("TRUSTED_PROXIES", ""))
 	if raw == "" {
@@ -42,13 +44,28 @@ func FromEnv() routing.MiddlewareFunc {
 	}
 	parts := strings.Split(raw, ",")
 	cleaned := make([]string, 0, len(parts))
+	allowStar := strings.EqualFold(strings.TrimSpace(env.Get("TRUST_PROXIES_ALLOW_STAR", "")), "true")
+	prod := isProductionEnv(env.Get("APP_ENV", "production"))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p != "" {
-			cleaned = append(cleaned, p)
+		if p == "" {
+			continue
 		}
+		if p == "*" && prod && !allowStar {
+			continue
+		}
+		cleaned = append(cleaned, p)
 	}
 	return Middleware(cleaned...)
+}
+
+func isProductionEnv(appEnv string) bool {
+	switch strings.ToLower(strings.TrimSpace(appEnv)) {
+	case "local", "development", "dev", "test", "testing":
+		return false
+	default:
+		return true
+	}
 }
 
 // Resolve returns the client IP using trusted proxy rules.

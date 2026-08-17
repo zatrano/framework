@@ -13,9 +13,10 @@ import (
 
 const sessionKey = "_csrf_token"
 
-// Middleware verifies CSRF tokens on unsafe HTTP methods.
+// Middleware verifies CSRF tokens on unsafe HTTP methods for all paths.
+// To exempt prefixes (e.g. token-authenticated /api), use Except explicitly in the app.
 func Middleware(next routing.HandlerFunc) routing.HandlerFunc {
-	return Except("/api")(next)
+	return Except()(next)
 }
 
 // Except skips CSRF verification for matching path prefixes.
@@ -32,7 +33,7 @@ func Except(prefixes ...string) routing.MiddlewareFunc {
 
 			if isReading(req.Method()) {
 				resp := next(req)
-				return withXSRFCookie(resp, token)
+				return withXSRFCookie(resp, token, req)
 			}
 
 			provided := req.Header("X-CSRF-TOKEN")
@@ -51,12 +52,12 @@ func Except(prefixes ...string) routing.MiddlewareFunc {
 			}
 
 			resp := next(req)
-			return withXSRFCookie(resp, token)
+			return withXSRFCookie(resp, token, req)
 		}
 	}
 }
 
-func withXSRFCookie(resp *http.Response, token string) *http.Response {
+func withXSRFCookie(resp *http.Response, token string, req *http.Request) *http.Response {
 	if resp == nil {
 		resp = http.Text("")
 	}
@@ -64,11 +65,16 @@ func withXSRFCookie(resp *http.Response, token string) *http.Response {
 		return resp
 	}
 	resp.Header("X-CSRF-TOKEN", token)
+	secure := false
+	if req != nil {
+		secure = req.Secure()
+	}
 	return resp.WithCookie(&stdhttp.Cookie{
 		Name:     "XSRF-TOKEN",
 		Value:    token,
 		Path:     "/",
 		HttpOnly: false,
+		Secure:   secure,
 		SameSite: stdhttp.SameSiteLaxMode,
 	})
 }

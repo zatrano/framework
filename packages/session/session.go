@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zatrano/framework/packages/safepath"
 )
 
 // Manager handles file-based sessions.
@@ -47,12 +49,16 @@ func (m *Manager) CookieName() string {
 
 // Destroy removes a persisted session by ID.
 func (m *Manager) Destroy(id string) error {
-	if id == "" {
+	if id == "" || !validSessionID(id) {
 		return nil
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	err := os.Remove(filepath.Join(m.path, id))
+	path := filepath.Join(m.path, id)
+	if !underDir(m.path, path) {
+		return nil
+	}
+	err := os.Remove(path)
 	if os.IsNotExist(err) {
 		return nil
 	}
@@ -111,11 +117,15 @@ func (m *Manager) Start(id string) (*Bag, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if id == "" {
+	if id == "" || !validSessionID(id) {
 		return m.newBag()
 	}
 
 	path := filepath.Join(m.path, id)
+	// Defense in depth: resolved path must stay under the session directory.
+	if !underDir(m.path, path) {
+		return m.newBag()
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return m.newBag()
@@ -164,6 +174,14 @@ func (m *Manager) Save(bag *Bag) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if bag == nil || !validSessionID(bag.id) {
+		return fmt.Errorf("session: invalid session id")
+	}
+	path := filepath.Join(m.path, bag.id)
+	if !underDir(m.path, path) {
+		return fmt.Errorf("session: path escape blocked")
+	}
+
 	payload := map[string]any{
 		"values": bag.values,
 		"flash":  bag.flash,
@@ -172,7 +190,7 @@ func (m *Manager) Save(bag *Bag) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(m.path, bag.id), raw, 0o600)
+	return os.WriteFile(path, raw, 0o600)
 }
 
 // Get returns a session value.
@@ -344,4 +362,21 @@ func generateID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+// validSessionID accepts only hex IDs produced by generateID (32 lowercase hex chars).
+func validSessionID(id string) bool {
+	if len(id) != 32 {
+		return false
+	}
+	for _, r := range id {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func underDir(root, candidate string) bool {
+	return safepath.Under(root, candidate)
 }

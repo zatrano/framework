@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zatrano/framework/packages/safepath"
 )
 
 // Disk is a filesystem disk contract.
@@ -61,8 +63,18 @@ func (d *LocalDisk) SetBaseURL(base string) {
 }
 
 // Path returns the absolute path for a relative disk path.
+// Paths that escape the disk root resolve to a non-existent sentinel under root
+// so callers never receive an outside path (Exists/Get fail safely).
 func (d *LocalDisk) Path(path string) string {
-	return filepath.Join(d.root, filepath.Clean("/"+path))
+	full, err := d.resolve(path)
+	if err != nil {
+		return filepath.Join(d.root, ".zatrano-path-rejected")
+	}
+	return full
+}
+
+func (d *LocalDisk) resolve(path string) (string, error) {
+	return safepath.Resolve(d.root, path)
 }
 
 // URL builds a public URL when a base URL is configured.
@@ -76,18 +88,29 @@ func (d *LocalDisk) URL(path string) string {
 
 // Exists reports whether a file exists.
 func (d *LocalDisk) Exists(path string) bool {
-	_, err := os.Stat(d.Path(path))
+	full, err := d.resolve(path)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(full)
 	return err == nil
 }
 
 // Get reads a file.
 func (d *LocalDisk) Get(path string) ([]byte, error) {
-	return os.ReadFile(d.Path(path))
+	full, err := d.resolve(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(full)
 }
 
 // Put writes a file.
 func (d *LocalDisk) Put(path string, contents []byte) error {
-	full := d.Path(path)
+	full, err := d.resolve(path)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}
@@ -106,7 +129,11 @@ func (d *LocalDisk) PutFile(path string, reader io.Reader) error {
 // Delete removes files.
 func (d *LocalDisk) Delete(paths ...string) error {
 	for _, path := range paths {
-		if err := os.Remove(d.Path(path)); err != nil && !os.IsNotExist(err) {
+		full, err := d.resolve(path)
+		if err != nil {
+			return err
+		}
+		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -132,7 +159,11 @@ func (d *LocalDisk) Move(from, to string) error {
 
 // Size returns file size.
 func (d *LocalDisk) Size(path string) (int64, error) {
-	info, err := os.Stat(d.Path(path))
+	full, err := d.resolve(path)
+	if err != nil {
+		return 0, err
+	}
+	info, err := os.Stat(full)
 	if err != nil {
 		return 0, err
 	}
@@ -141,7 +172,11 @@ func (d *LocalDisk) Size(path string) (int64, error) {
 
 // LastModified returns modification time.
 func (d *LocalDisk) LastModified(path string) (time.Time, error) {
-	info, err := os.Stat(d.Path(path))
+	full, err := d.resolve(path)
+	if err != nil {
+		return time.Time{}, err
+	}
+	info, err := os.Stat(full)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -150,7 +185,11 @@ func (d *LocalDisk) LastModified(path string) (time.Time, error) {
 
 // Files lists files in a directory (non-recursive).
 func (d *LocalDisk) Files(directory string) ([]string, error) {
-	entries, err := os.ReadDir(d.Path(directory))
+	full, err := d.resolve(directory)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(full)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +210,11 @@ func (d *LocalDisk) Files(directory string) ([]string, error) {
 
 // Directories lists immediate child directories.
 func (d *LocalDisk) Directories(directory string) ([]string, error) {
-	entries, err := os.ReadDir(d.Path(directory))
+	full, err := d.resolve(directory)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(full)
 	if err != nil {
 		return nil, err
 	}
@@ -192,10 +235,13 @@ func (d *LocalDisk) Directories(directory string) ([]string, error) {
 
 // AllFiles lists all files under directory recursively.
 func (d *LocalDisk) AllFiles(directory string) ([]string, error) {
-	root := d.Path(directory)
+	root, err := d.resolve(directory)
+	if err != nil {
+		return nil, err
+	}
 	prefix := strings.Trim(directory, "/\\")
 	out := make([]string, 0)
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -221,7 +267,10 @@ func (d *LocalDisk) AllFiles(directory string) ([]string, error) {
 
 // DeleteDirectory removes a directory and its contents.
 func (d *LocalDisk) DeleteDirectory(directory string) error {
-	path := d.Path(directory)
+	path, err := d.resolve(directory)
+	if err != nil {
+		return err
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -237,7 +286,11 @@ func (d *LocalDisk) DeleteDirectory(directory string) error {
 
 // MakeDirectory creates a directory.
 func (d *LocalDisk) MakeDirectory(path string) error {
-	return os.MkdirAll(d.Path(path), 0o755)
+	full, err := d.resolve(path)
+	if err != nil {
+		return err
+	}
+	return os.MkdirAll(full, 0o755)
 }
 
 // Manager resolves filesystem disks.

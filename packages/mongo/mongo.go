@@ -174,10 +174,14 @@ func (c *Collection) InsertOne(doc map[string]any) (string, error) {
 
 // Find returns documents matching an equality filter (empty = all).
 func (c *Collection) Find(filter map[string]any) ([]map[string]any, error) {
+	clean, hostile := sanitizeEqualityFilter(filter)
+	if hostile {
+		return []map[string]any{}, nil
+	}
 	if c != nil && c.real != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		cur, err := c.real.Find(ctx, equalityFilter(filter))
+		cur, err := c.real.Find(ctx, toBSONM(clean))
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +200,7 @@ func (c *Collection) Find(filter map[string]any) ([]map[string]any, error) {
 	defer c.mu.Unlock()
 	out := make([]map[string]any, 0)
 	for _, doc := range c.docs {
-		if match(doc, filter) {
+		if match(doc, clean) {
 			out = append(out, cloneDoc(doc))
 		}
 	}
@@ -205,11 +209,15 @@ func (c *Collection) Find(filter map[string]any) ([]map[string]any, error) {
 
 // FindOne returns the first matching document.
 func (c *Collection) FindOne(filter map[string]any) (map[string]any, error) {
+	clean, hostile := sanitizeEqualityFilter(filter)
+	if hostile {
+		return nil, fmt.Errorf("mongo: no documents")
+	}
 	if c != nil && c.real != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		var raw bson.M
-		err := c.real.FindOne(ctx, equalityFilter(filter)).Decode(&raw)
+		err := c.real.FindOne(ctx, toBSONM(clean)).Decode(&raw)
 		if err != nil {
 			if err == mongodriver.ErrNoDocuments {
 				return nil, fmt.Errorf("mongo: no documents")
@@ -218,7 +226,7 @@ func (c *Collection) FindOne(filter map[string]any) (map[string]any, error) {
 		}
 		return normalizeDoc(raw), nil
 	}
-	docs, err := c.Find(filter)
+	docs, err := c.Find(clean)
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +238,10 @@ func (c *Collection) FindOne(filter map[string]any) (map[string]any, error) {
 
 // UpdateOne sets fields on the first matching document.
 func (c *Collection) UpdateOne(filter, update map[string]any) (bool, error) {
+	clean, hostile := sanitizeEqualityFilter(filter)
+	if hostile {
+		return false, nil
+	}
 	if c != nil && c.real != nil {
 		set := bson.M{}
 		for k, v := range update {
@@ -240,7 +252,7 @@ func (c *Collection) UpdateOne(filter, update map[string]any) (bool, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		res, err := c.real.UpdateOne(ctx, equalityFilter(filter), bson.M{"$set": set})
+		res, err := c.real.UpdateOne(ctx, toBSONM(clean), bson.M{"$set": set})
 		if err != nil {
 			return false, err
 		}
@@ -249,7 +261,7 @@ func (c *Collection) UpdateOne(filter, update map[string]any) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for i, doc := range c.docs {
-		if match(doc, filter) {
+		if match(doc, clean) {
 			for k, v := range update {
 				if k == "_id" {
 					continue
@@ -265,10 +277,14 @@ func (c *Collection) UpdateOne(filter, update map[string]any) (bool, error) {
 
 // DeleteOne removes the first matching document.
 func (c *Collection) DeleteOne(filter map[string]any) (bool, error) {
+	clean, hostile := sanitizeEqualityFilter(filter)
+	if hostile {
+		return false, nil
+	}
 	if c != nil && c.real != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		res, err := c.real.DeleteOne(ctx, equalityFilter(filter))
+		res, err := c.real.DeleteOne(ctx, toBSONM(clean))
 		if err != nil {
 			return false, err
 		}
@@ -277,7 +293,7 @@ func (c *Collection) DeleteOne(filter map[string]any) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for i, doc := range c.docs {
-		if match(doc, filter) {
+		if match(doc, clean) {
 			c.docs = append(c.docs[:i], c.docs[i+1:]...)
 			return true, nil
 		}
@@ -301,11 +317,43 @@ func (c *Collection) Count() int {
 	return len(c.docs)
 }
 
-func equalityFilter(filter map[string]any) bson.M {
-	out := bson.M{}
+// sanitizeEqualityFilter keeps equality-only filters.
+// hostile is true when Mongo operators ($ne, $where, …) appear as keys.
+func sanitizeEqualityFilter(filter map[string]any) (map[string]any, bool) {
+	out := map[string]any{}
 	if len(filter) == 0 {
-		return out
+		return out, false
 	}
+	hostile := false
+	for k, v := range filter {
+		if strings.HasPrefix(k, "$") {
+			hostile = true
+			continue
+		}
+		if nested, ok := v.(map[string]any); ok {
+			safe := map[string]any{}
+			for nk, nv := range nested {
+				if strings.HasPrefix(nk, "$") {
+					hostile = true
+					continue
+				}
+				safe[nk] = nv
+			}
+			if len(safe) > 0 {
+				out[k] = safe
+			} else if hostile {
+				// nested was only operators
+				continue
+			}
+			continue
+		}
+		out[k] = v
+	}
+	return out, hostile
+}
+
+func toBSONM(filter map[string]any) bson.M {
+	out := bson.M{}
 	for k, v := range filter {
 		out[k] = v
 	}

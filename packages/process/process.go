@@ -1,3 +1,8 @@
+// Package process runs external commands without a shell.
+//
+// Security: never pass untrusted user input as the executable name or as
+// arguments that change interpreter behavior (e.g. shell -c). Prefer fixed
+// binaries and validated arguments. This package does not spawn via /bin/sh.
 package process
 
 import (

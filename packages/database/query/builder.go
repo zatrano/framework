@@ -33,6 +33,7 @@ type Builder struct {
 	lockMode       string // "", "update", "share"
 	lockSkip       bool
 	lockNoWait     bool
+	err            error
 }
 
 type whereClause struct {
@@ -373,13 +374,19 @@ func (b *Builder) WhereHour(column string, hour any) *Builder {
 }
 
 // OrderBy adds an order by clause.
+// Column must be a safe SQL identifier; direction is restricted to asc/desc.
 func (b *Builder) OrderBy(column string, direction ...string) *Builder {
+	col, err := sanitizeIdentifier(column)
+	if err != nil {
+		b.err = fmt.Errorf("order by: %w", err)
+		return b
+	}
 	dir := "asc"
 	if len(direction) > 0 && direction[0] != "" {
-		dir = direction[0]
+		dir = sanitizeOrderDirection(direction[0])
 	}
 	b.orders = append(b.orders, orderClause{
-		sql: fmt.Sprintf("%s %s", column, strings.ToLower(dir)),
+		sql: fmt.Sprintf("%s %s", col, dir),
 	})
 	return b
 }
@@ -442,15 +449,32 @@ func (b *Builder) InRandomOrder() *Builder {
 
 // GroupBy adds group by columns.
 func (b *Builder) GroupBy(columns ...string) *Builder {
-	b.groups = append(b.groups, columns...)
+	for _, column := range columns {
+		col, err := sanitizeIdentifier(column)
+		if err != nil {
+			b.err = fmt.Errorf("group by: %w", err)
+			return b
+		}
+		b.groups = append(b.groups, col)
+	}
 	return b
 }
 
 // Having adds a having clause.
 func (b *Builder) Having(column string, operator string, value any) *Builder {
+	col, err := sanitizeIdentifier(column)
+	if err != nil {
+		b.err = fmt.Errorf("having: %w", err)
+		return b
+	}
+	op, err := sanitizeOperator(operator)
+	if err != nil {
+		b.err = fmt.Errorf("having: %w", err)
+		return b
+	}
 	b.havings = append(b.havings, whereClause{
 		boolean: "and",
-		sql:     fmt.Sprintf("%s %s ?", column, operator),
+		sql:     fmt.Sprintf("%s %s ?", col, op),
 		args:    []any{value},
 	})
 	return b
@@ -458,9 +482,19 @@ func (b *Builder) Having(column string, operator string, value any) *Builder {
 
 // OrHaving adds an OR having clause.
 func (b *Builder) OrHaving(column string, operator string, value any) *Builder {
+	col, err := sanitizeIdentifier(column)
+	if err != nil {
+		b.err = fmt.Errorf("or having: %w", err)
+		return b
+	}
+	op, err := sanitizeOperator(operator)
+	if err != nil {
+		b.err = fmt.Errorf("or having: %w", err)
+		return b
+	}
 	b.havings = append(b.havings, whereClause{
 		boolean: "or",
-		sql:     fmt.Sprintf("%s %s ?", column, operator),
+		sql:     fmt.Sprintf("%s %s ?", col, op),
 		args:    []any{value},
 	})
 	return b
@@ -488,19 +522,79 @@ func (b *Builder) OrHavingRaw(sqlStr string, bindings ...any) *Builder {
 
 // Join adds an inner join.
 func (b *Builder) Join(table, first, operator, second string) *Builder {
-	b.joins = append(b.joins, fmt.Sprintf("INNER JOIN %s ON %s %s %s", table, first, operator, second))
+	t, err := sanitizeIdentifier(table)
+	if err != nil {
+		b.err = fmt.Errorf("join: %w", err)
+		return b
+	}
+	f, err := sanitizeIdentifier(first)
+	if err != nil {
+		b.err = fmt.Errorf("join: %w", err)
+		return b
+	}
+	op, err := sanitizeOperator(operator)
+	if err != nil {
+		b.err = fmt.Errorf("join: %w", err)
+		return b
+	}
+	s, err := sanitizeIdentifier(second)
+	if err != nil {
+		b.err = fmt.Errorf("join: %w", err)
+		return b
+	}
+	b.joins = append(b.joins, fmt.Sprintf("INNER JOIN %s ON %s %s %s", t, f, op, s))
 	return b
 }
 
 // LeftJoin adds a left join.
 func (b *Builder) LeftJoin(table, first, operator, second string) *Builder {
-	b.joins = append(b.joins, fmt.Sprintf("LEFT JOIN %s ON %s %s %s", table, first, operator, second))
+	t, err := sanitizeIdentifier(table)
+	if err != nil {
+		b.err = fmt.Errorf("left join: %w", err)
+		return b
+	}
+	f, err := sanitizeIdentifier(first)
+	if err != nil {
+		b.err = fmt.Errorf("left join: %w", err)
+		return b
+	}
+	op, err := sanitizeOperator(operator)
+	if err != nil {
+		b.err = fmt.Errorf("left join: %w", err)
+		return b
+	}
+	s, err := sanitizeIdentifier(second)
+	if err != nil {
+		b.err = fmt.Errorf("left join: %w", err)
+		return b
+	}
+	b.joins = append(b.joins, fmt.Sprintf("LEFT JOIN %s ON %s %s %s", t, f, op, s))
 	return b
 }
 
 // RightJoin adds a right join.
 func (b *Builder) RightJoin(table, first, operator, second string) *Builder {
-	b.joins = append(b.joins, fmt.Sprintf("RIGHT JOIN %s ON %s %s %s", table, first, operator, second))
+	t, err := sanitizeIdentifier(table)
+	if err != nil {
+		b.err = fmt.Errorf("right join: %w", err)
+		return b
+	}
+	f, err := sanitizeIdentifier(first)
+	if err != nil {
+		b.err = fmt.Errorf("right join: %w", err)
+		return b
+	}
+	op, err := sanitizeOperator(operator)
+	if err != nil {
+		b.err = fmt.Errorf("right join: %w", err)
+		return b
+	}
+	s, err := sanitizeIdentifier(second)
+	if err != nil {
+		b.err = fmt.Errorf("right join: %w", err)
+		return b
+	}
+	b.joins = append(b.joins, fmt.Sprintf("RIGHT JOIN %s ON %s %s %s", t, f, op, s))
 	return b
 }
 
@@ -691,6 +785,9 @@ func (b *Builder) compileSelectCore() (string, []any) {
 
 // Get executes the select query and returns maps.
 func (b *Builder) Get() ([]map[string]any, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
 	sqlStr, args := b.ToSQL()
 	rows, err := b.db.Query(sqlStr, args...)
 	if err != nil {
@@ -1233,6 +1330,11 @@ func (b *Builder) SimplePaginate(page, perPage int) (items []map[string]any, has
 }
 
 func (b *Builder) addWhereIn(boolean, column string, values []any, not bool) *Builder {
+	col, err := sanitizeIdentifier(column)
+	if err != nil {
+		b.err = fmt.Errorf("where in: %w", err)
+		return b
+	}
 	if len(values) == 0 {
 		if not {
 			return b
@@ -1247,7 +1349,7 @@ func (b *Builder) addWhereIn(boolean, column string, values []any, not bool) *Bu
 	if not {
 		op = "NOT IN"
 	}
-	return b.addRawWhere(boolean, fmt.Sprintf("%s %s (%s)", column, op, strings.Join(placeholders, ", ")), values...)
+	return b.addRawWhere(boolean, fmt.Sprintf("%s %s (%s)", col, op, strings.Join(placeholders, ", ")), values...)
 }
 
 func (b *Builder) addWhere(boolean, column string, args ...any) *Builder {
@@ -1255,10 +1357,24 @@ func (b *Builder) addWhere(boolean, column string, args ...any) *Builder {
 	case 0:
 		return b.addRawWhere(boolean, column)
 	case 1:
-		return b.addRawWhere(boolean, column+" = ?", args[0])
+		col, err := sanitizeIdentifier(column)
+		if err != nil {
+			b.err = fmt.Errorf("where: %w", err)
+			return b
+		}
+		return b.addRawWhere(boolean, col+" = ?", args[0])
 	default:
-		operator := fmt.Sprint(args[0])
-		return b.addRawWhere(boolean, fmt.Sprintf("%s %s ?", column, operator), args[1])
+		col, err := sanitizeIdentifier(column)
+		if err != nil {
+			b.err = fmt.Errorf("where: %w", err)
+			return b
+		}
+		op, err := sanitizeOperator(fmt.Sprint(args[0]))
+		if err != nil {
+			b.err = fmt.Errorf("where: %w", err)
+			return b
+		}
+		return b.addRawWhere(boolean, fmt.Sprintf("%s %s ?", col, op), args[1])
 	}
 }
 

@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -46,7 +46,7 @@ func EmailForVerification(user Authenticatable) string {
 
 // EmailHash returns a stable hash of the email for signed verification URLs.
 func EmailHash(email string) string {
-	sum := sha1.Sum([]byte(strings.ToLower(strings.TrimSpace(email))))
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
 	return hex.EncodeToString(sum[:])
 }
 

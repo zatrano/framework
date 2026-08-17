@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	stdhttp "net/http"
+	"net/url"
 	"strings"
 
 	"github.com/zatrano/framework/packages/http"
@@ -19,8 +20,22 @@ const acceptGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 // Handler processes an upgraded websocket connection.
 type Handler func(conn *Conn) error
 
-// Upgrade upgrades matching requests to WebSocket.
+// CheckOrigin decides whether a WebSocket upgrade Origin is allowed.
+// Return true to accept. A nil check uses SameOrigin.
+type CheckOrigin func(req *http.Request) bool
+
+// Upgrade upgrades matching requests to WebSocket using SameOrigin checks.
 func Upgrade(handler Handler) routing.HandlerFunc {
+	return UpgradeWithCheckOrigin(handler, nil)
+}
+
+// UpgradeWithCheckOrigin upgrades with a custom Origin policy.
+// If check is nil, SameOrigin is used. Pass AllowAnyOrigin to disable checks
+// (development only — never in production with cookie-authenticated sockets).
+func UpgradeWithCheckOrigin(handler Handler, check CheckOrigin) routing.HandlerFunc {
+	if check == nil {
+		check = SameOrigin
+	}
 	return func(req *http.Request) *http.Response {
 		return http.Hijack(func(w stdhttp.ResponseWriter) error {
 			hj, ok := w.(stdhttp.Hijacker)
@@ -31,6 +46,10 @@ func Upgrade(handler Handler) routing.HandlerFunc {
 			key := req.Header("Sec-WebSocket-Key")
 			if key == "" || !strings.EqualFold(req.Header("Upgrade"), "websocket") {
 				stdhttp.Error(w, "expected websocket upgrade", stdhttp.StatusBadRequest)
+				return nil
+			}
+			if !check(req) {
+				stdhttp.Error(w, "origin not allowed", stdhttp.StatusForbidden)
 				return nil
 			}
 
@@ -56,6 +75,24 @@ func Upgrade(handler Handler) routing.HandlerFunc {
 			return handler(ws)
 		})
 	}
+}
+
+// SameOrigin allows missing Origin (non-browser clients) or Origin host matching Request.Host.
+func SameOrigin(req *http.Request) bool {
+	origin := strings.TrimSpace(req.Header("Origin"))
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Host, req.Host())
+}
+
+// AllowAnyOrigin accepts every Origin (explicit opt-out of CSRF-style WS protection).
+func AllowAnyOrigin(req *http.Request) bool {
+	return true
 }
 
 func acceptKey(key string) string {

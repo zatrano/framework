@@ -2,7 +2,10 @@ package cookie
 
 import (
 	stdhttp "net/http"
+	"strings"
 	"time"
+
+	"github.com/zatrano/framework/packages/env"
 )
 
 // QueuedCookie is a cookie waiting to be attached to a response.
@@ -40,6 +43,7 @@ func (j *Jar) Queue(name, value string, minutes int) *Jar {
 		Value:    value,
 		Minutes:  minutes,
 		Path:     "/",
+		Secure:   defaultSecure(),
 		HTTPOnly: true,
 		SameSite: stdhttp.SameSiteLaxMode,
 	})
@@ -65,6 +69,7 @@ func Make(name, value string, minutes int) *stdhttp.Cookie {
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   defaultSecure(),
 		SameSite: stdhttp.SameSiteLaxMode,
 	}
 	if minutes > 0 {
@@ -75,6 +80,13 @@ func Make(name, value string, minutes int) *stdhttp.Cookie {
 		cookie.Expires = time.Unix(0, 0)
 	}
 	return cookie
+}
+
+func defaultSecure() bool {
+	if strings.EqualFold(strings.TrimSpace(env.Get("COOKIE_SECURE", "")), "true") {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(env.Get("SESSION_SECURE", "")), "true")
 }
 
 // ForeverCookie builds a long-lived cookie.

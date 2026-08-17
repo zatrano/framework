@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/packages/safepath"
 )
 
 const defaultMaxUpload = 32 << 20 // 32 MiB
@@ -51,8 +54,17 @@ func (f *UploadedFile) Store(directory string) (string, error) {
 }
 
 // StoreAs saves the upload under directory with the given filename.
+// Filename is always basenamed; destination must stay under directory.
 func (f *UploadedFile) StoreAs(directory, filename string) (string, error) {
+	filename = sanitizeFilename(filename)
+	if filename == "" || filename == "." || filename == ".." {
+		return "", fmt.Errorf("invalid upload filename")
+	}
 	if err := os.MkdirAll(directory, 0o755); err != nil {
+		return "", err
+	}
+	destPath, err := safepath.Resolve(directory, filename)
+	if err != nil {
 		return "", err
 	}
 	src, err := f.Header.Open()
@@ -61,7 +73,6 @@ func (f *UploadedFile) StoreAs(directory, filename string) (string, error) {
 	}
 	defer src.Close()
 
-	destPath := filepath.Join(directory, filename)
 	dest, err := os.Create(destPath)
 	if err != nil {
 		return "", err
@@ -112,13 +123,23 @@ func (r *Request) parseMultipart() error {
 	if r.raw.MultipartForm != nil {
 		return nil
 	}
-	max := defaultMaxUpload
+	max := maxUploadBytes()
+	// Clients may only lower the limit, never raise it above the server cap.
 	if raw := r.Header("X-Max-Upload"); raw != "" {
-		if n, err := strconvAtoiSafe(raw); err == nil && n > 0 {
+		if n, err := strconvAtoiSafe(raw); err == nil && n > 0 && n < max {
 			max = n
 		}
 	}
 	return r.raw.ParseMultipartForm(int64(max))
+}
+
+func maxUploadBytes() int {
+	if raw := strings.TrimSpace(env.Get("MAX_UPLOAD_BYTES", "")); raw != "" {
+		if n, err := strconvAtoiSafe(raw); err == nil && n > 0 {
+			return n
+		}
+	}
+	return defaultMaxUpload
 }
 
 func sanitizeFilename(name string) string {

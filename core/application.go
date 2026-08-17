@@ -28,6 +28,7 @@ import (
 	"github.com/zatrano/framework/packages/ratelimit"
 	"github.com/zatrano/framework/packages/report"
 	"github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/packages/safepath"
 	"github.com/zatrano/framework/packages/trustedproxy"
 	urlgen "github.com/zatrano/framework/packages/url"
 )
@@ -280,12 +281,15 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 	req := http.NewRequest(r)
 	middleware.ApplyMethodOverride(req)
 
-	// Static files from public/
-	publicPath := app.BasePath("public", filepath.Clean(r.URL.Path))
+	// Static files from public/ (never escape the public directory)
 	if r.URL.Path != "/" {
-		if info, err := os.Stat(publicPath); err == nil && !info.IsDir() {
-			stdhttp.ServeFile(w, r, publicPath)
-			return
+		publicRoot := app.BasePath("public")
+		publicPath, err := safepath.Resolve(publicRoot, r.URL.Path)
+		if err == nil {
+			if info, err := os.Stat(publicPath); err == nil && !info.IsDir() {
+				stdhttp.ServeFile(w, r, publicPath)
+				return
+			}
 		}
 	}
 
@@ -324,6 +328,9 @@ func (app *Application) Run(addr string) error {
 		Addr:              addr,
 		Handler:           app,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
