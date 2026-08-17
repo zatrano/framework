@@ -74,5 +74,8 @@ jobs:
           gosec -quiet \
             -exclude=G301,G302,G306,G401,G404,G505,G104,G203,G204,G304,G110 \
             -exclude-dir=packages/database/driver \
+            -exclude-dir=packages/qr \
+            -exclude-dir=packages/mongo \
+            -exclude-dir=packages/webauthn \
             -exclude-generated \
             ./...

@@ -40,7 +40,11 @@ func Code(secret string, at time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	counter := uint64(at.Unix() / 30)
+	sec := at.Unix()
+	if sec < 0 {
+		return "", fmt.Errorf("totp: time before unix epoch")
+	}
+	counter := uint64(sec) / 30
 	return hotp(key, counter), nil
 }
 

@@ -108,6 +108,7 @@ type Conn struct {
 
 // ReadMessage reads the next text/binary frame payload.
 func (c *Conn) ReadMessage() (opcode byte, payload []byte, err error) {
+	const maxFrame = 16 << 20 // 16 MiB
 	header := make([]byte, 2)
 	if _, err = io.ReadFull(c.bufrw, header); err != nil {
 		return 0, nil, err
@@ -126,7 +127,14 @@ func (c *Conn) ReadMessage() (opcode byte, payload []byte, err error) {
 		if _, err = io.ReadFull(c.bufrw, ext); err != nil {
 			return 0, nil, err
 		}
-		length = int(binary.BigEndian.Uint64(ext))
+		n64 := binary.BigEndian.Uint64(ext)
+		if n64 > maxFrame {
+			return 0, nil, fmt.Errorf("websocket frame too large")
+		}
+		length = int(n64)
+	}
+	if length > maxFrame {
+		return 0, nil, fmt.Errorf("websocket frame too large")
 	}
 
 	var mask [4]byte
