@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.x'
+          go-version: '1.25.13'
           cache: true
       - name: Download modules
         run: go mod download
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.x'
+          go-version: '1.25.13'
           cache: true
       - run: go mod download
       - name: go test -race (security-sensitive)
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.x'
+          go-version: '1.25.13'
           cache: true
       - run: go mod download
       - name: staticcheck

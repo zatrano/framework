@@ -79,4 +79,3 @@ func TestFromEnvAllowsStarWhenExplicit(t *testing.T) {
 	})
 	_ = handler(req)
 }
-

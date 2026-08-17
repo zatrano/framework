@@ -26,11 +26,12 @@ func Under(root, candidate string) bool {
 
 // Resolve joins root with a user-supplied relative path and rejects escapes.
 // Absolute user paths, ".." segments that leave root, and null bytes are rejected.
+// Both "/" and "\" are treated as separators on every OS (upload/path spoofing).
 func Resolve(root, userPath string) (string, error) {
 	if strings.ContainsRune(userPath, 0) {
 		return "", fmt.Errorf("path contains null byte")
 	}
-	slash := filepath.ToSlash(userPath)
+	slash := strings.ReplaceAll(userPath, `\`, "/")
 	slash = strings.TrimPrefix(slash, "/")
 	if slash == "" || slash == "." {
 		full, err := filepath.Abs(root)
@@ -39,9 +40,14 @@ func Resolve(root, userPath string) (string, error) {
 		}
 		return full, nil
 	}
-	// Reject Windows drive / UNC style after ToSlash normalization.
+	// Reject Windows drive / UNC style after separator normalization.
 	if strings.Contains(slash, ":") || strings.HasPrefix(slash, "//") {
 		return "", fmt.Errorf("absolute path rejected")
+	}
+	for _, part := range strings.Split(slash, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("path escapes root")
+		}
 	}
 	rel := filepath.FromSlash(slash)
 	rel = filepath.Clean(rel)

@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        go: ['1.25.x']
+        go: ['1.25.13']
 
     name: Go ${{ matrix.go }}
 
@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        go: ['1.25.x']
+        go: ['1.25.13']
 
     name: Go ${{ matrix.go }} - Windows
 

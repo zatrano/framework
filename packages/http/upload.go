@@ -143,6 +143,8 @@ func maxUploadBytes() int {
 }
 
 func sanitizeFilename(name string) string {
+	// Treat backslash as a separator on all platforms (Linux CI / Windows uploads).
+	name = strings.ReplaceAll(name, `\`, "/")
 	name = filepath.Base(name)
 	name = strings.ReplaceAll(name, " ", "_")
 	return name

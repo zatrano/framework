@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.8 - 2026-08-17
+
+### Fixed
+
+- Path containment treats `\` as a separator on all OS (Linux CI rejected Windows-style traversal)
+- Upload filename sanitize strips `\` directories cross-platform
+- CI Go toolchain pinned to **1.25.13** (stdlib govulncheck fixes)
+- `golang.org/x/text` → v0.39.0
+- gofmt on `trustedproxy_test.go`
+
 ## 1.2.7 - 2026-08-17
 
 ### Security
