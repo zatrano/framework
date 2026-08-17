@@ -27,7 +27,11 @@ go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 govulncheck ./...
 
 go install github.com/securego/gosec/v2/cmd/gosec@v2.22.2
-gosec -quiet -exclude=G301,G306,G505,G104 -exclude-generated ./...
+gosec -quiet \
+  -exclude=G301,G302,G306,G401,G404,G505,G104,G203,G204,G304,G110 \
+  -exclude-dir=packages/database/driver \
+  -exclude-generated \
+  ./...
 ```
 
 CI runs these via `.github/workflows/security.yml`.

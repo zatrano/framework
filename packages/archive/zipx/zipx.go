@@ -7,7 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/zatrano/framework/packages/safepath"
 )
+
+// maxExtractBytes caps a single member to mitigate zip bombs (DoS).
+const maxExtractBytes = 100 << 20 // 100 MiB
 
 // Create writes a zip archive from name->content pairs.
 func Create(path string, files map[string][]byte) error {
@@ -56,6 +61,7 @@ func Bytes(files map[string][]byte) ([]byte, error) {
 }
 
 // Extract unpacks a zip archive into dest.
+// Members that escape dest (zip-slip) are rejected. Each file is size-capped.
 func Extract(path, dest string) ([]string, error) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
@@ -67,7 +73,10 @@ func Extract(path, dest string) ([]string, error) {
 	}
 	names := make([]string, 0, len(r.File))
 	for _, f := range r.File {
-		target := filepath.Join(dest, f.Name)
+		target, err := safepath.Resolve(dest, f.Name)
+		if err != nil {
+			return names, fmt.Errorf("zip slip rejected %q: %w", f.Name, err)
+		}
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(target, 0o755); err != nil {
 				return names, err
@@ -86,11 +95,15 @@ func Extract(path, dest string) ([]string, error) {
 			_ = rc.Close()
 			return names, err
 		}
-		_, err = io.Copy(out, rc)
+		n, err := io.Copy(out, io.LimitReader(rc, maxExtractBytes+1))
 		_ = out.Close()
 		_ = rc.Close()
 		if err != nil {
 			return names, err
+		}
+		if n > maxExtractBytes {
+			_ = os.Remove(target)
+			return names, fmt.Errorf("zip member %q exceeds %d bytes", f.Name, maxExtractBytes)
 		}
 		names = append(names, f.Name)
 	}
