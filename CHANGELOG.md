@@ -2,6 +2,20 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.9 - 2026-08-18
+
+### Changed
+
+- Social avatar is a provider snapshot on `social_accounts`; canonical display photo is `users.avatar` (`Persist` / `make:auth` stubs)
+- README origin story rewritten; CI and meta badges restored on two rows
+- Security docs live on zatrano.com (`/docs/security*`); repo keeps slim `SECURITY.md` reporting policy
+
+### Fixed
+
+- Zip-slip containment in `zipx.Extract` + per-member size cap
+- WebSocket / TOTP / bloom integer-conversion hardening for gosec G115
+- gosec CI excludes for nested modules (`qr`, `mongo`, `webauthn`, optional SQL drivers)
+
 ## 1.2.8 - 2026-08-17
 
 ### Fixed
