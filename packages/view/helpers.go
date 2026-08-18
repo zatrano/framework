@@ -6,8 +6,19 @@ import (
 	"html/template"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 )
+
+// tplLit formats s as a Go-template string literal.
+// Prefer backticks so compiled actions stay valid inside HTML double-quoted
+// attributes (class="@if($x)…@endif" → class="{{ if dataGet . `x` }}…{{ end }}").
+func tplLit(s string) string {
+	if strings.IndexByte(s, '`') >= 0 {
+		return strconv.Quote(s)
+	}
+	return "`" + s + "`"
+}
 
 // dataGet reads a dotted path from maps and structs.
 func dataGet(data any, path string) any {
@@ -276,7 +287,7 @@ func parseBladeMapExpr(expr string) string {
 		key := strings.TrimSpace(kv[0])
 		val := strings.TrimSpace(kv[1])
 		key = strings.Trim(key, `'"`)
-		args = append(args, fmt.Sprintf("%q", key))
+		args = append(args, tplLit(key))
 		args = append(args, bladeValueExpr(val))
 	}
 	if len(args) == 0 {
@@ -332,17 +343,17 @@ func bladeValueExpr(val string) string {
 	val = strings.TrimSpace(val)
 	if strings.HasPrefix(val, "$") {
 		path := strings.TrimPrefix(val, "$")
-		return fmt.Sprintf(`(dataGet . %q)`, path)
+		return fmt.Sprintf(`(dataGet . %s)`, tplLit(path))
 	}
 	if (strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) ||
 		(strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) {
 		lit := strings.Trim(val, `'"`)
-		return fmt.Sprintf("%q", lit)
+		return tplLit(lit)
 	}
 	if val == "true" || val == "false" {
 		return val
 	}
-	return fmt.Sprintf("%q", val)
+	return tplLit(val)
 }
 
 func toFloat64(v any) (float64, bool) {

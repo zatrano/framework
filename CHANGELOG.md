@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.10 - 2026-08-18
+
+### Fixed
+
+- View compiler emits backtick string literals for `dataGet` / comparison / CSRF / auth paths so `@if` inside HTML attributes (e.g. `class="@if($save_disabled)…@endif"`) no longer nests double quotes in the compiled Go template
+
 ## 1.2.9 - 2026-08-18
 
 ### Changed

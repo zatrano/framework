@@ -244,9 +244,9 @@ func (e *Engine) wrapConditionalInclude(when bool, cond, name, dataExpr string, 
 		partial = fmt.Sprintf(`{{ with mergeDict . (%s) }}%s{{ end }}`, dictCall, partial)
 	}
 	if when {
-		return fmt.Sprintf(`{{ if dataGet . %q }}%s{{ end }}`, cond, partial)
+		return fmt.Sprintf(`{{ if dataGet . %s }}%s{{ end }}`, tplLit(cond), partial)
 	}
-	return fmt.Sprintf(`{{ if not (dataGet . %q) }}%s{{ end }}`, cond, partial)
+	return fmt.Sprintf(`{{ if not (dataGet . %s) }}%s{{ end }}`, tplLit(cond), partial)
 }
 
 func (e *Engine) expandComponents(content string, seen []string, bags map[string]*stackBag, once map[string]bool) (string, error) {
@@ -336,7 +336,7 @@ func (e *Engine) expandEach(content string, seen []string, bags map[string]*stac
 		partial = rewriteNamedRangeAlias(partial, alias)
 		partial = rewriteForeachParentLookups(partial, alias)
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet . "%s")) }}`, collection))
+		sb.WriteString(fmt.Sprintf(`{{ if not (empty (dataGet . %s)) }}`, tplLit(collection)))
 		sb.WriteString(fmt.Sprintf(`{{ range $__zfi, $%s := dataGet $ "%s" }}`, alias, collection))
 		sb.WriteString(partial)
 		sb.WriteString(`{{ end }}`)

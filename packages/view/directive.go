@@ -79,9 +79,9 @@ func compileCanDirectives(input string) string {
 			return m
 		}
 		if match[2] != "" {
-			return `{{ if can . "` + match[1] + `" (dataGet . "` + match[2] + `") }}`
+			return "{{ if can . `" + match[1] + "` (dataGet . `" + match[2] + "`) }}"
 		}
-		return `{{ if can . "` + match[1] + `" }}`
+		return "{{ if can . `" + match[1] + "` }}"
 	})
 	out = reCannot.ReplaceAllStringFunc(out, func(m string) string {
 		match := reCannot.FindStringSubmatch(m)
@@ -89,9 +89,9 @@ func compileCanDirectives(input string) string {
 			return m
 		}
 		if match[2] != "" {
-			return `{{ if not (can . "` + match[1] + `" (dataGet . "` + match[2] + `")) }}`
+			return "{{ if not (can . `" + match[1] + "` (dataGet . `" + match[2] + "`)) }}"
 		}
-		return `{{ if not (can . "` + match[1] + `") }}`
+		return "{{ if not (can . `" + match[1] + "`) }}"
 	})
 	out = reEndCan.ReplaceAllString(out, "{{ end }}")
 	out = reEndCannot.ReplaceAllString(out, "{{ end }}")
@@ -104,7 +104,7 @@ func compileEnvDirectives(input string) string {
 		if len(match) != 2 {
 			return m
 		}
-		return `{{ if env "` + match[1] + `" }}`
+		return "{{ if env `" + match[1] + "` }}"
 	})
 	out = strings.ReplaceAll(out, "@production", `{{ if production }}`)
 	out = reEndEnv.ReplaceAllString(out, "{{ end }}")
