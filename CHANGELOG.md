@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.14 - 2026-08-19
+
+### Fixed
+
+- staticcheck SA4006/U1000 in `packages/backup` (unused assignment and dead helper)
+
 ## 1.2.13 - 2026-08-19
 
 ### Added

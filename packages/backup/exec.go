@@ -39,26 +39,3 @@ func runCmd(bin string, args []string, env []string, stdin []byte) error {
 	}
 	return nil
 }
-
-func runCmdOutFile(bin string, args []string, env []string, outPath string) error {
-	cmd := exec.Command(bin, args...)
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	out, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	cmd.Stdout = out
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return fmt.Errorf("%s: %s", bin, msg)
-	}
-	return out.Sync()
-}

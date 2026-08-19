@@ -98,9 +98,7 @@ func TestMySQLArgsViaFakeBinary(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "mysqldump.log")
 	script := filepath.Join(dir, "mysqldump")
-	body := "#!/bin/sh\necho \"$0 $@\" > " + logPath + "\ntouch \"$5\"\n"
-	// result-file is passed as --result-file=path — create empty file from last --result-file=
-	body = "#!/bin/sh\n" +
+	body := "#!/bin/sh\n" +
 		"echo \"$@\" > '" + logPath + "'\n" +
 		"for a in \"$@\"; do\n" +
 		"  case \"$a\" in --result-file=*) f=${a#--result-file=}; : > \"$f\" ;; esac\n" +
