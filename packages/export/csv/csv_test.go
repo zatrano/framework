@@ -32,3 +32,25 @@ func TestToMaps(t *testing.T) {
 		t.Fatalf("unexpected %#v", rows)
 	}
 }
+
+func TestBOMAndDelimiter(t *testing.T) {
+	body, err := csv.FromMapsWithOptions([]map[string]any{
+		{"name": "Ada", "city": "Ankara"},
+	}, csv.Options{Comma: ';', UseBOM: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(body, "\uFEFF") {
+		t.Fatalf("missing BOM: %q", body)
+	}
+	if !strings.Contains(body, ";") {
+		t.Fatalf("expected semicolon delimiter: %q", body)
+	}
+	rows, err := csv.ToMapsWithOptions(body, csv.Options{Comma: ';'})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0]["name"] != "Ada" || rows[0]["city"] != "Ankara" {
+		t.Fatalf("%#v", rows)
+	}
+}

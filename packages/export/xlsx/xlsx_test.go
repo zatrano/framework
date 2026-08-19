@@ -41,3 +41,47 @@ func TestToMapsReadsSharedStrings(t *testing.T) {
 		t.Fatalf("unexpected rows: %#v", rows)
 	}
 }
+
+func TestFromMapsRoundTrip(t *testing.T) {
+	in := []map[string]any{
+		{"email": "a@x.com", "name": "Ada"},
+		{"email": "b@y.com", "name": "Bob"},
+	}
+	raw, err := xlsx.FromMaps(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(raw, []byte("PK")) {
+		t.Fatal("expected zip/xlsx magic")
+	}
+	out, err := xlsx.ToMaps(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("rows=%d %#v", len(out), out)
+	}
+	byEmail := map[string]string{}
+	for _, row := range out {
+		byEmail[row["email"]] = row["name"]
+	}
+	if byEmail["a@x.com"] != "Ada" || byEmail["b@y.com"] != "Bob" {
+		t.Fatalf("unexpected %#v", out)
+	}
+}
+
+func TestFromMapsWithHeadersOrder(t *testing.T) {
+	raw, err := xlsx.FromMapsWithHeaders([]map[string]any{
+		{"b": "2", "a": "1"},
+	}, []string{"a", "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := xlsx.ToMaps(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0]["a"] != "1" || out[0]["b"] != "2" {
+		t.Fatalf("%#v", out)
+	}
+}

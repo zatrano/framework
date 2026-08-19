@@ -2,6 +2,14 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.12 - 2026-08-19
+
+### Added
+
+- XLSX export (`xlsx.FromMaps` / `Response`) with round-trip import
+- CSV options (delimiter, UTF-8 BOM) and `export.ToMaps` format detection
+- PDF multipage text, `FromMaps` tables, and `Inline` for browser viewing
+
 ## 1.2.11 - 2026-08-19
 
 ### Fixed
