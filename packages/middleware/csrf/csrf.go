@@ -94,7 +94,9 @@ func ensureToken(req *http.Request) string {
 
 func generateToken() string {
 	buf := make([]byte, 32)
-	_, _ = rand.Read(buf)
+	if _, err := rand.Read(buf); err != nil {
+		panic("csrf: crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(buf)
 }
 

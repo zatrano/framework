@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.11 - 2026-08-19
+
+### Fixed
+
+- CSRF token generation panics if `crypto/rand` fails instead of ignoring the error
+
 ## 1.2.10 - 2026-08-18
 
 ### Fixed
