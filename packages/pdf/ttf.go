@@ -139,10 +139,10 @@ func parseTTF(data []byte) (*ttfFont, error) {
 		return nil, fmt.Errorf("ttf: short head")
 	}
 	f.unitsPerEm = binary.BigEndian.Uint16(head[18:20])
-	f.bbox[0] = int16(binary.BigEndian.Uint16(head[36:38]))
-	f.bbox[1] = int16(binary.BigEndian.Uint16(head[38:40]))
-	f.bbox[2] = int16(binary.BigEndian.Uint16(head[40:42]))
-	f.bbox[3] = int16(binary.BigEndian.Uint16(head[42:44]))
+	f.bbox[0] = beFWord(head[36:38])
+	f.bbox[1] = beFWord(head[38:40])
+	f.bbox[2] = beFWord(head[40:42])
+	f.bbox[3] = beFWord(head[42:44])
 
 	hhea, err := sliceTable(data, tables["hhea"])
 	if err != nil {
@@ -151,8 +151,8 @@ func parseTTF(data []byte) (*ttfFont, error) {
 	if len(hhea) < 36 {
 		return nil, fmt.Errorf("ttf: short hhea")
 	}
-	f.ascent = int16(binary.BigEndian.Uint16(hhea[4:6]))
-	f.descent = int16(binary.BigEndian.Uint16(hhea[6:8]))
+	f.ascent = beFWord(hhea[4:6])
+	f.descent = beFWord(hhea[6:8])
 	numOfLongHorMetrics := int(binary.BigEndian.Uint16(hhea[34:36]))
 
 	maxp, err := sliceTable(data, tables["maxp"])
@@ -291,24 +291,24 @@ func parseCmapFormat4(data []byte, out map[rune]uint16) error {
 	for i := 0; i < segCount; i++ {
 		end := binary.BigEndian.Uint16(data[endCount+2*i : endCount+2*i+2])
 		start := binary.BigEndian.Uint16(data[startCount+2*i : startCount+2*i+2])
-		delta := int16(binary.BigEndian.Uint16(data[idDelta+2*i : idDelta+2*i+2]))
+		delta := beFWord(data[idDelta+2*i : idDelta+2*i+2])
 		rangeOff := binary.BigEndian.Uint16(data[idRangeOffset+2*i : idRangeOffset+2*i+2])
 		for c := int(start); c <= int(end); c++ {
 			var gid uint16
 			if rangeOff == 0 {
-				gid = uint16(c + int(delta))
+				gid = cmapApplyDelta(c, delta)
 			} else {
 				p := idRangeOffset + 2*i + int(rangeOff) + 2*(c-int(start))
 				if p+2 > len(data) {
 					continue
 				}
-				gid = binary.BigEndian.Uint16(data[p : p+2])
-				if gid != 0 {
-					gid = uint16(int(gid) + int(delta))
+				raw := binary.BigEndian.Uint16(data[p : p+2])
+				if raw != 0 {
+					gid = cmapApplyDelta(int(raw), delta)
 				}
 			}
 			if gid != 0 {
-				out[rune(c)] = gid
+				out[bmpRune(c)] = gid
 			}
 			if c == 0xFFFF {
 				break
@@ -333,8 +333,11 @@ func parseCmapFormat12(data []byte, out map[rune]uint16) error {
 		glyph := binary.BigEndian.Uint32(data[off+8 : off+12])
 		off += 12
 		for c, g := start, glyph; c <= end; c, g = c+1, g+1 {
-			if g != 0 && g <= 0xFFFF {
-				out[rune(c)] = uint16(g)
+			if g == 0 || g > 0xFFFF {
+				continue
+			}
+			if r, ok := unicodeRune(c); ok {
+				out[r] = uint16(g) // #nosec G115 -- g bounded to BMP glyph id
 			}
 		}
 	}
@@ -450,15 +453,15 @@ func flateBytes(raw []byte) ([]byte, error) {
 }
 
 func buildWidthArray(f *ttfFont, used map[uint16]struct{}) string {
-	ids := make([]int, 0, len(used))
+	ids := make([]uint16, 0, len(used))
 	for g := range used {
-		ids = append(ids, int(g))
+		ids = append(ids, g)
 	}
-	sort.Ints(ids)
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	var b strings.Builder
 	b.WriteString("[")
 	for _, id := range ids {
-		fmt.Fprintf(&b, "%d [%d] ", id, f.widthPDF(uint16(id)))
+		fmt.Fprintf(&b, "%d [%d] ", id, f.widthPDF(id))
 	}
 	b.WriteString("]")
 	return b.String()
@@ -474,11 +477,11 @@ func buildToUnicode(f *ttfFont, used map[uint16]struct{}) string {
 			gidToRune[g] = r
 		}
 	}
-	ids := make([]int, 0, len(gidToRune))
+	ids := make([]uint16, 0, len(gidToRune))
 	for g := range gidToRune {
-		ids = append(ids, int(g))
+		ids = append(ids, g)
 	}
-	sort.Ints(ids)
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 
 	var b strings.Builder
 	b.WriteString("/CIDInit /ProcSet findresource begin\n")
@@ -495,11 +498,36 @@ func buildToUnicode(f *ttfFont, used map[uint16]struct{}) string {
 		}
 		fmt.Fprintf(&b, "%d beginbfchar\n", end-i)
 		for _, id := range ids[i:end] {
-			r := gidToRune[uint16(id)]
+			r := gidToRune[id]
 			fmt.Fprintf(&b, "<%04X> <%04X>\n", id, r)
 		}
 		b.WriteString("endbfchar\n")
 	}
 	b.WriteString("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend")
 	return b.String()
+}
+
+// beFWord reads a TTF/OpenType FWORD (signed 16-bit, big-endian).
+func beFWord(b []byte) int16 {
+	u := binary.BigEndian.Uint16(b)
+	return int16(u) // #nosec G115 -- FWORD is two's-complement int16 by font spec
+}
+
+// cmapApplyDelta applies cmap format 4 idDelta with 16-bit wrap (OpenType).
+func cmapApplyDelta(v int, delta int16) uint16 {
+	sum := v + int(delta)
+	return uint16(sum & 0xFFFF) // #nosec G115 -- format 4 glyph ids wrap mod 65536
+}
+
+// bmpRune maps a cmap format 4 code point (0..0xFFFF) to a rune.
+func bmpRune(c int) rune {
+	return rune(c & 0xFFFF) // #nosec G115 -- format 4 segments are BMP only
+}
+
+// unicodeRune maps a cmap format 12 code point to a rune when in Unicode range.
+func unicodeRune(c uint32) (rune, bool) {
+	if c > 0x10FFFF {
+		return 0, false
+	}
+	return rune(c), true // #nosec G115 -- c checked against MaxRune
 }

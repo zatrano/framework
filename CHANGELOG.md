@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.16 - 2026-08-19
+
+### Fixed
+
+- PDF TTF parsing: gosec G115 integer conversions (FWORD, cmap delta, BMP/Unicode runes)
+
 ## 1.2.15 - 2026-08-19
 
 ### Fixed
