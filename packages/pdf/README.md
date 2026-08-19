@@ -17,4 +17,4 @@ return pdf.Inline("users.pdf", doc)      // Content-Disposition: inline
 return pdf.Attachment("users.pdf", doc)  // download
 ```
 
-Not an HTML-to-PDF engine: plain Helvetica text, automatic page breaks.
+Not an HTML-to-PDF engine: plain text with automatic page breaks. ASCII uses Helvetica; text with non-ASCII runes embeds a system TrueType font (Arial on Windows, DejaVu/Liberation on Linux) as Identity-H CIDFont so Turkish and other glyphs render.

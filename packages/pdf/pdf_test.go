@@ -17,8 +17,29 @@ func TestPDFBytes(t *testing.T) {
 	if !bytes.Contains(raw, []byte("Hello PDF")) {
 		t.Fatal("missing text")
 	}
+	if !bytes.Contains(raw, []byte("/BaseFont /Helvetica")) {
+		t.Fatal("ASCII docs should keep Helvetica")
+	}
 	if !bytes.Contains(raw, []byte("%%EOF")) {
 		t.Fatal("missing eof")
+	}
+}
+
+func TestPDFTurkishEmbedsIdentityH(t *testing.T) {
+	doc := pdf.New("Düğün", "Katılımcı listesi", "Kişi: Ayşe")
+	raw := doc.Bytes()
+	if !bytes.Contains(raw, []byte("/Identity-H")) {
+		t.Fatal("expected Identity-H encoding for non-ASCII text")
+	}
+	if !bytes.Contains(raw, []byte("/CIDFontType2")) {
+		t.Fatal("expected CIDFontType2")
+	}
+	// Must not put UTF-8 "Düğün" into a Helvetica literal string.
+	if bytes.Contains(raw, []byte("(Düğün)")) {
+		t.Fatal("Turkish title must not be Helvetica PDF string")
+	}
+	if bytes.Contains(raw, []byte("/BaseFont /Helvetica")) && !bytes.Contains(raw, []byte("/Identity-H")) {
+		t.Fatal("fell back to Helvetica without Identity-H")
 	}
 }
 

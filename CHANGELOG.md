@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.15 - 2026-08-19
+
+### Fixed
+
+- PDF embeds a system TrueType font (Arial on Windows) for non-ASCII text so Turkish (and other) glyphs render; ASCII still uses Helvetica
+
 ## 1.2.14 - 2026-08-19
 
 ### Fixed

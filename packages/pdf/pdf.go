@@ -41,7 +41,6 @@ func FromMaps(title string, rows []map[string]any, headers ...string) *Document 
 		for k := range seen {
 			headers = append(headers, k)
 		}
-		// stable-ish order: sort by walking twice is fine for small sets — use insertion order from first row keys then extras
 		headers = orderedHeaders(rows, headers)
 	}
 	lines := make([]string, 0, len(rows)+2)
@@ -108,14 +107,25 @@ func (d *Document) Bytes() []byte {
 	if len(lines) == 0 {
 		lines = []string{d.Title}
 	}
+	all := append([]string{}, lines...)
+	if d.Title != "" {
+		all = append(all, d.Title)
+	}
 
 	pages := chunkLines(lines, linesPerPage)
 	if len(pages) == 0 {
 		pages = [][]string{{d.Title}}
 	}
 
-	// Object layout:
-	// 1 Catalog, 2 Pages, 3..N+2 Page, N+3..2N+2 Contents, 2N+3 Font
+	if needsUnicode(all) {
+		if font, err := loadSystemTTF(); err == nil {
+			return d.bytesUnicode(pages, font)
+		}
+	}
+	return d.bytesHelvetica(pages)
+}
+
+func (d *Document) bytesHelvetica(pages [][]string) []byte {
 	n := len(pages)
 	fontObj := 3 + 2*n
 	pageObjs := make([]int, n)
@@ -126,9 +136,7 @@ func (d *Document) Bytes() []byte {
 	}
 
 	objects := make([]string, fontObj)
-	// Catalog
 	objects[0] = "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n"
-	// Pages kids
 	var kids strings.Builder
 	kids.WriteString("[")
 	for i, id := range pageObjs {
@@ -145,7 +153,7 @@ func (d *Document) Bytes() []byte {
 			"%d 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.0f %.0f] /Contents %d 0 R /Resources << /Font << /F1 %d 0 R >> >> >>endobj\n",
 			pageObjs[i], pageWidth, pageHeight, contentObjs[i], fontObj,
 		)
-		stream := pageContent(pages[i])
+		stream := pageContentHelvetica(pages[i])
 		objects[contentObjs[i]-1] = fmt.Sprintf(
 			"%d 0 obj<< /Length %d >>stream\n%s\nendstream endobj\n",
 			contentObjs[i], len(stream), stream,
@@ -153,12 +161,115 @@ func (d *Document) Bytes() []byte {
 	}
 	objects[fontObj-1] = fmt.Sprintf("%d 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n", fontObj)
 
+	return assemblePDF(objects)
+}
+
+func (d *Document) bytesUnicode(pages [][]string, font *ttfFont) []byte {
+	n := len(pages)
+	// Objects: 1 Catalog, 2 Pages, 3..n+2 Page, n+3..2n+2 Contents,
+	// 2n+3 Type0, 2n+4 CIDFont, 2n+5 FontDescriptor, 2n+6 FontFile2, 2n+7 ToUnicode
+	type0Obj := 3 + 2*n
+	cidObj := type0Obj + 1
+	descObj := type0Obj + 2
+	fileObj := type0Obj + 3
+	toUniObj := type0Obj + 4
+	numObjs := toUniObj
+
+	pageObjs := make([]int, n)
+	contentObjs := make([]int, n)
+	for i := 0; i < n; i++ {
+		pageObjs[i] = 3 + i
+		contentObjs[i] = 3 + n + i
+	}
+
+	used := map[uint16]struct{}{}
+	contents := make([]string, n)
+	for i := 0; i < n; i++ {
+		stream, pageUsed := pageContentUnicode(pages[i], font)
+		contents[i] = stream
+		for g := range pageUsed {
+			used[g] = struct{}{}
+		}
+	}
+
+	baseName := "ZAT+" + font.postscript
+	compressed, err := flateBytes(font.data)
+	if err != nil {
+		return d.bytesHelvetica(pages)
+	}
+	toUni := buildToUnicode(font, used)
+	widths := buildWidthArray(font, used)
+
+	objects := make([][]byte, numObjs)
+
+	objects[0] = []byte("1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n")
+	var kids strings.Builder
+	kids.WriteString("[")
+	for i, id := range pageObjs {
+		if i > 0 {
+			kids.WriteByte(' ')
+		}
+		kids.WriteString(fmt.Sprintf("%d 0 R", id))
+	}
+	kids.WriteString("]")
+	objects[1] = []byte(fmt.Sprintf("2 0 obj<< /Type /Pages /Kids %s /Count %d >>endobj\n", kids.String(), n))
+
+	for i := 0; i < n; i++ {
+		objects[pageObjs[i]-1] = []byte(fmt.Sprintf(
+			"%d 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.0f %.0f] /Contents %d 0 R /Resources << /Font << /F1 %d 0 R >> >> >>endobj\n",
+			pageObjs[i], pageWidth, pageHeight, contentObjs[i], type0Obj,
+		))
+		stream := contents[i]
+		objects[contentObjs[i]-1] = []byte(fmt.Sprintf(
+			"%d 0 obj<< /Length %d >>stream\n%s\nendstream endobj\n",
+			contentObjs[i], len(stream), stream,
+		))
+	}
+
+	objects[type0Obj-1] = []byte(fmt.Sprintf(
+		"%d 0 obj<< /Type /Font /Subtype /Type0 /BaseFont /%s /Encoding /Identity-H /DescendantFonts [%d 0 R] /ToUnicode %d 0 R >>endobj\n",
+		type0Obj, baseName, cidObj, toUniObj,
+	))
+	objects[cidObj-1] = []byte(fmt.Sprintf(
+		"%d 0 obj<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW 1000 /W %s /CIDToGIDMap /Identity >>endobj\n",
+		cidObj, baseName, descObj, widths,
+	))
+	objects[descObj-1] = []byte(fmt.Sprintf(
+		"%d 0 obj<< /Type /FontDescriptor /FontName /%s /Flags 32 /FontBBox [%d %d %d %d] /ItalicAngle 0 /Ascent %d /Descent %d /CapHeight %d /StemV 80 /FontFile2 %d 0 R >>endobj\n",
+		descObj, baseName,
+		font.bbox[0], font.bbox[1], font.bbox[2], font.bbox[3],
+		font.ascent, font.descent, font.capHeight, fileObj,
+	))
+
+	var fileObjBuf bytes.Buffer
+	fmt.Fprintf(&fileObjBuf, "%d 0 obj<< /Length %d /Length1 %d /Filter /FlateDecode >>stream\n", fileObj, len(compressed), len(font.data))
+	fileObjBuf.Write(compressed)
+	fileObjBuf.WriteString("\nendstream endobj\n")
+	objects[fileObj-1] = fileObjBuf.Bytes()
+
+	objects[toUniObj-1] = []byte(fmt.Sprintf(
+		"%d 0 obj<< /Length %d >>stream\n%s\nendstream endobj\n",
+		toUniObj, len(toUni), toUni,
+	))
+
+	return assemblePDFBytes(objects)
+}
+
+func assemblePDF(objects []string) []byte {
+	objs := make([][]byte, len(objects))
+	for i, o := range objects {
+		objs[i] = []byte(o)
+	}
+	return assemblePDFBytes(objs)
+}
+
+func assemblePDFBytes(objects [][]byte) []byte {
 	var body bytes.Buffer
 	body.WriteString("%PDF-1.4\n")
 	offsets := make([]int, len(objects)+1)
 	for i, obj := range objects {
 		offsets[i+1] = body.Len()
-		body.WriteString(obj)
+		body.Write(obj)
 	}
 	xrefPos := body.Len()
 	body.WriteString(fmt.Sprintf("xref\n0 %d\n", len(objects)+1))
@@ -185,7 +296,7 @@ func chunkLines(lines []string, perPage int) [][]string {
 	return pages
 }
 
-func pageContent(lines []string) string {
+func pageContentHelvetica(lines []string) string {
 	var content strings.Builder
 	content.WriteString(fmt.Sprintf("BT\n/F1 %.0f Tf\n%.0f %.0f Td\n%.0f TL\n", fontSize, marginX, marginTop, lineHeight))
 	for i, line := range lines {
@@ -196,6 +307,24 @@ func pageContent(lines []string) string {
 	}
 	content.WriteString("ET")
 	return content.String()
+}
+
+func pageContentUnicode(lines []string, font *ttfFont) (string, map[uint16]struct{}) {
+	used := map[uint16]struct{}{}
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("BT\n/F1 %.0f Tf\n%.0f %.0f Td\n%.0f TL\n", fontSize, marginX, marginTop, lineHeight))
+	for i, line := range lines {
+		if i > 0 {
+			content.WriteString("T*\n")
+		}
+		hex, lineUsed := font.encodeLineHex(line)
+		for g := range lineUsed {
+			used[g] = struct{}{}
+		}
+		content.WriteString(hex + " Tj\n")
+	}
+	content.WriteString("ET")
+	return content.String(), used
 }
 
 // Response builds an application/pdf download (attachment).
