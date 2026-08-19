@@ -353,8 +353,6 @@ Semantic versioning. Tags: `vMAJOR.MINOR.PATCH` on [GitHub Releases](https://git
 | **v0.2.x** | Pre-ecosystem line (historical)           |
 
 
-Current: **[v1.0.3](https://github.com/zatrano/framework/releases/tag/v1.0.3)**
-
 ## Community
 
 - Docs: [zatrano.com/docs](https://zatrano.com/docs)
