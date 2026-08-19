@@ -94,7 +94,7 @@ var Catalog = []PackageInfo{
 	// Addon services — opt-in via bootstrap/addons registry + EnabledAddons.
 	{Name: "ai", Layer: LayerAddon, Kind: KindService, Description: "AI chat providers"},
 	{Name: "audit", Layer: LayerAddon, Kind: KindService, Description: "Request/audit event log"},
-	{Name: "backup", Layer: LayerAddon, Kind: KindService, Description: "SQLite/database backup helper"},
+	{Name: "backup", Layer: LayerAddon, Kind: KindService, Description: "Database backup/restore (SQLite + native dump tools)"},
 	{Name: "billing", Layer: LayerAddon, Kind: KindService, Description: "Billing/checkout helpers"},
 	{Name: "bus", Layer: LayerAddon, Kind: KindService, Description: "Synchronous command bus"},
 	{Name: "circuit", Layer: LayerAddon, Kind: KindService, Description: "Circuit breaker"},

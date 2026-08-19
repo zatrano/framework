@@ -2,7 +2,6 @@ package addons
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -242,11 +241,11 @@ func (p *PulseServiceProvider) Boot(app *core.Application) error { return nil }
 type BackupServiceProvider struct{}
 
 func (p *BackupServiceProvider) Register(app *core.Application) error {
-	dbPath := app.Config().GetString("database.connections.sqlite.database", "database/database.sqlite")
-	if !filepath.IsAbs(dbPath) {
-		dbPath = app.BasePath(dbPath)
+	mgr, err := backup.ManagerFromApp(app, "")
+	if err != nil {
+		return err
 	}
-	app.Container().Instance("backup", backup.New(dbPath, app.BasePath("storage", "backups")))
+	app.Container().Instance("backup", mgr)
 	return nil
 }
 

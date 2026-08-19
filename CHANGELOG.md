@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.13 - 2026-08-19
+
+### Added
+
+- Multi-driver `db:backup` / `db:restore` / `db:backup:list` via native CLI tools (`mysqldump`, `pg_dump`, `sqlpackage`, `exp`/`imp`, `mongodump`) plus SQLite file copy; `--connection` flag
+
 ## 1.2.12 - 2026-08-19
 
 ### Added

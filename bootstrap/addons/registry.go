@@ -29,7 +29,7 @@ var registry = []Meta{
 	{Name: "enums", Key: "enums", Description: "String enum registry", Factory: func() core.Provider { return &EnumsServiceProvider{} }},
 	{Name: "bus", Key: "bus", Description: "Synchronous command bus", Factory: func() core.Provider { return &BusServiceProvider{} }},
 	{Name: "pulse", Key: "pulse", Description: "Metrics pulse dashboard", Factory: func() core.Provider { return &PulseServiceProvider{} }},
-	{Name: "backup", Key: "backup", Description: "SQLite/database backup helper", Factory: func() core.Provider { return &BackupServiceProvider{} }},
+	{Name: "backup", Key: "backup", Description: "Database backup/restore (SQLite + native dump tools)", Factory: func() core.Provider { return &BackupServiceProvider{} }},
 	{Name: "docs", Key: "docs", Description: "Markdown docs repository", Factory: func() core.Provider { return &DocsServiceProvider{} }},
 	{Name: "billing", Key: "billing", Description: "Billing/checkout helpers", Factory: func() core.Provider { return &BillingServiceProvider{} }},
 	{Name: "mongo", Key: "mongo", Description: "MongoDB client (separate module)", Heavy: true, Factory: func() core.Provider { return &MongoServiceProvider{} }},

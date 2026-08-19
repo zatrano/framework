@@ -20,30 +20,54 @@ func registerBackupCommands(console *Application, app *core.Application) {
 	)
 }
 
-func backupManager(app *core.Application) (*backup.Manager, error) {
+func backupManager(app *core.Application, args []string) (*backup.Manager, []string, error) {
 	if err := app.Bootstrap(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	dbPath := app.Config().GetString("database.connections.sqlite.database", "database/database.sqlite")
-	if !filepath.IsAbs(dbPath) {
-		dbPath = app.BasePath(dbPath)
+	connection, rest := parseBackupFlags(args)
+	mgr, err := backup.ManagerFromApp(app, connection)
+	if err != nil {
+		return nil, nil, err
 	}
-	return backup.New(dbPath, app.BasePath("storage", "backups")), nil
+	return mgr, rest, nil
+}
+
+func parseBackupFlags(args []string) (connection string, rest []string) {
+	rest = make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--connection" || arg == "-c":
+			if i+1 < len(args) {
+				connection = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(arg, "--connection="):
+			connection = strings.TrimPrefix(arg, "--connection=")
+		case strings.HasPrefix(arg, "-c="):
+			connection = strings.TrimPrefix(arg, "-c=")
+		default:
+			rest = append(rest, arg)
+		}
+	}
+	return connection, rest
 }
 
 type DBBackupCommand struct{ app *core.Application }
 
-func (c *DBBackupCommand) Name() string        { return "db:backup" }
-func (c *DBBackupCommand) Description() string { return "Create a SQLite database backup" }
+func (c *DBBackupCommand) Name() string { return "db:backup" }
+func (c *DBBackupCommand) Description() string {
+	return "Backup the default (or --connection) database using native tools"
+}
 func (c *DBBackupCommand) Handle(args []string) error {
-	mgr, err := backupManager(c.app)
+	mgr, rest, err := backupManager(c.app, args)
 	if err != nil {
 		return err
 	}
 	label := ""
-	for i := 0; i < len(args); i++ {
-		if (args[i] == "--label" || args[i] == "-l") && i+1 < len(args) {
-			label = args[i+1]
+	for i := 0; i < len(rest); i++ {
+		if (rest[i] == "--label" || rest[i] == "-l") && i+1 < len(rest) {
+			label = rest[i+1]
 			i++
 		}
 	}
@@ -51,16 +75,18 @@ func (c *DBBackupCommand) Handle(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Database backup created: %s\n", path)
+	fmt.Printf("Database backup created (%s): %s\n", mgr.Driver(), path)
 	return nil
 }
 
 type DBBackupListCommand struct{ app *core.Application }
 
-func (c *DBBackupListCommand) Name() string        { return "db:backup:list" }
-func (c *DBBackupListCommand) Description() string { return "List database backups" }
+func (c *DBBackupListCommand) Name() string { return "db:backup:list" }
+func (c *DBBackupListCommand) Description() string {
+	return "List database backups for the default (or --connection) target directory"
+}
 func (c *DBBackupListCommand) Handle(args []string) error {
-	mgr, err := backupManager(c.app)
+	mgr, _, err := backupManager(c.app, args)
 	if err != nil {
 		return err
 	}
@@ -87,20 +113,22 @@ func (c *DBBackupListCommand) Handle(args []string) error {
 
 type DBRestoreCommand struct{ app *core.Application }
 
-func (c *DBRestoreCommand) Name() string        { return "db:restore" }
-func (c *DBRestoreCommand) Description() string { return "Restore the database from a backup file" }
+func (c *DBRestoreCommand) Name() string { return "db:restore" }
+func (c *DBRestoreCommand) Description() string {
+	return "Restore the default (or --connection) database from a backup file"
+}
 func (c *DBRestoreCommand) Handle(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("backup filename required")
-	}
-	mgr, err := backupManager(c.app)
+	mgr, rest, err := backupManager(c.app, args)
 	if err != nil {
 		return err
 	}
-	if err := mgr.Restore(args[0]); err != nil {
+	if len(rest) == 0 {
+		return fmt.Errorf("backup filename required")
+	}
+	if err := mgr.Restore(rest[0]); err != nil {
 		return err
 	}
-	fmt.Printf("Database restored from %s\n", args[0])
+	fmt.Printf("Database restored (%s) from %s\n", mgr.Driver(), rest[0])
 	return nil
 }
 

@@ -2,59 +2,110 @@ package backup
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zatrano/framework/packages/database"
 )
 
-// Manager creates and restores file-based backups (SQLite-friendly).
-type Manager struct {
-	source string
-	dir    string
+// Config describes the database connection to back up and where files go.
+type Config struct {
+	Driver   string
+	Host     string
+	Port     string
+	Database string // sqlite file path or DB name
+	Username string
+	Password string
+	Charset  string
+	SSLMode  string
+	Service  string // oracle
+	URI      string // mongo
+	Dir      string // backup directory
+	BasePath string // app base for relative sqlite paths
 }
 
-// New creates a backup manager.
+// Manager creates and restores database backups (SQLite file copy or native CLI tools).
+type Manager struct {
+	cfg Config
+}
+
+// New creates a SQLite file-copy manager (legacy helper).
 // source is the database file path; dir is where backups are stored.
 func New(source, dir string) *Manager {
-	return &Manager{source: source, dir: dir}
+	return NewManager(Config{
+		Driver:   "sqlite",
+		Database: source,
+		Dir:      dir,
+	})
+}
+
+// NewManager creates a backup manager for any supported driver.
+func NewManager(cfg Config) *Manager {
+	cfg.Driver = database.NormalizeDriverName(cfg.Driver)
+	if cfg.Driver == "" {
+		cfg.Driver = "sqlite"
+	}
+	return &Manager{cfg: cfg}
 }
 
 // Dir returns the backup directory.
-func (m *Manager) Dir() string { return m.dir }
+func (m *Manager) Dir() string { return m.cfg.Dir }
 
-// Source returns the source database path.
-func (m *Manager) Source() string { return m.source }
+// Source returns the sqlite source path (empty for non-sqlite).
+func (m *Manager) Source() string {
+	if m.cfg.Driver != "sqlite" {
+		return ""
+	}
+	return m.sqlitePath()
+}
 
-// Create copies the source database into a timestamped backup file.
+// Driver returns the normalized driver name.
+func (m *Manager) Driver() string { return m.cfg.Driver }
+
+// Create writes a timestamped backup file; optional label is sanitized into the name.
 func (m *Manager) Create(label ...string) (string, error) {
-	if m.source == "" {
-		return "", fmt.Errorf("backup source is empty")
-	}
-	if _, err := os.Stat(m.source); err != nil {
-		return "", fmt.Errorf("backup source: %w", err)
-	}
-	if err := os.MkdirAll(m.dir, 0o755); err != nil {
+	if err := os.MkdirAll(m.cfg.Dir, 0o755); err != nil {
 		return "", err
 	}
 	stamp := time.Now().UTC().Format("20060102_150405")
-	name := "backup_" + stamp + ".sqlite"
+	safe := ""
 	if len(label) > 0 && label[0] != "" {
-		safe := sanitize(label[0])
-		name = "backup_" + stamp + "_" + safe + ".sqlite"
+		safe = "_" + sanitize(label[0])
 	}
-	dest := filepath.Join(m.dir, name)
-	if err := copyFile(m.source, dest); err != nil {
+	ext := extensionFor(m.cfg.Driver)
+	dest := filepath.Join(m.cfg.Dir, "backup_"+stamp+safe+ext)
+
+	var err error
+	switch m.cfg.Driver {
+	case "sqlite":
+		err = m.createSQLite(dest)
+	case "mysql":
+		err = m.createMySQL(dest)
+	case "pgsql":
+		err = m.createPostgres(dest)
+	case "mssql":
+		err = m.createMSSQL(dest)
+	case "oracle":
+		err = m.createOracle(dest)
+	case "mongo":
+		err = m.createMongo(dest)
+	default:
+		err = fmt.Errorf("backup: unsupported driver %q", m.cfg.Driver)
+	}
+	if err != nil {
+		_ = os.Remove(dest)
 		return "", err
 	}
+	_ = writeMeta(dest, m.cfg.Driver)
 	return dest, nil
 }
 
 // List returns backup files newest first.
 func (m *Manager) List() ([]string, error) {
-	entries, err := os.ReadDir(m.dir)
+	entries, err := os.ReadDir(m.cfg.Dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
@@ -67,53 +118,96 @@ func (m *Manager) List() ([]string, error) {
 			continue
 		}
 		name := entry.Name()
-		if strings.HasPrefix(name, "backup_") && (strings.HasSuffix(name, ".sqlite") || strings.HasSuffix(name, ".bak")) {
-			files = append(files, filepath.Join(m.dir, name))
+		if strings.HasPrefix(name, "backup_") && isBackupFile(name) {
+			files = append(files, filepath.Join(m.cfg.Dir, name))
 		}
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i] > files[j] })
 	return files, nil
 }
 
-// Restore replaces the source database with the given backup file.
+// Restore replaces / loads the database from the given backup file name or path.
 func (m *Manager) Restore(backupPath string) error {
 	if backupPath == "" {
 		return fmt.Errorf("backup path required")
 	}
 	if !filepath.IsAbs(backupPath) {
-		backupPath = filepath.Join(m.dir, backupPath)
+		backupPath = filepath.Join(m.cfg.Dir, backupPath)
 	}
 	if _, err := os.Stat(backupPath); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(m.source), 0o755); err != nil {
-		return err
+	driver := m.cfg.Driver
+	if meta := readMeta(backupPath); meta != "" {
+		driver = database.NormalizeDriverName(meta)
+	} else {
+		driver = driverFromExt(backupPath, driver)
 	}
-	// Safety copy of current DB if it exists.
-	if _, err := os.Stat(m.source); err == nil {
-		safety := m.source + ".pre-restore"
-		_ = copyFile(m.source, safety)
+	switch driver {
+	case "sqlite":
+		return m.restoreSQLite(backupPath)
+	case "mysql":
+		return m.restoreMySQL(backupPath)
+	case "pgsql":
+		return m.restorePostgres(backupPath)
+	case "mssql":
+		return m.restoreMSSQL(backupPath)
+	case "oracle":
+		return m.restoreOracle(backupPath)
+	case "mongo":
+		return m.restoreMongo(backupPath)
+	default:
+		return fmt.Errorf("backup: unsupported driver %q for restore", driver)
 	}
-	return copyFile(backupPath, m.source)
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
+func extensionFor(driver string) string {
+	switch database.NormalizeDriverName(driver) {
+	case "sqlite":
+		return ".sqlite"
+	case "mysql":
+		return ".sql"
+	case "pgsql":
+		return ".dump"
+	case "mssql":
+		return ".bacpac"
+	case "oracle":
+		return ".dmp"
+	case "mongo":
+		return ".archive"
+	default:
+		return ".bak"
 	}
-	defer in.Close()
+}
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
+func isBackupFile(name string) bool {
+	lower := strings.ToLower(name)
+	for _, ext := range []string{".sqlite", ".sql", ".dump", ".bacpac", ".dmp", ".archive", ".bak"} {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
 	}
-	defer out.Close()
+	return false
+}
 
-	if _, err := io.Copy(out, in); err != nil {
-		return err
+func driverFromExt(path, fallback string) string {
+	lower := strings.ToLower(path)
+	switch {
+	case strings.HasSuffix(lower, ".sqlite"), strings.HasSuffix(lower, ".bak"):
+		return "sqlite"
+	case strings.HasSuffix(lower, ".sql"):
+		return "mysql"
+	case strings.HasSuffix(lower, ".dump"):
+		return "pgsql"
+	case strings.HasSuffix(lower, ".bacpac"):
+		return "mssql"
+	case strings.HasSuffix(lower, ".dmp"):
+		return "oracle"
+	case strings.HasSuffix(lower, ".archive"):
+		return "mongo"
+	default:
+		return fallback
 	}
-	return out.Sync()
 }
 
 func sanitize(value string) string {
