@@ -190,30 +190,6 @@ func (g *MemoryGateway) getCustomer(id string) (*Customer, bool) {
 	return c, ok
 }
 
-func (g *MemoryGateway) listSubscriptions(customerID string) []*Subscription {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	out := make([]*Subscription, 0)
-	for _, sub := range g.subscriptions {
-		if sub.CustomerID == customerID {
-			cp := *sub
-			out = append(out, &cp)
-		}
-	}
-	return out
-}
-
-func (g *MemoryGateway) allSubscriptions() []*Subscription {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	out := make([]*Subscription, 0, len(g.subscriptions))
-	for _, sub := range g.subscriptions {
-		cp := *sub
-		out = append(out, &cp)
-	}
-	return out
-}
-
 func (g *MemoryGateway) getCheckout(id string) (*CheckoutSession, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
