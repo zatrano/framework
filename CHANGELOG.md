@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.19 - 2026-08-20
+
+### Fixed
+
+- Security CI: Trivy action pin, Semgrep noise split, gosec `#nosec` config, `APP_KEY` for race tests
+- Bump `golang.org/x/crypto` and `golang.org/x/text` (incl. nested driver/mongo modules) for Trivy HIGH CVEs
+
 ## 1.2.18 - 2026-08-20
 
 ### Added
