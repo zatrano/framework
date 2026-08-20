@@ -345,17 +345,17 @@ func (g *Guard) userFromSessionOrCache(req *http.Request) Authenticatable {
 
 // Manager resolves auth guards.
 type Manager struct {
-	defaultGuard              string
-	guards                    map[string]*Guard
-	dispatcher                Dispatcher
-	sessions                  *session.Manager
-	lockouts                  *lockoutStore
-	crypt                     Crypt
-	twoFactorIssuer           string
-	rememberDeviceDays        int
-	verifyURLGen              func(user Authenticatable) (string, error)
-	emailVerificationSender   func(user Authenticatable, verifyURL string) error
-	passwordChangedSender     func(user Authenticatable) error
+	defaultGuard            string
+	guards                  map[string]*Guard
+	dispatcher              Dispatcher
+	sessions                *session.Manager
+	lockouts                *lockoutStore
+	crypt                   Crypt
+	twoFactorIssuer         string
+	rememberDeviceDays      int
+	verifyURLGen            func(user Authenticatable) (string, error)
+	emailVerificationSender func(user Authenticatable, verifyURL string) error
+	passwordChangedSender   func(user Authenticatable) error
 }
 
 // Crypt encrypts sensitive auth payloads (two-factor secrets).

@@ -177,10 +177,10 @@ func (r *DatabaseTokenRepository) RecentlyCreated(email string, within time.Dura
 
 // PasswordBroker creates and consumes password reset tokens.
 type PasswordBroker struct {
-	tokens     TokenRepository
-	users      PasswordUserProvider
+	tokens TokenRepository
+	users  PasswordUserProvider
 	// notifier delivers the reset link (should return quickly; prefer async notification.Send).
-	notifier func(email, token, resetURL string) error
+	notifier   func(email, token, resetURL string) error
 	ttl        time.Duration
 	throttle   time.Duration
 	dispatcher Dispatcher
