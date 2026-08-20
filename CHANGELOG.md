@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.22 - 2026-08-20
+
+### Added
+
+- AI chat defaults from config (`model`, `base_url`, `timeout`, `temperature`, `max_tokens`)
+- `context.Context` on AI `Driver.Chat` / `Manager.Chat` with request timeout
+- Demo route `POST /demo/ai/chat`
+
+### Changed
+
+- `LogDriver` logs prompt/reply via app logger `Infof`
+- OpenAI-compatible driver wired from config (`AI_BASE_URL`, model, HTTP timeout)
+
 ## 1.2.21 - 2026-08-20
 
 ### Added

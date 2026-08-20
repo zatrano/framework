@@ -1,17 +1,22 @@
 package ai_test
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zatrano/framework/packages/ai"
+	zhttp "github.com/zatrano/framework/packages/http"
 )
 
 func TestAIChat(t *testing.T) {
 	m := ai.New()
-	resp, err := m.Chat(ai.ChatRequest{
+	resp, err := m.Chat(context.Background(), ai.ChatRequest{
 		Messages: []ai.Message{{Role: "user", Content: "ping"}},
 	})
 	if err != nil {
@@ -30,7 +35,7 @@ func TestFakeDriver(t *testing.T) {
 	if d.Name() != "fake" {
 		t.Fatal(d.Name())
 	}
-	resp, err := d.Chat(ai.ChatRequest{
+	resp, err := d.Chat(context.Background(), ai.ChatRequest{
 		Model:    "zatrano-fake-1",
 		Messages: []ai.Message{{Role: "user", Content: "hello world"}},
 	})
@@ -42,6 +47,58 @@ func TestFakeDriver(t *testing.T) {
 	}
 	if resp.Message.Role != "assistant" {
 		t.Fatal(resp.Message.Role)
+	}
+}
+
+func TestChatContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := ai.New().Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "x"}},
+	})
+	if err == nil {
+		t.Fatal("expected canceled context error")
+	}
+}
+
+func TestDefaultsApplied(t *testing.T) {
+	m := ai.New()
+	temp := 0.2
+	m.SetDefaults(ai.Defaults{
+		Model:       "cfg-model",
+		Temperature: &temp,
+		MaxTokens:   64,
+		Timeout:     time.Second,
+	})
+	resp, err := m.Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Model != "cfg-model" {
+		t.Fatalf("model=%q", resp.Model)
+	}
+}
+
+func TestLogDriver(t *testing.T) {
+	var logged string
+	d := ai.LogDriver{
+		Log: func(format string, args ...any) {
+			logged = strings.TrimSpace(strings.ReplaceAll(format, "%q", "%s"))
+			_ = args
+			logged = "ok"
+		},
+	}
+	resp, err := d.Chat(context.Background(), ai.ChatRequest{
+		Model:    "m1",
+		Messages: []ai.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp == nil || logged != "ok" {
+		t.Fatalf("resp=%v logged=%q", resp, logged)
 	}
 }
 
@@ -86,6 +143,11 @@ func TestOpenAIDriverParse(t *testing.T) {
 				if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 					t.Fatalf("auth %q", got)
 				}
+				var payload map[string]any
+				_ = json.NewDecoder(r.Body).Decode(&payload)
+				if payload["temperature"] == nil || payload["max_tokens"] == nil {
+					t.Fatalf("expected temperature/max_tokens in body: %#v", payload)
+				}
 				w.WriteHeader(tt.status)
 				_, _ = w.Write([]byte(tt.body))
 			}))
@@ -97,8 +159,11 @@ func TestOpenAIDriverParse(t *testing.T) {
 				Model:      "gpt-test",
 				HTTPClient: srv.Client(),
 			}
-			resp, err := d.Chat(ai.ChatRequest{
-				Messages: []ai.Message{{Role: "user", Content: "ping"}},
+			temp := 0.5
+			resp, err := d.Chat(context.Background(), ai.ChatRequest{
+				Messages:    []ai.Message{{Role: "user", Content: "ping"}},
+				Temperature: &temp,
+				MaxTokens:   32,
 			})
 			if tt.wantErr {
 				if err == nil {
@@ -130,5 +195,29 @@ func TestOpenAIHelper(t *testing.T) {
 	}
 	if od.APIKey != "sk-test" || od.BaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("%+v", od)
+	}
+}
+
+func TestDemoChatHandler(t *testing.T) {
+	mgr := ai.New()
+	handler := ai.DemoChatHandler(mgr)
+
+	raw := httptest.NewRequest(http.MethodPost, "/demo/ai/chat", bytes.NewBufferString(`{"message":"ping"}`))
+	raw.Header.Set("Content-Type", "application/json")
+	req := zhttp.NewRequest(raw)
+	resp := handler(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("status=%d", resp.StatusCode())
+	}
+	body := string(resp.Content())
+	if !strings.Contains(body, "ping") {
+		t.Fatalf("%s", body)
+	}
+
+	raw2 := httptest.NewRequest(http.MethodPost, "/demo/ai/chat", bytes.NewBufferString(`{}`))
+	raw2.Header.Set("Content-Type", "application/json")
+	resp2 := handler(zhttp.NewRequest(raw2))
+	if resp2.StatusCode() != 422 {
+		t.Fatalf("status=%d", resp2.StatusCode())
 	}
 }

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,8 +22,10 @@ type Message struct {
 
 // ChatRequest is a chat completion request.
 type ChatRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+	Model       string    `json:"model"`
+	Messages    []Message `json:"messages"`
+	Temperature *float64  `json:"temperature,omitempty"`
+	MaxTokens   int       `json:"max_tokens,omitempty"`
 }
 
 // ChatResponse is a chat completion response.
@@ -44,7 +47,15 @@ type Usage struct {
 // Driver generates completions.
 type Driver interface {
 	Name() string
-	Chat(req ChatRequest) (*ChatResponse, error)
+	Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error)
+}
+
+// Defaults are applied by Manager when a request omits values.
+type Defaults struct {
+	Model       string
+	Temperature *float64
+	MaxTokens   int
+	Timeout     time.Duration
 }
 
 // Manager resolves AI drivers.
@@ -52,14 +63,36 @@ type Manager struct {
 	mu            sync.RWMutex
 	defaultDriver string
 	drivers       map[string]Driver
+	defaults      Defaults
 }
 
 // New creates an AI manager with fake and log drivers.
 func New() *Manager {
-	m := &Manager{drivers: make(map[string]Driver), defaultDriver: "fake"}
+	m := &Manager{
+		drivers:       make(map[string]Driver),
+		defaultDriver: "fake",
+		defaults:      Defaults{Timeout: 30 * time.Second},
+	}
 	m.Extend("fake", FakeDriver{})
 	m.Extend("log", LogDriver{})
 	return m
+}
+
+// SetDefaults configures request defaults (model, sampling, timeout).
+func (m *Manager) SetDefaults(d Defaults) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if d.Timeout <= 0 {
+		d.Timeout = 30 * time.Second
+	}
+	m.defaults = d
+}
+
+// Defaults returns a copy of manager defaults.
+func (m *Manager) Defaults() Defaults {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.defaults
 }
 
 // Extend registers a driver.
@@ -92,15 +125,43 @@ func (m *Manager) Driver(name ...string) (Driver, error) {
 }
 
 // Chat runs a chat completion on the default (or named) driver.
-func (m *Manager) Chat(req ChatRequest, driver ...string) (*ChatResponse, error) {
+func (m *Manager) Chat(ctx context.Context, req ChatRequest, driver ...string) (*ChatResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	d, err := m.Driver(driver...)
 	if err != nil {
 		return nil, err
 	}
+
+	m.mu.RLock()
+	defs := m.defaults
+	m.mu.RUnlock()
+
+	req = applyDefaults(req, defs)
+	if defs.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defs.Timeout)
+		defer cancel()
+	}
+	return d.Chat(ctx, req)
+}
+
+func applyDefaults(req ChatRequest, defs Defaults) ChatRequest {
+	if req.Model == "" {
+		req.Model = defs.Model
+	}
 	if req.Model == "" {
 		req.Model = "zatrano-fake-1"
 	}
-	return d.Chat(req)
+	if req.Temperature == nil && defs.Temperature != nil {
+		t := *defs.Temperature
+		req.Temperature = &t
+	}
+	if req.MaxTokens <= 0 && defs.MaxTokens > 0 {
+		req.MaxTokens = defs.MaxTokens
+	}
+	return req
 }
 
 // FakeDriver returns deterministic stub replies for tests and local use without API keys.
@@ -108,7 +169,10 @@ type FakeDriver struct{}
 
 func (FakeDriver) Name() string { return "fake" }
 
-func (FakeDriver) Chat(req ChatRequest) (*ChatResponse, error) {
+func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	prompt := lastUser(req.Messages)
 	reply := "ZATRANO AI stub: " + prompt
 	if prompt == "" {
@@ -129,13 +193,33 @@ func (FakeDriver) Chat(req ChatRequest) (*ChatResponse, error) {
 	}, nil
 }
 
-// LogDriver mirrors FakeDriver (placeholder for logging integrations).
-type LogDriver struct{}
+// LogFn is a printf-style logger (compatible with packages/log Infof).
+type LogFn func(format string, args ...any)
+
+// LogDriver wraps another driver and logs prompt/reply (or error).
+type LogDriver struct {
+	Log   LogFn
+	Inner Driver
+}
 
 func (LogDriver) Name() string { return "log" }
 
-func (d LogDriver) Chat(req ChatRequest) (*ChatResponse, error) {
-	return FakeDriver{}.Chat(req)
+func (d LogDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	inner := d.Inner
+	if inner == nil {
+		inner = FakeDriver{}
+	}
+	resp, err := inner.Chat(ctx, req)
+	if d.Log != nil {
+		prompt := truncate(lastUser(req.Messages), 120)
+		if err != nil {
+			d.Log("ai: driver=log model=%s prompt=%q err=%v", req.Model, prompt, err)
+		} else if resp != nil {
+			d.Log("ai: driver=log model=%s prompt=%q reply=%q tokens=%d",
+				req.Model, prompt, truncate(resp.Message.Content, 120), resp.Usage.TotalTokens)
+		}
+	}
+	return resp, err
 }
 
 // OpenAIDriver calls an OpenAI-compatible chat completions HTTP API.
@@ -157,7 +241,10 @@ func OpenAI(apiKey string) Driver {
 
 func (d *OpenAIDriver) Name() string { return "openai" }
 
-func (d *OpenAIDriver) Chat(req ChatRequest) (*ChatResponse, error) {
+func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	base := strings.TrimRight(d.BaseURL, "/")
 	if base == "" {
 		base = "https://api.openai.com/v1"
@@ -174,6 +261,12 @@ func (d *OpenAIDriver) Chat(req ChatRequest) (*ChatResponse, error) {
 		"model":    model,
 		"messages": req.Messages,
 	}
+	if req.Temperature != nil {
+		body["temperature"] = *req.Temperature
+	}
+	if req.MaxTokens > 0 {
+		body["max_tokens"] = req.MaxTokens
+	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -183,7 +276,7 @@ func (d *OpenAIDriver) Chat(req ChatRequest) (*ChatResponse, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	httpReq, err := http.NewRequest(http.MethodPost, base+"/chat/completions", bytes.NewReader(raw))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
 	}
@@ -253,4 +346,11 @@ func lastUser(messages []Message) string {
 		return messages[len(messages)-1].Content
 	}
 	return ""
+}
+
+func truncate(s string, n int) string {
+	if n <= 0 || len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }

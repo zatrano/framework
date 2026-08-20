@@ -2,6 +2,8 @@ package addons
 
 import (
 	"fmt"
+	stdhttp "net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -392,8 +394,41 @@ type AIServiceProvider struct{}
 
 func (p *AIServiceProvider) Register(app *core.Application) error {
 	mgr := ai.New()
-	if apiKey := app.Config().GetString("ai.api_key", env.Get("AI_API_KEY", env.Get("OPENAI_API_KEY"))); apiKey != "" {
-		mgr.Extend("openai", ai.OpenAI(apiKey))
+	if lg := app.Logger(); lg != nil {
+		mgr.Extend("log", ai.LogDriver{Log: lg.Infof})
+	}
+
+	defs := ai.Defaults{
+		Model:     app.Config().GetString("ai.model", env.Get("AI_MODEL", "")),
+		MaxTokens: app.Config().GetInt("ai.max_tokens", env.GetInt("AI_MAX_TOKENS", 0)),
+		Timeout:   time.Duration(app.Config().GetInt("ai.timeout", env.GetInt("AI_TIMEOUT", 30))) * time.Second,
+	}
+	if raw := strings.TrimSpace(app.Config().GetString("ai.temperature", env.Get("AI_TEMPERATURE", ""))); raw != "" {
+		if t, err := strconv.ParseFloat(raw, 64); err == nil {
+			defs.Temperature = &t
+		}
+	}
+	mgr.SetDefaults(defs)
+
+	apiKey := app.Config().GetString("ai.api_key", env.Get("AI_API_KEY", env.Get("OPENAI_API_KEY")))
+	if apiKey != "" {
+		baseURL := strings.TrimSpace(app.Config().GetString("ai.base_url", env.Get("AI_BASE_URL", "")))
+		model := defs.Model
+		if model == "" {
+			model = "gpt-4o-mini"
+		}
+		drv := &ai.OpenAIDriver{
+			BaseURL: baseURL,
+			APIKey:  apiKey,
+			Model:   model,
+			HTTPClient: &stdhttp.Client{
+				Timeout: defs.Timeout,
+			},
+		}
+		if drv.BaseURL == "" {
+			drv.BaseURL = "https://api.openai.com/v1"
+		}
+		mgr.Extend("openai", drv)
 		mgr.Use("openai")
 	}
 	if driver := app.Config().GetString("ai.driver", env.Get("AI_DRIVER", "")); driver != "" {
@@ -403,7 +438,17 @@ func (p *AIServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *AIServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *AIServiceProvider) Boot(app *core.Application) error {
+	if app == nil || app.Router() == nil {
+		return nil
+	}
+	mgr := ai.From(app)
+	if mgr == nil {
+		return nil
+	}
+	app.Router().Post("/demo/ai/chat", ai.DemoChatHandler(mgr)).As("demo.ai.chat")
+	return nil
+}
 
 type SitemapServiceProvider struct{}
 
