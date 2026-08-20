@@ -67,3 +67,72 @@ func TestHTTPPushSender(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSmsManagerExtendUse(t *testing.T) {
+	memA := &notification.MemorySmsSender{}
+	memB := &notification.MemorySmsSender{}
+	sms := notification.NewSmsManager("Z")
+	sms.Extend("alpha", memA)
+	sms.Extend("beta", memB)
+	sms.Use("alpha")
+
+	mgr := notification.NewManager()
+	mgr.SetSms(sms)
+
+	if err := mgr.SendNow(notification.Recipient{Phone: "+1"}, notification.Message{
+		Channels: []string{"sms"},
+		Body:     "via-default",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := memA.Last(); !ok {
+		t.Fatal("expected alpha driver")
+	}
+	if _, ok := memB.Last(); ok {
+		t.Fatal("beta should be unused")
+	}
+
+	if err := mgr.SendNow(notification.Recipient{Phone: "+2"}, notification.Message{
+		Channels: []string{"sms.beta"},
+		Body:     "via-beta",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if last, ok := memB.Last(); !ok || last.Body != "via-beta" {
+		t.Fatalf("expected beta delivery, got %#v", last)
+	}
+}
+
+func TestSmsMetaDriverOverride(t *testing.T) {
+	memA := &notification.MemorySmsSender{}
+	memB := &notification.MemorySmsSender{}
+	sms := notification.NewSmsManager("Z")
+	sms.Extend("alpha", memA)
+	sms.Extend("beta", memB)
+	sms.Use("alpha")
+	mgr := notification.NewManager()
+	mgr.SetSms(sms)
+
+	n := driverSMS{body: "forced", driver: "beta"}
+	if err := mgr.SendNow(notification.Recipient{Phone: "+3"}, n); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := memB.Last(); !ok {
+		t.Fatal("expected meta driver beta")
+	}
+}
+
+type driverSMS struct {
+	notification.Base
+	body   string
+	driver string
+}
+
+func (d driverSMS) Via() []string { return []string{"sms"} }
+
+func (d driverSMS) ToSms(notification.Notifiable) *notification.SmsMessage {
+	return &notification.SmsMessage{
+		Body: d.body,
+		Meta: map[string]any{"driver": d.driver},
+	}
+}

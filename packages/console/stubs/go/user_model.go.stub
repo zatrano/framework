@@ -19,6 +19,7 @@ type User struct {
 	TwoFactorSecret        *string    `db:"two_factor_secret" json:"-"`
 	TwoFactorRecoveryCodes *string    `db:"two_factor_recovery_codes" json:"-"`
 	TwoFactorConfirmedAt   *time.Time `db:"two_factor_confirmed_at" json:"-"`
+	StripeCustomerID       *string    `db:"stripe_customer_id" json:"stripe_customer_id,omitempty"`
 }
 
 // HasVerifiedEmail reports whether the user verified their email.
@@ -85,6 +86,39 @@ func (m *User) GetTwoFactorConfirmedAt() *time.Time {
 		return nil
 	}
 	return m.TwoFactorConfirmedAt
+}
+
+// BillingEmail implements billing.Billable.
+func (m *User) BillingEmail() string {
+	if m == nil {
+		return ""
+	}
+	return m.Email
+}
+
+// BillingName implements billing.Billable.
+func (m *User) BillingName() string {
+	if m == nil {
+		return ""
+	}
+	return m.Name
+}
+
+// GatewayCustomerID implements billing.Billable.
+func (m *User) GatewayCustomerID() string {
+	if m == nil || m.StripeCustomerID == nil {
+		return ""
+	}
+	return *m.StripeCustomerID
+}
+
+// SetGatewayCustomerID implements billing.Billable.
+func (m *User) SetGatewayCustomerID(id string) error {
+	if m == nil {
+		return fmt.Errorf("user is nil")
+	}
+	m.StripeCustomerID = &id
+	return nil
 }
 
 // RouteNotificationFor returns the route for a notification channel.

@@ -31,7 +31,7 @@ var registry = []Meta{
 	{Name: "pulse", Key: "pulse", Description: "Metrics pulse dashboard", Factory: func() core.Provider { return &PulseServiceProvider{} }},
 	{Name: "backup", Key: "backup", Description: "Database backup/restore (SQLite + native dump tools)", Factory: func() core.Provider { return &BackupServiceProvider{} }},
 	{Name: "docs", Key: "docs", Description: "Markdown docs repository", Factory: func() core.Provider { return &DocsServiceProvider{} }},
-	{Name: "billing", Key: "billing", Description: "Billing/checkout helpers", Factory: func() core.Provider { return &BillingServiceProvider{} }},
+	{Name: "billing", Key: "billing", Description: "Central billing (memory/stripe gateways, webhooks)", Factory: func() core.Provider { return &BillingServiceProvider{} }},
 	{Name: "mongo", Key: "mongo", Description: "MongoDB client (separate module)", Heavy: true, Factory: func() core.Provider { return &MongoServiceProvider{} }},
 	{Name: "oauth", Key: "oauth", Description: "OAuth2 authorization server", Factory: func() core.Provider { return &OAuthServiceProvider{} }},
 	{Name: "octane", Key: "octane", Description: "Concurrent runtime metrics", Factory: func() core.Provider { return &OctaneServiceProvider{} }},

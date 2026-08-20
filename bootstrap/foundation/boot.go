@@ -471,32 +471,31 @@ func BootNotificationServices(app *core.Application) error {
 	mgr.Extend("push", notification.NewPushChannel(pushSender))
 
 	smsFrom := env.Get("SMS_FROM", env.Get("APP_NAME", "ZATRANO"))
-	var smsSender notification.SmsSender
-	switch strings.ToLower(strings.TrimSpace(env.Get("SMS_DRIVER", "memory"))) {
-	case "log":
-		smsSender = &notification.LogSmsSender{
-			Log: func(format string, args ...any) {
-				if app.Logger() != nil {
-					app.Logger().Infof(format, args...)
-				}
-			},
-		}
-	case "http":
-		smsSender = &notification.HTTPSmsSender{
-			Endpoint: env.Get("SMS_URL", ""),
-			Token:    env.Get("SMS_TOKEN", ""),
-			Method:   env.Get("SMS_METHOD", "POST"),
-		}
-	case "twilio":
-		smsSender = &notification.TwilioSmsSender{
-			AccountSID: env.Get("TWILIO_ACCOUNT_SID", ""),
-			AuthToken:  env.Get("TWILIO_AUTH_TOKEN", ""),
-			From:       env.Get("TWILIO_FROM", smsFrom),
-		}
-	default:
-		smsSender = &notification.MemorySmsSender{}
+	smsMgr := notification.NewSmsManager(smsFrom)
+	smsMgr.Extend("memory", &notification.MemorySmsSender{})
+	smsMgr.Extend("log", &notification.LogSmsSender{
+		Log: func(format string, args ...any) {
+			if app.Logger() != nil {
+				app.Logger().Infof(format, args...)
+			}
+		},
+	})
+	smsMgr.Extend("http", &notification.HTTPSmsSender{
+		Endpoint: env.Get("SMS_URL", ""),
+		Token:    env.Get("SMS_TOKEN", ""),
+		Method:   env.Get("SMS_METHOD", "POST"),
+	})
+	smsMgr.Extend("twilio", &notification.TwilioSmsSender{
+		AccountSID: env.Get("TWILIO_ACCOUNT_SID", ""),
+		AuthToken:  env.Get("TWILIO_AUTH_TOKEN", ""),
+		From:       env.Get("TWILIO_FROM", smsFrom),
+	})
+	defaultSMS := strings.ToLower(strings.TrimSpace(env.Get("SMS_DRIVER", "memory")))
+	if smsMgr.Sender(defaultSMS) == nil {
+		defaultSMS = "memory"
 	}
-	mgr.Extend("sms", notification.NewSmsChannel(smsSender, smsFrom))
+	smsMgr.Use(defaultSMS)
+	mgr.SetSms(smsMgr)
 	if dbMgr := database.From(app); dbMgr != nil {
 		if db, err := dbMgr.DB(); err == nil {
 			driver, _ := dbMgr.DriverName()

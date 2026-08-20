@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.21 - 2026-08-20
+
+### Added
+
+- Billing gateway drivers (`memory` / `stripe`) with `Manager.Extend` / `Use`, `Billable` helpers, and `POST /billing/webhook`
+- Async billing receipt notifications (`InvoicePaidNotification`, `SubscriptionStartedNotification`) via `notification.Send`
+- SMS multi-driver manager (`SmsManager.Extend` / `Use`, channels `sms` and `sms.<driver>`)
+
+### Changed
+
+- Split monolithic `packages/billing` into gateway/manager/webhook modules; config adds `billing.default`, Stripe webhook secret, checkout URLs
+- Auth user stubs include `stripe_customer_id` and Billable methods
+
 ## 1.2.20 - 2026-08-20
 
 ### Changed

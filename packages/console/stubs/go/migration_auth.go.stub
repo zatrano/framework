@@ -21,6 +21,7 @@ func (m *CreateUsersTable) Up(s *schema.Builder) error {
 		table.Text("two_factor_secret").Nullable()
 		table.Text("two_factor_recovery_codes").Nullable()
 		table.Timestamp("two_factor_confirmed_at").Nullable()
+		table.String("stripe_customer_id").Nullable()
 		table.Timestamps()
 	})
 }

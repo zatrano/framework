@@ -15,13 +15,16 @@ import (
 	"github.com/zatrano/framework/packages/docs"
 	"github.com/zatrano/framework/packages/enums"
 	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/packages/events"
 	"github.com/zatrano/framework/packages/features"
 	"github.com/zatrano/framework/packages/geo"
 	"github.com/zatrano/framework/packages/graphql"
 	"github.com/zatrano/framework/packages/hashid"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/inspector"
 	"github.com/zatrano/framework/packages/lock"
 	"github.com/zatrano/framework/packages/mongo"
+	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/oauth"
 	"github.com/zatrano/framework/packages/octane"
 	"github.com/zatrano/framework/packages/otp"
@@ -264,15 +267,76 @@ type BillingServiceProvider struct{}
 
 func (p *BillingServiceProvider) Register(app *core.Application) error {
 	baseURL := app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080"))
-	mgr := billing.New(baseURL)
-	if stripeKey := app.Config().GetString("billing.stripe_secret", env.Get("STRIPE_SECRET_KEY", "")); stripeKey != "" {
-		mgr.SetStripeKey(stripeKey)
+	mgr := billing.NewManager(baseURL)
+
+	successURL := app.Config().GetString("billing.success_url", "")
+	cancelURL := app.Config().GetString("billing.cancel_url", "")
+	if successURL != "" || cancelURL != "" {
+		mgr.SetCheckoutURLs(successURL, cancelURL)
 	}
+
+	mgr.Extend("memory", billing.NewMemoryGateway(baseURL))
+	stripeKey := app.Config().GetString("billing.stripe_secret", env.Get("STRIPE_SECRET_KEY", ""))
+	if stripeKey != "" {
+		mgr.Extend("stripe", billing.NewStripeGateway(stripeKey))
+	}
+
+	defaultGW := strings.ToLower(strings.TrimSpace(app.Config().GetString("billing.default", env.Get("BILLING_GATEWAY", ""))))
+	if defaultGW == "" {
+		if stripeKey != "" {
+			defaultGW = "stripe"
+		} else {
+			defaultGW = "memory"
+		}
+	}
+	mgr.Use(defaultGW)
+
+	mgr.SetWebhookSecret(app.Config().GetString("billing.stripe_webhook_secret", env.Get("STRIPE_WEBHOOK_SECRET", "")))
+	if d := events.From(app); d != nil {
+		mgr.SetDispatcher(d)
+	}
+	if n := notification.From(app); n != nil {
+		mgr.SetNotifier(func(email string, msg any) error {
+			if email == "" || msg == nil {
+				return nil
+			}
+			var notif notification.Notification
+			switch t := msg.(type) {
+			case billing.InvoicePaidNotification:
+				notif = t
+			case *billing.InvoicePaidNotification:
+				notif = *t
+			case billing.SubscriptionStartedNotification:
+				notif = t
+			case *billing.SubscriptionStartedNotification:
+				notif = *t
+			default:
+				return nil
+			}
+			return n.Send(notification.Recipient{Email: email, ID: email}, notif)
+		})
+	}
+
 	app.Container().Instance("billing", mgr)
 	return nil
 }
 
-func (p *BillingServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *BillingServiceProvider) Boot(app *core.Application) error {
+	if app == nil || app.Router() == nil {
+		return nil
+	}
+	mgr := billing.From(app)
+	if mgr == nil {
+		return nil
+	}
+	app.Router().Post("/billing/webhook", func(req *http.Request) *http.Response {
+		if err := mgr.HandleHTTP(req); err != nil {
+			return http.JSON(map[string]any{"message": err.Error()}).Status(400)
+		}
+		return http.JSON(map[string]any{"received": true})
+	}).As("billing.webhook")
+	return nil
+}
 
 type MongoServiceProvider struct{}
 

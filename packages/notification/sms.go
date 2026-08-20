@@ -211,20 +211,31 @@ func (s *TwilioSmsSender) Send(message *SmsMessage) error {
 	return nil
 }
 
-// SmsChannel sends notifications via SMS.
+// SmsChannel sends notifications via SMS (default or named driver).
 type SmsChannel struct {
-	sender SmsSender
+	sms    *SmsManager
+	driver string // empty = SmsManager default; otherwise fixed driver for this channel
 	from   string
 }
 
-// NewSmsChannel creates an SMS notification channel.
+// NewSmsChannel creates an SMS channel backed by a single sender (compat helper).
 func NewSmsChannel(sender SmsSender, from ...string) *SmsChannel {
-	if sender == nil {
-		sender = &MemorySmsSender{}
+	mgr := NewSmsManager(from...)
+	mgr.Extend("default", sender)
+	mgr.Use("default")
+	return NewSmsManagerChannel(mgr)
+}
+
+// NewSmsManagerChannel creates an SMS channel that uses SmsManager.Extend/Use.
+func NewSmsManagerChannel(sms *SmsManager, driver ...string) *SmsChannel {
+	if sms == nil {
+		sms = NewSmsManager()
+		sms.Extend("memory", &MemorySmsSender{})
+		sms.Use("memory")
 	}
-	ch := &SmsChannel{sender: sender}
-	if len(from) > 0 {
-		ch.from = from[0]
+	ch := &SmsChannel{sms: sms, from: sms.From()}
+	if len(driver) > 0 {
+		ch.driver = strings.ToLower(strings.TrimSpace(driver[0]))
 	}
 	return ch
 }
@@ -245,7 +256,22 @@ func (c *SmsChannel) Send(notifiable Notifiable, notification Notification) erro
 		return fmt.Errorf("notification: sms recipient is empty")
 	}
 	if message.From == "" {
-		message.From = c.from
+		if c.from != "" {
+			message.From = c.from
+		} else if c.sms != nil {
+			message.From = c.sms.From()
+		}
 	}
-	return c.sender.Send(message)
+	if c.driver != "" {
+		if message.Meta == nil {
+			message.Meta = map[string]any{}
+		}
+		if _, ok := message.Meta["driver"]; !ok {
+			message.Meta["driver"] = c.driver
+		}
+	}
+	if c.sms != nil {
+		return c.sms.Send(message)
+	}
+	return fmt.Errorf("notification: SMS manager is not configured")
 }

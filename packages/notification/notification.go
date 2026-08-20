@@ -50,6 +50,7 @@ type Manager struct {
 	channels map[string]Channel
 	store    *Store
 	mail     *MailManager
+	sms      *SmsManager
 	onError  func(error)
 	wg       sync.WaitGroup
 }
@@ -77,6 +78,30 @@ func (m *Manager) SetMailView(engine *view.Engine) {
 		return
 	}
 	m.mail.SetView(engine)
+}
+
+// SetSms registers the SMS driver manager, the default "sms" channel, and
+// named channels "sms.<driver>" for each registered driver (e.g. sms.twilio).
+func (m *Manager) SetSms(sms *SmsManager) {
+	if m == nil {
+		return
+	}
+	m.sms = sms
+	if sms == nil {
+		return
+	}
+	m.Extend("sms", NewSmsManagerChannel(sms))
+	for _, name := range sms.Drivers() {
+		m.Extend("sms."+name, NewSmsManagerChannel(sms, name))
+	}
+}
+
+// Sms returns the SMS driver manager (may be nil).
+func (m *Manager) Sms() *SmsManager {
+	if m == nil {
+		return nil
+	}
+	return m.sms
 }
 
 // Extend registers a channel.
