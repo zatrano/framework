@@ -1,5 +1,5 @@
 # ZATRANO custom Semgrep rules (low-noise, framework-specific).
-# Add high-confidence patterns here; prefer narrow paths over broad rules.
+# Paths use leading / for Semgrepignore v2 anchored includes.
 
 rules:
   - id: zatrano-sql-sprintf-in-middleware
@@ -10,8 +10,8 @@ rules:
       use the query builder with bound parameters.
     paths:
       include:
-        - "packages/middleware/**/*.go"
-        - "packages/routing/**/*.go"
+        - "/packages/middleware/**/*.go"
+        - "/packages/routing/**/*.go"
     pattern-either:
       - pattern: fmt.Sprintf("SELECT ...", ...)
       - pattern: fmt.Sprintf("INSERT ...", ...)
@@ -27,8 +27,8 @@ rules:
       use crypto/rand or configuration.
     paths:
       include:
-        - "packages/session/**/*.go"
-        - "packages/middleware/csrf/**/*.go"
+        - "/packages/session/**/*.go"
+        - "/packages/middleware/csrf/**/*.go"
     pattern-either:
       - pattern: password := "..."
       - pattern: secret := "..."
@@ -43,7 +43,7 @@ rules:
       prefer bound parameters.
     paths:
       include:
-        - "packages/**/*.go"
+        - "/packages/**/*.go"
     pattern-either:
       - pattern: $B.WhereRaw(fmt.Sprintf(...), ...)
       - pattern: $B.OrderByRaw(fmt.Sprintf(...))

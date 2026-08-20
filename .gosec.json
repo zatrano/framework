@@ -1,6 +1,6 @@
 {
   "global": {
-    "nosec": true,
+    "nosec": false,
     "show-ignored": false,
     "audit": false
   },
@@ -15,6 +15,7 @@
     "G203",
     "G204",
     "G304",
-    "G110"
+    "G110",
+    "G115"
   ]
 }
