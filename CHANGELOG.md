@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.23 - 2026-08-20
+
+### Changed
+
+- Social OAuth scaffold flash messages use localization (`auth.social_*`) with `:provider` placeholders (en/tr)
+
+### Added
+
+- Auth locale keys: `provider_google`, `provider_github`, and social OAuth flash strings in defaults + make:auth lang stubs
+
 ## 1.2.22 - 2026-08-20
 
 ### Added
