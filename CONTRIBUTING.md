@@ -33,4 +33,4 @@ Be respectful in issues, pull requests, and discussions. Harassment and discrimi
 
 ## Security
 
-Report security vulnerabilities privately to [serhankarakoc@gmail.com](mailto:serhankarakoc@gmail.com). See [SECURITY.md](SECURITY.md).
+Report security vulnerabilities privately to [serhankarakoc@gmail.com](mailto:serhankarakoc@gmail.com). See [.github/SECURITY.md](.github/SECURITY.md).
