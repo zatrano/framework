@@ -379,9 +379,9 @@ CI (`.github/workflows/security.yml`) runs on `main` pushes, pull requests, and 
 | Tool | Role |
 |------|------|
 | **go vet** / **go test -race** | Compiler checks and data-race detection |
-| **gosec** | Go SAST; SARIF uploaded to the GitHub Security tab (excludes in `.gosec.json`) |
+| **gosec** | Go SAST; SARIF uploaded to the GitHub Security tab (excludes in `.github/gosec.json`) |
 | **govulncheck** | Known Go module CVEs |
-| **Semgrep** | `p/golang` + `p/security-audit` plus `security/semgrep/zatrano-rules.yml` |
+| **Semgrep** | `p/golang` + `p/security-audit` plus `.github/semgrep/zatrano-rules.yml` |
 | **Trivy FS** | Dependency/secret/misconfig scan (fails on HIGH/CRITICAL only) |
 | **Go fuzz** | `tests/fuzz` targets (3m each in CI; longer locally) |
 
