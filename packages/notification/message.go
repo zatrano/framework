@@ -2,8 +2,6 @@ package notification
 
 import (
 	"strings"
-
-	"github.com/zatrano/framework/packages/mail"
 )
 
 // Message is a central, channel-agnostic notification for web/API sends.
@@ -34,9 +32,9 @@ func (m Message) Via() []string {
 }
 
 // ToMail builds an email message.
-func (m Message) ToMail(n Notifiable) *mail.Message {
+func (m Message) ToMail(n Notifiable) *MailMessage {
 	to := n.RouteNotificationFor("mail")
-	msg := &mail.Message{
+	msg := &MailMessage{
 		Subject: m.Subject,
 		Text:    m.Body,
 		HTML:    m.Body,

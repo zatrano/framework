@@ -9,7 +9,6 @@ func Providers() []core.Provider {
 		&DatabaseServiceProvider{},
 		&CacheServiceProvider{},
 		&EventsServiceProvider{},
-		&MailServiceProvider{},
 		&QueueServiceProvider{},
 		&AuthServiceProvider{},
 		&LocalizationServiceProvider{},
@@ -55,13 +54,6 @@ func (p *EventsServiceProvider) Register(app *core.Application) error {
 	return BootEventsServices(app)
 }
 func (p *EventsServiceProvider) Boot(app *core.Application) error { return nil }
-
-type MailServiceProvider struct{}
-
-func (p *MailServiceProvider) Register(app *core.Application) error {
-	return BootMailServices(app)
-}
-func (p *MailServiceProvider) Boot(app *core.Application) error { return nil }
 
 type QueueServiceProvider struct{}
 

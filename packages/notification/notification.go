@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
+	"sync"
 	"time"
 
-	"github.com/zatrano/framework/packages/mail"
+	"github.com/zatrano/framework/packages/view"
 )
 
 // Notifiable can receive notifications.
@@ -23,7 +25,7 @@ type TypedNotifiable interface {
 // Notification is a message that can be sent through channels.
 type Notification interface {
 	Via() []string
-	ToMail(notifiable Notifiable) *mail.Message
+	ToMail(notifiable Notifiable) *MailMessage
 	ToDatabase(notifiable Notifiable) map[string]any
 	ToBroadcast(notifiable Notifiable) map[string]any
 }
@@ -34,6 +36,7 @@ type Channel interface {
 }
 
 // BulkResult summarizes a multi-recipient send.
+// For async SendMany, Sent means accepted for delivery (not confirmed delivery).
 type BulkResult struct {
 	Total  int      `json:"total"`
 	Sent   int      `json:"sent"`
@@ -42,14 +45,38 @@ type BulkResult struct {
 }
 
 // Manager sends notifications through registered channels.
+// Send / SendMany always dispatch asynchronously — callers never wait for transport I/O.
 type Manager struct {
 	channels map[string]Channel
 	store    *Store
+	mail     *MailManager
+	onError  func(error)
+	wg       sync.WaitGroup
 }
 
 // NewManager creates a notification manager.
 func NewManager() *Manager {
 	return &Manager{channels: make(map[string]Channel)}
+}
+
+// SetMail registers the mail transport and mail notification channel.
+// App code should only use Send — not the mail transport directly.
+func (m *Manager) SetMail(mailer *MailManager) {
+	if m == nil {
+		return
+	}
+	m.mail = mailer
+	if mailer != nil {
+		m.Extend("mail", NewMailChannel(mailer))
+	}
+}
+
+// SetMailView attaches the view engine used when rendering mail templates.
+func (m *Manager) SetMailView(engine *view.Engine) {
+	if m == nil || m.mail == nil {
+		return
+	}
+	m.mail.SetView(engine)
 }
 
 // Extend registers a channel.
@@ -60,6 +87,11 @@ func (m *Manager) Extend(name string, channel Channel) {
 // SetStore attaches a database notification store for inbox APIs.
 func (m *Manager) SetStore(store *Store) {
 	m.store = store
+}
+
+// SetErrorHandler configures async delivery error reporting (optional).
+func (m *Manager) SetErrorHandler(fn func(error)) {
+	m.onError = fn
 }
 
 // Store returns the attached notification store (may be nil).
@@ -73,8 +105,19 @@ func (m *Manager) Channel(name string) (Channel, bool) {
 	return ch, ok
 }
 
-// Send sends a notification to a notifiable.
+// Send queues a notification for async delivery and returns immediately.
 func (m *Manager) Send(notifiable Notifiable, notification Notification) error {
+	if m == nil {
+		return fmt.Errorf("notification manager is nil")
+	}
+	m.dispatch(func() error {
+		return m.SendNow(notifiable, notification)
+	})
+	return nil
+}
+
+// SendNow delivers a notification synchronously (tests / workers).
+func (m *Manager) SendNow(notifiable Notifiable, notification Notification) error {
 	for _, name := range notification.Via() {
 		channel, ok := m.channels[name]
 		if !ok {
@@ -87,7 +130,7 @@ func (m *Manager) Send(notifiable Notifiable, notification Notification) error {
 	return nil
 }
 
-// SendMany sends one notification to many recipients (continues on per-recipient errors).
+// SendMany queues one notification to many recipients (continues on enqueue errors).
 func (m *Manager) SendMany(recipients []Recipient, notification Notification) BulkResult {
 	result := BulkResult{Total: len(recipients)}
 	for i, recipient := range recipients {
@@ -101,13 +144,47 @@ func (m *Manager) SendMany(recipients []Recipient, notification Notification) Bu
 	return result
 }
 
+// Wait blocks until in-flight async deliveries finish (tests).
+func (m *Manager) Wait() {
+	if m == nil {
+		return
+	}
+	m.wg.Wait()
+}
+
+func (m *Manager) dispatch(fn func() error) {
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				m.report(fmt.Errorf("notification panic: %v", recovered))
+			}
+		}()
+		if err := fn(); err != nil {
+			m.report(err)
+		}
+	}()
+}
+
+func (m *Manager) report(err error) {
+	if err == nil {
+		return
+	}
+	if m.onError != nil {
+		m.onError(err)
+		return
+	}
+	log.Printf("notification: %v", err)
+}
+
 // MailChannel sends notifications via mail.
 type MailChannel struct {
-	mailer *mail.Manager
+	mailer *MailManager
 }
 
 // NewMailChannel creates a mail notification channel.
-func NewMailChannel(mailer *mail.Manager) *MailChannel {
+func NewMailChannel(mailer *MailManager) *MailChannel {
 	return &MailChannel{mailer: mailer}
 }
 
@@ -207,7 +284,7 @@ func (c *BroadcastChannel) Send(notifiable Notifiable, notification Notification
 type Base struct{}
 
 // ToMail returns nil by default.
-func (Base) ToMail(Notifiable) *mail.Message { return nil }
+func (Base) ToMail(Notifiable) *MailMessage { return nil }
 
 // ToDatabase returns nil by default.
 func (Base) ToDatabase(Notifiable) map[string]any { return nil }

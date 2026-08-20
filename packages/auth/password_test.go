@@ -2,10 +2,14 @@ package auth_test
 
 import (
 	"errors"
+	"fmt"
+	stdhttp "net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/zatrano/framework/packages/auth"
+	"github.com/zatrano/framework/packages/http"
 )
 
 type stubPasswordProvider struct {
@@ -94,6 +98,67 @@ func TestEmailVerificationHelpers(t *testing.T) {
 	}
 	if auth.EmailHash("ada@zatrano.test") == "" {
 		t.Fatal("expected hash")
+	}
+}
+
+func TestRegisterSendsEmailVerification(t *testing.T) {
+	provider := newMemoryUserProvider()
+	manager := auth.NewManager("web")
+	manager.Extend("web", auth.NewGuard("web", provider))
+
+	var gotURL string
+	var gotEmail string
+	manager.SetVerificationURLGenerator(func(user auth.Authenticatable) (string, error) {
+		return "https://example.test/verify/" + fmt.Sprint(user.AuthID()), nil
+	})
+	manager.SetEmailVerificationSender(func(user auth.Authenticatable, verifyURL string) error {
+		gotEmail = auth.EmailForVerification(user)
+		gotURL = verifyURL
+		return nil
+	})
+
+	raw := httptest.NewRequest(stdhttp.MethodPost, "/register", nil)
+	req := http.NewRequest(raw)
+	req.SetSession(&memSession{data: map[string]any{}})
+
+	_, err := manager.Register(req, map[string]any{
+		"name": "Ada", "email": "ada@zatrano.test", "password": "secret1",
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotEmail != "ada@zatrano.test" || gotURL != "https://example.test/verify/1" {
+		t.Fatalf("verification not sent: email=%q url=%q", gotEmail, gotURL)
+	}
+}
+
+func TestPasswordChangedSender(t *testing.T) {
+	provider := newMemoryUserProvider()
+	manager := auth.NewManager("web")
+	manager.Extend("web", auth.NewGuard("web", provider))
+	raw := httptest.NewRequest(stdhttp.MethodPost, "/register", nil)
+	req := http.NewRequest(raw)
+	req.SetSession(&memSession{data: map[string]any{}})
+	user, err := manager.Register(req, map[string]any{
+		"name": "Ada", "email": "ada@zatrano.test", "password": "secret1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	called := false
+	manager.SetPasswordChangedSender(func(u auth.Authenticatable) error {
+		called = true
+		if fmt.Sprint(u.AuthID()) != fmt.Sprint(user.AuthID()) {
+			t.Fatalf("unexpected user")
+		}
+		return nil
+	})
+	if err := manager.ChangePassword(req, "secret1", "secret2"); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("expected password-changed notification")
 	}
 }
 

@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/zatrano/framework/packages/mail"
 	"github.com/zatrano/framework/packages/notification"
 	_ "modernc.org/sqlite"
 )
@@ -14,12 +14,12 @@ func TestSendMailDatabaseSms(t *testing.T) {
 	db := openNotifDB(t)
 	defer db.Close()
 
-	mailer := mail.NewManager("log", "hello@example.com", "ZATRANO", map[string]mail.Mailer{
+	mailer := notification.NewMailManager("log", "hello@example.com", "ZATRANO", map[string]notification.Mailer{
 		"log": stubMailer{},
 	})
 	sms := &notification.MemorySmsSender{}
 	mgr := notification.NewManager()
-	mgr.Extend("mail", notification.NewMailChannel(mailer))
+	mgr.SetMail(mailer)
 	mgr.Extend("database", notification.NewDatabaseChannel(db, "notifications", "sqlite"))
 	mgr.Extend("sms", notification.NewSmsChannel(sms, "ZATRANO"))
 	mgr.SetStore(notification.NewStore(db, "notifications", "sqlite"))
@@ -33,6 +33,7 @@ func TestSendMailDatabaseSms(t *testing.T) {
 	if err := mgr.Send(rec, msg); err != nil {
 		t.Fatal(err)
 	}
+	mgr.Wait()
 	if _, ok := sms.Last(); !ok {
 		t.Fatal("expected sms")
 	}
@@ -45,9 +46,62 @@ func TestSendMailDatabaseSms(t *testing.T) {
 	}
 }
 
+func TestSendIsAsync(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	mailer := notification.NewMailManager("log", "hello@example.com", "ZATRANO", map[string]notification.Mailer{
+		"log": blockingMailer{started: started, release: release},
+	})
+	mgr := notification.NewManager()
+	mgr.SetMail(mailer)
+
+	if err := mgr.Send(notification.Recipient{Email: "a@example.com"}, notification.Message{
+		Channels: []string{"mail"},
+		Subject:  "Async",
+		Body:     "go",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-started:
+		// background delivery reached the mailer while Send already returned
+	case <-time.After(2 * time.Second):
+		t.Fatal("delivery did not start")
+	}
+	close(release)
+	mgr.Wait()
+}
+
+func TestSendNowIsSync(t *testing.T) {
+	sms := &notification.MemorySmsSender{}
+	mgr := notification.NewManager()
+	mgr.Extend("sms", notification.NewSmsChannel(sms, "Z"))
+	if err := mgr.SendNow(notification.Recipient{Phone: "+1"}, notification.Message{
+		Channels: []string{"sms"},
+		Body:     "now",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := sms.Last(); !ok {
+		t.Fatal("expected sync sms")
+	}
+}
+
 type stubMailer struct{}
 
-func (stubMailer) Send(*mail.Message) error { return nil }
+func (stubMailer) Send(*notification.MailMessage) error { return nil }
+
+type blockingMailer struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (b blockingMailer) Send(*notification.MailMessage) error {
+	close(b.started)
+	<-b.release
+	return nil
+}
 
 func TestSendManyAndCSVImport(t *testing.T) {
 	db := openNotifDB(t)
@@ -71,6 +125,7 @@ func TestSendManyAndCSVImport(t *testing.T) {
 	if result.Sent != 2 || result.Failed != 0 {
 		t.Fatalf("unexpected bulk result: %+v", result)
 	}
+	mgr.Wait()
 }
 
 func TestRecipientFromMapRequiresContact(t *testing.T) {

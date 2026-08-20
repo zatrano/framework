@@ -1,4 +1,4 @@
-package mail
+package notification
 
 import (
 	"path/filepath"
@@ -15,7 +15,7 @@ type Attachment struct {
 }
 
 // Attach adds a file attachment to the message.
-func (m *Message) Attach(filename string, content []byte, contentType ...string) *Message {
+func (m *MailMessage) Attach(filename string, content []byte, contentType ...string) *MailMessage {
 	if m == nil {
 		return m
 	}
@@ -32,7 +32,7 @@ func (m *Message) Attach(filename string, content []byte, contentType ...string)
 }
 
 // AttachInline adds an inline attachment with a Content-ID.
-func (m *Message) AttachInline(filename string, content []byte, contentID string, contentType ...string) *Message {
+func (m *MailMessage) AttachInline(filename string, content []byte, contentID string, contentType ...string) *MailMessage {
 	if m == nil {
 		return m
 	}
@@ -51,7 +51,7 @@ func (m *Message) AttachInline(filename string, content []byte, contentID string
 }
 
 // SetReplyTo sets Reply-To addresses.
-func (m *Message) SetReplyTo(addresses ...string) *Message {
+func (m *MailMessage) SetReplyTo(addresses ...string) *MailMessage {
 	if m == nil {
 		return m
 	}

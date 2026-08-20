@@ -1,14 +1,14 @@
-package mail_test
+package notification_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/packages/mail"
+	"github.com/zatrano/framework/packages/notification"
 )
 
 func TestAttachAndReplyTo(t *testing.T) {
-	msg := (&mail.Message{
+	msg := (&notification.MailMessage{
 		From:    "app@zatrano.test",
 		To:      []string{"user@zatrano.test"},
 		Subject: "Report",
@@ -24,7 +24,7 @@ func TestAttachAndReplyTo(t *testing.T) {
 		t.Fatalf("attachments=%v", msg.Attachments)
 	}
 
-	raw := string(mail.BuildMIME(msg))
+	raw := string(notification.BuildMIME(msg))
 	if !strings.Contains(raw, "Reply-To: support@zatrano.test") {
 		t.Fatalf("missing reply-to: %s", raw)
 	}

@@ -17,7 +17,6 @@ func registerSupportCommands(console *Application, app *core.Application) {
 		&QueueWorkCommand{app: app},
 		&CacheClearCommand{app: app},
 		&MakeJobCommand{app: app},
-		&MakeMailCommand{app: app},
 		&MakeListenerCommand{app: app},
 		&MakeEventCommand{app: app},
 	)
@@ -120,46 +119,6 @@ func Handle%s(payload map[string]any) error {
 		return err
 	}
 	fmt.Printf("Job created: %s\n", path)
-	return nil
-}
-
-type MakeMailCommand struct {
-	app *core.Application
-}
-
-func (c *MakeMailCommand) Name() string        { return "make:mail" }
-func (c *MakeMailCommand) Description() string { return "Create a new mail class" }
-func (c *MakeMailCommand) Handle(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("mail name required")
-	}
-	name := args[0]
-	dir := c.app.BasePath("app", "mail")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+".go")
-	content := fmt.Sprintf(`package mail
-
-import "github.com/zatrano/framework/packages/mail"
-
-type %s struct {
-	To string
-}
-
-func (m *%s) Message() *mail.Message {
-	return &mail.Message{
-		To:      []string{m.To},
-		Subject: "%s",
-		HTML:    "<p>%s</p>",
-		Text:    "%s",
-	}
-}
-`, name, name, name, name, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return err
-	}
-	fmt.Printf("Mail created: %s\n", path)
 	return nil
 }
 

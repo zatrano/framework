@@ -1,4 +1,4 @@
-package mail
+package notification
 
 import (
 	"crypto/tls"
@@ -12,8 +12,8 @@ import (
 	"github.com/zatrano/framework/packages/view"
 )
 
-// Message represents an email message.
-type Message struct {
+// MailMessage represents an email message.
+type MailMessage struct {
 	From        string
 	To          []string
 	Cc          []string
@@ -28,11 +28,11 @@ type Message struct {
 
 // Mailer sends email messages.
 type Mailer interface {
-	Send(message *Message) error
+	Send(message *MailMessage) error
 }
 
-// Manager resolves mailers.
-type Manager struct {
+// MailManager resolves mailers (email transport used by the mail notification channel).
+type MailManager struct {
 	defaultMailer string
 	mailers       map[string]Mailer
 	fromAddress   string
@@ -40,9 +40,9 @@ type Manager struct {
 	view          *view.Engine
 }
 
-// NewManager creates a mail manager.
-func NewManager(defaultMailer, fromAddress, fromName string, mailers map[string]Mailer) *Manager {
-	return &Manager{
+// NewMailManager creates a mail manager.
+func NewMailManager(defaultMailer, fromAddress, fromName string, mailers map[string]Mailer) *MailManager {
+	return &MailManager{
 		defaultMailer: defaultMailer,
 		mailers:       mailers,
 		fromAddress:   fromAddress,
@@ -51,7 +51,7 @@ func NewManager(defaultMailer, fromAddress, fromName string, mailers map[string]
 }
 
 // Mailer returns a named mailer.
-func (m *Manager) Mailer(name ...string) Mailer {
+func (m *MailManager) Mailer(name ...string) Mailer {
 	mailer := m.defaultMailer
 	if len(name) > 0 && name[0] != "" {
 		mailer = name[0]
@@ -60,7 +60,7 @@ func (m *Manager) Mailer(name ...string) Mailer {
 }
 
 // Send sends a message using the default mailer.
-func (m *Manager) Send(message *Message) error {
+func (m *MailManager) Send(message *MailMessage) error {
 	if message.From == "" {
 		if m.fromName != "" {
 			message.From = fmt.Sprintf("%s <%s>", m.fromName, m.fromAddress)
@@ -69,16 +69,6 @@ func (m *Manager) Send(message *Message) error {
 		}
 	}
 	return m.Mailer().Send(message)
-}
-
-// To creates and sends a simple HTML/text message.
-func (m *Manager) To(address string, subject, body string) error {
-	return m.Send(&Message{
-		To:      []string{address},
-		Subject: subject,
-		HTML:    body,
-		Text:    body,
-	})
 }
 
 // LogMailer writes emails to the logger.
@@ -93,7 +83,7 @@ func NewLogMailer(logger *log.Logger) *LogMailer {
 }
 
 // Send logs the email.
-func (m *LogMailer) Send(message *Message) error {
+func (m *LogMailer) Send(message *MailMessage) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Infof("mail to=%v reply_to=%v subject=%q attachments=%d body=%q",
@@ -121,7 +111,7 @@ func NewSMTPMailer(config SMTPConfig) *SMTPMailer {
 }
 
 // Send delivers the message through SMTP.
-func (m *SMTPMailer) Send(message *Message) error {
+func (m *SMTPMailer) Send(message *MailMessage) error {
 	addr := m.config.Host + ":" + m.config.Port
 	recipients := append(append([]string{}, message.To...), message.Cc...)
 	recipients = append(recipients, message.Bcc...)
@@ -195,11 +185,11 @@ func sendSMTPTLS(cfg SMTPConfig, addr, from string, recipients []string, payload
 }
 
 // BuildMIME renders a message as raw MIME bytes.
-func BuildMIME(message *Message) []byte {
+func BuildMIME(message *MailMessage) []byte {
 	return buildMIME(message)
 }
 
-func firstBody(message *Message) string {
+func firstBody(message *MailMessage) string {
 	if message.Text != "" {
 		return message.Text
 	}
@@ -216,7 +206,7 @@ func extractAddress(from string) string {
 	return from
 }
 
-func buildMIME(message *Message) []byte {
+func buildMIME(message *MailMessage) []byte {
 	var b strings.Builder
 	b.WriteString("From: " + message.From + "\r\n")
 	b.WriteString("To: " + strings.Join(message.To, ", ") + "\r\n")
@@ -249,7 +239,7 @@ func buildMIME(message *Message) []byte {
 	return []byte(b.String())
 }
 
-func writeBody(b *strings.Builder, message *Message) {
+func writeBody(b *strings.Builder, message *MailMessage) {
 	if message.HTML != "" && message.Text != "" {
 		boundary := "zatrano-boundary"
 		b.WriteString("Content-Type: multipart/alternative; boundary=" + boundary + "\r\n\r\n")

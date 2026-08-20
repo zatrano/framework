@@ -81,7 +81,6 @@ func (c *MakeNotificationCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package notifications
 
 import (
-	"github.com/zatrano/framework/packages/mail"
 	"github.com/zatrano/framework/packages/notification"
 )
 
@@ -94,8 +93,8 @@ func (n *%s) Via() []string {
 	return []string{"mail", "database"}
 }
 
-func (n *%s) ToMail(notifiable notification.Notifiable) *mail.Message {
-	return &mail.Message{
+func (n *%s) ToMail(notifiable notification.Notifiable) *notification.MailMessage {
+	return &notification.MailMessage{
 		Subject: "%s",
 		HTML:    "<p>" + n.Message + "</p>",
 		Text:    n.Message,

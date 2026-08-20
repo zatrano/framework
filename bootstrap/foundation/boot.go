@@ -23,7 +23,6 @@ import (
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/httpclient"
 	"github.com/zatrano/framework/packages/localization"
-	"github.com/zatrano/framework/packages/mail"
 	mongopkg "github.com/zatrano/framework/packages/mongo"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
@@ -195,26 +194,6 @@ func BootEventsServices(app *core.Application) error {
 	return nil
 }
 
-func BootMailServices(app *core.Application) error {
-	mgr := mail.NewManager(
-		env.Get("MAIL_MAILER", "log"),
-		env.Get("MAIL_FROM_ADDRESS", "hello@example.com"),
-		env.Get("MAIL_FROM_NAME", app.Config().GetString("app.name", "ZATRANO")),
-		map[string]mail.Mailer{
-			"log": mail.NewLogMailer(app.Logger()),
-			"smtp": mail.NewSMTPMailer(mail.SMTPConfig{
-				Host:       env.Get("MAIL_HOST", "127.0.0.1"),
-				Port:       env.Get("MAIL_PORT", "2525"),
-				Username:   env.Get("MAIL_USERNAME"),
-				Password:   env.Get("MAIL_PASSWORD"),
-				Encryption: env.Get("MAIL_ENCRYPTION"),
-			}),
-		},
-	)
-	app.Container().Instance("mail", mgr)
-	return nil
-}
-
 func BootQueueServices(app *core.Application) error {
 	queues := map[string]queue.Queue{"sync": queue.NewSyncQueue()}
 	if dbMgr := database.From(app); dbMgr != nil {
@@ -318,6 +297,36 @@ func BootAuthServices(app *core.Application) error {
 		authManager.SetEncrypter(enc)
 	}
 
+	authManager.SetVerificationURLGenerator(func(user auth.Authenticatable) (string, error) {
+		if user == nil || app.URL() == nil {
+			return "", fmt.Errorf("verification url unavailable")
+		}
+		email := auth.EmailForVerification(user)
+		return app.URL().Signed("/auth/email/verify/"+fmt.Sprint(user.AuthID()), 60*time.Minute, map[string]string{
+			"hash": auth.EmailHash(email),
+		})
+	})
+	authManager.SetEmailVerificationSender(func(user auth.Authenticatable, verifyURL string) error {
+		n := notification.From(app)
+		if n == nil {
+			return fmt.Errorf("notifications not configured")
+		}
+		return n.Send(notification.Recipient{
+			ID:    fmt.Sprint(user.AuthID()),
+			Email: auth.EmailForVerification(user),
+		}, notification.VerifyEmailNotification{VerifyURL: verifyURL})
+	})
+	authManager.SetPasswordChangedSender(func(user auth.Authenticatable) error {
+		n := notification.From(app)
+		if n == nil {
+			return nil
+		}
+		return n.Send(notification.Recipient{
+			ID:    fmt.Sprint(user.AuthID()),
+			Email: auth.EmailForVerification(user),
+		}, notification.PasswordChangedNotification{})
+	})
+
 	if dbMgr := database.From(app); dbMgr != nil {
 		if db, err := dbMgr.DB(); err == nil {
 			driver, _ := dbMgr.DriverName()
@@ -355,12 +364,15 @@ func BootAuthServices(app *core.Application) error {
 			passwords.SetThrottle(time.Duration(throttleSec) * time.Second)
 			passwords.SetDispatcher(events.From(app))
 			passwords.SetSessionManager(session.From(app))
-			passwords.SetMailer(func(email, token, resetURL string) error {
-				if mail.From(app) == nil {
-					return fmt.Errorf("mail not configured")
+			passwords.SetNotifier(func(email, token, resetURL string) error {
+				n := notification.From(app)
+				if n == nil {
+					return fmt.Errorf("notifications not configured")
 				}
-				body := fmt.Sprintf("Reset your password using token %s\n\n%s?email=%s&token=%s", token, resetURL, email, token)
-				return mail.From(app).To(email, "Reset Password", body)
+				return n.Send(notification.Recipient{ID: email, Email: email}, notification.PasswordResetNotification{
+					Token:    token,
+					ResetURL: resetURL,
+				})
 			})
 			app.Container().Instance("passwords", passwords)
 			app.Container().Instance("tokens", apitoken.New(apitoken.NewDatabaseStore(db, driver), provider))
@@ -421,9 +433,28 @@ func BootBroadcastingServices(app *core.Application) error {
 
 func BootNotificationServices(app *core.Application) error {
 	mgr := notification.NewManager()
-	if mail.From(app) != nil {
-		mgr.Extend("mail", notification.NewMailChannel(mail.From(app)))
+	if app.Logger() != nil {
+		mgr.SetErrorHandler(func(err error) {
+			app.Logger().Errorf("notification: %v", err)
+		})
 	}
+
+	mgr.SetMail(notification.NewMailManager(
+		env.Get("MAIL_MAILER", "log"),
+		env.Get("MAIL_FROM_ADDRESS", "hello@example.com"),
+		env.Get("MAIL_FROM_NAME", app.Config().GetString("app.name", "ZATRANO")),
+		map[string]notification.Mailer{
+			"log": notification.NewLogMailer(app.Logger()),
+			"smtp": notification.NewSMTPMailer(notification.SMTPConfig{
+				Host:       env.Get("MAIL_HOST", "127.0.0.1"),
+				Port:       env.Get("MAIL_PORT", "2525"),
+				Username:   env.Get("MAIL_USERNAME"),
+				Password:   env.Get("MAIL_PASSWORD"),
+				Encryption: env.Get("MAIL_ENCRYPTION"),
+			}),
+		},
+	))
+
 	if broadcasting.From(app) != nil {
 		mgr.Extend("broadcast", notification.NewBroadcastChannel(broadcasting.From(app)))
 	}
@@ -437,7 +468,6 @@ func BootNotificationServices(app *core.Application) error {
 	default:
 		pushSender = &notification.MemoryPushSender{}
 	}
-	app.Container().Instance("push", pushSender)
 	mgr.Extend("push", notification.NewPushChannel(pushSender))
 
 	smsFrom := env.Get("SMS_FROM", env.Get("APP_NAME", "ZATRANO"))
@@ -466,7 +496,6 @@ func BootNotificationServices(app *core.Application) error {
 	default:
 		smsSender = &notification.MemorySmsSender{}
 	}
-	app.Container().Instance("sms", smsSender)
 	mgr.Extend("sms", notification.NewSmsChannel(smsSender, smsFrom))
 	if dbMgr := database.From(app); dbMgr != nil {
 		if db, err := dbMgr.DB(); err == nil {
@@ -576,8 +605,8 @@ func BootViewSession(app *core.Application) error {
 	}
 	engine.SetEnvironment(app.Environment())
 	app.Container().Instance("view", engine)
-	if m := mail.From(app); m != nil {
-		m.SetView(engine)
+	if n := notification.From(app); n != nil {
+		n.SetMailView(engine)
 	}
 	if s := schedule.From(app); s != nil {
 		s.SetMutexPath(app.BasePath("storage", "framework", "schedule"))

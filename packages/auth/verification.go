@@ -114,6 +114,29 @@ func (m *Manager) MarkEmailAsVerified(req *http.Request, user Authenticatable) e
 	return nil
 }
 
+// SendEmailVerification queues a verification email when the user is unverified.
+// Delivery is asynchronous when wired through notification.Send.
+func (m *Manager) SendEmailVerification(user Authenticatable) error {
+	if m == nil || user == nil {
+		return nil
+	}
+	if HasVerifiedEmail(user) {
+		return nil
+	}
+	if m.emailVerificationSender == nil {
+		return nil
+	}
+	verifyURL := ""
+	if m.verifyURLGen != nil {
+		var err error
+		verifyURL, err = m.verifyURLGen(user)
+		if err != nil {
+			return err
+		}
+	}
+	return m.emailVerificationSender(user, verifyURL)
+}
+
 // HasVerifiedEmail implements MustVerifyEmail for GenericUser.
 func (u *GenericUser) HasVerifiedEmail() bool {
 	if u == nil {

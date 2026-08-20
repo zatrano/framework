@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.19-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.20-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -263,7 +263,7 @@ Resolve from the container:
 ```go
 auth.From(app)
 auth.Passwords(app)
-mail.From(app)
+notification.From(app)
 session.From(app)
 database.Migrator(app)
 mongo.From(app) // nil unless mongo is in DB_CONNECTIONS / db:setup (or legacy addon)
@@ -344,7 +344,7 @@ All guides are on the website — **this repository has no** `docs/` **tree**.
 ## Breaking changes in 1.0
 
 - First-party imports: `core/X` → `packages/X` (kernel stays `core`)
-- Prefer `auth.From(app)`, `mail.From(app)`, … — foundation accessors removed from `Application`
+- Prefer `auth.From(app)`, `notification.From(app)`, … — foundation accessors removed from `Application`
 - Boot is profile-driven (`APP_BOOT` / `bootstrap.*App()`); optional services via addons
 
 Upgrade: `go get github.com/zatrano/framework@v1.0.0` then fix imports and resolvers. See [Release Notes](https://zatrano.com/docs/releases).

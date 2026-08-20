@@ -21,8 +21,9 @@ func (m *Manager) UpdateProfile(req *http.Request, name, email string) error {
 	}
 
 	currentEmail := EmailForVerification(user)
+	emailChanged := !strings.EqualFold(currentEmail, email)
 	attrs := map[string]any{"name": name, "email": email}
-	if !strings.EqualFold(currentEmail, email) {
+	if emailChanged {
 		attrs["email_verified_at"] = nil
 		existing, err := m.Guard().Provider().RetrieveByCredentials(map[string]string{"email": email})
 		if err != nil {
@@ -44,6 +45,9 @@ func (m *Manager) UpdateProfile(req *http.Request, name, email string) error {
 		for k, v := range attrs {
 			generic.Attributes[k] = v
 		}
+	}
+	if emailChanged {
+		_ = m.SendEmailVerification(user)
 	}
 	return nil
 }

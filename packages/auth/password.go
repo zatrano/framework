@@ -179,7 +179,8 @@ func (r *DatabaseTokenRepository) RecentlyCreated(email string, within time.Dura
 type PasswordBroker struct {
 	tokens     TokenRepository
 	users      PasswordUserProvider
-	mailer     func(email, token, resetURL string) error
+	// notifier delivers the reset link (should return quickly; prefer async notification.Send).
+	notifier func(email, token, resetURL string) error
 	ttl        time.Duration
 	throttle   time.Duration
 	dispatcher Dispatcher
@@ -202,9 +203,15 @@ func (b *PasswordBroker) SetThrottle(d time.Duration) {
 	b.throttle = d
 }
 
-// SetMailer configures the reset-link mail callback.
+// SetNotifier configures reset-link delivery (email/SMS/etc via notification).
+// The callback should enqueue asynchronously and return without waiting on transport I/O.
+func (b *PasswordBroker) SetNotifier(fn func(email, token, resetURL string) error) {
+	b.notifier = fn
+}
+
+// SetMailer is an alias for SetNotifier kept for older call sites.
 func (b *PasswordBroker) SetMailer(fn func(email, token, resetURL string) error) {
-	b.mailer = fn
+	b.SetNotifier(fn)
 }
 
 // SetDispatcher configures password-reset lifecycle event dispatching.
@@ -241,8 +248,9 @@ func (b *PasswordBroker) CreateToken(email string) (string, error) {
 	return token, nil
 }
 
-// SendResetLink creates a token and mails the reset URL.
+// SendResetLink creates a token and notifies the user with the reset URL.
 // Unknown emails succeed silently to avoid account enumeration.
+// Delivery is expected to be asynchronous (notification.Send); this call should not wait on SMTP/SMS.
 func (b *PasswordBroker) SendResetLink(email, resetURL string) error {
 	token, err := b.CreateToken(email)
 	if errors.Is(err, ErrUserNotFound) {
@@ -251,10 +259,10 @@ func (b *PasswordBroker) SendResetLink(email, resetURL string) error {
 	if err != nil {
 		return err
 	}
-	if b.mailer == nil {
+	if b.notifier == nil {
 		return nil
 	}
-	return b.mailer(strings.ToLower(email), token, resetURL)
+	return b.notifier(strings.ToLower(email), token, resetURL)
 }
 
 // Reset validates the token and updates the password.

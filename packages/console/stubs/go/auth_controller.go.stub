@@ -3,14 +3,12 @@ package web
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	. "github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/localization"
-	"github.com/zatrano/framework/packages/mail"
 	"github.com/zatrano/framework/packages/validation"
 )
 
@@ -379,20 +377,11 @@ func (c *AuthController) Send(req *Request) *Response {
 		}
 		return Redirect("/")
 	}
-	email := auth.EmailForVerification(user)
-	link, err := c.App.URL().Signed("/auth/email/verify/"+fmt.Sprint(user.AuthID()), 60*time.Minute, map[string]string{
-		"hash": auth.EmailHash(email),
-	})
-	if err != nil {
+	if err := auth.From(c.App).SendEmailVerification(user); err != nil {
 		return JSON(map[string]any{"message": err.Error()}).Status(500)
 	}
-	_ = mail.From(c.App).To(email, "Verify Email Address", "Please verify your email:\n\n"+link)
 	if req.WantsJSON() {
-		payload := map[string]any{"message": c.lang("auth.verify_email_sent")}
-		if c.App.IsDebug() {
-			payload["url"] = link
-		}
-		return JSON(payload)
+		return JSON(map[string]any{"message": c.lang("auth.verify_email_sent")})
 	}
 	return flash.WithSuccess(req, c.lang("auth.verify_email_sent"), "/auth/email/verify")
 }

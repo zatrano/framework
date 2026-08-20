@@ -345,14 +345,17 @@ func (g *Guard) userFromSessionOrCache(req *http.Request) Authenticatable {
 
 // Manager resolves auth guards.
 type Manager struct {
-	defaultGuard       string
-	guards             map[string]*Guard
-	dispatcher         Dispatcher
-	sessions           *session.Manager
-	lockouts           *lockoutStore
-	crypt              Crypt
-	twoFactorIssuer    string
-	rememberDeviceDays int
+	defaultGuard              string
+	guards                    map[string]*Guard
+	dispatcher                Dispatcher
+	sessions                  *session.Manager
+	lockouts                  *lockoutStore
+	crypt                     Crypt
+	twoFactorIssuer           string
+	rememberDeviceDays        int
+	verifyURLGen              func(user Authenticatable) (string, error)
+	emailVerificationSender   func(user Authenticatable, verifyURL string) error
+	passwordChangedSender     func(user Authenticatable) error
 }
 
 // Crypt encrypts sensitive auth payloads (two-factor secrets).
@@ -404,6 +407,30 @@ func (m *Manager) GetDefaultDriver() string {
 
 // SetDispatcher configures lifecycle event dispatching.
 func (m *Manager) SetDispatcher(d Dispatcher) { m.dispatcher = d }
+
+// SetVerificationURLGenerator builds signed verification URLs for email verification.
+func (m *Manager) SetVerificationURLGenerator(fn func(user Authenticatable) (string, error)) {
+	if m == nil {
+		return
+	}
+	m.verifyURLGen = fn
+}
+
+// SetEmailVerificationSender delivers verification emails (prefer async notification.Send).
+func (m *Manager) SetEmailVerificationSender(fn func(user Authenticatable, verifyURL string) error) {
+	if m == nil {
+		return
+	}
+	m.emailVerificationSender = fn
+}
+
+// SetPasswordChangedSender delivers password-changed notices (prefer async notification.Send).
+func (m *Manager) SetPasswordChangedSender(fn func(user Authenticatable) error) {
+	if m == nil {
+		return
+	}
+	m.passwordChangedSender = fn
+}
 
 // SetSessionManager configures file-session management for device logout.
 func (m *Manager) SetSessionManager(s *session.Manager) { m.sessions = s }

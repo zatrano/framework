@@ -5,7 +5,7 @@ type App interface {
 	Make(abstract string) (any, error)
 }
 
-// From resolves the notifications from the application container.
+// From resolves the notifications manager from the application container.
 func From(app App) *Manager {
 	if app == nil {
 		return nil

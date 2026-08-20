@@ -2,6 +2,19 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.20 - 2026-08-20
+
+### Changed
+
+- Mail folded into `packages/notification` (removed `packages/mail`, `mail.From`, `make:mail`, and container `mail`/`sms`/`push` bindings)
+- Notifications always dispatch asynchronously via `notification.Send` / `SendMany` (`SendNow` for sync/tests)
+- Auth password reset, email verification (register / resend / email change), and password-changed notices go through notification channels
+
+### Added
+
+- Built-in notifications: `PasswordResetNotification`, `VerifyEmailNotification`, `PasswordChangedNotification`
+- Auth helpers: `SendEmailVerification`, verification URL / sender hooks on the auth manager
+
 ## 1.2.19 - 2026-08-20
 
 ### Fixed
