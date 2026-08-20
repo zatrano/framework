@@ -11,29 +11,21 @@ permissions:
   contents: read
 
 jobs:
-  fast:
-    name: security-fast
-    runs-on: ubuntu-24.04
+  vet:
+    name: go-vet
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
-      - name: Download modules
-        run: go mod download
-      - name: go vet
-        run: go vet ./...
-      - name: Unit + security regression tests
-        run: |
-          go test ./packages/database/query/ ./packages/session/ ./packages/auth/ ./packages/middleware/... ./packages/http/ ./packages/routing/ ./packages/view/ ./packages/filesystem/ ./packages/safepath/ ./packages/websocket/ ./packages/trustedproxy/ ./packages/cookie/ -count=1
-          go test -C packages/mongo -count=1
-      - name: Fuzz smoke (identifiers)
-        run: go test ./packages/database/query/ -run=^$ -fuzz=FuzzSanitizeIdentifier -fuzztime=15s
+      - run: go mod download
+      - run: go vet ./...
 
   race:
-    name: race-detector
-    runs-on: ubuntu-24.04
+    name: go-test-race
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -41,41 +33,190 @@ jobs:
           go-version: '1.25.13'
           cache: true
       - run: go mod download
-      - name: go test -race (security-sensitive)
-        run: go test -race ./packages/session/ ./packages/auth/ ./packages/ratelimit/ ./packages/middleware/... -count=1
+      # Full-tree race; skip optional nested modules (own go.mod / heavy CGO).
+      - name: go test -race
+        shell: bash
+        run: |
+          go test -race $(go list ./... | grep -vE '/packages/(database/driver|qr|mongo|webauthn)(/|$)') -count=1
 
-  static:
-    name: gosec-govulncheck-staticcheck
-    runs-on: ubuntu-24.04
+  gosec:
+    name: gosec
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
-      - run: go mod download
-      - name: staticcheck
+      - name: Read gosec excludes from .gosec.json
+        id: gosec_cfg
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
-          staticcheck ./...
-      - name: govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./...
-      - name: gosec
+          EXCLUDES=$(jq -r '.exclude // [] | join(",")' .gosec.json)
+          echo "exclude=$EXCLUDES" >> "$GITHUB_OUTPUT"
+      - name: Run gosec
+        uses: securego/gosec@master
+        with:
+          args: >
+            -no-fail
+            -fmt=sarif
+            -out=gosec.sarif
+            -conf=.gosec.json
+            -exclude=${{ steps.gosec_cfg.outputs.exclude }}
+            -exclude-dir=packages/database/driver
+            -exclude-dir=packages/qr
+            -exclude-dir=packages/mongo
+            -exclude-dir=packages/webauthn
+            -exclude-generated
+            ./...
+      - name: Upload gosec SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gosec.sarif
+          category: gosec
+      - name: gosec gate (fail on findings)
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.2
-          # Noise / intentional framework surfaces (real path escapes are covered by safepath + tests):
-          # G301/G302/G306 file modes for scaffolds & logs; G401/G505 SHA-1 for RFC/cache keys;
-          # G404 math/rand for factories/inspire (not secrets); G203 trusted view helpers;
-          # G204 process package (documented trusted API); G304 variable paths after containment;
-          # G110 zip bomb mitigated in zipx with LimitReader; G104 low-severity.
-          # Skip optional SQL driver modules (deps not in default go.mod).
+          EXCLUDES=$(jq -r '.exclude // [] | join(",")' .gosec.json)
           gosec -quiet \
-            -exclude=G301,G302,G306,G401,G404,G505,G104,G203,G204,G304,G110 \
+            -conf=.gosec.json \
+            -exclude="$EXCLUDES" \
             -exclude-dir=packages/database/driver \
             -exclude-dir=packages/qr \
             -exclude-dir=packages/mongo \
             -exclude-dir=packages/webauthn \
             -exclude-generated \
             ./...
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+      - run: go mod download
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - name: Run govulncheck
+        shell: bash
+        run: |
+          set +e
+          govulncheck ./... | tee govulncheck.txt
+          code=${PIPESTATUS[0]}
+          {
+            echo "## govulncheck"
+            echo ""
+            echo '```'
+            cat govulncheck.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/golang
+            p/security-audit
+            security/semgrep/zatrano-rules.yml
+
+  trivy:
+    name: trivy-fs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Trivy FS (report all)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: table
+          exit-code: '0'
+      - name: Trivy FS (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-latest
+    # Local longer runs: go test ./tests/fuzz/ -run=^$ -fuzz=FuzzX -fuzztime=30m
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - FuzzRouterPath
+          - FuzzRouterWherePattern
+          - FuzzValidateMake
+          - FuzzHTTPJSONBinding
+          - FuzzSessionStart
+          - FuzzCSRFMiddleware
+          - FuzzQueryWhereToSQL
+          - FuzzQueryWhereRaw
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+      - run: go mod download
+      - name: Fuzz ${{ matrix.target }} (3m)
+        run: go test ./tests/fuzz/ -run=^$ -fuzz=${{ matrix.target }} -fuzztime=3m
+      - name: Upload fuzz crash corpus
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: tests/fuzz/testdata/fuzz/
+          if-no-files-found: ignore
+
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [vet, race, gosec, govulncheck, semgrep, trivy, fuzz]
+    steps:
+      - name: Write summary table
+        run: |
+          status() {
+            case "$1" in
+              success) echo PASS ;;
+              failure) echo FAIL ;;
+              cancelled) echo CANCELLED ;;
+              skipped) echo SKIPPED ;;
+              *) echo WARNING ;;
+            esac
+          }
+          {
+            echo "## Security Summary"
+            echo ""
+            echo "| Tool | Result |"
+            echo "|------|--------|"
+            echo "| go vet | $(status '${{ needs.vet.result }}') |"
+            echo "| go test -race | $(status '${{ needs.race.result }}') |"
+            echo "| gosec | $(status '${{ needs.gosec.result }}') |"
+            echo "| govulncheck | $(status '${{ needs.govulncheck.result }}') |"
+            echo "| Semgrep | $(status '${{ needs.semgrep.result }}') |"
+            echo "| Trivy FS | $(status '${{ needs.trivy.result }}') |"
+            echo "| Fuzz | $(status '${{ needs.fuzz.result }}') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for r in ${{ needs.vet.result }} ${{ needs.race.result }} ${{ needs.gosec.result }} ${{ needs.govulncheck.result }} ${{ needs.semgrep.result }} ${{ needs.trivy.result }} ${{ needs.fuzz.result }}; do
+            if [ "$r" = "failure" ]; then
+              exit 1
+            fi
+          done
