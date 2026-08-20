@@ -7,7 +7,6 @@ package fuzz_test
 
 import (
 	stdhttp "net/http"
-	"net/http/httptest"
 	"regexp"
 	"testing"
 
@@ -43,9 +42,19 @@ func FuzzRouterPath(f *testing.F) {
 		r.Add(stdhttp.MethodGet, routePath, func(req *http.Request) *http.Response {
 			return http.Text("ok")
 		})
-		raw := httptest.NewRequest(stdhttp.MethodGet, requestPath, nil)
+		raw, err := stdhttp.NewRequest(stdhttp.MethodGet, "http://fuzz.example"+normalizeFuzzPath(requestPath), nil)
+		if err != nil {
+			return
+		}
 		_ = r.Dispatch(http.NewRequest(raw))
 	})
+}
+
+func normalizeFuzzPath(p string) string {
+	if p == "" || p[0] != '/' {
+		return "/" + p
+	}
+	return p
 }
 
 // FuzzRouterWherePattern fuzzes regex fragments passed to Route.Where.

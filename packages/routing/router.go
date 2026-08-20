@@ -351,7 +351,12 @@ func compilePath(path string, wheres map[string]string) ([]string, *regexp.Regex
 	if path == "/" {
 		pattern = "^/$"
 	}
-	return names, regexp.MustCompile(pattern)
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		// Hostile / invalid UTF-8 paths must not panic route registration.
+		return names, regexp.MustCompile(`^\b\B$`)
+	}
+	return names, re
 }
 
 // normalizeDispatchPath strips a trailing slash from the request path (except "/")
