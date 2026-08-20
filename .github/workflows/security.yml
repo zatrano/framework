@@ -117,18 +117,23 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit $code
 
+  # semgrep/semgrep-action is deprecated; use the official Semgrep image (recommended by Semgrep).
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v5
-      - name: Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/golang
-            p/security-audit
-            security/semgrep/zatrano-rules.yml
+      - uses: actions/checkout@v4
+      - name: Semgrep scan
+        run: |
+          semgrep scan \
+            --config=p/golang \
+            --config=p/security-audit \
+            --config=security/semgrep/zatrano-rules.yml \
+            --error \
+            --metrics=off \
+            .
 
   trivy:
     name: trivy-fs
