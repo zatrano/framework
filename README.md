@@ -14,6 +14,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://img.shields.io/badge/gosec-SAST-222?logo=go" alt="gosec"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://img.shields.io/badge/govulncheck-CVE-222?logo=go" alt="govulncheck"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://img.shields.io/badge/Semgrep-rules-222?logo=semgrep" alt="Semgrep"></a>
+  <a href="https://github.com/zatrano/framework/security"><img src="https://img.shields.io/badge/Trivy-FS-222?logo=aquasecurity" alt="Trivy"></a>
+</p>
+
+<p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.17-green.svg" alt="Version"></a>
@@ -366,6 +373,17 @@ Semantic versioning. Tags: `vMAJOR.MINOR.PATCH` on [GitHub Releases](https://git
 Issues and PRs welcome. Keep changes focused, add tests when practical, follow `gofmt` and existing package boundaries. Guide: [Contributing](https://zatrano.com/docs/contributions).
 
 ## Security
+
+CI (`.github/workflows/security.yml`) runs on `main` pushes, pull requests, and a weekly cron:
+
+| Tool | Role |
+|------|------|
+| **go vet** / **go test -race** | Compiler checks and data-race detection |
+| **gosec** | Go SAST; SARIF uploaded to the GitHub Security tab (excludes in `.gosec.json`) |
+| **govulncheck** | Known Go module CVEs |
+| **Semgrep** | `p/golang` + `p/security-audit` plus `security/semgrep/zatrano-rules.yml` |
+| **Trivy FS** | Dependency/secret/misconfig scan (fails on HIGH/CRITICAL only) |
+| **Go fuzz** | `tests/fuzz` targets (3m each in CI; longer locally) |
 
 Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com).
 
