@@ -2,6 +2,18 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.18 - 2026-08-20
+
+### Added
+
+- Security CI pipeline: parallel gosec (SARIF), govulncheck, Semgrep, Trivy FS, and Go fuzz jobs with a Security Summary
+- `tests/fuzz` targets for router, validation/HTTP binding, session/CSRF, and query builder
+- `.gosec.json` exclude config and `security/semgrep/zatrano-rules.yml` custom rules scaffold
+
+### Fixed
+
+- Router path compilation no longer panics on invalid UTF-8 / bad regex patterns
+
 ## 1.2.17 - 2026-08-20
 
 ### Security
