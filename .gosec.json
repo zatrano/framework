@@ -1,0 +1,20 @@
+{
+  "global": {
+    "nosec": true,
+    "show-ignored": false,
+    "audit": false
+  },
+  "exclude": [
+    "G301",
+    "G302",
+    "G306",
+    "G401",
+    "G404",
+    "G505",
+    "G104",
+    "G203",
+    "G204",
+    "G304",
+    "G110"
+  ]
+}

@@ -1,0 +1,49 @@
+# ZATRANO custom Semgrep rules (low-noise, framework-specific).
+# Add high-confidence patterns here; prefer narrow paths over broad rules.
+
+rules:
+  - id: zatrano-sql-sprintf-in-middleware
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Avoid building SQL with fmt.Sprintf in router/middleware layers;
+      use the query builder with bound parameters.
+    paths:
+      include:
+        - "packages/middleware/**/*.go"
+        - "packages/routing/**/*.go"
+    pattern-either:
+      - pattern: fmt.Sprintf("SELECT ...", ...)
+      - pattern: fmt.Sprintf("INSERT ...", ...)
+      - pattern: fmt.Sprintf("UPDATE ...", ...)
+      - pattern: fmt.Sprintf("DELETE ...", ...)
+      - pattern: fmt.Sprintf("... WHERE ...", ...)
+
+  - id: zatrano-hardcoded-secret-session-csrf
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Hardcoded credential-like string in session/CSRF packages;
+      use crypto/rand or configuration.
+    paths:
+      include:
+        - "packages/session/**/*.go"
+        - "packages/middleware/csrf/**/*.go"
+    pattern-either:
+      - pattern: password := "..."
+      - pattern: secret := "..."
+      - pattern: apiKey := "..."
+      - pattern: token := "hardcoded-..."
+
+  - id: zatrano-query-raw-sprintf
+    languages: [go]
+    severity: WARNING
+    message: >-
+      WhereRaw/OrderByRaw with fmt.Sprintf may indicate SQL injection risk;
+      prefer bound parameters.
+    paths:
+      include:
+        - "packages/**/*.go"
+    pattern-either:
+      - pattern: $B.WhereRaw(fmt.Sprintf(...), ...)
+      - pattern: $B.OrderByRaw(fmt.Sprintf(...))
