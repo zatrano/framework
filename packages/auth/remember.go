@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -43,6 +44,14 @@ func HashRememberToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// RememberHashesEqual compares two remember-token digests in constant time.
+func RememberHashesEqual(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
 func encodeRememberCookie(id any, token string) string {
 	return fmt.Sprintf("%s|%s", fmt.Sprint(id), token)
 }
@@ -79,7 +88,7 @@ func (g *Guard) queueRememberCookie(req *http.Request, user Authenticatable) err
 	if err := rp.UpdateRememberToken(user, HashRememberToken(token)); err != nil {
 		return err
 	}
-	req.Cookies().Forever(rememberCookieName(g.name), encodeRememberCookie(user.AuthID(), token))
+	req.Cookies().ForeverSecure(rememberCookieName(g.name), encodeRememberCookie(user.AuthID(), token), req.Secure())
 	return nil
 }
 

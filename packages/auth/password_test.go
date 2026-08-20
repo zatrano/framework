@@ -96,3 +96,31 @@ func TestEmailVerificationHelpers(t *testing.T) {
 		t.Fatal("expected hash")
 	}
 }
+
+func TestPasswordResetTokenConstantTime(t *testing.T) {
+	provider := &stubPasswordProvider{users: map[string]*auth.GenericUser{
+		"ada@zatrano.test": {Attributes: map[string]any{"id": 1, "email": "ada@zatrano.test", "password": "old"}},
+	}}
+	tokens := auth.NewMemoryTokenRepository(time.Hour)
+	broker := auth.NewPasswordBroker(tokens, provider, time.Hour)
+
+	token, err := broker.CreateToken("ada@zatrano.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !broker.TokenValid("ada@zatrano.test", token) {
+		t.Fatal("expected valid token")
+	}
+	if broker.TokenValid("ada@zatrano.test", "deadbeef") {
+		t.Fatal("short invalid token must not match")
+	}
+	if broker.TokenValid("ada@zatrano.test", token+"x") {
+		t.Fatal("mutated token must not match")
+	}
+	wrong := make([]byte, len(token))
+	copy(wrong, token)
+	wrong[0] ^= 0x01
+	if broker.TokenValid("ada@zatrano.test", string(wrong)) {
+		t.Fatal("same-length wrong token must not match")
+	}
+}

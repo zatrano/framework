@@ -19,14 +19,23 @@ type CORSConfig struct {
 	MaxAge           int
 }
 
-// DefaultCORSConfig returns a permissive local-development CORS policy.
+// DefaultCORSConfig returns CORS defaults.
+// Local/dev: permissive `*`. Production: no wildcard — set CORS_ALLOWED_ORIGINS explicitly.
 func DefaultCORSConfig() CORSConfig {
+	origins := []string{"*"}
+	if isProductionEnv() {
+		origins = nil
+	}
 	return CORSConfig{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: origins,
 		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 		AllowHeaders: "Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key",
 		MaxAge:       600,
 	}
+}
+
+func isProductionEnv() bool {
+	return strings.EqualFold(strings.TrimSpace(env.Get("APP_ENV", "local")), "production")
 }
 
 // CORSFromEnv builds CORS middleware from environment variables.
@@ -65,9 +74,7 @@ func CORSFromEnv() routing.MiddlewareFunc {
 
 // CORSWith returns CORS middleware for the given config.
 func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
-	if len(cfg.AllowOrigins) == 0 {
-		cfg.AllowOrigins = []string{"*"}
-	}
+	cfg = sanitizeCORSConfig(cfg)
 	if cfg.AllowMethods == "" {
 		cfg.AllowMethods = DefaultCORSConfig().AllowMethods
 	}
@@ -92,7 +99,7 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 				if cfg.ExposeHeaders != "" {
 					resp.Header("Access-Control-Expose-Headers", cfg.ExposeHeaders)
 				}
-				if cfg.AllowCredentials && allowOrigin != "*" {
+				if cfg.AllowCredentials && allowOrigin != "" && allowOrigin != "*" {
 					resp.Header("Access-Control-Allow-Credentials", "true")
 				}
 				if cfg.MaxAge > 0 {
@@ -112,7 +119,36 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 	}
 }
 
+// sanitizeCORSConfig strips insecure combinations (credentials+wildcard, production wildcard).
+func sanitizeCORSConfig(cfg CORSConfig) CORSConfig {
+	explicit := make([]string, 0, len(cfg.AllowOrigins))
+	hasWildcard := false
+	for _, o := range cfg.AllowOrigins {
+		o = strings.TrimSpace(o)
+		if o == "" {
+			continue
+		}
+		if o == "*" {
+			hasWildcard = true
+			continue
+		}
+		explicit = append(explicit, o)
+	}
+	switch {
+	case cfg.AllowCredentials || isProductionEnv():
+		cfg.AllowOrigins = explicit
+	case hasWildcard:
+		cfg.AllowOrigins = []string{"*"}
+	default:
+		cfg.AllowOrigins = explicit
+	}
+	return cfg
+}
+
 func resolveOrigin(allowed []string, requestOrigin string) string {
+	if len(allowed) == 0 {
+		return ""
+	}
 	for _, o := range allowed {
 		if o == "*" {
 			return "*"
@@ -120,9 +156,6 @@ func resolveOrigin(allowed []string, requestOrigin string) string {
 		if requestOrigin != "" && strings.EqualFold(o, requestOrigin) {
 			return requestOrigin
 		}
-	}
-	if len(allowed) == 1 && allowed[0] != "*" {
-		return allowed[0]
 	}
 	return ""
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zatrano/framework/packages/database"
+	"github.com/zatrano/framework/packages/safepath"
 )
 
 // Config describes the database connection to back up and where files go.
@@ -67,7 +68,7 @@ func (m *Manager) Driver() string { return m.cfg.Driver }
 
 // Create writes a timestamped backup file; optional label is sanitized into the name.
 func (m *Manager) Create(label ...string) (string, error) {
-	if err := os.MkdirAll(m.cfg.Dir, 0o755); err != nil {
+	if err := ensureBackupDir(m.cfg.Dir); err != nil {
 		return "", err
 	}
 	stamp := time.Now().UTC().Format("20060102_150405")
@@ -99,6 +100,7 @@ func (m *Manager) Create(label ...string) (string, error) {
 		_ = os.Remove(dest)
 		return "", err
 	}
+	_ = os.Chmod(dest, 0o600)
 	_ = writeMeta(dest, m.cfg.Driver)
 	return dest, nil
 }
@@ -127,13 +129,16 @@ func (m *Manager) List() ([]string, error) {
 }
 
 // Restore replaces / loads the database from the given backup file name or path.
+// Paths must resolve inside the configured backup directory (absolute paths outside are rejected).
 func (m *Manager) Restore(backupPath string) error {
 	if backupPath == "" {
 		return fmt.Errorf("backup path required")
 	}
-	if !filepath.IsAbs(backupPath) {
-		backupPath = filepath.Join(m.cfg.Dir, backupPath)
+	resolved, err := resolveBackupPath(m.cfg.Dir, backupPath)
+	if err != nil {
+		return err
 	}
+	backupPath = resolved
 	if _, err := os.Stat(backupPath); err != nil {
 		return err
 	}
@@ -159,6 +164,28 @@ func (m *Manager) Restore(backupPath string) error {
 	default:
 		return fmt.Errorf("backup: unsupported driver %q for restore", driver)
 	}
+}
+
+func ensureBackupDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	_ = os.Chmod(dir, 0o700)
+	return nil
+}
+
+// resolveBackupPath confines restore targets to the backup directory.
+func resolveBackupPath(dir, backupPath string) (string, error) {
+	if dir == "" {
+		return "", fmt.Errorf("backup: directory not configured")
+	}
+	if filepath.IsAbs(backupPath) {
+		if !safepath.Under(dir, backupPath) {
+			return "", fmt.Errorf("backup: path escapes backup directory")
+		}
+		return backupPath, nil
+	}
+	return safepath.Resolve(dir, backupPath)
 }
 
 func extensionFor(driver string) string {

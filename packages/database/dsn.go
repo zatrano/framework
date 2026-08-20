@@ -74,11 +74,12 @@ func ResolveSQLitePath(database, basePath string) (string, error) {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(basePath, path)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
+	_ = os.Chmod(filepath.Dir(path), 0o700)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		f, createErr := os.Create(path)
+		f, createErr := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 		if createErr != nil {
 			return "", createErr
 		}

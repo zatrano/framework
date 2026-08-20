@@ -405,9 +405,10 @@ func (s *Server) persistLocked() error {
 	if s.storePath == "" {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(s.storePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.storePath), 0o700); err != nil {
 		return err
 	}
+	_ = os.Chmod(filepath.Dir(s.storePath), 0o700)
 	state := persistState{
 		Clients: s.clients,
 		Tokens:  s.tokens,

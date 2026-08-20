@@ -37,7 +37,8 @@ func New() *Scheduler {
 // SetMutexPath configures the directory used for overlap locks.
 func (s *Scheduler) SetMutexPath(path string) {
 	s.mutexDir = path
-	_ = os.MkdirAll(path, 0o755)
+	_ = os.MkdirAll(path, 0o700)
+	_ = os.Chmod(path, 0o700)
 }
 
 // Call registers a callback with a cron expression or alias.
@@ -202,9 +203,10 @@ func (s *Scheduler) RunDue(now time.Time) []error {
 func (e *Event) run() error {
 	err := e.callback()
 	if e.outputPath != "" {
-		_ = os.MkdirAll(filepath.Dir(e.outputPath), 0o755)
+		_ = os.MkdirAll(filepath.Dir(e.outputPath), 0o700)
+		_ = os.Chmod(filepath.Dir(e.outputPath), 0o700)
 		line := fmt.Sprintf("%s event=%s err=%v\n", time.Now().Format(time.RFC3339), e.DisplayName(), err)
-		f, openErr := os.OpenFile(e.outputPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		f, openErr := os.OpenFile(e.outputPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if openErr == nil {
 			_, _ = f.WriteString(line)
 			_ = f.Close()
@@ -218,7 +220,8 @@ func (e *Event) acquireLock() (bool, func()) {
 	if dir == "" {
 		dir = filepath.Join(os.TempDir(), "zatrano-schedule")
 	}
-	_ = os.MkdirAll(dir, 0o755)
+	_ = os.MkdirAll(dir, 0o700)
+	_ = os.Chmod(dir, 0o700)
 	name := e.name
 	if name == "" {
 		name = "event"
@@ -231,7 +234,7 @@ func (e *Event) acquireLock() (bool, func()) {
 			return false, func() {}
 		}
 	}
-	if err := os.WriteFile(path, []byte(time.Now().Format(time.RFC3339)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(time.Now().Format(time.RFC3339)), 0o600); err != nil {
 		return false, func() {}
 	}
 	return true, func() { _ = os.Remove(path) }

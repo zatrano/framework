@@ -2,6 +2,17 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.17 - 2026-08-20
+
+### Security
+
+- Session: directory `0700`, atomic writes, cross-process file locks; remember-me cookie Secure on HTTPS
+- Password reset / remember hashes: constant-time digest comparison helpers
+- CSRF: Origin / Referer / `Sec-Fetch-Site` defense-in-depth (token still required)
+- CORS: no wildcard default in production; credentials never combine with `*`
+- Backup: restore path containment, `0600` files, credentials via temp files (not argv), error redaction, connection-name validation
+- Runtime dirs (`cache`, `log`, `audit`, OAuth store, schedule locks, SQLite parent): `0700` / file `0600`
+
 ## 1.2.16 - 2026-08-19
 
 ### Fixed

@@ -3,6 +3,7 @@ package backup
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zatrano/framework/packages/database"
 )
@@ -31,7 +32,7 @@ func (m *Manager) createMySQL(dest string) error {
 	if m.cfg.Password != "" {
 		env = append(env, "MYSQL_PWD="+m.cfg.Password)
 	}
-	return runCmd(bin, args, env, nil)
+	return runCmd(bin, args, env, nil, m.cfg.Password)
 }
 
 func (m *Manager) restoreMySQL(backupPath string) error {
@@ -58,10 +59,7 @@ func (m *Manager) restoreMySQL(backupPath string) error {
 	if m.cfg.Password != "" {
 		env = append(env, "MYSQL_PWD="+m.cfg.Password)
 	}
-	if err := runCmd(bin, args, env, raw); err != nil {
-		return err
-	}
-	return nil
+	return runCmd(bin, args, env, raw, m.cfg.Password)
 }
 
 func (m *Manager) createPostgres(dest string) error {
@@ -90,7 +88,7 @@ func (m *Manager) createPostgres(dest string) error {
 	if m.cfg.Password != "" {
 		env = append(env, "PGPASSWORD="+m.cfg.Password)
 	}
-	return runCmd(bin, args, env, nil)
+	return runCmd(bin, args, env, nil, m.cfg.Password)
 }
 
 func (m *Manager) restorePostgres(backupPath string) error {
@@ -120,7 +118,7 @@ func (m *Manager) restorePostgres(backupPath string) error {
 	if m.cfg.Password != "" {
 		env = append(env, "PGPASSWORD="+m.cfg.Password)
 	}
-	return runCmd(bin, args, env, nil)
+	return runCmd(bin, args, env, nil, m.cfg.Password)
 }
 
 func (m *Manager) createMSSQL(dest string) error {
@@ -129,12 +127,10 @@ func (m *Manager) createMSSQL(dest string) error {
 		return fmt.Errorf("%w — install sqlpackage (SqlPackage) for MSSQL bacpac export", err)
 	}
 	cs := m.mssqlConnectionString()
-	args := []string{
-		"/Action:Export",
-		"/SourceConnectionString:" + cs,
-		"/TargetFile:" + dest,
-	}
-	return runCmd(bin, args, nil, nil)
+	body := "/Action:Export\n/SourceConnectionString:" + cs + "\n/TargetFile:" + dest + "\n"
+	return withSecretFile("zatrano-sqlpackage-*.rsp", []byte(body), func(rsp string) error {
+		return runCmd(bin, []string{"@" + rsp}, nil, nil, m.cfg.Password, cs)
+	})
 }
 
 func (m *Manager) restoreMSSQL(backupPath string) error {
@@ -143,12 +139,10 @@ func (m *Manager) restoreMSSQL(backupPath string) error {
 		return fmt.Errorf("%w — install sqlpackage (SqlPackage) for MSSQL bacpac import", err)
 	}
 	cs := m.mssqlConnectionString()
-	args := []string{
-		"/Action:Import",
-		"/TargetConnectionString:" + cs,
-		"/SourceFile:" + backupPath,
-	}
-	return runCmd(bin, args, nil, nil)
+	body := "/Action:Import\n/TargetConnectionString:" + cs + "\n/SourceFile:" + backupPath + "\n"
+	return withSecretFile("zatrano-sqlpackage-*.rsp", []byte(body), func(rsp string) error {
+		return runCmd(bin, []string{"@" + rsp}, nil, nil, m.cfg.Password, cs)
+	})
 }
 
 func (m *Manager) mssqlConnectionString() string {
@@ -169,13 +163,15 @@ func (m *Manager) createOracle(dest string) error {
 		return fmt.Errorf("%w — install Oracle Instant Client (exp) for Oracle export", err)
 	}
 	userid := m.oracleUserID()
-	args := []string{
-		userid,
+	body := strings.Join([]string{
+		"userid=" + userid,
 		"file=" + dest,
 		"owner=" + m.cfg.Username,
 		"log=" + dest + ".log",
-	}
-	return runCmd(bin, args, nil, nil)
+	}, "\n") + "\n"
+	return withSecretFile("zatrano-oracle-*.par", []byte(body), func(par string) error {
+		return runCmd(bin, []string{"PARFILE=" + par}, nil, nil, m.cfg.Password, userid)
+	})
 }
 
 func (m *Manager) restoreOracle(backupPath string) error {
@@ -184,14 +180,16 @@ func (m *Manager) restoreOracle(backupPath string) error {
 		return fmt.Errorf("%w — install Oracle Instant Client (imp) for Oracle import", err)
 	}
 	userid := m.oracleUserID()
-	args := []string{
-		userid,
+	body := strings.Join([]string{
+		"userid=" + userid,
 		"file=" + backupPath,
 		"full=y",
 		"ignore=y",
 		"log=" + backupPath + ".import.log",
-	}
-	return runCmd(bin, args, nil, nil)
+	}, "\n") + "\n"
+	return withSecretFile("zatrano-oracle-*.par", []byte(body), func(par string) error {
+		return runCmd(bin, []string{"PARFILE=" + par}, nil, nil, m.cfg.Password, userid)
+	})
 }
 
 func (m *Manager) oracleUserID() string {
@@ -213,9 +211,7 @@ func (m *Manager) createMongo(dest string) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"--archive=" + dest}
-	args = append(args, m.mongoArgs()...)
-	return runCmd(bin, args, nil, nil)
+	return m.runMongo(bin, []string{"--archive=" + dest})
 }
 
 func (m *Manager) restoreMongo(backupPath string) error {
@@ -223,31 +219,46 @@ func (m *Manager) restoreMongo(backupPath string) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"--archive=" + backupPath, "--drop"}
-	args = append(args, m.mongoArgs()...)
-	return runCmd(bin, args, nil, nil)
+	return m.runMongo(bin, []string{"--archive=" + backupPath, "--drop"})
 }
 
-func (m *Manager) mongoArgs() []string {
-	var args []string
+func (m *Manager) runMongo(bin string, baseArgs []string) error {
+	cfg, secrets := m.mongoConfigYAML()
+	if strings.TrimSpace(cfg) == "" {
+		return runCmd(bin, baseArgs, nil, nil)
+	}
+	return withSecretFile("zatrano-mongo-*.yaml", []byte(cfg), func(path string) error {
+		args := append([]string{"--config=" + path}, baseArgs...)
+		return runCmd(bin, args, nil, nil, secrets...)
+	})
+}
+
+func (m *Manager) mongoConfigYAML() (string, []string) {
+	var b strings.Builder
+	var secrets []string
 	if m.cfg.URI != "" {
-		args = append(args, "--uri="+m.cfg.URI)
+		fmt.Fprintf(&b, "uri: %q\n", m.cfg.URI)
+		secrets = append(secrets, m.cfg.URI)
+		if m.cfg.Password != "" {
+			secrets = append(secrets, m.cfg.Password)
+		}
 	} else {
 		host := m.cfg.Host
 		if host == "" {
 			host = "127.0.0.1"
 		}
 		port := database.DefaultPort(m.cfg.Port, "27017")
-		args = append(args, "--host="+host+":"+port)
+		fmt.Fprintf(&b, "host: %q\n", host+":"+port)
 		if m.cfg.Username != "" {
-			args = append(args, "--username="+m.cfg.Username)
+			fmt.Fprintf(&b, "username: %q\n", m.cfg.Username)
 		}
 		if m.cfg.Password != "" {
-			args = append(args, "--password="+m.cfg.Password)
+			fmt.Fprintf(&b, "password: %q\n", m.cfg.Password)
+			secrets = append(secrets, m.cfg.Password)
 		}
 	}
 	if m.cfg.Database != "" {
-		args = append(args, "--db="+m.cfg.Database)
+		fmt.Fprintf(&b, "db: %q\n", m.cfg.Database)
 	}
-	return args
+	return b.String(), secrets
 }

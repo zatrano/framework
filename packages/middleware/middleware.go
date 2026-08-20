@@ -65,7 +65,7 @@ func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 	}
 }
 
-// CORS adds permissive CORS headers for local development.
+// CORS adds CORS headers (wildcard in non-production; set CORS_ALLOWED_ORIGINS in production).
 func CORS(next routing.HandlerFunc) routing.HandlerFunc {
 	return CORSWith(DefaultCORSConfig())(next)
 }

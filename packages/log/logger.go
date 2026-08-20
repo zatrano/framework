@@ -34,10 +34,11 @@ func New(level string, filePath string) (*Logger, error) {
 	writers := []io.Writer{os.Stdout}
 	var file *os.File
 	if filePath != "" {
-		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o700); err != nil {
 			return nil, err
 		}
-		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		_ = os.Chmod(filepath.Dir(filePath), 0o700)
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 		if err != nil {
 			return nil, err
 		}

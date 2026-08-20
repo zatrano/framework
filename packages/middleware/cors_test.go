@@ -37,6 +37,7 @@ func TestCORSWithOrigin(t *testing.T) {
 }
 
 func TestCORSWildcard(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
 	handler := middleware.CORS(func(req *http.Request) *http.Response {
 		return http.NoContent()
 	})
@@ -48,6 +49,7 @@ func TestCORSWildcard(t *testing.T) {
 }
 
 func TestCORSCredentialsNotWithWildcard(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
 	mw := middleware.CORSWith(middleware.CORSConfig{
 		AllowOrigins:     []string{"*"},
 		AllowCredentials: true,
@@ -58,10 +60,70 @@ func TestCORSCredentialsNotWithWildcard(t *testing.T) {
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://evil.example")
 	resp := handler(http.NewRequest(r))
-	if resp.Headers().Get("Access-Control-Allow-Origin") != "*" {
-		t.Fatalf("origin=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("origin=%q — wildcard must be dropped when credentials enabled", resp.Headers().Get("Access-Control-Allow-Origin"))
 	}
 	if resp.Headers().Get("Access-Control-Allow-Credentials") != "" {
 		t.Fatal("credentials must not be set with wildcard origin")
+	}
+}
+
+func TestCORSWildcardCredentials(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	mw := middleware.CORSWith(middleware.CORSConfig{
+		AllowOrigins:     []string{"https://app.example"},
+		AllowCredentials: true,
+	})
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"ok": true})
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "https://app.example")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "https://app.example" {
+		t.Fatalf("origin=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
+	}
+	if resp.Headers().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Fatal("expected credentials")
+	}
+
+	bad := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	bad.Header.Set("Origin", "https://evil.example")
+	resp2 := handler(http.NewRequest(bad))
+	if resp2.Headers().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("unknown origin must not be reflected")
+	}
+}
+
+func TestCORSProductionNoWildcardDefault(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	cfg := middleware.DefaultCORSConfig()
+	if len(cfg.AllowOrigins) != 0 {
+		t.Fatalf("production default origins=%v want empty", cfg.AllowOrigins)
+	}
+	mw := middleware.CORSWith(middleware.CORSConfig{AllowOrigins: []string{"*"}})
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.NoContent()
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "https://evil.example")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("production must not allow wildcard CORS")
+	}
+}
+
+func TestCORSNullOrigin(t *testing.T) {
+	mw := middleware.CORSWith(middleware.CORSConfig{
+		AllowOrigins: []string{"https://app.example"},
+	})
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.NoContent()
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "null")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("null Origin must not match")
 	}
 }

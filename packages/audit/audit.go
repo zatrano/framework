@@ -79,9 +79,10 @@ type FileStore struct {
 
 // NewFileStore creates a JSONL file store.
 func NewFileStore(path string) (*FileStore, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
+	_ = os.Chmod(filepath.Dir(path), 0o700)
 	return &FileStore{path: path}, nil
 }
 
@@ -93,7 +94,7 @@ func (s *FileStore) Write(event Event) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}

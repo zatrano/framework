@@ -55,6 +55,22 @@ func (j *Jar) Forever(name, value string) *Jar {
 	return j.Queue(name, value, 60*24*365*5)
 }
 
+// ForeverSecure queues a long-lived cookie with Secure set when secure is true
+// or when COOKIE_SECURE / SESSION_SECURE env defaults apply.
+func (j *Jar) ForeverSecure(name, value string, secure bool) *Jar {
+	j.removeForget(name)
+	j.queued = append(j.queued, &QueuedCookie{
+		Name:     name,
+		Value:    value,
+		Minutes:  60 * 24 * 365 * 5,
+		Path:     "/",
+		Secure:   secure || defaultSecure(),
+		HTTPOnly: true,
+		SameSite: stdhttp.SameSiteLaxMode,
+	})
+	return j
+}
+
 // Forget queues a cookie deletion.
 func (j *Jar) Forget(name string) *Jar {
 	j.removeQueued(name)

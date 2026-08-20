@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -80,7 +81,7 @@ func (r *MemoryTokenRepository) Exists(email, token string) bool {
 		delete(r.items, strings.ToLower(email))
 		return false
 	}
-	return item.hash == hashToken(token)
+	return tokenHashEqual(item.hash, token)
 }
 
 func (r *MemoryTokenRepository) Delete(email string) error {
@@ -150,7 +151,7 @@ func (r *DatabaseTokenRepository) Exists(email, token string) bool {
 		_ = r.Delete(email)
 		return false
 	}
-	return stored == hashToken(token)
+	return tokenHashEqual(stored, token)
 }
 
 func (r *DatabaseTokenRepository) Delete(email string) error {
@@ -298,6 +299,15 @@ func (b *PasswordBroker) TokenValid(email, token string) bool {
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
+}
+
+// tokenHashEqual compares a stored SHA-256 hex digest to hashToken(token) in constant time.
+func tokenHashEqual(stored, token string) bool {
+	want := hashToken(token)
+	if len(stored) != len(want) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(stored), []byte(want)) == 1
 }
 
 func randomToken(n int) (string, error) {

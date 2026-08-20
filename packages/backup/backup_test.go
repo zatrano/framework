@@ -133,3 +133,93 @@ func TestMySQLArgsViaFakeBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRedactSecrets(t *testing.T) {
+	msg := "login failed for password=s3cret and uri=mongodb://u:s3cret@h/db"
+	got := backup.RedactSecretsForTest(msg, "s3cret", "mongodb://u:s3cret@h/db")
+	if strings.Contains(got, "s3cret") {
+		t.Fatalf("secret leaked: %q", got)
+	}
+}
+
+func TestMongoConfigKeepsPasswordOutOfArgs(t *testing.T) {
+	mgr := backup.NewManager(backup.Config{
+		Driver:   "mongo",
+		Host:     "127.0.0.1",
+		Port:     "27017",
+		Username: "root",
+		Password: "super-secret-pass",
+		Database: "app",
+		Dir:      t.TempDir(),
+	})
+	cfg, secrets := backup.MongoConfigYAMLForTest(mgr)
+	if !strings.Contains(cfg, "super-secret-pass") {
+		t.Fatal("expected password in config yaml body")
+	}
+	if len(secrets) == 0 || secrets[0] != "super-secret-pass" {
+		t.Fatalf("secrets=%v", secrets)
+	}
+	if strings.Contains(cfg, "--password") {
+		t.Fatal("config must not use argv-style flags")
+	}
+}
+
+func TestBackupPathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	backups := filepath.Join(dir, "backups")
+	outside := filepath.Join(dir, "secret.sqlite")
+	if err := os.WriteFile(outside, []byte("pwn"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mgr := backup.NewManager(backup.Config{Driver: "sqlite", Database: filepath.Join(dir, "app.sqlite"), Dir: backups})
+	_ = os.WriteFile(filepath.Join(dir, "app.sqlite"), []byte("db"), 0o600)
+
+	if err := mgr.Restore("../secret.sqlite"); err == nil {
+		t.Fatal("relative traversal must be rejected")
+	}
+	if err := mgr.Restore(outside); err == nil {
+		t.Fatal("absolute path outside backup dir must be rejected")
+	}
+	if err := mgr.Restore("..\\secret.sqlite"); err == nil {
+		t.Fatal("windows-style traversal must be rejected")
+	}
+}
+
+func TestBackupRestoreInsideDirAbsolute(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.sqlite")
+	backups := filepath.Join(dir, "backups")
+	if err := os.WriteFile(src, []byte("sqlite-demo"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mgr := backup.New(src, backups)
+	path, err := mgr.Create("ok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(src, []byte("changed"), 0o600)
+	if err := mgr.Restore(path); err != nil {
+		t.Fatalf("absolute path inside backup dir should work: %v", err)
+	}
+	raw, _ := os.ReadFile(src)
+	if string(raw) != "sqlite-demo" {
+		t.Fatalf("got %q", raw)
+	}
+}
+
+func TestBackupInvalidConnectionName(t *testing.T) {
+	dir := t.TempDir()
+	app := &fakeApp{base: dir}
+	cfg := config.New()
+	cfg.Set("database.default", "sqlite")
+	cfg.Set("database.connections.sqlite.driver", "sqlite")
+	cfg.Set("database.connections.sqlite.database", "database/database.sqlite")
+	_, err := backup.ConfigFromApp(app, cfg, "../etc/passwd")
+	if err == nil {
+		t.Fatal("expected invalid connection name")
+	}
+	_, err = backup.ConfigFromApp(app, cfg, "sqlite;rm -rf")
+	if err == nil {
+		t.Fatal("expected invalid connection name")
+	}
+}

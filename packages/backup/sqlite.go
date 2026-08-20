@@ -38,9 +38,10 @@ func (m *Manager) restoreSQLite(backupPath string) error {
 	if src == "" {
 		return fmt.Errorf("backup source is empty")
 	}
-	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(src), 0o700); err != nil {
 		return err
 	}
+	_ = os.Chmod(filepath.Dir(src), 0o700)
 	if _, err := os.Stat(src); err == nil {
 		_ = copyFile(src, src+".pre-restore")
 	}
@@ -54,7 +55,7 @@ func copyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -63,5 +64,9 @@ func copyFile(src, dst string) error {
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
-	return out.Sync()
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	_ = os.Chmod(dst, 0o600)
+	return nil
 }

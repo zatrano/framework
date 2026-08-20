@@ -34,7 +34,8 @@ type Bag struct {
 
 // NewManager creates a session manager.
 func NewManager(path string, lifetimeMinutes int) *Manager {
-	_ = os.MkdirAll(path, 0o755)
+	_ = os.MkdirAll(path, 0o700)
+	_ = os.Chmod(path, 0o700) // harden pre-existing dirs created with looser modes
 	return &Manager{
 		path:     path,
 		lifetime: time.Duration(lifetimeMinutes) * time.Minute,
@@ -126,14 +127,28 @@ func (m *Manager) Start(id string) (*Bag, error) {
 	if !underDir(m.path, path) {
 		return m.newBag()
 	}
-	raw, err := os.ReadFile(path)
+
+	var (
+		raw  []byte
+		info os.FileInfo
+	)
+	err := withFlock(path+".lock", func() error {
+		var readErr error
+		raw, readErr = os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		info, readErr = os.Stat(path)
+		return readErr
+	})
 	if err != nil {
 		return m.newBag()
 	}
 
-	info, err := os.Stat(path)
-	if err == nil && m.lifetime > 0 && time.Since(info.ModTime()) > m.lifetime {
-		_ = os.Remove(path)
+	if info != nil && m.lifetime > 0 && time.Since(info.ModTime()) > m.lifetime {
+		_ = withFlock(path+".lock", func() error {
+			return os.Remove(path)
+		})
 		return m.newBag()
 	}
 
@@ -190,7 +205,20 @@ func (m *Manager) Save(bag *Bag) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o600)
+	return withFlock(path+".lock", func() error {
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, raw, 0o600); err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			_ = os.Remove(path)
+			if err2 := os.Rename(tmp, path); err2 != nil {
+				_ = os.Remove(tmp)
+				return err2
+			}
+		}
+		return nil
+	})
 }
 
 // Get returns a session value.

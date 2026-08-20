@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	stdhttp "net/http"
+	"net/url"
 	"strings"
 
 	"github.com/zatrano/framework/packages/http"
@@ -14,6 +15,7 @@ import (
 const sessionKey = "_csrf_token"
 
 // Middleware verifies CSRF tokens on unsafe HTTP methods for all paths.
+// Browser same-origin signals (Origin / Referer / Sec-Fetch-Site) are also enforced.
 // To exempt prefixes (e.g. token-authenticated /api), use Except explicitly in the app.
 func Middleware(next routing.HandlerFunc) routing.HandlerFunc {
 	return Except()(next)
@@ -34,6 +36,10 @@ func Except(prefixes ...string) routing.MiddlewareFunc {
 			if isReading(req.Method()) {
 				resp := next(req)
 				return withXSRFCookie(resp, token, req)
+			}
+
+			if ok, reason := sameOriginOK(req); !ok {
+				return http.Abort(stdhttp.StatusForbidden, "CSRF "+reason)
 			}
 
 			provided := req.Header("X-CSRF-TOKEN")
@@ -114,6 +120,67 @@ func isReading(method string) bool {
 	default:
 		return false
 	}
+}
+
+// sameOriginOK applies defense-in-depth for browser cross-site requests.
+// Clients without Origin/Referer/Sec-Fetch-Site (curl, native apps) pass this layer
+// and still require a valid CSRF token.
+func sameOriginOK(req *http.Request) (bool, string) {
+	sfs := strings.ToLower(strings.TrimSpace(req.Header("Sec-Fetch-Site")))
+	if sfs == "cross-site" {
+		return false, "cross-site request blocked"
+	}
+
+	origin := strings.TrimSpace(req.Header("Origin"))
+	if origin != "" {
+		if strings.EqualFold(origin, "null") {
+			return false, "null origin blocked"
+		}
+		if !originMatchesRequest(req, origin) {
+			return false, "origin mismatch"
+		}
+		return true, ""
+	}
+
+	referer := strings.TrimSpace(req.Header("Referer"))
+	if referer != "" {
+		if !refererMatchesRequest(req, referer) {
+			return false, "referer mismatch"
+		}
+		return true, ""
+	}
+
+	return true, ""
+}
+
+func originMatchesRequest(req *http.Request, origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	host := req.Host()
+	if host == "" {
+		return false
+	}
+	if !strings.EqualFold(u.Host, host) {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, req.Scheme())
+}
+
+func refererMatchesRequest(req *http.Request, referer string) bool {
+	u, err := url.Parse(referer)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	host := req.Host()
+	if host == "" {
+		return false
+	}
+	if !strings.EqualFold(u.Host, host) {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, req.Scheme())
 }
 
 // Token returns the CSRF token from the request session.

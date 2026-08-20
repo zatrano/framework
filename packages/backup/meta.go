@@ -20,7 +20,7 @@ func writeMeta(backupFile, driver string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(metaPath(backupFile), raw, 0o644)
+	return os.WriteFile(metaPath(backupFile), raw, 0o600)
 }
 
 func readMeta(backupFile string) string {

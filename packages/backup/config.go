@@ -29,6 +29,9 @@ func ConfigFromApp(app BasePather, cfg ConfigGetter, connection string) (Config,
 	if name == "" {
 		name = defaultName
 	} else {
+		if !validBackupConnectionName(name) {
+			return Config{}, fmt.Errorf("backup: invalid connection name")
+		}
 		name = database.NormalizeDriverName(name)
 	}
 
@@ -71,4 +74,17 @@ func ManagerFromApp(app *core.Application, connection string) (*Manager, error) 
 		return nil, err
 	}
 	return NewManager(cfg), nil
+}
+
+func validBackupConnectionName(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }

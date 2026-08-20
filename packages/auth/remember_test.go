@@ -10,6 +10,7 @@ import (
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/hashing"
 	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/session"
 )
 
 type memoryRememberProvider struct {
@@ -191,5 +192,100 @@ func TestInvalidRememberCookieIgnored(t *testing.T) {
 	req.SetSession(&memSession{data: map[string]any{}})
 	if guard.User(req) != nil {
 		t.Fatal("bad token should not authenticate")
+	}
+}
+
+func TestRememberMeCookieSecurity(t *testing.T) {
+	hash, err := hashing.Hash("secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := &auth.GenericUser{Attributes: map[string]any{
+		"id":       9,
+		"email":    "secure@zatrano.test",
+		"password": hash,
+	}}
+	provider := newMemoryRememberProvider(user)
+	guard := auth.NewGuard("web", provider)
+
+	req := newAuthRequest("/")
+	req.Set("_forwarded_proto", "https")
+	ok, err := guard.Attempt(req, map[string]string{
+		"email":    "secure@zatrano.test",
+		"password": "secret",
+	}, true)
+	if err != nil || !ok {
+		t.Fatalf("attempt ok=%v err=%v", ok, err)
+	}
+
+	var found *stdhttp.Cookie
+	for _, c := range req.Cookies().Apply() {
+		if c.Name == "remember_web" {
+			found = c
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("remember cookie missing")
+	}
+	if !found.HttpOnly {
+		t.Fatal("remember cookie must be HttpOnly")
+	}
+	if found.SameSite != stdhttp.SameSiteLaxMode {
+		t.Fatalf("SameSite=%v want Lax", found.SameSite)
+	}
+	if found.Path != "/" {
+		t.Fatalf("Path=%q", found.Path)
+	}
+	if !found.Secure {
+		t.Fatal("remember cookie must be Secure on HTTPS request")
+	}
+}
+
+func TestRememberHashesEqual(t *testing.T) {
+	a := auth.HashRememberToken("token-a")
+	b := auth.HashRememberToken("token-a")
+	c := auth.HashRememberToken("token-b")
+	if !auth.RememberHashesEqual(a, b) {
+		t.Fatal("identical digests must match")
+	}
+	if auth.RememberHashesEqual(a, c) {
+		t.Fatal("different digests must not match")
+	}
+	if auth.RememberHashesEqual(a, a[:len(a)-1]) {
+		t.Fatal("length mismatch must not match")
+	}
+}
+
+func TestSessionFixation(t *testing.T) {
+	dir := t.TempDir()
+	sessMgr := session.NewManager(dir, 120)
+	bag, err := sessMgr.Start("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldID := bag.ID()
+
+	hash, err := hashing.Hash("secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := &auth.GenericUser{Attributes: map[string]any{
+		"id": 42, "email": "fix@zatrano.test", "password": hash,
+	}}
+	guard := auth.NewGuard("web", newMemoryRememberProvider(user))
+
+	raw := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	req := http.NewRequest(raw)
+	req.SetSession(bag)
+
+	if err := guard.Login(req, user); err != nil {
+		t.Fatal(err)
+	}
+	if bag.ID() == oldID {
+		t.Fatal("login must regenerate session id (session fixation)")
+	}
+	if fmt.Sprint(bag.Get(auth.SessionUserKey("web"))) != "42" {
+		t.Fatal("user id must survive regenerate")
 	}
 }

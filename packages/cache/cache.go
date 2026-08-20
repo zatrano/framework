@@ -36,9 +36,10 @@ type FileStore struct {
 
 // NewFileStore creates a file cache store.
 func NewFileStore(path string) (*FileStore, error) {
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0o700); err != nil {
 		return nil, err
 	}
+	_ = os.Chmod(path, 0o700)
 	return &FileStore{path: path}, nil
 }
 
