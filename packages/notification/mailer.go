@@ -93,10 +93,10 @@ func (m *LogMailer) Send(message *MailMessage) error {
 
 // SMTPConfig holds SMTP settings.
 type SMTPConfig struct {
-	Host       string
-	Port       string
-	Username   string
-	Password   string
+	Host     string
+	Port     string
+	Username string
+	Password string
 	// Encryption selects the TLS mode:
 	//   "" / "tls" / "starttls" = plain TCP then STARTTLS (typical port 587)
 	//   "ssl" = implicit TLS / SMTPS (typical port 465)

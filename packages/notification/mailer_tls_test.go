@@ -4,9 +4,9 @@ import "testing"
 
 func TestUseImplicitTLS(t *testing.T) {
 	tests := []struct {
-		name        string
-		encryption  string
-		port        string
+		name         string
+		encryption   string
+		port         string
 		wantImplicit bool
 	}{
 		{name: "tls on 587", encryption: "tls", port: "587", wantImplicit: false},
