@@ -370,8 +370,9 @@ func BootAuthServices(app *core.Application) error {
 					return fmt.Errorf("notifications not configured")
 				}
 				return n.Send(notification.Recipient{ID: email, Email: email}, notification.PasswordResetNotification{
-					Token:    token,
-					ResetURL: resetURL,
+					Token:         token,
+					ResetURL:      resetURL,
+					ExpireMinutes: expireMin,
 				})
 			})
 			app.Container().Instance("passwords", passwords)
@@ -496,6 +497,13 @@ func BootNotificationServices(app *core.Application) error {
 	}
 	smsMgr.Use(defaultSMS)
 	mgr.SetSms(smsMgr)
+	if tr := localization.From(app); tr != nil {
+		mgr.SetTranslator(tr)
+	}
+	mgr.SetMailDefaults(
+		app.Config().GetString("app.locale", env.Get("APP_LOCALE", "en")),
+		app.Config().GetString("app.name", env.Get("APP_NAME", "ZATRANO")),
+	)
 	if dbMgr := database.From(app); dbMgr != nil {
 		if db, err := dbMgr.DB(); err == nil {
 			driver, _ := dbMgr.DriverName()

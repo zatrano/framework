@@ -2,6 +2,17 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.25 - 2026-08-23
+
+### Changed
+
+- Auth notification emails (password reset, verify email, password changed) use `auth.mail_*` locale keys (`APP_LOCALE` + fallback); reset body is link-only
+
+### Added
+
+- `notification.SetTranslator` / `SetMailDefaults` (and Manager wrappers) for localized built-in auth mails
+- Locale keys: `mail_reset_*`, `mail_verify_*`, `mail_password_changed_*` (en/tr defaults + make:auth stubs)
+
 ## 1.2.24 - 2026-08-23
 
 ### Fixed

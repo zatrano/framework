@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.24-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-1.2.25-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -278,6 +278,8 @@ go run ./cmd/zatrano make:auth
 ```
 
 Session guards with **per-guard keys**, remember-me, password reset (no enumeration), email verification events, cache-backed lockout, TOTP MFA, **remember this device**, multi-device logout, intended URLs, password confirmation.
+
+Reset / verify / password-changed emails use `auth.mail_*` keys under `APP_LOCALE` (see `lang/*/auth.json` and framework defaults).
 
 ```go
 ok, err := auth.From(app).Attempt(req, map[string]string{
