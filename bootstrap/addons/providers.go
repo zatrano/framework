@@ -161,17 +161,29 @@ func (p *SearchServiceProvider) Boot(app *core.Application) error { return nil }
 type SocialServiceProvider struct{}
 
 func (p *SocialServiceProvider) Register(app *core.Application) error {
+	social.SetAllowStubProviders(!app.IsProduction())
 	mgr := social.New()
 	cfg := app.Config()
 	redirectBase := strings.TrimRight(cfg.GetString("app.url", "http://localhost:8080"), "/")
+
+	githubID := firstNonEmpty(cfg.GetString("social.github_client_id"), env.Get("GITHUB_CLIENT_ID", "github-client-id"))
+	githubSecret := firstNonEmpty(cfg.GetString("social.github_client_secret"), env.Get("GITHUB_CLIENT_SECRET", "github-client-secret"))
+	googleID := firstNonEmpty(cfg.GetString("social.google_client_id"), env.Get("GOOGLE_CLIENT_ID", "google-client-id"))
+	googleSecret := firstNonEmpty(cfg.GetString("social.google_client_secret"), env.Get("GOOGLE_CLIENT_SECRET", "google-client-secret"))
+
+	// Production must not fall back to StubProvider. At least one real provider is required.
+	if app.IsProduction() && social.IsPlaceholder(googleID, googleSecret) && social.IsPlaceholder(githubID, githubSecret) {
+		return fmt.Errorf("social: OAuth credentials are required in production (set GOOGLE_CLIENT_ID/SECRET and/or GITHUB_CLIENT_ID/SECRET)")
+	}
+
 	mgr.Extend("github", social.GitHub(social.Config{
-		ClientID:     firstNonEmpty(cfg.GetString("social.github_client_id"), env.Get("GITHUB_CLIENT_ID", "github-client-id")),
-		ClientSecret: firstNonEmpty(cfg.GetString("social.github_client_secret"), env.Get("GITHUB_CLIENT_SECRET", "github-client-secret")),
+		ClientID:     githubID,
+		ClientSecret: githubSecret,
 		RedirectURL:  firstNonEmpty(cfg.GetString("social.github_redirect_uri"), env.Get("GITHUB_REDIRECT_URI", redirectBase+"/auth/github/callback")),
 	}))
 	mgr.Extend("google", social.Google(social.Config{
-		ClientID:     firstNonEmpty(cfg.GetString("social.google_client_id"), env.Get("GOOGLE_CLIENT_ID", "google-client-id")),
-		ClientSecret: firstNonEmpty(cfg.GetString("social.google_client_secret"), env.Get("GOOGLE_CLIENT_SECRET", "google-client-secret")),
+		ClientID:     googleID,
+		ClientSecret: googleSecret,
 		RedirectURL:  firstNonEmpty(cfg.GetString("social.google_redirect_uri"), env.Get("GOOGLE_REDIRECT_URI", redirectBase+"/auth/google/callback")),
 	}))
 	app.Container().Instance("social", mgr)

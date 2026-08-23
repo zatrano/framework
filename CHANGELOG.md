@@ -2,6 +2,20 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.27 - 2026-08-23
+
+### Security
+
+- Google OAuth now fail-closes on missing/false `email_verified` (never assumes verified)
+- `Persist` uses `User.EmailVerified` for `email_verified_at`; unverified emails cannot link to an existing account by email
+- Production rejects StubProvider / placeholder OAuth credentials (`SetAllowStubProviders`, register-time fail-fast)
+- GitHub primary email selection requires an explicit `verified=true` claim
+
+### Added
+
+- `User.EmailVerified`, `SetAllowStubProviders` / `AllowStubProviders`, `IsPlaceholder`, `ErrStubNotAllowedInProduction`
+- Social security tests (verified/unverified/missing claim, account-linking attack, dual `sub`, stub prod/dev)
+
 ## 1.2.26 - 2026-08-23
 
 ### Fixed

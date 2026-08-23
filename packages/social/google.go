@@ -11,6 +11,7 @@ import (
 )
 
 // Google builds a real Google OAuth 2.0 provider (falls back to stub when credentials are placeholders).
+// In production stub fallback is disabled (see SetAllowStubProviders).
 func Google(cfg Config) Provider {
 	if cfg.ClientID == "" {
 		cfg.ClientID = "google-client-id"
@@ -19,6 +20,9 @@ func Google(cfg Config) Provider {
 		cfg.Scopes = []string{"openid", "profile", "email"}
 	}
 	if isPlaceholderOAuth(cfg.ClientID, cfg.ClientSecret) {
+		if !allowStubProviders {
+			return &disabledProvider{name: "google", err: ErrStubNotAllowedInProduction}
+		}
 		return NewStubProvider("google", cfg)
 	}
 	return &googleProvider{cfg: cfg, httpClient: &http.Client{Timeout: 15 * time.Second}}
@@ -42,6 +46,19 @@ func isPlaceholderOAuth(clientID, clientSecret string) bool {
 type googleProvider struct {
 	cfg        Config
 	httpClient *http.Client
+}
+
+type disabledProvider struct {
+	name string
+	err  error
+}
+
+func (p *disabledProvider) Name() string { return p.name }
+
+func (p *disabledProvider) RedirectURL(string) string { return "" }
+
+func (p *disabledProvider) UserFromCode(string) (*User, error) {
+	return nil, p.err
 }
 
 func (p *googleProvider) Name() string { return "google" }
@@ -71,27 +88,40 @@ func (p *googleProvider) UserFromCode(code string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+	return userFromGoogleInfo(info, token)
+}
+
+// userFromGoogleInfo maps OpenID userinfo and enforces email_verified fail-closed.
+func userFromGoogleInfo(info map[string]any, token string) (*User, error) {
 	email := strings.TrimSpace(fmt.Sprint(info["email"]))
-	name := strings.TrimSpace(fmt.Sprint(info["name"]))
-	if name == "" {
-		name = strings.TrimSpace(fmt.Sprint(info["given_name"]))
+	if email == "" || email == "<nil>" {
+		return nil, fmt.Errorf("google email missing")
+	}
+	verified, present := parseEmailVerified(info["email_verified"])
+	if !present {
+		return nil, fmt.Errorf("google email_verified claim missing")
+	}
+	if !verified {
+		return nil, fmt.Errorf("google email is not verified")
 	}
 	id := strings.TrimSpace(fmt.Sprint(info["sub"]))
-	if id == "" {
-		id = strings.TrimSpace(fmt.Sprint(info["id"]))
+	if id == "" || id == "<nil>" {
+		return nil, fmt.Errorf("google sub missing")
 	}
-	if email == "" || id == "" {
-		return nil, fmt.Errorf("google userinfo incomplete")
+	name := strings.TrimSpace(fmt.Sprint(info["name"]))
+	if name == "" || name == "<nil>" {
+		name = strings.TrimSpace(fmt.Sprint(info["given_name"]))
 	}
 	return &User{
-		ID:       id,
-		Nickname: strings.TrimSpace(fmt.Sprint(info["given_name"])),
-		Name:     name,
-		Email:    email,
-		Avatar:   strings.TrimSpace(fmt.Sprint(info["picture"])),
-		Provider: "google",
-		Token:    token,
-		Raw:      info,
+		ID:            id,
+		Nickname:      strings.TrimSpace(fmt.Sprint(info["given_name"])),
+		Name:          name,
+		Email:         email,
+		Avatar:        strings.TrimSpace(fmt.Sprint(info["picture"])),
+		Provider:      "google",
+		Token:         token,
+		EmailVerified: true,
+		Raw:           info,
 	}, nil
 }
 

@@ -2,6 +2,7 @@ package social
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -27,7 +28,12 @@ type Persistence interface {
 }
 
 // Persist finds or creates an app user for the social identity, then upserts the provider link.
-// Provider Avatar is passed to CreateUser/SyncUser so it lands on the auth user.
+//
+// Security rules:
+//   - email_verified_at / CreateUser(..., verified) follows socialUser.EmailVerified only
+//     (never forced true).
+//   - Linking an existing account by email requires socialUser.EmailVerified == true;
+//     otherwise Persist fails closed (account-takeover prevention).
 func Persist(store Persistence, socialUser *User) (*PersistResult, error) {
 	if store == nil {
 		return nil, fmt.Errorf("social: persistence is nil")
@@ -53,7 +59,7 @@ func Persist(store Persistence, socialUser *User) (*PersistResult, error) {
 		name = strings.Split(email, "@")[0]
 	}
 	avatar := strings.TrimSpace(socialUser.Avatar)
-	emailVerified := true // trusted providers return verified emails when email is present
+	emailVerified := socialUser.EmailVerified
 
 	if userID, err := store.FindUserIDByProvider(provider, providerID); err != nil {
 		return nil, err
@@ -78,8 +84,13 @@ func Persist(store Persistence, socialUser *User) (*PersistResult, error) {
 			return nil, err
 		}
 		created = true
-	} else if err := store.SyncUser(userID, name, avatar, emailVerified); err != nil {
-		return nil, err
+	} else {
+		if !emailVerified {
+			return nil, fmt.Errorf("social: cannot link to existing account: email is not verified by provider")
+		}
+		if err := store.SyncUser(userID, name, avatar, emailVerified); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := store.UpsertAccount(userID, socialUser); err != nil {
@@ -87,3 +98,51 @@ func Persist(store Persistence, socialUser *User) (*PersistResult, error) {
 	}
 	return &PersistResult{UserID: userID, Created: created}, nil
 }
+
+// parseEmailVerified interprets provider claim values. present=false means the claim was absent.
+func parseEmailVerified(v any) (verified bool, present bool) {
+	if v == nil {
+		return false, false
+	}
+	switch t := v.(type) {
+	case bool:
+		return t, true
+	case string:
+		s := strings.ToLower(strings.TrimSpace(t))
+		if s == "" || s == "<nil>" {
+			return false, false
+		}
+		if s == "true" || s == "1" {
+			return true, true
+		}
+		if s == "false" || s == "0" {
+			return false, true
+		}
+		return false, true
+	case float64:
+		return t != 0, true
+	case int:
+		return t != 0, true
+	case jsonNumber:
+		n, err := strconv.ParseFloat(string(t), 64)
+		if err != nil {
+			return false, true
+		}
+		return n != 0, true
+	default:
+		s := strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+		if s == "" || s == "<nil>" {
+			return false, false
+		}
+		if s == "true" || s == "1" {
+			return true, true
+		}
+		if s == "false" || s == "0" {
+			return false, true
+		}
+		return false, true
+	}
+}
+
+// jsonNumber avoids importing encoding/json in every call site for json.Number.
+type jsonNumber string

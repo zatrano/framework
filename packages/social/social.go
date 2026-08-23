@@ -12,14 +12,15 @@ import (
 
 // User is a normalized social identity.
 type User struct {
-	ID       string         `json:"id"`
-	Nickname string         `json:"nickname,omitempty"`
-	Name     string         `json:"name,omitempty"`
-	Email    string         `json:"email,omitempty"`
-	Avatar   string         `json:"avatar,omitempty"`
-	Provider string         `json:"provider"`
-	Token    string         `json:"token,omitempty"`
-	Raw      map[string]any `json:"raw,omitempty"`
+	ID            string         `json:"id"`
+	Nickname      string         `json:"nickname,omitempty"`
+	Name          string         `json:"name,omitempty"`
+	Email         string         `json:"email,omitempty"`
+	Avatar        string         `json:"avatar,omitempty"`
+	Provider      string         `json:"provider"`
+	Token         string         `json:"token,omitempty"`
+	EmailVerified bool           `json:"email_verified"`
+	Raw           map[string]any `json:"raw,omitempty"`
 }
 
 // Provider drives a social OAuth flow.
@@ -110,11 +111,31 @@ func (m *Manager) User(name, code string) (*User, error) {
 }
 
 // StubProvider is a local/dev OAuth stub (no real network).
+// It must not be used when APP_ENV=production (see SetAllowStubProviders / IsPlaceholder).
 type StubProvider struct {
 	name  string
 	cfg   Config
 	base  string
 	users map[string]*User
+}
+
+var allowStubProviders = true
+
+// SetAllowStubProviders controls whether placeholder OAuth credentials may use StubProvider.
+// Foundation sets this to false when APP_ENV=production.
+func SetAllowStubProviders(allow bool) {
+	allowStubProviders = allow
+}
+
+// AllowStubProviders reports whether stub OAuth providers are permitted.
+func AllowStubProviders() bool { return allowStubProviders }
+
+// ErrStubNotAllowedInProduction is returned when stub OAuth is requested in production.
+var ErrStubNotAllowedInProduction = fmt.Errorf("social: OAuth credentials are required in production (stub providers are disabled)")
+
+// IsPlaceholder reports whether client credentials look like empty/default stubs.
+func IsPlaceholder(clientID, clientSecret string) bool {
+	return isPlaceholderOAuth(clientID, clientSecret)
 }
 
 // NewStubProvider creates a stub OAuth provider.
@@ -127,12 +148,13 @@ func NewStubProvider(name string, cfg Config) *StubProvider {
 		base: base,
 		users: map[string]*User{
 			"demo": {
-				ID:       name + "-demo",
-				Nickname: "demo",
-				Name:     "Demo " + name,
-				Email:    "demo@" + name + ".test",
-				Avatar:   "https://www.gravatar.com/avatar/?d=mp",
-				Provider: name,
+				ID:            name + "-demo",
+				Nickname:      "demo",
+				Name:          "Demo " + name,
+				Email:         "demo@" + name + ".test",
+				Avatar:        "https://www.gravatar.com/avatar/?d=mp",
+				Provider:      name,
+				EmailVerified: true, // local demo identity only
 			},
 		},
 	}
@@ -175,16 +197,17 @@ func (p *StubProvider) UserFromCode(code string) (*User, error) {
 		cp.Raw = map[string]any{"code": code}
 		return &cp, nil
 	}
-	// Any unknown code still yields a deterministic stub user in local mode.
+	// Unknown codes yield a deterministic unverified stub user (local only).
 	return &User{
-		ID:       p.name + "-" + code,
-		Nickname: code,
-		Name:     "OAuth User",
-		Email:    code + "@" + p.name + ".test",
-		Avatar:   "https://www.gravatar.com/avatar/?d=identicon",
-		Provider: p.name,
-		Token:    "stub-token-" + code,
-		Raw:      map[string]any{"code": code},
+		ID:            p.name + "-" + code,
+		Nickname:      code,
+		Name:          "OAuth User",
+		Email:         code + "@" + p.name + ".test",
+		Avatar:        "https://www.gravatar.com/avatar/?d=identicon",
+		Provider:      p.name,
+		Token:         "stub-token-" + code,
+		EmailVerified: false,
+		Raw:           map[string]any{"code": code},
 	}, nil
 }
 

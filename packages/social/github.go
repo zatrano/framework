@@ -11,6 +11,7 @@ import (
 )
 
 // GitHub builds a real GitHub OAuth provider (falls back to stub when credentials are placeholders).
+// In production stub fallback is disabled (see SetAllowStubProviders).
 func GitHub(cfg Config) Provider {
 	if cfg.ClientID == "" {
 		cfg.ClientID = "github-client-id"
@@ -19,6 +20,9 @@ func GitHub(cfg Config) Provider {
 		cfg.Scopes = []string{"read:user", "user:email"}
 	}
 	if isPlaceholderOAuth(cfg.ClientID, cfg.ClientSecret) {
+		if !allowStubProviders {
+			return &disabledProvider{name: "github", err: ErrStubNotAllowedInProduction}
+		}
 		return NewStubProvider("github", cfg)
 	}
 	return &githubProvider{cfg: cfg, httpClient: &http.Client{Timeout: 15 * time.Second}}
@@ -54,10 +58,6 @@ func (p *githubProvider) UserFromCode(code string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	email := strings.TrimSpace(fmt.Sprint(info["email"]))
-	if email == "" || email == "<nil>" {
-		email, _ = p.fetchPrimaryEmail(token)
-	}
 	id := strings.TrimSpace(fmt.Sprint(info["id"]))
 	login := strings.TrimSpace(fmt.Sprint(info["login"]))
 	name := strings.TrimSpace(fmt.Sprint(info["name"]))
@@ -67,19 +67,34 @@ func (p *githubProvider) UserFromCode(code string) (*User, error) {
 	if id == "" || id == "<nil>" {
 		return nil, fmt.Errorf("github user id missing")
 	}
-	if email == "" {
-		return nil, fmt.Errorf("github email missing (grant user:email scope)")
+
+	email, verified, err := p.resolveVerifiedEmail(token)
+	if err != nil {
+		return nil, err
 	}
 	return &User{
-		ID:       id,
-		Nickname: login,
-		Name:     name,
-		Email:    email,
-		Avatar:   strings.TrimSpace(fmt.Sprint(info["avatar_url"])),
-		Provider: "github",
-		Token:    token,
-		Raw:      info,
+		ID:            id,
+		Nickname:      login,
+		Name:          name,
+		Email:         email,
+		Avatar:        strings.TrimSpace(fmt.Sprint(info["avatar_url"])),
+		Provider:      "github",
+		Token:         token,
+		EmailVerified: verified,
+		Raw:           info,
 	}, nil
+}
+
+func (p *githubProvider) resolveVerifiedEmail(accessToken string) (email string, verified bool, err error) {
+	email, verified, err = p.fetchVerifiedEmail(accessToken)
+	if err != nil {
+		return "", false, err
+	}
+	if email != "" {
+		return email, verified, nil
+	}
+	// Profile email alone is not trusted without the verified emails API result.
+	return "", false, fmt.Errorf("github verified email missing (grant user:email scope)")
 }
 
 func (p *githubProvider) exchangeCode(code string) (string, error) {
@@ -144,10 +159,10 @@ func (p *githubProvider) fetchUser(accessToken string) (map[string]any, error) {
 	return info, nil
 }
 
-func (p *githubProvider) fetchPrimaryEmail(accessToken string) (string, error) {
+func (p *githubProvider) fetchVerifiedEmail(accessToken string) (string, bool, error) {
 	req, err := http.NewRequest(http.MethodGet, "https://api.github.com/user/emails", nil)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/vnd.github+json")
@@ -155,16 +170,16 @@ func (p *githubProvider) fetchPrimaryEmail(accessToken string) (string, error) {
 
 	res, err := p.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	defer res.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode >= 300 {
-		return "", fmt.Errorf("github emails failed: %s", strings.TrimSpace(string(body)))
+		return "", false, fmt.Errorf("github emails failed: %s", strings.TrimSpace(string(body)))
 	}
 	var rows []map[string]any
 	if err := json.Unmarshal(body, &rows); err != nil {
-		return "", err
+		return "", false, err
 	}
 	var fallback string
 	for _, row := range rows {
@@ -172,16 +187,19 @@ func (p *githubProvider) fetchPrimaryEmail(accessToken string) (string, error) {
 		if email == "" || email == "<nil>" {
 			continue
 		}
+		verified, present := parseEmailVerified(row["verified"])
+		if !present || !verified {
+			continue
+		}
 		if primary, _ := row["primary"].(bool); primary {
-			if verified, ok := row["verified"].(bool); !ok || verified {
-				return email, nil
-			}
+			return email, true, nil
 		}
 		if fallback == "" {
-			if verified, ok := row["verified"].(bool); !ok || verified {
-				fallback = email
-			}
+			fallback = email
 		}
 	}
-	return fallback, nil
+	if fallback != "" {
+		return fallback, true, nil
+	}
+	return "", false, nil
 }
