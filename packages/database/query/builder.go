@@ -961,10 +961,51 @@ func (b *Builder) Paginate(page, perPage int) (items []map[string]any, total int
 	return items, total, err
 }
 
-// Insert inserts a row and returns last insert id when available.
+// Insert inserts a row. On PostgreSQL/SQL Server it does not assume an `id` column
+// (tables like password_reset_tokens have none). Call InsertGetID when you need the PK.
 func (b *Builder) Insert(values map[string]any) (int64, error) {
+	sqlStr, args, err := b.compileInsert(values, false)
+	if err != nil {
+		return 0, err
+	}
+	result, err := b.db.Exec(sqlStr, args...)
+	if err != nil {
+		return 0, err
+	}
+	if isPostgresDriver(b.driver) || isSQLServerDriver(b.driver) {
+		n, _ := result.RowsAffected()
+		return n, nil
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+// InsertGetID inserts a row and returns the primary key (`id`).
+func (b *Builder) InsertGetID(values map[string]any) (int64, error) {
+	sqlStr, args, err := b.compileInsert(values, true)
+	if err != nil {
+		return 0, err
+	}
+	if isPostgresDriver(b.driver) || isSQLServerDriver(b.driver) {
+		var id int64
+		err := b.db.QueryRow(sqlStr, args...).Scan(&id)
+		return id, err
+	}
+	result, err := b.db.Exec(sqlStr, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+// compileInsert builds INSERT SQL. When wantID is true, PostgreSQL uses RETURNING id
+// and SQL Server uses OUTPUT INSERTED.id; plain Insert never appends those clauses.
+func (b *Builder) compileInsert(values map[string]any, wantID bool) (string, []any, error) {
 	if len(values) == 0 {
-		return 0, fmt.Errorf("insert values required")
+		return "", nil, fmt.Errorf("insert values required")
 	}
 	columns := make([]string, 0, len(values))
 	for column := range values {
@@ -978,32 +1019,15 @@ func (b *Builder) Insert(values map[string]any) (int64, error) {
 		args = append(args, values[column])
 	}
 	sqlStr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", b.table, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
-	if isPostgresDriver(b.driver) {
-		sqlStr += " RETURNING id"
-		var id int64
-		err := b.db.QueryRow(b.rebind(sqlStr), args...).Scan(&id)
-		return id, err
+	if wantID {
+		switch {
+		case isPostgresDriver(b.driver):
+			sqlStr += " RETURNING id"
+		case isSQLServerDriver(b.driver):
+			sqlStr += " OUTPUT INSERTED.id"
+		}
 	}
-	if isSQLServerDriver(b.driver) {
-		sqlStr += " OUTPUT INSERTED.id"
-		var id int64
-		err := b.db.QueryRow(b.rebind(sqlStr), args...).Scan(&id)
-		return id, err
-	}
-	result, err := b.db.Exec(b.rebind(sqlStr), args...)
-	if err != nil {
-		return 0, err
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
-// InsertGetID is an alias for Insert.
-func (b *Builder) InsertGetID(values map[string]any) (int64, error) {
-	return b.Insert(values)
+	return b.rebind(sqlStr), args, nil
 }
 
 // Upsert inserts a row or updates columns on unique key conflict.

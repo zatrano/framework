@@ -127,7 +127,7 @@ func Create[T any](attrs map[string]any) (*T, error) {
 		return nil, err
 	}
 
-	id, err := tableQuery[T]().Insert(attrs)
+	id, err := tableQuery[T]().InsertGetID(attrs)
 	if err != nil {
 		return nil, err
 	}
@@ -1029,7 +1029,7 @@ func Save[T any](model *T) error {
 	if err := dispatchModel("creating", model); err != nil {
 		return err
 	}
-	id, err := tableQuery[T]().Insert(attrs)
+	id, err := tableQuery[T]().InsertGetID(attrs)
 	if err != nil {
 		return err
 	}

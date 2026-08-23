@@ -153,7 +153,7 @@ func NewDatabaseStore(db *sql.DB, driver string) *DatabaseStore {
 
 func (s *DatabaseStore) Create(token *Token) error {
 	abilities := strings.Join(token.Abilities, ",")
-	id, err := query.New(s.db, s.driver, s.table).Insert(map[string]any{
+	id, err := query.New(s.db, s.driver, s.table).InsertGetID(map[string]any{
 		"tokenable_id": token.UserID,
 		"name":         token.Name,
 		"token":        token.TokenHash,

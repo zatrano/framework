@@ -28,7 +28,7 @@ func TestSQLiteSmokeCreateInsertSelect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := query.New(db, "sqlite", "items").Insert(map[string]any{"name": "alpha"})
+	id, err := query.New(db, "sqlite", "items").InsertGetID(map[string]any{"name": "alpha"})
 	if err != nil {
 		t.Fatal(err)
 	}

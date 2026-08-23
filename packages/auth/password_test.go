@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	stdhttp "net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/http"
+	_ "modernc.org/sqlite"
 )
 
 type stubPasswordProvider struct {
@@ -187,5 +189,64 @@ func TestPasswordResetTokenConstantTime(t *testing.T) {
 	wrong[0] ^= 0x01
 	if broker.TokenValid("ada@zatrano.test", string(wrong)) {
 		t.Fatal("same-length wrong token must not match")
+	}
+}
+
+func TestDatabaseTokenRepositoryCreateWithoutIDColumn(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE password_reset_tokens (
+		email TEXT NOT NULL,
+		token TEXT NOT NULL,
+		created_at DATETIME
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	provider := &stubPasswordProvider{users: map[string]*auth.GenericUser{
+		"ada@zatrano.test": {Attributes: map[string]any{"id": 1, "email": "ada@zatrano.test", "password": "old"}},
+	}}
+	tokens := auth.NewDatabaseTokenRepositoryTable(db, "sqlite", "password_reset_tokens", time.Hour)
+	broker := auth.NewPasswordBroker(tokens, provider, time.Hour)
+
+	token, err := broker.CreateToken("ada@zatrano.test")
+	if err != nil {
+		t.Fatalf("CreateToken: %v", err)
+	}
+	if token == "" {
+		t.Fatal("empty token")
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM password_reset_tokens WHERE email = ?`, "ada@zatrano.test").Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 row, got %d", count)
+	}
+	if !broker.TokenValid("ada@zatrano.test", token) {
+		t.Fatal("token should be valid after persist")
+	}
+
+	notified := false
+	broker.SetNotifier(func(email, tok, resetURL string) error {
+		notified = true
+		if email != "ada@zatrano.test" || tok == "" || resetURL == "" {
+			t.Fatalf("bad notify args: %q %q %q", email, tok, resetURL)
+		}
+		return nil
+	})
+	_ = tokens.Delete("ada@zatrano.test")
+	if err := broker.SendResetLink("ada@zatrano.test", "https://example.test/reset"); err != nil {
+		t.Fatal(err)
+	}
+	if !notified {
+		t.Fatal("expected notifier after successful CreateToken path")
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM password_reset_tokens`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("count=%d err=%v", count, err)
 	}
 }

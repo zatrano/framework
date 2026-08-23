@@ -48,7 +48,7 @@ func TestLiveDriverSmoke(t *testing.T) {
 	}
 	defer func() { _ = s.DropIfExists("zatrano_live_smoke") }()
 
-	id, err := query.New(db, norm, "zatrano_live_smoke").Insert(map[string]any{"name": "ok"})
+	id, err := query.New(db, norm, "zatrano_live_smoke").InsertGetID(map[string]any{"name": "ok"})
 	if err != nil {
 		t.Fatalf("insert: %v", err)
 	}

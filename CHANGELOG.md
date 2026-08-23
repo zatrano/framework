@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.26 - 2026-08-23
+
+### Fixed
+
+- `query.Insert` no longer requires an `id` column on PostgreSQL/SQL Server; `InsertGetID` returns the PK. Fixes password reset token persistence and forgot-password mail delivery on pgsql.
+
 ## 1.2.25 - 2026-08-23
 
 ### Changed
