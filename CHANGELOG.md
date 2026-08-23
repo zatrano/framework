@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.24 - 2026-08-23
+
+### Fixed
+
+- SMTP `MAIL_ENCRYPTION=tls`/`starttls` no longer uses implicit TLS; only `ssl` or port `465` select SMTPS (Gmail `:587` STARTTLS works again)
+
 ## 1.2.23 - 2026-08-20
 
 ### Changed

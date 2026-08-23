@@ -97,7 +97,10 @@ type SMTPConfig struct {
 	Port       string
 	Username   string
 	Password   string
-	Encryption string // "", "tls", "ssl", "starttls"
+	// Encryption selects the TLS mode:
+	//   "" / "tls" / "starttls" = plain TCP then STARTTLS (typical port 587)
+	//   "ssl" = implicit TLS / SMTPS (typical port 465)
+	Encryption string
 }
 
 // SMTPMailer sends mail over SMTP.
@@ -126,7 +129,7 @@ func (m *SMTPMailer) Send(message *MailMessage) error {
 
 func useImplicitTLS(cfg SMTPConfig) bool {
 	enc := strings.ToLower(strings.TrimSpace(cfg.Encryption))
-	if enc == "ssl" || enc == "tls" {
+	if enc == "ssl" {
 		return true
 	}
 	return strings.TrimSpace(cfg.Port) == "465"
