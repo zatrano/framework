@@ -75,6 +75,11 @@ func LoadHasManyFn[Parent, Related any](parents *[]Parent, field, foreignKey str
 
 // LoadHasOne batch-loads a has-one relation onto parents.
 func LoadHasOne[Parent, Related any](parents *[]Parent, field, foreignKey string, localKey ...string) error {
+	return LoadHasOneFn[Parent, Related](parents, field, foreignKey, nil, localKey...)
+}
+
+// LoadHasOneFn batch-loads a has-one relation with an optional related query constraint.
+func LoadHasOneFn[Parent, Related any](parents *[]Parent, field, foreignKey string, constrain func(*Querier[Related]), localKey ...string) error {
 	if parents == nil || len(*parents) == 0 {
 		return nil
 	}
@@ -98,7 +103,11 @@ func LoadHasOne[Parent, Related any](parents *[]Parent, field, foreignKey string
 		return nil
 	}
 
-	related, err := Query[Related]().WhereIn(foreignKey, keys).Get()
+	q := Query[Related]().WhereIn(foreignKey, keys)
+	if constrain != nil {
+		constrain(q)
+	}
+	related, err := q.Get()
 	if err != nil {
 		return err
 	}
@@ -146,6 +155,11 @@ func LoadHasOne[Parent, Related any](parents *[]Parent, field, foreignKey string
 
 // LoadBelongsTo batch-loads a belongs-to relation onto children.
 func LoadBelongsTo[Child, Parent any](children *[]Child, field, foreignKey string, ownerKey ...string) error {
+	return LoadBelongsToFn[Child, Parent](children, field, foreignKey, nil, ownerKey...)
+}
+
+// LoadBelongsToFn batch-loads a belongs-to relation with an optional parent query constraint.
+func LoadBelongsToFn[Child, Parent any](children *[]Child, field, foreignKey string, constrain func(*Querier[Parent]), ownerKey ...string) error {
 	if children == nil || len(*children) == 0 {
 		return nil
 	}
@@ -169,7 +183,11 @@ func LoadBelongsTo[Child, Parent any](children *[]Child, field, foreignKey strin
 		return nil
 	}
 
-	parents, err := Query[Parent]().WhereIn(owner, keys).Get()
+	q := Query[Parent]().WhereIn(owner, keys)
+	if constrain != nil {
+		constrain(q)
+	}
+	parents, err := q.Get()
 	if err != nil {
 		return err
 	}
@@ -233,6 +251,13 @@ func EagerHasOne[Parent, Related any](field, foreignKey string, localKey ...stri
 	}
 }
 
+// EagerHasOneFn returns a With() loader for a constrained has-one relation.
+func EagerHasOneFn[Parent, Related any](field, foreignKey string, constrain func(*Querier[Related]), localKey ...string) func([]Parent) error {
+	return func(parents []Parent) error {
+		return LoadHasOneFn(&parents, field, foreignKey, constrain, localKey...)
+	}
+}
+
 // EagerBelongsTo returns a With() loader for a belongs-to relation.
 func EagerBelongsTo[Child, Parent any](field, foreignKey string, ownerKey ...string) func([]Child) error {
 	return func(children []Child) error {
@@ -240,10 +265,27 @@ func EagerBelongsTo[Child, Parent any](field, foreignKey string, ownerKey ...str
 	}
 }
 
+// EagerBelongsToFn returns a With() loader for a constrained belongs-to relation.
+func EagerBelongsToFn[Child, Parent any](field, foreignKey string, constrain func(*Querier[Parent]), ownerKey ...string) func([]Child) error {
+	return func(children []Child) error {
+		return LoadBelongsToFn(&children, field, foreignKey, constrain, ownerKey...)
+	}
+}
+
 // LoadBelongsToMany batch-loads a belongs-to-many relation onto parents.
 func LoadBelongsToMany[Parent, Related any](
 	parents *[]Parent,
 	field, pivotTable, foreignPivotKey, relatedPivotKey string,
+	parentKey ...string,
+) error {
+	return LoadBelongsToManyFn[Parent, Related](parents, field, pivotTable, foreignPivotKey, relatedPivotKey, nil, parentKey...)
+}
+
+// LoadBelongsToManyFn batch-loads belongs-to-many with an optional related query constraint.
+func LoadBelongsToManyFn[Parent, Related any](
+	parents *[]Parent,
+	field, pivotTable, foreignPivotKey, relatedPivotKey string,
+	constrain func(*Querier[Related]),
 	parentKey ...string,
 ) error {
 	if parents == nil || len(*parents) == 0 {
@@ -292,7 +334,11 @@ func LoadBelongsToMany[Parent, Related any](
 		}
 	}
 
-	related, err := Query[Related]().WhereIn(KeyName[Related](), relatedIDs).Get()
+	q := Query[Related]().WhereIn(KeyName[Related](), relatedIDs)
+	if constrain != nil {
+		constrain(q)
+	}
+	related, err := q.Get()
 	if err != nil {
 		return err
 	}
@@ -338,8 +384,29 @@ func EagerBelongsToMany[Parent, Related any](
 	}
 }
 
+// EagerBelongsToManyFn returns a With() loader for constrained belongs-to-many.
+func EagerBelongsToManyFn[Parent, Related any](
+	field, pivotTable, foreignPivotKey, relatedPivotKey string,
+	constrain func(*Querier[Related]),
+	parentKey ...string,
+) func([]Parent) error {
+	return func(parents []Parent) error {
+		return LoadBelongsToManyFn(&parents, field, pivotTable, foreignPivotKey, relatedPivotKey, constrain, parentKey...)
+	}
+}
+
 // LoadMorphMany batch-loads a morph-many relation onto parents.
 func LoadMorphMany[Parent, Related any](parents *[]Parent, field, morphTypeCol, morphIDCol, typeValue string, localKey ...string) error {
+	return LoadMorphManyFn[Parent, Related](parents, field, morphTypeCol, morphIDCol, typeValue, nil, localKey...)
+}
+
+// LoadMorphManyFn batch-loads morph-many with an optional related query constraint.
+func LoadMorphManyFn[Parent, Related any](
+	parents *[]Parent,
+	field, morphTypeCol, morphIDCol, typeValue string,
+	constrain func(*Querier[Related]),
+	localKey ...string,
+) error {
 	if parents == nil || len(*parents) == 0 {
 		return nil
 	}
@@ -363,7 +430,11 @@ func LoadMorphMany[Parent, Related any](parents *[]Parent, field, morphTypeCol, 
 		return nil
 	}
 
-	related, err := Query[Related]().Where(morphTypeCol, typeValue).WhereIn(morphIDCol, keys).Get()
+	q := Query[Related]().Where(morphTypeCol, typeValue).WhereIn(morphIDCol, keys)
+	if constrain != nil {
+		constrain(q)
+	}
+	related, err := q.Get()
 	if err != nil {
 		return err
 	}
@@ -400,10 +471,49 @@ func EagerMorphMany[Parent, Related any](field, morphTypeCol, morphIDCol, typeVa
 	}
 }
 
+// EagerMorphManyFn returns a With() loader for constrained morph-many.
+func EagerMorphManyFn[Parent, Related any](
+	field, morphTypeCol, morphIDCol, typeValue string,
+	constrain func(*Querier[Related]),
+	localKey ...string,
+) func([]Parent) error {
+	return func(parents []Parent) error {
+		return LoadMorphManyFn(&parents, field, morphTypeCol, morphIDCol, typeValue, constrain, localKey...)
+	}
+}
+
 // With registers eager loaders executed after Get() or First().
 func (q *Querier[T]) With(loaders ...func([]T) error) *Querier[T] {
 	q.loaders = append(q.loaders, loaders...)
 	return q
+}
+
+// Without clears all registered eager loaders.
+func (q *Querier[T]) Without() *Querier[T] {
+	q.loaders = nil
+	return q
+}
+
+// WithOnly replaces eager loaders with the given set (drops any previously registered).
+func (q *Querier[T]) WithOnly(loaders ...func([]T) error) *Querier[T] {
+	q.loaders = append([]func([]T) error{}, loaders...)
+	return q
+}
+
+// Load is a fluent alias for running loaders on an already-fetched slice.
+func Load[T any](models *[]T, loaders ...func([]T) error) error {
+	if models == nil || len(*models) == 0 {
+		return nil
+	}
+	for _, loader := range loaders {
+		if loader == nil {
+			continue
+		}
+		if err := loader(*models); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (q *Querier[T]) runLoaders(items []T) error {
@@ -430,5 +540,9 @@ func setRelationField(parent reflect.Value, name string, value reflect.Value) er
 		return fmt.Errorf("field [%s] cannot be set", name)
 	}
 	fv.Set(value)
+	// Track loaded relations for LoadMissing / RelationLoaded.
+	if parent.CanAddr() {
+		markRelationLoadedPtr(parent.Addr().Pointer(), name)
+	}
 	return nil
 }

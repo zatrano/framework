@@ -91,3 +91,97 @@ func TestMorphManyAndMorphTo(t *testing.T) {
 		t.Fatalf("morphTo wrong type=%+v err=%v", wrong, err)
 	}
 }
+
+type morphTag struct {
+	orm.Model
+	Name  string      `db:"name"`
+	Posts []morphPost `db:"-"`
+}
+
+func (morphTag) TableName() string { return "morph_tags" }
+
+type morphPostWithTags struct {
+	orm.Model
+	Title string     `db:"title"`
+	Tags  []morphTag `db:"-"`
+}
+
+func (morphPostWithTags) TableName() string { return "morph_posts" }
+
+func TestMorphToManyAttachAndEager(t *testing.T) {
+	db := setupMorphDB(t)
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE taggables (
+		tag_id INTEGER,
+		taggable_id INTEGER,
+		taggable_type TEXT
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE morph_tags (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT,
+		created_at DATETIME,
+		updated_at DATETIME
+	)`); err != nil {
+		t.Fatal(err)
+	}
+
+	post, _ := orm.Create[morphPostWithTags](map[string]any{"title": "tagged"})
+	tag1, _ := orm.Create[morphTag](map[string]any{"name": "go"})
+	tag2, _ := orm.Create[morphTag](map[string]any{"name": "orm"})
+
+	if err := orm.AttachMorph(post, "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts", []any{tag1.ID, tag2.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	tags, err := orm.MorphToMany[morphPostWithTags, morphTag](post, "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts")
+	if err != nil || len(tags) != 2 {
+		t.Fatalf("morphToMany=%d err=%v", len(tags), err)
+	}
+
+	posts, err := orm.MorphedByMany[morphTag, morphPostWithTags](tag1, "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts")
+	if err != nil || len(posts) != 1 || posts[0].ID != post.ID {
+		t.Fatalf("morphedByMany=%+v err=%v", posts, err)
+	}
+
+	loaded, err := orm.Query[morphPostWithTags]().
+		With(orm.EagerMorphToMany[morphPostWithTags, morphTag]("Tags", "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts")).
+		Get()
+	if err != nil || len(loaded) != 1 || len(loaded[0].Tags) != 2 {
+		t.Fatalf("eager morphToMany=%+v err=%v", loaded, err)
+	}
+
+	if err := orm.SyncMorph(post, "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts", []any{tag1.ID}); err != nil {
+		t.Fatal(err)
+	}
+	tags, err = orm.MorphToMany[morphPostWithTags, morphTag](post, "taggables", "tag_id", "taggable_type", "taggable_id", "morph_posts")
+	if err != nil || len(tags) != 1 || tags[0].ID != tag1.ID {
+		t.Fatalf("sync morph=%+v err=%v", tags, err)
+	}
+}
+
+func TestWhereHasMorph(t *testing.T) {
+	db := setupMorphDB(t)
+	defer db.Close()
+
+	p1, _ := orm.Create[morphPost](map[string]any{"title": "with"})
+	p2, _ := orm.Create[morphPost](map[string]any{"title": "without"})
+	_, _ = orm.Create[morphComment](map[string]any{
+		"body": "x", "commentable_type": "morph_posts", "commentable_id": p1.ID,
+	})
+
+	found, err := orm.WhereHasMorph[morphPost, morphComment](
+		orm.Query[morphPost](), "commentable_type", "commentable_id", "morph_posts",
+	).Get()
+	if err != nil || len(found) != 1 || found[0].ID != p1.ID {
+		t.Fatalf("whereHasMorph=%+v err=%v", found, err)
+	}
+
+	none, err := orm.WhereDoesntHaveMorph[morphPost, morphComment](
+		orm.Query[morphPost](), "commentable_type", "commentable_id", "morph_posts",
+	).Get()
+	if err != nil || len(none) != 1 || none[0].ID != p2.ID {
+		t.Fatalf("whereDoesntHaveMorph=%+v err=%v", none, err)
+	}
+}

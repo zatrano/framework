@@ -92,6 +92,7 @@ func Replicate[T any](model *T) *T {
 		}
 	}
 	out := dst.Interface().(T)
+	_ = dispatchModel("replicating", model)
 	return &out
 }
 

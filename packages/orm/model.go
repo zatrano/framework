@@ -113,7 +113,10 @@ func All[T any]() ([]T, error) {
 
 // Create inserts a model from attributes and returns it.
 func Create[T any](attrs map[string]any) (*T, error) {
+	attrs = applyDefaults[T](attrs)
 	attrs = filterMassAssignment[T](attrs)
+	attrs = applyMutators[T](attrs)
+	attrs = ensureKey[T](attrs)
 	now := time.Now()
 	if _, ok := attrs["created_at"]; !ok {
 		attrs["created_at"] = now
@@ -123,6 +126,9 @@ func Create[T any](attrs map[string]any) (*T, error) {
 	}
 
 	draft := attrsToModel[T](attrs)
+	if err := dispatchModel("saving", draft); err != nil {
+		return nil, err
+	}
 	if err := dispatchModel("creating", draft); err != nil {
 		return nil, err
 	}
@@ -133,12 +139,20 @@ func Create[T any](attrs map[string]any) (*T, error) {
 	}
 	var model *T
 	keyName := KeyName[T]()
-	if id > 0 && keyName == "id" {
+	keyVal, hasKey := attrs[keyName]
+	switch {
+	case hasKey && !isZeroAny(keyVal):
+		if _, isString := keyVal.(string); isString {
+			// UUID/ULID/custom string PKs: never use numeric LastInsertId.
+			model, err = Find[T](keyVal)
+		} else if id > 0 && keyName == "id" {
+			model, err = Find[T](id)
+		} else {
+			model, err = Find[T](keyVal)
+		}
+	case id > 0:
 		model, err = Find[T](id)
-	} else if keyVal, ok := attrs[keyName]; ok {
-		model, err = Find[T](keyVal)
-	} else {
-		// Fallback for drivers without LastInsertId support.
+	default:
 		q := Query[T]()
 		for column, value := range attrs {
 			q.Where(column, value)
@@ -151,6 +165,7 @@ func Create[T any](attrs map[string]any) (*T, error) {
 	SyncOriginal(model)
 	recordChanges(model, nil)
 	_ = dispatchModel("created", model)
+	_ = dispatchModel("saved", model)
 	return model, nil
 }
 
@@ -856,7 +871,10 @@ func InsertMany[T any](rows []map[string]any) (int64, error) {
 	now := time.Now()
 	prepared := make([]map[string]any, 0, len(rows))
 	for _, attrs := range rows {
+		attrs = applyDefaults[T](attrs)
 		attrs = filterMassAssignment[T](attrs)
+		attrs = applyMutators[T](attrs)
+		attrs = ensureKey[T](attrs)
 		if _, ok := attrs["created_at"]; !ok {
 			attrs["created_at"] = now
 		}
@@ -882,6 +900,7 @@ func InsertMany[T any](rows []map[string]any) (int64, error) {
 // Update updates matching rows.
 func (q *Querier[T]) Update(attrs map[string]any) (int64, error) {
 	attrs = filterMassAssignment[T](attrs)
+	attrs = applyMutators[T](attrs)
 	if _, ok := attrs["updated_at"]; !ok {
 		now := time.Now()
 		attrs["updated_at"] = now
@@ -1001,6 +1020,7 @@ func Trashed(model any) bool {
 func Save[T any](model *T) error {
 	rv := reflect.ValueOf(model).Elem()
 	attrs := filterMassAssignment[T](modelToMap(rv))
+	attrs = applyMutators[T](attrs)
 	keyName := KeyName[T]()
 	keyVal, keyErr := KeyValue(model)
 	now := time.Now()
@@ -1009,6 +1029,9 @@ func Save[T any](model *T) error {
 		delete(attrs, keyName)
 		attrs["updated_at"] = now
 		before := snapshotOriginal(model)
+		if err := dispatchModel("saving", model); err != nil {
+			return err
+		}
 		if err := dispatchModel("updating", model); err != nil {
 			return err
 		}
@@ -1020,12 +1043,16 @@ func Save[T any](model *T) error {
 		recordChanges(model, before)
 		SyncOriginal(model)
 		_ = dispatchModel("updated", model)
+		_ = dispatchModel("saved", model)
 		return nil
 	}
 
 	attrs["created_at"] = now
 	attrs["updated_at"] = now
 	delete(attrs, keyName)
+	if err := dispatchModel("saving", model); err != nil {
+		return err
+	}
 	if err := dispatchModel("creating", model); err != nil {
 		return err
 	}
@@ -1044,6 +1071,7 @@ func Save[T any](model *T) error {
 	recordChanges(model, nil)
 	SyncOriginal(model)
 	_ = dispatchModel("created", model)
+	_ = dispatchModel("saved", model)
 	return nil
 }
 
@@ -1121,6 +1149,7 @@ func mapToModel[T any](row map[string]any) (*T, error) {
 		return nil, err
 	}
 	SyncOriginal(&model)
+	_ = dispatchModel("retrieved", &model)
 	return &model, nil
 }
 

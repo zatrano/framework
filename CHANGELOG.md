@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.2.28 - 2026-08-24
+
+### Added
+
+- ORM eager parity: `Then`/`Nested`, `LoadMissing`, constrain `*Fn` loaders, `EagerCount`/`EagerExists`/`EagerMax|Min|Avg|Sum`
+- ORM relations: `MorphToMany`/`MorphedByMany`, `WhereHasMorph`/`WhereHasThrough`, `withPivot` via `Pivot()`/`MarkPivot`
+- ORM model DX: `Hidden`/`Visible`, `ToMap`/`ToJSON`/`ToArray`, accessors/mutators/`Appends`, `Defaults()`, UUID/ULID keys
+- ORM strict/lazy tooling: `PreventLazyLoading`, `Cursor`/`Lazy`, `Collection`, `Without`/`WithOnly`, `Load`, relation subqueries
+- Model lifecycle events: `saving`/`saved`/`retrieved`/`replicating`; `events.LifecycleObserver`
+
 ## 1.2.27 - 2026-08-23
 
 ### Security

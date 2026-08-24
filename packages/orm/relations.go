@@ -79,6 +79,71 @@ func WithCount[Parent any, Related any](parents []Parent, foreignKey string, loc
 	return out, nil
 }
 
+// LoadCount batch-loads related counts onto parents.
+// Writes into struct field when present (int/int64) and always stores via RelationCount.
+func LoadCount[Parent, Related any](parents *[]Parent, field, foreignKey string, localKey ...string) error {
+	if parents == nil || len(*parents) == 0 {
+		return nil
+	}
+	counts, err := WithCount[Parent, Related](*parents, foreignKey, localKey...)
+	if err != nil {
+		return err
+	}
+	local := defaultLocalKey[Parent](localKey...)
+	for i := range *parents {
+		id, err := attribute(&(*parents)[i], local)
+		if err != nil {
+			return err
+		}
+		n := int64(0)
+		if id != nil {
+			if v, ok := counts[id]; ok {
+				n = v
+			} else if v, ok := counts[fmt.Sprint(id)]; ok {
+				n = v
+			}
+		}
+		MarkRelationCount(&(*parents)[i], field, n)
+		if err := setCountField(reflect.ValueOf(&(*parents)[i]), field, n); err != nil {
+			// Field optional: bag still holds the count.
+			_ = err
+		}
+	}
+	return nil
+}
+
+// EagerCount returns a With() loader that hydrates related counts onto field.
+func EagerCount[Parent, Related any](field, foreignKey string, localKey ...string) func([]Parent) error {
+	return func(parents []Parent) error {
+		return LoadCount[Parent, Related](&parents, field, foreignKey, localKey...)
+	}
+}
+
+func setCountField(parent reflect.Value, name string, n int64) error {
+	if parent.Kind() == reflect.Ptr {
+		parent = parent.Elem()
+	}
+	fv, ok := fieldByName(parent, name)
+	if !ok {
+		return fmt.Errorf("field [%s] not found", name)
+	}
+	if !fv.CanSet() {
+		return fmt.Errorf("field [%s] cannot be set", name)
+	}
+	switch fv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		fv.SetInt(n)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if n < 0 {
+			n = 0
+		}
+		fv.SetUint(uint64(n))
+	default:
+		return fmt.Errorf("field [%s] must be an integer type", name)
+	}
+	return nil
+}
+
 // HasOne returns a related model using a foreign key.
 func HasOne[Parent any, Related any](parent *Parent, foreignKey string, localKey ...string) (*Related, error) {
 	items, err := HasMany[Parent, Related](parent, foreignKey, localKey...)
