@@ -272,7 +272,7 @@ database.Migrator(app)
 mongo.From(app) // nil unless mongo is in DB_CONNECTIONS / db:setup (or legacy addon)
 ```
 
-Guide: [PACKAGES.md](PACKAGES.md) (full catalog) · [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).
+Guide: [PACKAGES.md](PACKAGES.md) (what + how) · [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).
 
 ## Authentication (highlights)
 
@@ -331,12 +331,12 @@ core/                Thin kernel
 
 All website guides are on **[https://zatrano.com/docs](https://zatrano.com/docs)** — this repository has no `docs/` tree.
 
-In-repo package inventory: **[PACKAGES.md](PACKAGES.md)** (every package and what it does).
+In-repo packages guide: **[PACKAGES.md](PACKAGES.md)** (purpose, enable, usage, docs links).
 
 
 | Start here                                                      |                                  |
 | --------------------------------------------------------------- | -------------------------------- |
-| [PACKAGES.md](PACKAGES.md)                                      | Package catalog (this repo)      |
+| [PACKAGES.md](PACKAGES.md)                                      | Packages guide (this repo)       |
 | [Installation](https://zatrano.com/docs/installation)           | Clone, key, serve                |
 | [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Demo |
 | [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor          |
