@@ -32,7 +32,7 @@
   <a href="https://zatrano.com/docs/installation">Installation</a> ·
   <a href="https://zatrano.com/docs/boot-profiles">Boot Profiles</a> ·
   <a href="https://zatrano.com/docs/package-ecosystem">Package Ecosystem</a> ·
-  <a href="PACKAGES.md">Package catalog</a> ·
+  <a href="PACKAGES.md">Packages guide</a> ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
 </p>
 
@@ -69,7 +69,7 @@ ZATRANO is an opinionated Go web framework: routing, views, validation, ORM, aut
 
 Nothing optional is magic-loaded. You pick a **boot profile** and enable only the addons you need.
 
-For a full list of every package and what it does, see **[PACKAGES.md](PACKAGES.md)**.
+For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)**.
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
