@@ -2,7 +2,7 @@
 
 All notable changes to ZATRANO are documented in this file.
 
-## 1.2.29 - 2026-08-28
+## 1.3.0 - 2026-08-28
 
 ### Added
 
