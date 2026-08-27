@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/zatrano/framework/app/models"
 	"github.com/zatrano/framework/core"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
 )
@@ -14,7 +14,7 @@ type DashboardController struct {
 }
 
 // Home shows summary cards for enabled modules.
-func (c *DashboardController) Home(req *Request) *Response {
+func (c *DashboardController) Home(req *http.Request) *http.Response {
 	usersCount := int64(0)
 	rolesCount := int64(0)
 	unreadCount := 0
@@ -32,7 +32,7 @@ func (c *DashboardController) Home(req *Request) *Response {
 		}
 	}
 
-	return View("dashboard/home", map[string]any{
+	return http.View("dashboard/home", map[string]any{
 		"title":        dashboardLang(c.App, "dashboard.nav_home"),
 		"user":         dashboardCurrentUser(req, c.App),
 		"users_count":  usersCount,

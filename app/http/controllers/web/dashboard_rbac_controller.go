@@ -7,18 +7,18 @@ import (
 	"github.com/zatrano/framework/app/models"
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/flash"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/orm"
 )
 
 const pathDashboardRBAC = "/dashboard/rbac"
 
-// DashboardRBACController serves the role × permission matrix.
+// DashboardRBACController serves the role Ã— permission matrix.
 type DashboardRBACController struct {
 	App *core.Application
 }
 
-func (c *DashboardRBACController) Matrix(req *Request) *Response {
+func (c *DashboardRBACController) Matrix(req *http.Request) *http.Response {
 	roles, err := orm.Query[models.Role]().OrderBy("id").Get()
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
@@ -52,7 +52,7 @@ func (c *DashboardRBACController) Matrix(req *Request) *Response {
 		matrix[link.RoleID][link.PermissionID] = true
 	}
 
-	return View("dashboard/rbac/matrix", map[string]any{
+	return http.View("dashboard/rbac/matrix", map[string]any{
 		"title":       dashboardLang(c.App, "dashboard.nav_rbac"),
 		"roles":       roles,
 		"permissions": permissions,
@@ -61,7 +61,7 @@ func (c *DashboardRBACController) Matrix(req *Request) *Response {
 	})
 }
 
-func (c *DashboardRBACController) Save(req *Request) *Response {
+func (c *DashboardRBACController) Save(req *http.Request) *http.Response {
 	_, _ = orm.Query[models.PermissionRole]().Delete()
 
 	for key, value := range req.All() {

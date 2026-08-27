@@ -4,7 +4,7 @@ import (
 	"github.com/zatrano/framework/app/models"
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/flash"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/orm"
 )
 
@@ -15,7 +15,7 @@ type DashboardSettingsController struct {
 	App *core.Application
 }
 
-func (c *DashboardSettingsController) Index(req *Request) *Response {
+func (c *DashboardSettingsController) Index(req *http.Request) *http.Response {
 	settings, err := orm.Query[models.Setting]().OrderBy("key").Get()
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
@@ -30,14 +30,14 @@ func (c *DashboardSettingsController) Index(req *Request) *Response {
 		}
 		settings, _ = orm.Query[models.Setting]().OrderBy("key").Get()
 	}
-	return View("dashboard/settings/index", map[string]any{
+	return http.View("dashboard/settings/index", map[string]any{
 		"title":    dashboardLang(c.App, "dashboard.nav_settings"),
 		"settings": settings,
 		"user":     dashboardCurrentUser(req, c.App),
 	})
 }
 
-func (c *DashboardSettingsController) Save(req *Request) *Response {
+func (c *DashboardSettingsController) Save(req *http.Request) *http.Response {
 	settings, _ := orm.Query[models.Setting]().Get()
 	if len(settings) == 0 {
 		key := req.Input("key")

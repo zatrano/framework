@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/zatrano/framework/app/models"
 	"github.com/zatrano/framework/core"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
 )
@@ -13,9 +13,9 @@ type DashboardAnalyticsController struct {
 	App *core.Application
 }
 
-func (c *DashboardAnalyticsController) Index(req *Request) *Response {
+func (c *DashboardAnalyticsController) Index(req *http.Request) *http.Response {
 	data := c.overviewFor(req)
-	return View("dashboard/analytics/index", map[string]any{
+	return http.View("dashboard/analytics/index", map[string]any{
 		"title":          dashboardLang(c.App, "dashboard.nav_analytics"),
 		"user":           dashboardCurrentUser(req, c.App),
 		"users_count":    data["users"],
@@ -25,11 +25,11 @@ func (c *DashboardAnalyticsController) Index(req *Request) *Response {
 	})
 }
 
-func (c *DashboardAnalyticsController) OverviewAPI(req *Request) *Response {
-	return JSON(c.overviewFor(req))
+func (c *DashboardAnalyticsController) OverviewAPI(req *http.Request) *http.Response {
+	return http.JSON(c.overviewFor(req))
 }
 
-func (c *DashboardAnalyticsController) overviewFor(req *Request) map[string]any {
+func (c *DashboardAnalyticsController) overviewFor(req *http.Request) map[string]any {
 	usersCount, _ := orm.Query[models.User]().Count()
 	rolesCount := int64(0)
 	settingsCount := int64(0)

@@ -9,7 +9,7 @@ import (
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/hashing"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/orm"
 	"github.com/zatrano/framework/packages/validation"
 )
@@ -21,7 +21,7 @@ type DashboardUsersController struct {
 	App *core.Application
 }
 
-func (c *DashboardUsersController) Index(req *Request) *Response {
+func (c *DashboardUsersController) Index(req *http.Request) *http.Response {
 	q := strings.TrimSpace(req.Query("q"))
 	query := orm.Query[models.User]()
 	if q != "" {
@@ -32,7 +32,7 @@ func (c *DashboardUsersController) Index(req *Request) *Response {
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
 	}
-	return View("dashboard/users/index", map[string]any{
+	return http.View("dashboard/users/index", map[string]any{
 		"title": dashboardLang(c.App, "dashboard.nav_users"),
 		"users": users,
 		"user":  dashboardCurrentUser(req, c.App),
@@ -40,8 +40,8 @@ func (c *DashboardUsersController) Index(req *Request) *Response {
 	})
 }
 
-func (c *DashboardUsersController) CreateForm(req *Request) *Response {
-	return View("dashboard/users/create", map[string]any{
+func (c *DashboardUsersController) CreateForm(req *http.Request) *http.Response {
+	return http.View("dashboard/users/create", map[string]any{
 		"title": dashboardLang(c.App, "dashboard.new_user"),
 		"user":  dashboardCurrentUser(req, c.App),
 		"name":  flash.OldValue(req, "name"),
@@ -49,7 +49,7 @@ func (c *DashboardUsersController) CreateForm(req *Request) *Response {
 	})
 }
 
-func (c *DashboardUsersController) Store(req *Request) *Response {
+func (c *DashboardUsersController) Store(req *http.Request) *http.Response {
 	v := validation.Make(req.All(), map[string]string{
 		"name":     "required|min:2",
 		"email":    "required|email",
@@ -76,7 +76,7 @@ func (c *DashboardUsersController) Store(req *Request) *Response {
 	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardUsers)
 }
 
-func (c *DashboardUsersController) EditForm(req *Request) *Response {
+func (c *DashboardUsersController) EditForm(req *http.Request) *http.Response {
 	id, err := dashboardParseID(req, "id")
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
@@ -85,14 +85,14 @@ func (c *DashboardUsersController) EditForm(req *Request) *Response {
 	if err != nil || item == nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
 	}
-	return View("dashboard/users/edit", map[string]any{
+	return http.View("dashboard/users/edit", map[string]any{
 		"title": dashboardLang(c.App, "dashboard.edit"),
 		"item":  item,
 		"user":  dashboardCurrentUser(req, c.App),
 	})
 }
 
-func (c *DashboardUsersController) Update(req *Request) *Response {
+func (c *DashboardUsersController) Update(req *http.Request) *http.Response {
 	id, err := dashboardParseID(req, "id")
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
@@ -125,7 +125,7 @@ func (c *DashboardUsersController) Update(req *Request) *Response {
 	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardUsers)
 }
 
-func (c *DashboardUsersController) Delete(req *Request) *Response {
+func (c *DashboardUsersController) Delete(req *http.Request) *http.Response {
 	id, err := dashboardParseID(req, "id")
 	if err != nil {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
@@ -141,7 +141,7 @@ func (c *DashboardUsersController) Delete(req *Request) *Response {
 }
 
 // @module impersonate
-func (c *DashboardUsersController) Impersonate(req *Request) *Response {
+func (c *DashboardUsersController) Impersonate(req *http.Request) *http.Response {
 	admin := dashboardCurrentUser(req, c.App)
 	if admin == nil || !admin.IsAdmin {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.unauthorized"), pathDashboardUsers)
@@ -162,10 +162,10 @@ func (c *DashboardUsersController) Impersonate(req *Request) *Response {
 		middleware.EndImpersonation(req)
 		return flash.WithError(req, err.Error(), pathDashboardUsers)
 	}
-	return Redirect("/")
+	return http.Redirect("/")
 }
 
-func (c *DashboardUsersController) StopImpersonation(req *Request) *Response {
+func (c *DashboardUsersController) StopImpersonation(req *http.Request) *http.Response {
 	adminID := middleware.EndImpersonation(req)
 	if adminID <= 0 {
 		return flash.WithError(req, dashboardLang(c.App, "dashboard.unauthorized"), "/dashboard")

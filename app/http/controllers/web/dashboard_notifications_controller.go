@@ -8,7 +8,7 @@ import (
 	"github.com/zatrano/framework/app/models"
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/flash"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
 	"github.com/zatrano/framework/packages/validation"
@@ -21,27 +21,27 @@ type DashboardNotificationsController struct {
 	App *core.Application
 }
 
-func (c *DashboardNotificationsController) Index(req *Request) *Response {
+func (c *DashboardNotificationsController) Index(req *http.Request) *http.Response {
 	u := dashboardCurrentUser(req, c.App)
 	if u == nil {
-		return Redirect("/auth/login")
+		return http.Redirect("/auth/login")
 	}
 	store := notification.From(c.App).Store()
 	var items []notification.Record
 	if store != nil {
 		items, _ = store.ListFor(dashboardUserIDString(u), 100)
 	}
-	return View("dashboard/notifications/index", map[string]any{
+	return http.View("dashboard/notifications/index", map[string]any{
 		"title": dashboardLang(c.App, "dashboard.nav_notifications"),
 		"items": items,
 		"user":  u,
 	})
 }
 
-func (c *DashboardNotificationsController) MarkRead(req *Request) *Response {
+func (c *DashboardNotificationsController) MarkRead(req *http.Request) *http.Response {
 	u := dashboardCurrentUser(req, c.App)
 	if u == nil {
-		return Redirect("/auth/login")
+		return http.Redirect("/auth/login")
 	}
 	id, err := dashboardParseID(req, "id")
 	if err != nil {
@@ -53,10 +53,10 @@ func (c *DashboardNotificationsController) MarkRead(req *Request) *Response {
 	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardNotifications)
 }
 
-func (c *DashboardNotificationsController) MarkAllRead(req *Request) *Response {
+func (c *DashboardNotificationsController) MarkAllRead(req *http.Request) *http.Response {
 	u := dashboardCurrentUser(req, c.App)
 	if u == nil {
-		return Redirect("/auth/login")
+		return http.Redirect("/auth/login")
 	}
 	if store := notification.From(c.App).Store(); store != nil {
 		_ = store.MarkAllRead(dashboardUserIDString(u))
@@ -64,8 +64,8 @@ func (c *DashboardNotificationsController) MarkAllRead(req *Request) *Response {
 	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardNotifications)
 }
 
-func (c *DashboardNotificationsController) SendForm(req *Request) *Response {
-	return View("dashboard/notifications/send", map[string]any{
+func (c *DashboardNotificationsController) SendForm(req *http.Request) *http.Response {
+	return http.View("dashboard/notifications/send", map[string]any{
 		"title":       dashboardLang(c.App, "dashboard.send"),
 		"user":        dashboardCurrentUser(req, c.App),
 		"user_id":     flash.OldValue(req, "user_id"),
@@ -74,7 +74,7 @@ func (c *DashboardNotificationsController) SendForm(req *Request) *Response {
 	})
 }
 
-func (c *DashboardNotificationsController) Send(req *Request) *Response {
+func (c *DashboardNotificationsController) Send(req *http.Request) *http.Response {
 	v := validation.Make(req.All(), map[string]string{
 		"user_id": "required",
 		"title":   "required",
@@ -102,8 +102,8 @@ func (c *DashboardNotificationsController) Send(req *Request) *Response {
 	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardNotifications)
 }
 
-func (c *DashboardNotificationsController) BulkForm(req *Request) *Response {
-	return View("dashboard/notifications/bulk", map[string]any{
+func (c *DashboardNotificationsController) BulkForm(req *http.Request) *http.Response {
+	return http.View("dashboard/notifications/bulk", map[string]any{
 		"title":       dashboardLang(c.App, "dashboard.bulk_send"),
 		"user":        dashboardCurrentUser(req, c.App),
 		"title_field": flash.OldValue(req, "title"),
@@ -111,7 +111,7 @@ func (c *DashboardNotificationsController) BulkForm(req *Request) *Response {
 	})
 }
 
-func (c *DashboardNotificationsController) Bulk(req *Request) *Response {
+func (c *DashboardNotificationsController) Bulk(req *http.Request) *http.Response {
 	v := validation.Make(req.All(), map[string]string{
 		"title": "required",
 		"body":  "required",

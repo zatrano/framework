@@ -5,7 +5,7 @@ import (
 	"github.com/zatrano/framework/core"
 	apipkg "github.com/zatrano/framework/packages/api"
 	"github.com/zatrano/framework/packages/auth"
-	. "github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/packages/routing"
 )
 
 // RegisterAuthWeb registers session authentication web routes under /auth.
@@ -15,7 +15,7 @@ func RegisterAuthWeb(app *core.Application) {
 	ctrl := &web.AuthController{App: app}
 	social := &web.SocialAuthController{App: app}
 
-	router.Group("/auth", func(r *Router) {
+	router.Group("/auth", func(r *routing.Router) {
 		r.Get("/login", ctrl.LoginForm).As("login")
 		r.Post("/login", ctrl.Login).As("login.attempt").Through(app.RateLimiter().Named("login"))
 		r.Post("/logout", ctrl.Logout).As("logout")
@@ -25,7 +25,7 @@ func RegisterAuthWeb(app *core.Application) {
 		r.Get("/github/login", social.GitHubRedirect).As("login.github")
 		r.Get("/github/callback", social.GitHubCallback).As("login.github.callback")
 
-		r.Group("", func(g *Router) {
+		r.Group("", func(g *routing.Router) {
 			g.Get("/register", ctrl.RegisterForm).As("register")
 			g.Post("/register", ctrl.Register).As("register.store").Through(app.RateLimiter().Named("login"))
 		}, auth.RedirectIfAuthenticated(auth.From(app), "/"))
@@ -39,7 +39,7 @@ func RegisterAuthWeb(app *core.Application) {
 		r.Post("/reset-password", ctrl.Reset).As("password.update")
 		r.Get("/email/verify/{id}", ctrl.Verify).As("verification.verify")
 
-		r.Group("", func(g *Router) {
+		r.Group("", func(g *routing.Router) {
 			g.Get("/confirm-password", ctrl.ConfirmPasswordForm).As("password.confirm")
 			g.Post("/confirm-password", ctrl.ConfirmPassword).As("password.confirm.store")
 			g.Get("/email/verify", ctrl.Notice).As("verification.notice")
@@ -59,7 +59,7 @@ func RegisterAuthWeb(app *core.Application) {
 		}, auth.Middleware(auth.From(app)))
 	})
 
-	// Example verified-only group — wrap routes that require a verified email:
+	// Example verified-only group â€” wrap routes that require a verified email:
 	// auth.Middleware(auth.From(app)), auth.VerifyEmailMiddleware(auth.From(app))
 }
 
@@ -68,14 +68,14 @@ func RegisterAuthWeb(app *core.Application) {
 func RegisterAuthAPI(app *core.Application) {
 	ctrl := &web.AuthController{App: app}
 
-	apipkg.Version(app.Router(), "v1", func(api *Router) {
-		api.Group("/auth", func(r *Router) {
+	apipkg.Version(app.Router(), "v1", func(api *routing.Router) {
+		api.Group("/auth", func(r *routing.Router) {
 			r.Post("/login", ctrl.Login).As("api.v1.login").Through(app.RateLimiter().Named("login"))
 			r.Post("/register", ctrl.Register).As("api.v1.register").Through(app.RateLimiter().Named("login"))
 			r.Post("/password/forgot", ctrl.Forgot).As("api.v1.password.forgot").Through(app.RateLimiter().Named("login"))
 			r.Post("/password/reset", ctrl.Reset).As("api.v1.password.reset")
 			r.Post("/two-factor/challenge", ctrl.TwoFactorChallenge).As("api.v1.auth.two-factor.challenge")
-			r.Group("", func(g *Router) {
+			r.Group("", func(g *routing.Router) {
 				g.Post("/logout", ctrl.Logout).As("api.v1.logout")
 				g.Post("/profile", ctrl.UpdateProfile).As("api.v1.profile.update")
 				g.Post("/password/change", ctrl.ChangePassword).As("api.v1.password.change")

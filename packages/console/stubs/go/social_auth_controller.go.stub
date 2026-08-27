@@ -14,7 +14,7 @@ import (
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/hashing"
-	. "github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/localization"
 	"github.com/zatrano/framework/packages/orm"
 	"github.com/zatrano/framework/packages/social"
@@ -60,26 +60,26 @@ func (c *SocialAuthController) providerReplace(provider string) map[string]strin
 }
 
 // GoogleRedirect starts the Google OAuth flow.
-func (c *SocialAuthController) GoogleRedirect(req *Request) *Response {
+func (c *SocialAuthController) GoogleRedirect(req *http.Request) *http.Response {
 	return c.redirect(req, "google")
 }
 
 // GoogleCallback completes Google OAuth and signs the user in.
-func (c *SocialAuthController) GoogleCallback(req *Request) *Response {
+func (c *SocialAuthController) GoogleCallback(req *http.Request) *http.Response {
 	return c.callback(req, "google")
 }
 
 // GitHubRedirect starts the GitHub OAuth flow.
-func (c *SocialAuthController) GitHubRedirect(req *Request) *Response {
+func (c *SocialAuthController) GitHubRedirect(req *http.Request) *http.Response {
 	return c.redirect(req, "github")
 }
 
 // GitHubCallback completes GitHub OAuth and signs the user in.
-func (c *SocialAuthController) GitHubCallback(req *Request) *Response {
+func (c *SocialAuthController) GitHubCallback(req *http.Request) *http.Response {
 	return c.callback(req, "github")
 }
 
-func (c *SocialAuthController) redirect(req *Request, provider string) *Response {
+func (c *SocialAuthController) redirect(req *http.Request, provider string) *http.Response {
 	repl := c.providerReplace(provider)
 	if c.App == nil || social.From(c.App) == nil {
 		return flash.WithError(req, c.lang("auth.social_not_configured", repl), pathLogin)
@@ -91,10 +91,10 @@ func (c *SocialAuthController) redirect(req *Request, provider string) *Response
 	if sess := req.Session(); sess != nil {
 		sess.Put(sessionOAuthStatePrefix+provider, state)
 	}
-	return Redirect(url)
+	return http.Redirect(url)
 }
 
-func (c *SocialAuthController) callback(req *Request, provider string) *Response {
+func (c *SocialAuthController) callback(req *http.Request, provider string) *http.Response {
 	repl := c.providerReplace(provider)
 	if errMsg := strings.TrimSpace(req.Query("error")); errMsg != "" {
 		desc := strings.TrimSpace(req.Query("error_description"))
@@ -181,7 +181,7 @@ func (p *ormSocialPersistence) CreateUser(name, email, avatar string, emailVerif
 	if err != nil {
 		return 0, err
 	}
-	// Canonical profile photo lives on User — never read SocialAccount.Avatar for UI.
+	// Canonical profile photo lives on User â€” never read SocialAccount.Avatar for UI.
 	user := &models.User{
 		Name:     name,
 		Email:    email,

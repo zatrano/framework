@@ -7,7 +7,7 @@ import (
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/authorization"
 	"github.com/zatrano/framework/packages/http"
-	. "github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/packages/routing"
 )
 
 // RegisterDashboardWeb registers the management dashboard under /dashboard.
@@ -24,12 +24,12 @@ func RegisterDashboardWeb(app *core.Application) {
 
 	gate := authorization.From(app)
 	current := func(req *http.Request) any { return auth.From(app).User(req) }
-	protect := []MiddlewareFunc{
+	protect := []routing.MiddlewareFunc{
 		auth.Middleware(auth.From(app)),
 		authorization.Middleware(gate, current, "dashboard.access"),
 	}
 
-	router.Group("/dashboard", func(r *Router) {
+	router.Group("/dashboard", func(r *routing.Router) {
 		r.Get("/", dash.Home).As("dashboard.home")
 
 		r.Get("/users", users.Index).As("dashboard.users")
@@ -74,12 +74,12 @@ func RegisterDashboardAPI(app *core.Application) {
 
 	gate := authorization.From(app)
 	current := func(req *http.Request) any { return auth.From(app).User(req) }
-	protect := []MiddlewareFunc{
+	protect := []routing.MiddlewareFunc{
 		auth.Middleware(auth.From(app)),
 		authorization.Middleware(gate, current, "dashboard.access"),
 	}
 
-	api.Version(app.Router(), "v1", func(r *Router) {
+	api.Version(app.Router(), "v1", func(r *routing.Router) {
 		r.Get("/users", apiCtrl.UsersIndex).As("api.v1.users")
 		r.Get("/users/{id}", apiCtrl.UsersShow).As("api.v1.users.show").WhereNumber("id")
 		r.Get("/roles", apiCtrl.RolesIndex).As("api.v1.roles")
@@ -88,4 +88,3 @@ func RegisterDashboardAPI(app *core.Application) {
 		r.Get("/analytics/overview", analytics.OverviewAPI).As("api.v1.analytics.overview")
 	}, protect...)
 }
-
