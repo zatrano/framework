@@ -82,7 +82,25 @@ jobs:
           category: gosec
       - name: gosec gate (fail on findings)
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.2
+          set -euo pipefail
+          # go install pulls transitive modules (e.g. cloud.google.com → otelgrpc);
+          # proxy.golang.org occasionally returns HTTP/2 INTERNAL_ERROR — retry.
+          install_gosec() {
+            go install github.com/securego/gosec/v2/cmd/gosec@v2.22.2
+          }
+          ok=0
+          for i in 1 2 3 4 5; do
+            if install_gosec; then
+              ok=1
+              break
+            fi
+            echo "gosec install failed (attempt $i); retrying..."
+            sleep $((i * 8))
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "gosec install failed after retries"
+            exit 1
+          fi
           EXCLUDES=$(jq -r '.exclude // [] | join(",")' .github/gosec.json)
           gosec -quiet \
             -conf=.github/gosec.json \
