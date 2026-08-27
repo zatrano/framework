@@ -32,6 +32,7 @@
   <a href="https://zatrano.com/docs/installation">Installation</a> ·
   <a href="https://zatrano.com/docs/boot-profiles">Boot Profiles</a> ·
   <a href="https://zatrano.com/docs/package-ecosystem">Package Ecosystem</a> ·
+  <a href="PACKAGES.md">Package catalog</a> ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
 </p>
 
@@ -67,6 +68,8 @@ ZATRANO is an opinionated Go web framework: routing, views, validation, ORM, aut
 
 
 Nothing optional is magic-loaded. You pick a **boot profile** and enable only the addons you need.
+
+For a full list of every package and what it does, see **[PACKAGES.md](PACKAGES.md)**.
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -269,7 +272,7 @@ database.Migrator(app)
 mongo.From(app) // nil unless mongo is in DB_CONNECTIONS / db:setup (or legacy addon)
 ```
 
-Guide: [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).
+Guide: [PACKAGES.md](PACKAGES.md) (full catalog) · [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).
 
 ## Authentication (highlights)
 
@@ -326,13 +329,14 @@ core/                Thin kernel
 
 ## Documentation
 
-All guides are on the website — **this repository has no** `docs/` **tree**.
+All website guides are on **[https://zatrano.com/docs](https://zatrano.com/docs)** — this repository has no `docs/` tree.
 
-**[https://zatrano.com/docs](https://zatrano.com/docs)**
+In-repo package inventory: **[PACKAGES.md](PACKAGES.md)** (every package and what it does).
 
 
 | Start here                                                      |                                  |
 | --------------------------------------------------------------- | -------------------------------- |
+| [PACKAGES.md](PACKAGES.md)                                      | Package catalog (this repo)      |
 | [Installation](https://zatrano.com/docs/installation)           | Clone, key, serve                |
 | [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Demo |
 | [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor          |
