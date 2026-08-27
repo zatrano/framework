@@ -17,4 +17,7 @@ func API(app *core.Application) {
 			})
 		})
 	})
+
+	RegisterAuthAPI(app)
+	RegisterDashboardAPI(app)
 }

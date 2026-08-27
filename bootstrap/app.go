@@ -106,6 +106,7 @@ func ApplicationProviders() []core.Provider {
 		&providers.AppServiceProvider{},
 		&providers.DatabaseServiceProvider{},
 		&providers.AuthServiceProvider{},
+		&providers.DashboardServiceProvider{},
 		&providers.EventServiceProvider{},
 		&providers.ScheduleServiceProvider{},
 		&providers.RouteServiceProvider{},

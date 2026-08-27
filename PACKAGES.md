@@ -246,8 +246,8 @@ ok, err := mgr.Attempt(req, map[string]string{
 router.Group("/account", routes, auth.Middleware(mgr))
 ```
 
-Scaffold: `go run ./cmd/zatrano make:auth`  
-Docs: [Authentication](https://zatrano.com/docs/authentication) (hub + guards / passwords / MFA / scaffold)
+Scaffold: `go run ./cmd/zatrano make:auth` · `go run ./cmd/zatrano make:dashboard`  
+Docs: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold)
 
 ### `authorization`
 

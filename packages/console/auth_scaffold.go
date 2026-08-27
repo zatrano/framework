@@ -170,7 +170,7 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 		}
 		fmt.Println(migLine)
 		fmt.Println("  2. In routes/web.go call: RegisterAuthWeb(app)")
-		fmt.Println("  3. In routes/api.go call: RegisterAuthAPI(app)")
+		fmt.Println("  3. In routes/api.go call: RegisterAuthAPI(app)  // mounts /api/v1/auth")
 		if wantSocial {
 			var envs []string
 			if wantGoogle {

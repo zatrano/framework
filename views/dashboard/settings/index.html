@@ -1,0 +1,35 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="card">
+    <form method="POST" action="/dashboard/settings" class="stack">
+      <input type="hidden" name="_token" value="{{ $_token }}">
+      @if($settings)
+      @foreach($settings as $item)
+      <div class="form-row">
+        <label for="setting_{{ $item.Key }}">{{ $item.Key }}</label>
+        <input id="setting_{{ $item.Key }}" name="setting__{{ $item.Key }}" type="text" value="{{ $item.Value }}">
+      </div>
+      @endforeach
+      @else
+      <div class="form-row">
+        <label for="key">@lang('dashboard.key')</label>
+        <input id="key" name="key" type="text">
+      </div>
+      <div class="form-row">
+        <label for="value">@lang('dashboard.value')</label>
+        <input id="value" name="value" type="text">
+      </div>
+      @endif
+      <div class="form-actions">
+        <button type="submit" class="button">@lang('dashboard.save')</button>
+      </div>
+    </form>
+  </div>
+</section>
+@endsection

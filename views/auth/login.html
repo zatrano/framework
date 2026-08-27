@@ -1,0 +1,36 @@
+@extends('layouts.auth')
+
+@section('title')
+@lang('auth.login')
+@endsection
+
+@section('content')
+<h1>@lang('auth.login')</h1>
+<form class="auth-form" method="POST" action="/auth/login">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="email">@lang('auth.email')
+        <input id="email" name="email" type="email" value="{{ $email }}" autocomplete="username" required>
+    </label>
+    <label for="password">@lang('auth.password_label')
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <label class="auth-check" for="remember">
+        <input id="remember" name="remember" type="checkbox" value="1">
+        @lang('auth.remember_me')
+    </label>
+    <button class="auth-btn" type="submit">@lang('auth.login')</button>
+    <p class="auth-divider">@lang('auth.or_continue_with')</p>
+    <div class="auth-social">
+        <a href="/auth/google/login">@lang('auth.continue_google')</a>
+        <a href="/auth/github/login">@lang('auth.continue_github')</a>
+    </div>
+    <p class="auth-links"><a href="/auth/forgot-password">@lang('auth.forgot_password')</a></p>
+    <p class="auth-links"><a href="/auth/register">@lang('auth.register')</a></p>
+    @if($flash.error)
+    <p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
+    @endif
+    @if($flash.success)
+    <p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
+    @endif
+</form>
+@endsection

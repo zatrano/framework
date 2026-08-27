@@ -18,6 +18,9 @@ func Web(app *core.Application) {
 		r.Get("/", c.Index).As("home")
 	})
 
+	RegisterAuthWeb(app)
+	RegisterDashboardWeb(app)
+
 	router.Post("/locale", func(req *http.Request) *http.Response {
 		locale := strings.TrimSpace(strings.ToLower(req.Input("locale")))
 		langPath := app.BasePath("lang")

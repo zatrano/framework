@@ -1,0 +1,37 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="card">
+    <form method="POST" action="/dashboard/users" class="stack">
+      <input type="hidden" name="_token" value="{{ $_token }}">
+      <div class="form-row">
+        <label for="name">@lang('dashboard.name')</label>
+        <input id="name" name="name" type="text" value="{{ $name }}" required>
+      </div>
+      <div class="form-row">
+        <label for="email">@lang('dashboard.email')</label>
+        <input id="email" name="email" type="email" value="{{ $email }}" required>
+      </div>
+      <div class="form-row">
+        <label for="password">@lang('dashboard.password')</label>
+        <input id="password" name="password" type="password" required>
+      </div>
+      <div class="form-row">
+        <label class="auth-check" for="is_admin">
+          <input id="is_admin" name="is_admin" type="checkbox" value="1">
+          @lang('dashboard.is_admin')
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button">@lang('dashboard.create')</button>
+        <a class="button secondary" href="/dashboard/users">@lang('dashboard.back')</a>
+      </div>
+    </form>
+  </div>
+</section>
+@endsection

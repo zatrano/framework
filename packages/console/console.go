@@ -60,6 +60,7 @@ func New(app *core.Application) *Application {
 	registerStorageCommands(console, app)
 	registerAuthzCommands(console, app)
 	registerAuthCommands(console, app)
+	registerDashboardCommands(console, app)
 	registerFactoryCommands(console, app)
 	registerRequestCommands(console, app)
 	registerUtilityCommands(console, app)

@@ -1,0 +1,79 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="page-header">
+    <div class="actions">
+      <a class="button" href="/dashboard/users/create">@lang('dashboard.new_user')</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="GET" action="/dashboard/users" class="users-filter-grid">
+      <div class="form-row users-filter-search">
+        <label for="q">@lang('dashboard.search')</label>
+        <input id="q" name="q" type="search" value="{{ $q }}" placeholder="@lang('dashboard.name') / @lang('dashboard.email')">
+      </div>
+      <div class="form-actions form-actions--filter">
+        <button type="submit">@lang('dashboard.filter')</button>
+        <a class="button secondary" href="/dashboard/users">@lang('dashboard.clear')</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card card--table">
+    @if($users)
+    <div class="table-wrap">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>@lang('dashboard.name')</th>
+            <th>@lang('dashboard.email')</th>
+            <th>@lang('dashboard.is_admin')</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($users as $item)
+          <tr>
+            <td>{{ $item.ID }}</td>
+            <td>{{ $item.Name }}</td>
+            <td>{{ $item.Email }}</td>
+            <td>
+              @if($item.IsAdmin)
+              <span class="badge ok">@lang('dashboard.yes')</span>
+              @else
+              <span class="badge muted">@lang('dashboard.no')</span>
+              @endif
+            </td>
+            <td class="table-actions">
+              <a class="button secondary" href="/dashboard/users/{{ $item.ID }}/edit">@lang('dashboard.edit')</a>
+              <!-- @module impersonate -->
+              @unless($item.IsAdmin)
+              <form method="POST" action="/dashboard/users/{{ $item.ID }}/impersonate">
+                <input type="hidden" name="_token" value="{{ $_token }}">
+                <button type="submit" class="button secondary">@lang('dashboard.impersonate')</button>
+              </form>
+              @endunless
+              <!-- @endmodule impersonate -->
+              <form method="POST" action="/dashboard/users/{{ $item.ID }}/delete" onsubmit="return confirm('@lang('dashboard.confirm_delete')');">
+                <input type="hidden" name="_token" value="{{ $_token }}">
+                <button type="submit" class="button danger">@lang('dashboard.delete')</button>
+              </form>
+            </td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+    @else
+    <p class="muted" style="padding:0 1.5rem 1.5rem;">@lang('dashboard.empty')</p>
+    @endif
+  </div>
+</section>
+@endsection

@@ -278,9 +278,12 @@ Guide: [PACKAGES.md](PACKAGES.md) (what + how) · [Package Ecosystem](https://za
 
 ```bash
 go run ./cmd/zatrano make:auth
+go run ./cmd/zatrano make:dashboard
 ```
 
 Session guards with **per-guard keys**, remember-me, password reset (no enumeration), email verification events, cache-backed lockout, TOTP MFA, **remember this device**, multi-device logout, intended URLs, password confirmation.
+
+`make:dashboard` adds a modular admin shell (`/dashboard`), optional users / notifications / roles / RBAC / settings / analytics / impersonate, and JSON under `/api/v1` (with auth at `/api/v1/auth`).
 
 Reset / verify / password-changed emails use `auth.mail_*` keys under `APP_LOCALE` (see `lang/*/auth.json` and framework defaults).
 
@@ -291,7 +294,7 @@ ok, err := auth.From(app).Attempt(req, map[string]string{
 ok, err = auth.From(app).ChallengeTwoFactor(req, code, true) // trusted device
 ```
 
-Guide: [Authentication](https://zatrano.com/docs/authentication).
+Guides: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold).
 
 ## What ships in the box
 
@@ -302,7 +305,7 @@ Guide: [Authentication](https://zatrano.com/docs/authentication).
 | **Views**           | Layouts, components, Blade-like directives, markdown, file-based pages                                                 |
 | **Validation**      | Rules, form requests, error bags                                                                                       |
 | **Data**            | Query builder, schema, migrations, ORM (relations, scopes, eager load), factories, seeders                             |
-| **Auth & security** | Guards, 2FA, lockout, API tokens, encryption, hashing, honeypot, trusted proxies, OAuth server, social login, WebAuthn |
+| **Auth & security** | Guards, 2FA, lockout, API tokens, encryption, hashing, honeypot, trusted proxies, OAuth server, social login, WebAuthn, `make:dashboard` admin shell |
 | **Async**           | Queues (sync/DB/Redis), notifications (database/mail/SMS/push), broadcasting, scheduler                                |
 | **Platform**        | Config + `.env`, sessions, cache, filesystem, localization, health, maintenance, backups                               |
 | **Tooling**         | CLI, OpenAPI, GraphQL helpers, docs engine, inspector, observability hooks                                             |

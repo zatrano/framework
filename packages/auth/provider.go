@@ -163,7 +163,7 @@ func (p *DatabaseUserProvider) RetrieveByToken(id, token string) (Authenticatabl
 		}
 		return nil, err
 	}
-	return &GenericUser{Attributes: row}, nil
+	return p.hydrate(row), nil
 }
 
 // UpdateRememberToken stores (or clears) the remember token for a user.

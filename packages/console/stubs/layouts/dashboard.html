@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="{{ $locale }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>@if($title){{ $title }} — @lang('dashboard.brand')@else@lang('dashboard.title') — @lang('dashboard.brand')@endif</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  @yield('head')
+  @stack('styles')
+</head>
+<body class="relative flex h-dvh max-h-dvh flex-col overflow-hidden bg-white text-ink font-sans antialiased">
+  @if($impersonating)
+  <div class="impersonation-banner relative z-20 shrink-0">
+    <div class="impersonation-banner__inner">
+      <span>@lang('dashboard.impersonating_as') <strong>{{ $impersonated_name }}</strong> ({{ $impersonated_email }})</span>
+      <form method="POST" action="/dashboard/impersonation/stop">
+        <input type="hidden" name="_token" value="{{ $_token }}">
+        <button type="submit" class="button ui-btn ui-btn--sm">@lang('dashboard.stop_impersonation')</button>
+      </form>
+    </div>
+  </div>
+  @endif
+  <div class="gocore-shell dashboard-shell relative z-10 min-h-0 flex-1 dashboard-shell--admin">
+    <button type="button" class="shell-dashboard-overlay" data-sidebar-close aria-label="@lang('dashboard.close_menu')"></button>
+    <aside class="shell-dashboard-sidebar">
+      <div class="sidebar-header">
+        <a class="brand sidebar-brand brand-wordmark" href="/dashboard" aria-label="@lang('dashboard.brand')">
+          @lang('dashboard.brand')<span class="brand-dot">.</span>
+        </a>
+        <button type="button" class="ui-icon-btn sidebar-close" data-sidebar-close aria-label="@lang('dashboard.close_menu')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      @include('partials.dashboard.nav')
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <span class="sidebar-user-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <div class="sidebar-user-copy">
+            @if($user)
+            <strong title="{{ $user.Name }}">{{ $user.Name }}</strong>
+            <span title="{{ $user.Email }}">{{ $user.Email }}</span>
+            @else
+            <strong>@lang('dashboard.admin')</strong>
+            <span>@lang('dashboard.signed_in')</span>
+            @endif
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="dashboard-workspace">
+      <header class="gocore-header shell-dashboard-topbar">
+        <div class="shell-dashboard-topbar__start">
+          <button type="button" class="ui-icon-btn mobile-menu-button" data-sidebar-toggle aria-label="@lang('dashboard.open_menu')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div class="dashboard-page-title">
+            <strong>@if($title){{ $title }}@else@lang('dashboard.title')@endif</strong>
+          </div>
+        </div>
+        <div class="shell-dashboard-topbar__actions">
+          <!-- @module notifications -->
+          <a class="ui-icon-btn notif-bell @if($unread_badge)notif-bell--ring@endif" href="/dashboard/notifications" aria-label="@lang('dashboard.notifications')" title="@lang('dashboard.notifications')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            @if($unread_badge)
+            <span class="notif-bell__badge">{{ $unread_badge }}</span>
+            @endif
+          </a>
+          <!-- @endmodule notifications -->
+          <form method="POST" action="/locale" class="lang-switch" style="display:inline-flex;margin:0;">
+            <input type="hidden" name="_token" value="{{ $_token }}">
+            <select class="lang-switch__select" name="locale" onchange="this.form.submit()" aria-label="@lang('dashboard.language')">
+              <option value="en" @if($locale == 'en')selected@endif>EN</option>
+              <option value="tr" @if($locale == 'tr')selected@endif>TR</option>
+            </select>
+          </form>
+          <form method="POST" action="/auth/logout">
+            <input type="hidden" name="_token" value="{{ $_token }}">
+            <button type="submit" class="button ui-btn ui-btn--primary ui-btn--sm">@lang('dashboard.logout')</button>
+          </form>
+        </div>
+      </header>
+      <main class="gocore-main">
+        @if($flash.success)
+        <div class="alert success">{{ $flash.success }}</div>
+        @endif
+        @if($flash.error)
+        <div class="alert error">{{ $flash.error }}</div>
+        @endif
+        @yield('content')
+      </main>
+    </div>
+  </div>
+  <script src="/js/dashboard-shell.js" defer></script>
+  @stack('scripts')
+</body>
+</html>

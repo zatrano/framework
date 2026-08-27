@@ -1,0 +1,27 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="card">
+    <form method="POST" action="/dashboard/roles/{{ $item.ID }}" class="stack">
+      <input type="hidden" name="_token" value="{{ $_token }}">
+      <div class="form-row">
+        <label for="name">@lang('dashboard.name')</label>
+        <input id="name" name="name" type="text" value="{{ $item.Name }}" required>
+      </div>
+      <div class="form-row">
+        <label for="slug">@lang('dashboard.slug')</label>
+        <input id="slug" name="slug" type="text" value="{{ $item.Slug }}" required>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button">@lang('dashboard.save')</button>
+        <a class="button secondary" href="/dashboard/roles">@lang('dashboard.back')</a>
+      </div>
+    </form>
+  </div>
+</section>
+@endsection

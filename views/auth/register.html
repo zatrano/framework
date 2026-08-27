@@ -1,0 +1,34 @@
+@extends('layouts.auth')
+
+@section('title')
+@lang('auth.register')
+@endsection
+
+@section('content')
+<h1>@lang('auth.register')</h1>
+<form class="auth-form" method="POST" action="/auth/register">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="name">@lang('auth.name')
+        <input id="name" name="name" type="text" value="{{ $name }}" autocomplete="name" required>
+    </label>
+    <label for="email">@lang('auth.email')
+        <input id="email" name="email" type="email" value="{{ $email }}" autocomplete="email" required>
+    </label>
+    <label for="password">@lang('auth.password_label')
+        <input id="password" name="password" type="password" autocomplete="new-password" required>
+    </label>
+    <label for="password_confirmation">@lang('auth.password_confirmation')
+        <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required>
+    </label>
+    <button class="auth-btn" type="submit">@lang('auth.register')</button>
+    <p class="auth-divider">@lang('auth.or_continue_with')</p>
+    <div class="auth-social">
+        <a href="/auth/google/login">@lang('auth.continue_google')</a>
+        <a href="/auth/github/login">@lang('auth.continue_github')</a>
+    </div>
+    <p class="auth-links"><a href="/auth/login">@lang('auth.login')</a></p>
+    @if($flash.error)
+    <p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
+    @endif
+</form>
+@endsection

@@ -1,0 +1,56 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="dashboard-stats dashboard-stats--two">
+    <!-- @module users -->
+    <a class="stat" href="/dashboard/users">
+      <span class="stat-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      <div>
+        <p class="muted">@lang('dashboard.users_count')</p>
+        <strong>{{ $users_count }}</strong>
+      </div>
+    </a>
+    <!-- @endmodule users -->
+    <!-- @module notifications -->
+    <a class="stat" href="/dashboard/notifications">
+      <span class="stat-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </span>
+      <div>
+        <p class="muted">@lang('dashboard.unread_count')</p>
+        <strong>{{ $unread_count }}</strong>
+      </div>
+    </a>
+    <!-- @endmodule notifications -->
+    <!-- @module roles -->
+    <a class="stat" href="/dashboard/roles">
+      <span class="stat-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </span>
+      <div>
+        <p class="muted">@lang('dashboard.roles_count')</p>
+        <strong>{{ $roles_count }}</strong>
+      </div>
+    </a>
+    <!-- @endmodule roles -->
+    <!-- @module analytics -->
+    <a class="stat" href="/dashboard/analytics">
+      <span class="stat-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14v4M12 10v8M17 6v12"/></svg>
+      </span>
+      <div>
+        <p class="muted">@lang('dashboard.nav_analytics')</p>
+        <strong>@lang('dashboard.analytics_live')</strong>
+      </div>
+    </a>
+    <!-- @endmodule analytics -->
+  </div>
+</section>
+@endsection

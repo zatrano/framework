@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="{{ $locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', 'Account') — {{ $appName }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --panel: #ffffff;
+            --text: #1a1a1a;
+            --muted: #5c5c5c;
+            --brand: #e10600;
+            --brand-hover: #c40500;
+            --line: #e6e8ec;
+            --danger: #b42318;
+            --ok: #0a7a3e;
+            --field: #f7f8fa;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Source Serif 4", Georgia, serif;
+            color: var(--text);
+            background:
+                radial-gradient(ellipse 70% 45% at 50% -15%, rgba(225, 6, 0, 0.08), transparent 55%),
+                var(--bg);
+        }
+        .auth-shell {
+            width: min(440px, 94vw);
+            margin: 0 auto;
+            padding: 3.25rem 0 3rem;
+        }
+        .auth-brand {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            font-family: Syne, sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--brand);
+            font-size: 1.05rem;
+            margin-bottom: 1.5rem;
+        }
+        .auth-panel {
+            padding: 2rem 1.6rem 2.1rem;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 14px;
+            box-shadow: 0 18px 40px rgba(12, 14, 18, 0.06);
+        }
+        .auth-panel h1 {
+            margin: 0 0 0.35rem;
+            font-family: Syne, sans-serif;
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+        .auth-form {
+            display: grid;
+            gap: 0.85rem;
+            margin-top: 1.15rem;
+        }
+        .auth-form label {
+            display: grid;
+            gap: 0.35rem;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .auth-form input[type="text"],
+        .auth-form input[type="email"],
+        .auth-form input[type="password"],
+        .auth-form textarea,
+        .auth-form select {
+            width: 100%;
+            padding: 0.75rem 0.85rem;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--field);
+            color: var(--text);
+            font: inherit;
+        }
+        .auth-form input:focus,
+        .auth-form textarea:focus,
+        .auth-form select:focus {
+            outline: 2px solid color-mix(in srgb, var(--brand) 35%, white);
+            outline-offset: 1px;
+            border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+            background: #fff;
+        }
+        .auth-check {
+            display: flex !important;
+            align-items: center;
+            gap: 0.55rem;
+            font-size: 0.92rem;
+        }
+        .auth-check input { width: auto; }
+        .auth-btn {
+            margin-top: 0.35rem;
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 0;
+            border-radius: 8px;
+            background: var(--brand);
+            color: #fff;
+            font-family: Syne, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+        }
+        .auth-btn:hover { background: var(--brand-hover); }
+        .auth-divider {
+            margin: 0.35rem 0 0;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        .auth-social {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem;
+        }
+        .auth-social a {
+            display: block;
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            color: var(--text);
+            text-decoration: none;
+            font-family: Syne, sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        .auth-social a:hover {
+            border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+            color: var(--brand);
+        }
+        .auth-links {
+            margin: 0.35rem 0 0;
+            font-size: 0.92rem;
+        }
+        .auth-links a { color: var(--brand); text-decoration: none; }
+        .auth-links a:hover { color: var(--brand-hover); }
+        .auth-alert {
+            margin: 0.25rem 0 0;
+            font-size: 0.9rem;
+        }
+        .auth-alert--error { color: var(--danger); }
+        .auth-alert--success { color: var(--ok); }
+        .auth-footer {
+            margin-top: 1.35rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+    </style>
+    @yield('head')
+    @stack('styles')
+</head>
+<body>
+<div class="auth-shell">
+    <a class="auth-brand" href="/">{{ $appName }}</a>
+    <div class="auth-panel">
+        @yield('content')
+    </div>
+    <div class="auth-footer">@lang('messages.built_with')</div>
+</div>
+@stack('scripts')
+</body>
+</html>

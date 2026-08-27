@@ -1,0 +1,21 @@
+@extends('layouts.auth')
+
+@section('title')
+@lang('auth.verify_email')
+@endsection
+
+@section('content')
+<h1>@lang('auth.verify_email')</h1>
+@if($verified)
+<p class="auth-alert auth-alert--success">@lang('auth.email_is_verified')</p>
+@else
+<p class="auth-divider" style="text-align:left;margin:0.75rem 0 0;">@lang('auth.verify_email_prompt') <strong>{{ $email }}</strong></p>
+<form class="auth-form" method="POST" action="/auth/email/verification-notification">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">@lang('auth.resend_verification')</button>
+</form>
+@endif
+@if($flash.success)
+<p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
+@endif
+@endsection

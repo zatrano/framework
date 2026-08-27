@@ -1,0 +1,27 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="card">
+    <form method="POST" action="/dashboard/notifications/bulk" class="stack">
+      <input type="hidden" name="_token" value="{{ $_token }}">
+      <div class="form-row">
+        <label for="title">@lang('dashboard.title_field')</label>
+        <input id="title" name="title" type="text" value="{{ $title_field }}" required>
+      </div>
+      <div class="form-row">
+        <label for="body">@lang('dashboard.body_field')</label>
+        <textarea id="body" name="body" rows="4" required>{{ $body }}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button">@lang('dashboard.bulk_send')</button>
+        <a class="button secondary" href="/dashboard/notifications">@lang('dashboard.back')</a>
+      </div>
+    </form>
+  </div>
+</section>
+@endsection

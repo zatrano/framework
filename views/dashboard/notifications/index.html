@@ -1,0 +1,53 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="page-header">
+    <div class="actions">
+      <a class="button" href="/dashboard/notifications/send">@lang('dashboard.send')</a>
+      <a class="button secondary" href="/dashboard/notifications/bulk">@lang('dashboard.bulk_send')</a>
+      <form method="POST" action="/dashboard/notifications/read-all">
+        <input type="hidden" name="_token" value="{{ $_token }}">
+        <button type="submit" class="button secondary">@lang('dashboard.mark_all_read')</button>
+      </form>
+    </div>
+  </div>
+  <div class="card card--table">
+    @if($items)
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>@lang('dashboard.title_field')</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($items as $item)
+          <tr>
+            <td>{{ $item.ID }}</td>
+            <td>{{ $item.Type }} — {{ $item.Data.title }}</td>
+            <td class="table-actions">
+              @unless($item.ReadAt)
+              <form method="POST" action="/dashboard/notifications/{{ $item.ID }}/read">
+                <input type="hidden" name="_token" value="{{ $_token }}">
+                <button type="submit" class="button secondary">@lang('dashboard.mark_read')</button>
+              </form>
+              @endunless
+            </td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+    @else
+    <p class="muted" style="padding:0 1.5rem 1.5rem;">@lang('dashboard.empty')</p>
+    @endif
+  </div>
+</section>
+@endsection

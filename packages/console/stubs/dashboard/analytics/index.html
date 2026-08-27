@@ -1,0 +1,43 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section data-analytics-poll="/dashboard/analytics/overview" data-analytics-interval="15000">
+  <div class="page-header">
+    <p class="muted">@lang('dashboard.analytics_live') — @lang('dashboard.analytics_updated'): <span data-analytics-updated>—</span></p>
+  </div>
+  <div class="dashboard-stats dashboard-stats--two">
+    <div class="stat">
+      <div>
+        <p class="muted">@lang('dashboard.users_count')</p>
+        <strong data-metric="users">{{ $users_count }}</strong>
+      </div>
+    </div>
+    <div class="stat">
+      <div>
+        <p class="muted">@lang('dashboard.roles_count')</p>
+        <strong data-metric="roles">{{ $roles_count }}</strong>
+      </div>
+    </div>
+    <div class="stat">
+      <div>
+        <p class="muted">@lang('dashboard.unread_count')</p>
+        <strong data-metric="unread">{{ $unread_count }}</strong>
+      </div>
+    </div>
+    <div class="stat">
+      <div>
+        <p class="muted">@lang('dashboard.settings_count')</p>
+        <strong data-metric="settings">{{ $settings_count }}</strong>
+      </div>
+    </div>
+  </div>
+</section>
+@endsection
+
+@push('scripts')
+<script src="/js/dashboard-analytics.js" defer></script>
+@endpush

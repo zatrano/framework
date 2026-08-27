@@ -8,5 +8,12 @@ func All() []migration.Migration {
 		&CreateJobsTable{},
 		&CreateNotificationsTable{},
 		&AddNotifiableTypeToNotifications{},
+		&CreateUsersTable{},
+		&CreatePasswordResetTokensTable{},
+		&CreatePersonalAccessTokensTable{},
+		&CreateSocialAccountsTable{},
+		&CreateDashboardRolesTables{},
+		&CreateDashboardRBACTables{},
+		&CreateDashboardSettingsTable{},
 	}
 }

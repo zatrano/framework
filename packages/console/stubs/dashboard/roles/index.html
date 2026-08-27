@@ -1,0 +1,49 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="page-header">
+    <div class="actions">
+      <a class="button" href="/dashboard/roles/create">@lang('dashboard.new_role')</a>
+    </div>
+  </div>
+  <div class="card card--table">
+    @if($roles)
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>@lang('dashboard.name')</th>
+            <th>@lang('dashboard.slug')</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($roles as $item)
+          <tr>
+            <td>{{ $item.ID }}</td>
+            <td>{{ $item.Name }}</td>
+            <td>{{ $item.Slug }}</td>
+            <td class="table-actions">
+              <a class="button secondary" href="/dashboard/roles/{{ $item.ID }}/edit">@lang('dashboard.edit')</a>
+              <form method="POST" action="/dashboard/roles/{{ $item.ID }}/delete" onsubmit="return confirm('@lang('dashboard.confirm_delete')');">
+                <input type="hidden" name="_token" value="{{ $_token }}">
+                <button type="submit" class="button danger">@lang('dashboard.delete')</button>
+              </form>
+            </td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+    @else
+    <p class="muted" style="padding:0 1.5rem 1.5rem;">@lang('dashboard.empty')</p>
+    @endif
+  </div>
+</section>
+@endsection

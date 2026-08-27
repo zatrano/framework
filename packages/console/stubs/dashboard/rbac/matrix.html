@@ -1,0 +1,43 @@
+@extends('layouts.dashboard')
+
+@section('title')
+{{ $title }}
+@endsection
+
+@section('content')
+<section>
+  <div class="card">
+    <h2>@lang('dashboard.matrix')</h2>
+    <form method="POST" action="/dashboard/rbac" class="stack">
+      <input type="hidden" name="_token" value="{{ $_token }}">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>@lang('dashboard.permission')</th>
+              @foreach($roles as $role)
+              <th>{{ $role.Name }}</th>
+              @endforeach
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($permissions as $perm)
+            <tr>
+              <td>{{ $perm.Name }} <span class="muted">({{ $perm.Slug }})</span></td>
+              @foreach($roles as $role)
+              <td>
+                <input type="checkbox" name="grant_{{ $role.ID }}_{{ $perm.ID }}" value="1" @if($matrix[$role.ID][$perm.ID])checked@endif>
+              </td>
+              @endforeach
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button">@lang('dashboard.save')</button>
+      </div>
+    </form>
+  </div>
+</section>
+@endsection

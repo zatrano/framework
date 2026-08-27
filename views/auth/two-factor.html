@@ -1,0 +1,81 @@
+@extends('layouts.auth')
+
+@section('title')
+@lang('auth.two_factor')
+@endsection
+
+@section('content')
+<h1>@lang('auth.two_factor')</h1>
+<p class="auth-divider" style="text-align:left;margin:0.75rem 0 0;">@lang('auth.two_factor_intro')</p>
+
+@if($enabled)
+<p class="auth-alert auth-alert--success">@lang('auth.status_enabled')</p>
+
+@if($recovery_codes)
+<h2 style="font-family:Syne,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.35rem;">@lang('auth.recovery_codes')</h2>
+<p class="auth-divider" style="text-align:left;margin:0;">@lang('auth.recovery_codes_copy_hint')</p>
+<ul style="list-style:none;padding:0;margin:0.75rem 0 0;font-family:ui-monospace,monospace;font-size:0.9rem;">
+    @foreach($recovery_codes as $code)
+    <li style="padding:0.4rem 0;border-bottom:1px solid var(--line);">{{ $code }}</li>
+    @endforeach
+</ul>
+@endif
+
+<form class="auth-form" method="POST" action="/auth/user/two-factor/recovery-codes" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">@lang('auth.regenerate_recovery_codes')</button>
+</form>
+
+<form class="auth-form" method="POST" action="/auth/user/two-factor/disable" style="margin-top:0.75rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="password">@lang('auth.current_password')
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="auth-btn" type="submit" style="background:#b42318;">@lang('auth.disable_two_factor')</button>
+</form>
+@else
+<p class="auth-alert auth-alert--error">@lang('auth.status_disabled')</p>
+
+@if($pending_setup)
+<h2 style="font-family:Syne,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.35rem;">@lang('auth.finish_setup')</h2>
+<p class="auth-divider" style="text-align:left;margin:0;">@lang('auth.add_authenticator_hint')</p>
+<p style="font-size:0.85rem;word-break:break-all;color:var(--muted);margin:0.75rem 0 0;">{{ $setup_url }}</p>
+<p style="font-family:ui-monospace,monospace;margin:0.5rem 0 0;">@lang('auth.secret_label'): <strong>{{ $setup_secret }}</strong></p>
+
+@if($setup_codes)
+<h3 style="font-family:Syne,sans-serif;font-size:0.95rem;margin:1rem 0 0.35rem;">@lang('auth.recovery_codes')</h3>
+<ul style="list-style:none;padding:0;margin:0.5rem 0 0;font-family:ui-monospace,monospace;font-size:0.9rem;">
+    @foreach($setup_codes as $code)
+    <li style="padding:0.4rem 0;border-bottom:1px solid var(--line);">{{ $code }}</li>
+    @endforeach
+</ul>
+@endif
+
+<form class="auth-form" method="POST" action="/auth/user/two-factor/confirm" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="code">@lang('auth.confirmation_code')
+        <input id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" required>
+    </label>
+    <button class="auth-btn" type="submit">@lang('auth.confirm_and_enable')</button>
+</form>
+@else
+<form class="auth-form" method="POST" action="/auth/user/two-factor/enable" style="margin-top:1.25rem;">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <button class="auth-btn" type="submit">@lang('auth.enable_two_factor_auth')</button>
+</form>
+@endif
+@endif
+
+<p class="auth-links" style="margin-top:1.5rem;">
+    <a href="/auth/profile">@lang('auth.back_to_profile')</a>
+    ·
+    <a href="/auth/user/logout-other-devices">@lang('auth.logout_other_devices')</a>
+</p>
+
+@if($flash.error)
+<p class="auth-alert auth-alert--error">{{ $flash.error }}</p>
+@endif
+@if($flash.success)
+<p class="auth-alert auth-alert--success">{{ $flash.success }}</p>
+@endif
+@endsection
