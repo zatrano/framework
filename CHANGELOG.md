@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.3.1 - 2026-08-28
+
+### Fixed
+
+- Auth/dashboard scaffolds: remove forbidden dot imports (`http`/`routing`) for staticcheck ST1001; gofmt dashboard sources
+
 ## 1.3.0 - 2026-08-28
 
 ### Added
