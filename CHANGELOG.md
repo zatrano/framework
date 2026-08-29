@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.3.3 - 2026-08-29
+
+### Changed
+
+- Skip `Set-Cookie` / session save for untouched anonymous sessions (CDN-friendly public pages)
+
 ## 1.3.2 - 2026-08-29
 
 ### Changed
