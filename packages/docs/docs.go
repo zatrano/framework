@@ -315,7 +315,7 @@ func (r *Repository) Register(router *routing.Router, opts Options) {
 	}
 
 	router.Get(prefix, indexHandler).As("docs.index")
-	router.Get(prefix+"/{slug}", showHandler).Where("slug", `.+`).As("docs.show")
+	router.Get(prefix+"/{*slug}", showHandler).As("docs.show")
 }
 
 // IndexHandler lists documentation pages.

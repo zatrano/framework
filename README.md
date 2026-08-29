@@ -283,7 +283,7 @@ go run ./cmd/zatrano make:dashboard
 
 Session guards with **per-guard keys**, remember-me, password reset (no enumeration), email verification events, cache-backed lockout, TOTP MFA, **remember this device**, multi-device logout, intended URLs, password confirmation.
 
-`make:dashboard` adds a modular admin shell (`/dashboard`), optional users / notifications / roles / RBAC / settings / analytics / impersonate, and JSON under `/api/v1` (with auth at `/api/v1/auth`).
+`make:dashboard` scaffolds a modular admin shell (`/dashboard`), optional users / notifications / roles / RBAC / settings / analytics / impersonate, and JSON under `/api/v1` (with auth at `/api/v1/auth`). Not pre-installed in the default app — run the CLI and follow its next steps.
 
 Reset / verify / password-changed emails use `auth.mail_*` keys under `APP_LOCALE` (see `lang/*/auth.json` and framework defaults).
 

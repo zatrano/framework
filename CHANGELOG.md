@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## Unreleased
+
+### Changed
+
+- Default app no longer ships `make:auth` / `make:dashboard` generated files; use the CLI scaffolds and wire providers/routes yourself
+
 ## 1.3.1 - 2026-08-28
 
 ### Fixed
@@ -13,7 +19,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Added
 
 - `make:dashboard` CLI scaffold: modular admin shell (users, notifications, roles, RBAC matrix, settings, live analytics, impersonate, `/api/v1`)
-- Dashboard stubs: CSS/JS shell (ZATRANO red), layouts, i18n (`en`/`tr`), migrations, `DashboardServiceProvider`, demo wiring
+- Dashboard stubs: CSS/JS shell (ZATRANO red), layouts, i18n (`en`/`tr`), migrations, `DashboardServiceProvider`
 - Auth API routes versioned under `/api/v1/auth` via `api.Version`
 - `DatabaseUserProvider.RetrieveByToken` uses hydrate (consistent with `RetrieveByID`)
 

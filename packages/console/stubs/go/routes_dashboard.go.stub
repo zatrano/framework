@@ -48,11 +48,11 @@ func RegisterDashboardWeb(app *core.Application) {
 		r.Get("/users", users.Index).As("dashboard.users")
 		r.Get("/users/create", users.CreateForm).As("dashboard.users.create")
 		r.Post("/users", users.Store).As("dashboard.users.store")
-		r.Get("/users/{id}/edit", users.EditForm).As("dashboard.users.edit").WhereNumber("id")
-		r.Post("/users/{id}", users.Update).As("dashboard.users.update").WhereNumber("id")
-		r.Post("/users/{id}/delete", users.Delete).As("dashboard.users.delete").WhereNumber("id")
+		r.Get("/users/{id}/edit", users.EditForm).As("dashboard.users.edit")
+		r.Post("/users/{id}", users.Update).As("dashboard.users.update")
+		r.Post("/users/{id}/delete", users.Delete).As("dashboard.users.delete")
 		// @module impersonate
-		r.Post("/users/{id}/impersonate", users.Impersonate).As("dashboard.users.impersonate").WhereNumber("id")
+		r.Post("/users/{id}/impersonate", users.Impersonate).As("dashboard.users.impersonate")
 		r.Post("/impersonation/stop", users.StopImpersonation).As("dashboard.impersonation.stop")
 		// @endmodule impersonate
 		// @endmodule users
@@ -64,16 +64,16 @@ func RegisterDashboardWeb(app *core.Application) {
 		r.Get("/notifications/bulk", notifs.BulkForm).As("dashboard.notifications.bulk")
 		r.Post("/notifications/bulk", notifs.Bulk).As("dashboard.notifications.bulk.store")
 		r.Post("/notifications/read-all", notifs.MarkAllRead).As("dashboard.notifications.read_all")
-		r.Post("/notifications/{id}/read", notifs.MarkRead).As("dashboard.notifications.read").WhereNumber("id")
+		r.Post("/notifications/{id}/read", notifs.MarkRead).As("dashboard.notifications.read")
 		// @endmodule notifications
 
 		// @module roles
 		r.Get("/roles", roles.Index).As("dashboard.roles")
 		r.Get("/roles/create", roles.CreateForm).As("dashboard.roles.create")
 		r.Post("/roles", roles.Store).As("dashboard.roles.store")
-		r.Get("/roles/{id}/edit", roles.EditForm).As("dashboard.roles.edit").WhereNumber("id")
-		r.Post("/roles/{id}", roles.Update).As("dashboard.roles.update").WhereNumber("id")
-		r.Post("/roles/{id}/delete", roles.Delete).As("dashboard.roles.delete").WhereNumber("id")
+		r.Get("/roles/{id}/edit", roles.EditForm).As("dashboard.roles.edit")
+		r.Post("/roles/{id}", roles.Update).As("dashboard.roles.update")
+		r.Post("/roles/{id}/delete", roles.Delete).As("dashboard.roles.delete")
 		// @endmodule roles
 
 		// @module rbac
@@ -111,7 +111,7 @@ func RegisterDashboardAPI(app *core.Application) {
 	api.Version(app.Router(), "v1", func(r *routing.Router) {
 		// @module users
 		r.Get("/users", apiCtrl.UsersIndex).As("api.v1.users")
-		r.Get("/users/{id}", apiCtrl.UsersShow).As("api.v1.users.show").WhereNumber("id")
+		r.Get("/users/{id}", apiCtrl.UsersShow).As("api.v1.users.show")
 		// @endmodule users
 		// @module roles
 		r.Get("/roles", apiCtrl.RolesIndex).As("api.v1.roles")

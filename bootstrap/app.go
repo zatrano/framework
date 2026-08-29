@@ -100,13 +100,12 @@ func mergeAddonNames(lists ...[]string) []string {
 	return out
 }
 
-// ApplicationProviders returns app-layer service providers (routes, auth wiring, etc.).
+// ApplicationProviders returns app-layer service providers (routes, etc.).
+// Auth/dashboard providers are added by make:auth / make:dashboard.
 func ApplicationProviders() []core.Provider {
 	return []core.Provider{
 		&providers.AppServiceProvider{},
 		&providers.DatabaseServiceProvider{},
-		&providers.AuthServiceProvider{},
-		&providers.DashboardServiceProvider{},
 		&providers.EventServiceProvider{},
 		&providers.ScheduleServiceProvider{},
 		&providers.RouteServiceProvider{},

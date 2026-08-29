@@ -23,7 +23,6 @@ type Route struct {
 	Middleware []MiddlewareFunc
 	paramNames []string
 	pattern    *regexp.Regexp
-	wheres     map[string]string
 	namePrefix string
 }
 
@@ -140,7 +139,7 @@ func (r *Router) Fallback(handler HandlerFunc) {
 // Add registers a route.
 func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 	fullPath := joinPath(r.groupPrefix, path)
-	paramNames, pattern := compilePath(fullPath, nil)
+	paramNames, pattern := compilePath(fullPath)
 
 	route := &Route{
 		Method:     strings.ToUpper(method),
@@ -149,7 +148,6 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 		Middleware: append([]MiddlewareFunc{}, r.groupMiddleware...),
 		paramNames: paramNames,
 		pattern:    pattern,
-		wheres:     map[string]string{},
 		namePrefix: r.groupName,
 	}
 	r.routes = append(r.routes, route)
@@ -165,40 +163,6 @@ func (route *Route) As(name string) *Route {
 // Through assigns route-specific middleware.
 func (route *Route) Through(middleware ...MiddlewareFunc) *Route {
 	route.Middleware = append(route.Middleware, middleware...)
-	return route
-}
-
-// Where constrains a route parameter with a regex fragment (without capturing parentheses).
-func (route *Route) Where(param, pattern string) *Route {
-	if route.wheres == nil {
-		route.wheres = map[string]string{}
-	}
-	route.wheres[param] = pattern
-	route.paramNames, route.pattern = compilePath(route.Path, route.wheres)
-	return route
-}
-
-// WhereNumber constrains parameters to digits.
-func (route *Route) WhereNumber(params ...string) *Route {
-	for _, param := range params {
-		route.Where(param, `[0-9]+`)
-	}
-	return route
-}
-
-// WhereUuid constrains parameters to UUID-like values.
-func (route *Route) WhereUuid(params ...string) *Route {
-	for _, param := range params {
-		route.Where(param, `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
-	}
-	return route
-}
-
-// WhereAlpha constrains parameters to letters.
-func (route *Route) WhereAlpha(params ...string) *Route {
-	for _, param := range params {
-		route.Where(param, `[A-Za-z]+`)
-	}
 	return route
 }
 
@@ -282,6 +246,8 @@ func (r *Router) URL(name string, params ...map[string]string) (string, error) {
 		for key, value := range params[0] {
 			path = strings.ReplaceAll(path, "{"+key+"}", value)
 			path = strings.ReplaceAll(path, "{"+key+"?}", value)
+			path = strings.ReplaceAll(path, "{*"+key+"}", value)
+			path = strings.ReplaceAll(path, "{"+key+"*}", value)
 		}
 	}
 
@@ -316,7 +282,7 @@ func joinPath(prefix, path string) string {
 	return prefix + path
 }
 
-func compilePath(path string, wheres map[string]string) ([]string, *regexp.Regexp) {
+func compilePath(path string) ([]string, *regexp.Regexp) {
 	if path == "" {
 		path = "/"
 	}
@@ -331,15 +297,17 @@ func compilePath(path string, wheres map[string]string) ([]string, *regexp.Regex
 			name := strings.TrimSuffix(strings.TrimPrefix(part, "{"), "}")
 			optional := strings.HasSuffix(name, "?")
 			name = strings.TrimSuffix(name, "?")
+			catchAll := strings.HasPrefix(name, "*") || strings.HasSuffix(name, "*")
+			name = strings.TrimPrefix(name, "*")
+			name = strings.TrimSuffix(name, "*")
 			names = append(names, name)
 			fragment := `[^/]+`
 			if optional {
 				fragment = `[^/]*`
 			}
-			if wheres != nil {
-				if custom, ok := wheres[name]; ok && strings.TrimSpace(custom) != "" {
-					fragment = custom
-				}
+			if catchAll {
+				// {*slug} / {slug*} matches the rest of the path, including slashes.
+				fragment = `.+`
 			}
 			parts[i] = `(` + fragment + `)`
 		} else {

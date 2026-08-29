@@ -124,7 +124,7 @@ Docs: [Requests & Responses](https://zatrano.com/docs/requests)
 ```go
 import "github.com/zatrano/framework/packages/routing"
 
-router.Get("/posts/{id}", c.Show).WhereNumber("id").As("posts.show")
+router.Get("/posts/{id}", c.Show).As("posts.show")
 path, _ := router.URL("posts.show", map[string]string{"id": "1"})
 ```
 

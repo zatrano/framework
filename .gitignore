@@ -40,3 +40,6 @@ tests/storage/framework/views/*
 tests/storage/logs/*
 !tests/storage/logs/.gitkeep
 tests/database/*.sqlite
+
+storage/framework/schedule/*
+!storage/framework/schedule/.gitkeep

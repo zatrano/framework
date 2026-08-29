@@ -7,7 +7,6 @@ package fuzz_test
 
 import (
 	stdhttp "net/http"
-	"regexp"
 	"testing"
 
 	"github.com/zatrano/framework/packages/http"
@@ -20,7 +19,7 @@ func FuzzRouterPath(f *testing.F) {
 		"/",
 		"/users/{id}",
 		"/posts/{slug?}",
-		"/files/{path*}",
+		"/files/{*path}",
 		"/a/b/c",
 		"//",
 		"/users/{id}/edit",
@@ -55,30 +54,4 @@ func normalizeFuzzPath(p string) string {
 		return "/" + p
 	}
 	return p
-}
-
-// FuzzRouterWherePattern fuzzes regex fragments passed to Route.Where.
-// Invalid regexes are skipped (Where currently uses MustCompile).
-func FuzzRouterWherePattern(f *testing.F) {
-	for _, s := range []string{`[0-9]+`, `[a-z]+`, `.*`, `[a-zA-Z0-9_-]+`, ``} {
-		f.Add(s)
-	}
-	f.Fuzz(func(t *testing.T, pattern string) {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("Where pattern panic %q: %v", pattern, r)
-			}
-		}()
-		if len(pattern) > 256 {
-			return
-		}
-		if _, err := regexp.Compile("^(" + pattern + ")$"); err != nil {
-			return
-		}
-		r := routing.New()
-		route := r.Add(stdhttp.MethodGet, "/x/{id}", func(req *http.Request) *http.Response {
-			return http.Text("ok")
-		})
-		route.Where("id", pattern)
-	})
 }
