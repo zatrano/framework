@@ -7,12 +7,57 @@ import (
 	stdhttp "net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/routing"
 )
 
 const sessionKey = "_csrf_token"
+
+// DefaultSessionCookie is the framework session cookie name used to detect an existing visit.
+const DefaultSessionCookie = "zatrano_session"
+
+var (
+	csrfMu            sync.RWMutex
+	sessionCookieName = DefaultSessionCookie
+	skipAnonymousSeed func(*http.Request) bool
+)
+
+// SetSessionCookieName overrides the cookie checked by SkipAnonymousSeed (default zatrano_session).
+func SetSessionCookieName(name string) {
+	csrfMu.Lock()
+	defer csrfMu.Unlock()
+	name = strings.TrimSpace(name)
+	if name == "" {
+		sessionCookieName = DefaultSessionCookie
+		return
+	}
+	sessionCookieName = name
+}
+
+// SkipAnonymousSeed registers a path matcher for CDN-friendly public GETs.
+// When the matcher returns true and the request has no session cookie, reading
+// methods skip token seed and XSRF-TOKEN Set-Cookie. Pass nil to disable.
+func SkipAnonymousSeed(match func(*http.Request) bool) {
+	csrfMu.Lock()
+	defer csrfMu.Unlock()
+	skipAnonymousSeed = match
+}
+
+func shouldSkipAnonymousSeed(req *http.Request) bool {
+	csrfMu.RLock()
+	match := skipAnonymousSeed
+	cookieName := sessionCookieName
+	csrfMu.RUnlock()
+	if match == nil || req == nil {
+		return false
+	}
+	if strings.TrimSpace(req.Cookie(cookieName)) != "" {
+		return false
+	}
+	return match(req)
+}
 
 // Middleware verifies CSRF tokens on unsafe HTTP methods for all paths.
 // Browser same-origin signals (Origin / Referer / Sec-Fetch-Site) are also enforced.
@@ -29,6 +74,11 @@ func Except(prefixes ...string) routing.MiddlewareFunc {
 				if strings.HasPrefix(req.Path(), prefix) {
 					return next(req)
 				}
+			}
+
+			// Public cacheable GETs: no token mint, no XSRF-TOKEN cookie when anonymous.
+			if isReading(req.Method()) && shouldSkipAnonymousSeed(req) {
+				return next(req)
 			}
 
 			token := ensureToken(req)

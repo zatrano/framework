@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.3.4 - 2026-08-30
+
+### Added
+
+- CSRF `SkipAnonymousSeed` / `SetSessionCookieName`: skip token + `XSRF-TOKEN` cookie on safe methods without a session cookie (CDN-friendly)
+
 ## 1.3.3 - 2026-08-29
 
 ### Changed

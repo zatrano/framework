@@ -190,3 +190,57 @@ func TestCSRFNoOriginTokenOnly(t *testing.T) {
 		t.Fatalf("status=%d", resp.StatusCode())
 	}
 }
+
+func hasResponseCookie(resp *http.Response, name string) bool {
+	for _, c := range resp.Cookies() {
+		if c != nil && c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func TestCSRFSkipAnonymousSeedNoSessionCookie(t *testing.T) {
+	csrf.SkipAnonymousSeed(func(req *http.Request) bool {
+		return req.Path() == "/"
+	})
+	t.Cleanup(func() { csrf.SkipAnonymousSeed(nil) })
+
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, sess := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
+	resp := handler(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("status=%d", resp.StatusCode())
+	}
+	if hasResponseCookie(resp, "XSRF-TOKEN") {
+		t.Fatal("expected no XSRF-TOKEN cookie for anonymous public GET")
+	}
+	if sess.Get("_csrf_token") != nil {
+		t.Fatal("expected no _csrf_token in session")
+	}
+}
+
+func TestCSRFSkipAnonymousSeedWithSessionCookie(t *testing.T) {
+	csrf.SkipAnonymousSeed(func(req *http.Request) bool {
+		return req.Path() == "/"
+	})
+	t.Cleanup(func() { csrf.SkipAnonymousSeed(nil) })
+
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, sess := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
+	req.Raw().AddCookie(&stdhttp.Cookie{Name: csrf.DefaultSessionCookie, Value: "aabbccddeeff00112233445566778899"})
+	resp := handler(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("status=%d", resp.StatusCode())
+	}
+	if !hasResponseCookie(resp, "XSRF-TOKEN") {
+		t.Fatal("expected XSRF-TOKEN cookie when session cookie present")
+	}
+	if tok, _ := sess.Get("_csrf_token").(string); tok == "" {
+		t.Fatal("expected _csrf_token seeded in session")
+	}
+}

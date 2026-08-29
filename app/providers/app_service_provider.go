@@ -17,6 +17,10 @@ func (p *AppServiceProvider) Register(app *core.Application) error {
 
 // Boot boots application services.
 func (p *AppServiceProvider) Boot(app *core.Application) error {
+	// Optional CDN-friendly public GETs (no XSRF seed without a session cookie):
+	// csrf.SkipAnonymousSeed(func(req *http.Request) bool {
+	// 	return req.Path() == "/" || strings.HasPrefix(req.Path(), "/docs")
+	// })
 	app.Router().Use(csrf.Except("/api"))
 
 	if v := view.From(app); v != nil {
