@@ -160,12 +160,23 @@ func (m *Manager) Start(id string) (*Bag, error) {
 		return m.newBag()
 	}
 
+	values := payload.Values
+	if values == nil {
+		values = make(map[string]any)
+	}
+	oldFlash := payload.Flash
+	if oldFlash == nil {
+		oldFlash = make(map[string]any)
+	}
+	// Persist once after flash is consumed so the next request does not re-read it.
+	changed := len(oldFlash) > 0
 	return &Bag{
 		id:       id,
-		values:   payload.Values,
+		values:   values,
 		flash:    make(map[string]any),
-		oldFlash: payload.Flash,
+		oldFlash: oldFlash,
 		manager:  m,
+		changed:  changed,
 	}, nil
 }
 
@@ -180,7 +191,7 @@ func (m *Manager) newBag() (*Bag, error) {
 		flash:    make(map[string]any),
 		oldFlash: make(map[string]any),
 		manager:  m,
-		changed:  true,
+		changed:  false,
 	}, nil
 }
 
@@ -280,6 +291,11 @@ func (b *Bag) Regenerate() error {
 // ID returns the session ID.
 func (b *Bag) ID() string {
 	return b.id
+}
+
+// Changed reports whether the bag needs persistence (writes or pending flash drain).
+func (b *Bag) Changed() bool {
+	return b != nil && b.changed
 }
 
 // Has reports whether the key exists in values or flashed data.

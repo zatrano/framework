@@ -103,16 +103,19 @@ func (b *httpBridge) Finalize(w stdhttp.ResponseWriter, req *http.Request, resp 
 
 	if bag, ok := req.Session().(*session.Bag); ok && bag != nil {
 		if sess := session.From(app); sess != nil {
-			_ = sess.Save(bag)
-			stdhttp.SetCookie(w, &stdhttp.Cookie{
-				Name:     sess.CookieName(),
-				Value:    bag.ID(),
-				Path:     "/",
-				HttpOnly: true,
-				Secure:   req.Secure() || env.GetBool("SESSION_SECURE", false),
-				SameSite: stdhttp.SameSiteLaxMode,
-				MaxAge:   int(time.Hour.Seconds() * 2),
-			})
+			hadCookie := strings.TrimSpace(req.Cookie(sess.CookieName())) != ""
+			if bag.Changed() || hadCookie {
+				_ = sess.Save(bag)
+				stdhttp.SetCookie(w, &stdhttp.Cookie{
+					Name:     sess.CookieName(),
+					Value:    bag.ID(),
+					Path:     "/",
+					HttpOnly: true,
+					Secure:   req.Secure() || env.GetBool("SESSION_SECURE", false),
+					SameSite: stdhttp.SameSiteLaxMode,
+					MaxAge:   int(time.Hour.Seconds() * 2),
+				})
+			}
 		}
 	}
 	return resp
