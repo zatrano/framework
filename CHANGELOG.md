@@ -2,11 +2,20 @@
 
 All notable changes to ZATRANO are documented in this file.
 
-## Unreleased
+## 1.3.2 - 2026-08-29
 
 ### Changed
 
 - Default app no longer ships `make:auth` / `make:dashboard` generated files; use the CLI scaffolds and wire providers/routes yourself
+- Empty application skeleton dirs (`events`, `listeners`, `jobs`, …) kept with `.gitkeep`
+
+### Removed
+
+- Route parameter constraints: `Where`, `WhereNumber`, `WhereUuid`, `WhereAlpha` (validate in handlers instead)
+
+### Added
+
+- Catch-all route params `{*slug}` / `{slug*}` (replaces docs `Where("slug", ".+")`)
 
 ## 1.3.1 - 2026-08-28
 
