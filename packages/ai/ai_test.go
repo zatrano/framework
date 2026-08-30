@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -102,6 +103,98 @@ func TestLogDriver(t *testing.T) {
 	}
 }
 
+func TestUsingNamedProvider(t *testing.T) {
+	m := ai.New()
+	m.Extend("primary", ai.FakeDriver{})
+	resp, err := m.Using("primary").Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "via-using"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp.Message.Content, "via-using") {
+		t.Fatalf("%v", resp.Message.Content)
+	}
+}
+
+type failDriver struct{ err error }
+
+func (failDriver) Name() string { return "fail" }
+func (d failDriver) Chat(ctx context.Context, req ai.ChatRequest) (*ai.ChatResponse, error) {
+	return nil, d.err
+}
+
+func TestProfileFallback(t *testing.T) {
+	m := ai.New()
+	m.Extend("broken", failDriver{err: errors.New("boom")})
+	m.Extend("ok", ai.FakeDriver{})
+	m.SetProfile("content", ai.Profile{
+		Providers: []string{"broken", "ok"},
+		Model:     "profile-model",
+	})
+	resp, err := m.Profile("content").Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "fallback"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Model != "profile-model" {
+		t.Fatalf("model=%q", resp.Model)
+	}
+	if !strings.Contains(resp.Message.Content, "fallback") {
+		t.Fatalf("%v", resp.Message.Content)
+	}
+}
+
+func TestBootConfigProvidersAndProfiles(t *testing.T) {
+	m := ai.New()
+	err := m.BootConfig(map[string]any{
+		"default": "local",
+		"model":   "base-model",
+		"timeout": 15,
+		"providers": map[string]any{
+			"local": map[string]any{
+				"driver": "fake",
+			},
+		},
+		"profiles": map[string]any{
+			"support": map[string]any{
+				"providers": []any{"local"},
+				"model":     "support-model",
+			},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := m.Profile("support").Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Model != "support-model" {
+		t.Fatalf("model=%q", resp.Model)
+	}
+	resp2, err := m.Using("local").Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "x"}},
+	})
+	if err != nil || !strings.Contains(resp2.Message.Content, "x") {
+		t.Fatalf("using local: %v %v", err, resp2)
+	}
+}
+
+func TestFakeEmbed(t *testing.T) {
+	m := ai.New()
+	resp, err := m.Embed(context.Background(), ai.EmbedRequest{Input: []string{"abc"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Embeddings) != 1 || len(resp.Embeddings[0]) != 3 {
+		t.Fatalf("%+v", resp)
+	}
+}
+
 func TestOpenAIDriverParse(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -195,6 +288,10 @@ func TestOpenAIHelper(t *testing.T) {
 	}
 	if od.APIKey != "sk-test" || od.BaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("%+v", od)
+	}
+	compat := ai.OpenAICompatible("http://localhost:11434/v1", "", "llama3")
+	if compat.Name() != "openai_compatible" {
+		t.Fatal(compat.Name())
 	}
 }
 

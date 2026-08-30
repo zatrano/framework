@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.0 - 2026-08-30
+
+### Added
+
+- AI manager: named providers, `Using` / `Profile` clients, ordered profile fallback, `openai_compatible` driver, optional `EmbeddingDriver` (`Embed`)
+
+### Changed
+
+- AI package split into manager/client/profile/drivers; boot via `BootConfig` (flat `AI_*` config still supported)
+
 ## 1.3.4 - 2026-08-30
 
 ### Added
