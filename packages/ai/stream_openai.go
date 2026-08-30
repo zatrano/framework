@@ -83,18 +83,18 @@ func readOpenAISSE(ctx context.Context, body io.ReadCloser, fallbackModel string
 	defer body.Close()
 
 	scanner := bufio.NewScanner(body)
-	// Some providers send large SSE lines.
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
 
-	var lastID, lastModel string
+	var lastID, lastModel, finishReason string
 	lastModel = fallbackModel
 	sentDone := false
+	var asm toolCallAssembler
 
 	send := func(c StreamChunk) bool {
 		select {
 		case <-ctx.Done():
-			out <- StreamChunk{Done: true, Err: ctx.Err(), ID: lastID, Model: lastModel}
+			out <- StreamChunk{Done: true, Err: ctx.Err(), ID: lastID, Model: lastModel, FinishReason: finishReason, ToolCalls: asm.result()}
 			return false
 		case out <- c:
 			return true
@@ -112,7 +112,13 @@ func readOpenAISSE(ctx context.Context, body io.ReadCloser, fallbackModel string
 		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if data == "[DONE]" {
 			if !sentDone {
-				_ = send(StreamChunk{Done: true, ID: lastID, Model: lastModel})
+				_ = send(StreamChunk{
+					Done:         true,
+					ID:           lastID,
+					Model:        lastModel,
+					FinishReason: finishReason,
+					ToolCalls:    asm.result(),
+				})
 				sentDone = true
 			}
 			return
@@ -131,24 +137,58 @@ func readOpenAISSE(ctx context.Context, body io.ReadCloser, fallbackModel string
 		}
 
 		var delta string
+		var toolDeltas []StreamToolCallDelta
+		var frameFinish string
 		for _, ch := range frame.Choices {
+			if ch.FinishReason != "" {
+				finishReason = ch.FinishReason
+				frameFinish = ch.FinishReason
+			}
 			delta += ch.Delta.Content
+			for _, tc := range ch.Delta.ToolCalls {
+				toolDeltas = append(toolDeltas, StreamToolCallDelta{
+					Index:     tc.Index,
+					ID:        tc.ID,
+					Type:      tc.Type,
+					Name:      tc.Function.Name,
+					Arguments: tc.Function.Arguments,
+				})
+			}
 		}
-		chunk := StreamChunk{Delta: delta, ID: lastID, Model: lastModel}
+		if len(toolDeltas) > 0 {
+			asm.apply(toolDeltas)
+		}
+		chunk := StreamChunk{
+			Delta:          delta,
+			ToolCallDeltas: toolDeltas,
+			FinishReason:   frameFinish,
+			ID:             lastID,
+			Model:          lastModel,
+		}
 		if frame.Usage != nil {
 			u := *frame.Usage
 			chunk.Usage = &u
+		}
+		// Skip empty frames (no text, tools, usage, or finish).
+		if chunk.Delta == "" && len(chunk.ToolCallDeltas) == 0 && chunk.Usage == nil && chunk.FinishReason == "" {
+			continue
 		}
 		if !send(chunk) {
 			return
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		_ = send(StreamChunk{Done: true, Err: wrapTransportError("openai", err), ID: lastID, Model: lastModel})
+		_ = send(StreamChunk{Done: true, Err: wrapTransportError("openai", err), ID: lastID, Model: lastModel, ToolCalls: asm.result()})
 		return
 	}
 	if !sentDone {
-		_ = send(StreamChunk{Done: true, ID: lastID, Model: lastModel})
+		_ = send(StreamChunk{
+			Done:         true,
+			ID:           lastID,
+			Model:        lastModel,
+			FinishReason: finishReason,
+			ToolCalls:    asm.result(),
+		})
 	}
 }
 
@@ -156,8 +196,18 @@ type openAIStreamFrame struct {
 	ID      string `json:"id"`
 	Model   string `json:"model"`
 	Choices []struct {
-		Delta struct {
-			Content string `json:"content"`
+		FinishReason string `json:"finish_reason"`
+		Delta        struct {
+			Content   string `json:"content"`
+			ToolCalls []struct {
+				Index    int    `json:"index"`
+				ID       string `json:"id"`
+				Type     string `json:"type"`
+				Function struct {
+					Name      string `json:"name"`
+					Arguments string `json:"arguments"`
+				} `json:"function"`
+			} `json:"tool_calls"`
 		} `json:"delta"`
 	} `json:"choices"`
 	Usage *Usage `json:"usage"`

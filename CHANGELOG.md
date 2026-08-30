@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.1 - 2026-08-30
+
+### Added
+
+- AI streaming tool-call deltas: `StreamToolCallDelta`, assembled `ToolCalls` on Done, `CollectStream` helper
+
 ## 1.5.0 - 2026-08-30
 
 ### Added

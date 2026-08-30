@@ -151,6 +151,61 @@ func TestOpenAIChatStreamSSE(t *testing.T) {
 	}
 }
 
+func TestOpenAIChatStreamToolCalls(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+		frames := []string{
+			`data: {"id":"s2","model":"m","choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":""}}]}}]}`,
+			`data: {"id":"s2","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"q\":"}}]}}]}`,
+			`data: {"id":"s2","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"x\"}"}}]}}]}`,
+			`data: {"id":"s2","choices":[{"delta":{},"finish_reason":"tool_calls"}]}`,
+			`data: [DONE]`,
+		}
+		for _, f := range frames {
+			_, _ = w.Write([]byte(f + "\n\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+	}))
+	defer srv.Close()
+
+	d := &ai.OpenAIDriver{BaseURL: srv.URL + "/v1", HTTPClient: srv.Client()}
+	ch, err := d.ChatStream(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "x"}},
+		Tools:    []ai.Tool{ai.FunctionTool("lookup", "", nil)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, calls, _, finish, err := ai.CollectStream(ch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text != "" || finish != "tool_calls" || len(calls) != 1 {
+		t.Fatalf("text=%q finish=%q calls=%+v", text, finish, calls)
+	}
+	if calls[0].Function.Name != "lookup" || calls[0].Function.Arguments != `{"q":"x"}` {
+		t.Fatalf("%+v", calls[0])
+	}
+}
+
+func TestFakeStreamToolCalls(t *testing.T) {
+	m := ai.New()
+	ch, err := m.ChatStream(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "run tool"}},
+		Tools:    []ai.Tool{ai.FunctionTool("lookup", "", nil)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, calls, _, finish, err := ai.CollectStream(ch)
+	if err != nil || finish != "tool_calls" || len(calls) != 1 {
+		t.Fatalf("err=%v finish=%q calls=%v", err, finish, calls)
+	}
+}
+
 func TestOpenAIChatStreamHTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "1")

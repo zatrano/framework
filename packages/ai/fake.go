@@ -111,6 +111,31 @@ func (FakeDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan Strea
 	out := make(chan StreamChunk, 8)
 	go func() {
 		defer close(out)
+		if len(resp.Message.ToolCalls) > 0 {
+			for _, tc := range resp.Message.ToolCalls {
+				out <- StreamChunk{
+					ToolCallDeltas: []StreamToolCallDelta{{
+						Index:     0,
+						ID:        tc.ID,
+						Type:      tc.Type,
+						Name:      tc.Function.Name,
+						Arguments: tc.Function.Arguments,
+					}},
+					ID:    resp.ID,
+					Model: resp.Model,
+				}
+			}
+			u := resp.Usage
+			out <- StreamChunk{
+				Done:         true,
+				FinishReason: resp.FinishReason,
+				ToolCalls:    resp.Message.ToolCalls,
+				Usage:        &u,
+				ID:           resp.ID,
+				Model:        resp.Model,
+			}
+			return
+		}
 		content := resp.Message.Content
 		parts := strings.Fields(content)
 		if len(parts) == 0 {
@@ -128,7 +153,7 @@ func (FakeDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan Strea
 			out <- StreamChunk{Delta: piece, ID: resp.ID, Model: resp.Model}
 		}
 		u := resp.Usage
-		out <- StreamChunk{Done: true, Usage: &u, ID: resp.ID, Model: resp.Model}
+		out <- StreamChunk{Done: true, FinishReason: resp.FinishReason, Usage: &u, ID: resp.ID, Model: resp.Model}
 	}()
 	return out, nil
 }
