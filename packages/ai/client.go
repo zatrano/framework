@@ -133,6 +133,90 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 	return nil, lastErr
 }
 
+// ChatStream streams chat completions. Fallback applies only to stream setup
+// (before a channel is returned). Mid-stream errors are delivered on the channel
+// and do not switch providers.
+func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan StreamChunk, error) {
+	if c == nil || c.mgr == nil {
+		return nil, fmt.Errorf("ai: client is nil")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	c.mgr.mu.RLock()
+	defs := c.mgr.defaults
+	names, req2, err := c.resolveChatLocked(req, defs)
+	timeout := defs.Timeout
+	retry := defs.Retry.normalized()
+	fallbackOnTimeout := defs.FallbackOnTimeout
+	c.mgr.mu.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	}
+
+	var lastErr error
+	for _, name := range names {
+		d, err := c.mgr.Driver(name)
+		if err != nil {
+			lastErr = err
+			if !Fallbackable(err, fallbackOnTimeout) {
+				if cancel != nil {
+					cancel()
+				}
+				return nil, err
+			}
+			continue
+		}
+		sd, ok := d.(StreamDriver)
+		if !ok {
+			lastErr = fmt.Errorf("ai: driver [%s] does not support streaming", name)
+			continue
+		}
+		ch, err := callWithRetry(ctx, retry, func(ctx context.Context) (<-chan StreamChunk, error) {
+			return sd.ChatStream(ctx, req2)
+		})
+		if err == nil {
+			if cancel != nil {
+				return bindStreamCancel(ch, cancel), nil
+			}
+			return ch, nil
+		}
+		lastErr = err
+		if !Fallbackable(err, fallbackOnTimeout) {
+			if cancel != nil {
+				cancel()
+			}
+			return nil, err
+		}
+	}
+	if cancel != nil {
+		cancel()
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("ai: no streaming providers available")
+	}
+	return nil, lastErr
+}
+
+// bindStreamCancel cancels the request context after the stream channel is drained.
+func bindStreamCancel(ch <-chan StreamChunk, cancel context.CancelFunc) <-chan StreamChunk {
+	out := make(chan StreamChunk, 16)
+	go func() {
+		defer close(out)
+		defer cancel()
+		for chunk := range ch {
+			out <- chunk
+		}
+	}()
+	return out
+}
+
 func callWithRetry[T any](ctx context.Context, policy RetryPolicy, fn func(context.Context) (T, error)) (T, error) {
 	policy = policy.normalized()
 	var zero T

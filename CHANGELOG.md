@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.2 - 2026-08-30
+
+### Added
+
+- AI streaming: optional `StreamDriver`, `ChatStream`, OpenAI-compatible SSE (`stream: true`)
+
 ## 1.4.1 - 2026-08-30
 
 ### Added

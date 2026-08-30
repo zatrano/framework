@@ -1,6 +1,9 @@
 package ai
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // LogFn is a printf-style logger (compatible with packages/log Infof).
 type LogFn func(format string, args ...any)
@@ -29,4 +32,20 @@ func (d LogDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, er
 		}
 	}
 	return resp, err
+}
+
+// ChatStream delegates when Inner implements StreamDriver.
+func (d LogDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan StreamChunk, error) {
+	inner := d.Inner
+	if inner == nil {
+		inner = FakeDriver{}
+	}
+	sd, ok := inner.(StreamDriver)
+	if !ok {
+		return nil, &Error{Kind: KindInvalid, Provider: "log", Err: fmt.Errorf("inner driver does not support streaming")}
+	}
+	if d.Log != nil {
+		d.Log("ai: driver=log stream model=%s prompt=%q", req.Model, truncate(lastUser(req.Messages), 120))
+	}
+	return sd.ChatStream(ctx, req)
 }

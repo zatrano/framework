@@ -54,6 +54,40 @@ func (FakeDriver) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, 
 	}, nil
 }
 
+// ChatStream yields the stub reply in small deltas (implements StreamDriver).
+func (FakeDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan StreamChunk, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := (FakeDriver{}).Chat(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	out := make(chan StreamChunk, 8)
+	go func() {
+		defer close(out)
+		content := resp.Message.Content
+		parts := strings.Fields(content)
+		if len(parts) == 0 {
+			parts = []string{content}
+		}
+		for i, p := range parts {
+			if err := ctx.Err(); err != nil {
+				out <- StreamChunk{Done: true, Err: err, ID: resp.ID, Model: resp.Model}
+				return
+			}
+			piece := p
+			if i > 0 {
+				piece = " " + p
+			}
+			out <- StreamChunk{Delta: piece, ID: resp.ID, Model: resp.Model}
+		}
+		u := resp.Usage
+		out <- StreamChunk{Done: true, Usage: &u, ID: resp.ID, Model: resp.Model}
+	}()
+	return out, nil
+}
+
 func lastUser(messages []Message) string {
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {

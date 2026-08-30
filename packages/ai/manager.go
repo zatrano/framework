@@ -157,6 +157,14 @@ func (m *Manager) Embed(ctx context.Context, req EmbedRequest, driver ...string)
 	return (&Client{mgr: m}).Embed(ctx, req)
 }
 
+// ChatStream streams chat on the default (or named) provider when supported.
+func (m *Manager) ChatStream(ctx context.Context, req ChatRequest, driver ...string) (<-chan StreamChunk, error) {
+	if len(driver) > 0 && strings.TrimSpace(driver[0]) != "" {
+		return m.Using(driver[0]).ChatStream(ctx, req)
+	}
+	return (&Client{mgr: m}).ChatStream(ctx, req)
+}
+
 func (m *Manager) profileLocked(name string) (Profile, bool) {
 	p, ok := m.profiles[strings.ToLower(strings.TrimSpace(name))]
 	if !ok {
