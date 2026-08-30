@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.3 - 2026-08-30
+
+### Added
+
+- AI `Observe` hook (`Observer` / `FuncObserver`) with latency, usage, attempts, fallbacks
+- AI `Drivers()` / `Profiles()` return sorted names
+
 ## 1.4.2 - 2026-08-30
 
 ### Added

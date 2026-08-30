@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ type Manager struct {
 	drivers       map[string]Driver
 	profiles      map[string]Profile
 	defaults      Defaults
+	obs           Observer
 }
 
 // New creates an AI manager with fake and log drivers.
@@ -85,7 +87,7 @@ func (m *Manager) SetProfile(name string, profile Profile) {
 	m.profiles[strings.ToLower(strings.TrimSpace(name))] = profile.clone()
 }
 
-// Profiles returns registered profile names.
+// Profiles returns registered profile names (sorted).
 func (m *Manager) Profiles() []string {
 	if m == nil {
 		return nil
@@ -96,10 +98,11 @@ func (m *Manager) Profiles() []string {
 	for name := range m.profiles {
 		out = append(out, name)
 	}
+	sort.Strings(out)
 	return out
 }
 
-// Drivers returns registered provider names.
+// Drivers returns registered provider names (sorted).
 func (m *Manager) Drivers() []string {
 	if m == nil {
 		return nil
@@ -110,7 +113,18 @@ func (m *Manager) Drivers() []string {
 	for name := range m.drivers {
 		out = append(out, name)
 	}
+	sort.Strings(out)
 	return out
+}
+
+// Observe sets a telemetry hook (nil clears). Safe to call at any time.
+func (m *Manager) Observe(o Observer) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.obs = o
 }
 
 // Driver returns a named provider (or the default).

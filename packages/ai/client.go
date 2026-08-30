@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Client is a scoped AI entry point (Using provider or Profile).
@@ -33,36 +34,60 @@ func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, erro
 		return nil, err
 	}
 
+	start := time.Now()
+	base := RequestInfo{Provider: c.provider, Profile: c.profile, Model: req2.Model, Op: "chat"}
+	c.mgr.notifyRequest(ctx, base)
+
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
-	var lastErr error
+	var (
+		lastErr    error
+		lastProv   string
+		attempts   int
+		fallbacks  int
+		triedCount int
+	)
 	for _, name := range names {
+		if triedCount > 0 {
+			fallbacks++
+		}
+		triedCount++
+		lastProv = name
 		d, err := c.mgr.Driver(name)
 		if err != nil {
 			lastErr = err
 			if !Fallbackable(err, fallbackOnTimeout) {
+				c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 				return nil, err
 			}
 			continue
 		}
-		resp, err := callWithRetry(ctx, retry, func(ctx context.Context) (*ChatResponse, error) {
+		resp, n, err := callWithRetry(ctx, retry, func(ctx context.Context) (*ChatResponse, error) {
 			return d.Chat(ctx, req2)
 		})
+		attempts += n
 		if err == nil {
+			usage := Usage{}
+			if resp != nil {
+				usage = resp.Usage
+			}
+			c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, usage, nil))
 			return resp, nil
 		}
 		lastErr = err
 		if !Fallbackable(err, fallbackOnTimeout) {
+			c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 			return nil, err
 		}
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("ai: no providers available")
 	}
+	c.mgr.notifyResult(ctx, resultFrom(base, lastProv, start, attempts, fallbacks, Usage{}, lastErr))
 	return nil, lastErr
 }
 
@@ -95,18 +120,34 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 		req.Model = modelDefault
 	}
 
+	start := time.Now()
+	base := RequestInfo{Provider: c.provider, Profile: c.profile, Model: req.Model, Op: "embed"}
+	c.mgr.notifyRequest(ctx, base)
+
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
-	var lastErr error
+	var (
+		lastErr    error
+		lastProv   string
+		attempts   int
+		fallbacks  int
+		triedCount int
+	)
 	for _, name := range names {
+		if triedCount > 0 {
+			fallbacks++
+		}
+		triedCount++
+		lastProv = name
 		d, err := c.mgr.Driver(name)
 		if err != nil {
 			lastErr = err
 			if !Fallbackable(err, fallbackOnTimeout) {
+				c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 				return nil, err
 			}
 			continue
@@ -116,20 +157,28 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 			lastErr = fmt.Errorf("ai: driver [%s] does not support embeddings", name)
 			continue
 		}
-		resp, err := callWithRetry(ctx, retry, func(ctx context.Context) (*EmbedResponse, error) {
+		resp, n, err := callWithRetry(ctx, retry, func(ctx context.Context) (*EmbedResponse, error) {
 			return ed.Embed(ctx, req)
 		})
+		attempts += n
 		if err == nil {
+			usage := Usage{}
+			if resp != nil {
+				usage = resp.Usage
+			}
+			c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, usage, nil))
 			return resp, nil
 		}
 		lastErr = err
 		if !Fallbackable(err, fallbackOnTimeout) {
+			c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 			return nil, err
 		}
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("ai: no embedding providers available")
 	}
+	c.mgr.notifyResult(ctx, resultFrom(base, lastProv, start, attempts, fallbacks, Usage{}, lastErr))
 	return nil, lastErr
 }
 
@@ -155,13 +204,28 @@ func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan Stream
 		return nil, err
 	}
 
+	start := time.Now()
+	base := RequestInfo{Provider: c.provider, Profile: c.profile, Model: req2.Model, Op: "stream"}
+	c.mgr.notifyRequest(ctx, base)
+
 	var cancel context.CancelFunc
 	if timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 	}
 
-	var lastErr error
+	var (
+		lastErr    error
+		lastProv   string
+		attempts   int
+		fallbacks  int
+		triedCount int
+	)
 	for _, name := range names {
+		if triedCount > 0 {
+			fallbacks++
+		}
+		triedCount++
+		lastProv = name
 		d, err := c.mgr.Driver(name)
 		if err != nil {
 			lastErr = err
@@ -169,6 +233,7 @@ func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan Stream
 				if cancel != nil {
 					cancel()
 				}
+				c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 				return nil, err
 			}
 			continue
@@ -178,10 +243,12 @@ func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan Stream
 			lastErr = fmt.Errorf("ai: driver [%s] does not support streaming", name)
 			continue
 		}
-		ch, err := callWithRetry(ctx, retry, func(ctx context.Context) (<-chan StreamChunk, error) {
+		ch, n, err := callWithRetry(ctx, retry, func(ctx context.Context) (<-chan StreamChunk, error) {
 			return sd.ChatStream(ctx, req2)
 		})
+		attempts += n
 		if err == nil {
+			ch = observeStream(ctx, c.mgr, base, name, start, attempts, fallbacks, ch)
 			if cancel != nil {
 				return bindStreamCancel(ch, cancel), nil
 			}
@@ -192,6 +259,7 @@ func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan Stream
 			if cancel != nil {
 				cancel()
 			}
+			c.mgr.notifyResult(ctx, resultFrom(base, name, start, attempts, fallbacks, Usage{}, err))
 			return nil, err
 		}
 	}
@@ -201,7 +269,44 @@ func (c *Client) ChatStream(ctx context.Context, req ChatRequest) (<-chan Stream
 	if lastErr == nil {
 		lastErr = fmt.Errorf("ai: no streaming providers available")
 	}
+	c.mgr.notifyResult(ctx, resultFrom(base, lastProv, start, attempts, fallbacks, Usage{}, lastErr))
 	return nil, lastErr
+}
+
+func resultFrom(base RequestInfo, provider string, start time.Time, attempts, fallbacks int, usage Usage, err error) ResultInfo {
+	return ResultInfo{
+		RequestInfo: base,
+		Provider:    provider,
+		Latency:     time.Since(start),
+		Usage:       usage,
+		Err:         err,
+		Attempts:    attempts,
+		Fallbacks:   fallbacks,
+	}
+}
+
+// observeStream emits OnResult when the stream channel is fully drained.
+func observeStream(ctx context.Context, mgr *Manager, base RequestInfo, provider string, start time.Time, attempts, fallbacks int, ch <-chan StreamChunk) <-chan StreamChunk {
+	if mgr == nil || mgr.observer() == nil {
+		return ch
+	}
+	out := make(chan StreamChunk, 16)
+	go func() {
+		defer close(out)
+		var usage Usage
+		var streamErr error
+		for chunk := range ch {
+			if chunk.Usage != nil {
+				usage = *chunk.Usage
+			}
+			if chunk.Err != nil {
+				streamErr = chunk.Err
+			}
+			out <- chunk
+		}
+		mgr.notifyResult(ctx, resultFrom(base, provider, start, attempts, fallbacks, usage, streamErr))
+	}()
+	return out
 }
 
 // bindStreamCancel cancels the request context after the stream channel is drained.
@@ -217,17 +322,19 @@ func bindStreamCancel(ch <-chan StreamChunk, cancel context.CancelFunc) <-chan S
 	return out
 }
 
-func callWithRetry[T any](ctx context.Context, policy RetryPolicy, fn func(context.Context) (T, error)) (T, error) {
+func callWithRetry[T any](ctx context.Context, policy RetryPolicy, fn func(context.Context) (T, error)) (T, int, error) {
 	policy = policy.normalized()
 	var zero T
 	var lastErr error
+	attempts := 0
 	for attempt := 0; attempt <= policy.MaxRetries; attempt++ {
 		if err := ctx.Err(); err != nil {
-			return zero, err
+			return zero, attempts, err
 		}
+		attempts++
 		out, err := fn(ctx)
 		if err == nil {
-			return out, nil
+			return out, attempts, nil
 		}
 		lastErr = err
 		if attempt == policy.MaxRetries || !Retryable(err) {
@@ -235,10 +342,10 @@ func callWithRetry[T any](ctx context.Context, policy RetryPolicy, fn func(conte
 		}
 		delay := policy.backoffDelay(attempt, retryAfterOf(err))
 		if sleepErr := sleepCtx(ctx, delay); sleepErr != nil {
-			return zero, sleepErr
+			return zero, attempts, sleepErr
 		}
 	}
-	return zero, lastErr
+	return zero, attempts, lastErr
 }
 
 func (c *Client) resolveChatLocked(req ChatRequest, defs Defaults) ([]string, ChatRequest, error) {
