@@ -16,6 +16,15 @@ type LogDriver struct {
 
 func (LogDriver) Name() string { return "log" }
 
+// Capabilities implements Capabler (delegates to Inner).
+func (d LogDriver) Capabilities() []Capability {
+	inner := d.Inner
+	if inner == nil {
+		inner = FakeDriver{}
+	}
+	return InferCapabilities(inner)
+}
+
 func (d LogDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	inner := d.Inner
 	if inner == nil {

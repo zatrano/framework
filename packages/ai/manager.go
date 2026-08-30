@@ -17,6 +17,7 @@ type Manager struct {
 	profiles      map[string]Profile
 	defaults      Defaults
 	obs           Observer
+	models        map[string][]ModelInfo
 }
 
 // New creates an AI manager with fake and log drivers.

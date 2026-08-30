@@ -14,6 +14,11 @@ type FakeDriver struct{}
 
 func (FakeDriver) Name() string { return "fake" }
 
+// Capabilities implements Capabler.
+func (FakeDriver) Capabilities() []Capability {
+	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON}
+}
+
 func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

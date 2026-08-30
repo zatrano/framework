@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.0 - 2026-08-30
+
+### Added
+
+- AI capability registry: `Capability`, `Capabler`, `Capabilities` / `Supports` / `Describe` / `DescribeAll`, optional `SetModels` metadata
+
 ## 1.4.5 - 2026-08-30
 
 ### Added

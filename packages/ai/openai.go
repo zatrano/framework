@@ -52,6 +52,11 @@ func (d *OpenAIDriver) Name() string {
 	return "openai"
 }
 
+// Capabilities implements Capabler.
+func (d *OpenAIDriver) Capabilities() []Capability {
+	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON}
+}
+
 func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()
