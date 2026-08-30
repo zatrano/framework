@@ -57,6 +57,38 @@ func (d *OpenAIDriver) Capabilities() []Capability {
 	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON}
 }
 
+// Health implements Healthy via GET {base}/models.
+func (d *OpenAIDriver) Health(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	base := strings.TrimRight(d.BaseURL, "/")
+	if base == "" {
+		base = "https://api.openai.com/v1"
+	}
+	client := d.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/models", nil)
+	if err != nil {
+		return HealthError(d.Name(), err)
+	}
+	if d.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+d.APIKey)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return HealthError(d.Name(), err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return HealthError(d.Name(), fmt.Errorf("status %d", resp.StatusCode))
+	}
+	return nil
+}
+
 func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()

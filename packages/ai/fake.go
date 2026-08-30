@@ -19,6 +19,14 @@ func (FakeDriver) Capabilities() []Capability {
 	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON}
 }
 
+// Health implements Healthy (always OK unless context canceled).
+func (FakeDriver) Health(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.Err()
+}
+
 func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

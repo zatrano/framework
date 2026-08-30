@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.3 - 2026-08-30
+
+### Added
+
+- AI provider health probes: `Healthy`, `CheckHealth` / `CheckHealthAll`, `HealthyProviders` (OpenAI `GET /models`)
+
 ## 1.5.2 - 2026-08-30
 
 ### Added

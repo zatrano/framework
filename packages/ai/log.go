@@ -25,6 +25,18 @@ func (d LogDriver) Capabilities() []Capability {
 	return InferCapabilities(inner)
 }
 
+// Health implements Healthy when Inner does.
+func (d LogDriver) Health(ctx context.Context) error {
+	inner := d.Inner
+	if inner == nil {
+		inner = FakeDriver{}
+	}
+	if h, ok := inner.(Healthy); ok {
+		return h.Health(ctx)
+	}
+	return nil
+}
+
 func (d LogDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	inner := d.Inner
 	if inner == nil {
