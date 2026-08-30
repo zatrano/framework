@@ -16,7 +16,7 @@ func (FakeDriver) Name() string { return "fake" }
 
 // Capabilities implements Capabler.
 func (FakeDriver) Capabilities() []Capability {
-	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON, CapVision}
+	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON, CapVision, CapImage}
 }
 
 // Health implements Healthy (always OK unless context canceled).

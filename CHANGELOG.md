@@ -2,6 +2,14 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.6 - 2026-08-30
+
+### Added
+
+- AI image generation: `ImageDriver`, `GenerateImage`, `CapImage` (OpenAI Images API + Fake stub)
+- AI `WatchHealth` background probes that reorder profile providers via `SetProfile`
+- AI thin HTTP drivers: `Anthropic` / `Gemini` (`BuildDriver` ids `anthropic`/`claude`, `gemini`/`google`)
+
 ## 1.5.5 - 2026-08-30
 
 ### Added

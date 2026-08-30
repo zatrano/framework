@@ -14,7 +14,7 @@ func TestCapabilitiesFake(t *testing.T) {
 	}
 	want := map[ai.Capability]bool{
 		ai.CapChat: true, ai.CapEmbed: true, ai.CapStream: true,
-		ai.CapTools: true, ai.CapJSON: true, ai.CapVision: true,
+		ai.CapTools: true, ai.CapJSON: true, ai.CapVision: true, ai.CapImage: true,
 	}
 	if len(caps) != len(want) {
 		t.Fatalf("%v", caps)

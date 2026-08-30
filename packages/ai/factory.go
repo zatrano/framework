@@ -62,6 +62,41 @@ func BuildDriver(opts ProviderOptions) (Driver, error) {
 			d.HTTPClient = &http.Client{Timeout: opts.Timeout}
 		}
 		return d, nil
+	case "anthropic", "claude":
+		d := &AnthropicDriver{
+			BaseURL: opts.BaseURL,
+			APIKey:  opts.APIKey,
+			Model:   opts.Model,
+			Version: "2023-06-01",
+			name:    "anthropic",
+		}
+		if d.BaseURL == "" {
+			d.BaseURL = "https://api.anthropic.com"
+		}
+		if d.Model == "" {
+			d.Model = "claude-sonnet-4-20250514"
+		}
+		if opts.Timeout > 0 {
+			d.HTTPClient = &http.Client{Timeout: opts.Timeout}
+		}
+		return d, nil
+	case "gemini", "google":
+		d := &GeminiDriver{
+			BaseURL: opts.BaseURL,
+			APIKey:  opts.APIKey,
+			Model:   opts.Model,
+			name:    "gemini",
+		}
+		if d.BaseURL == "" {
+			d.BaseURL = "https://generativelanguage.googleapis.com"
+		}
+		if d.Model == "" {
+			d.Model = "gemini-2.0-flash"
+		}
+		if opts.Timeout > 0 {
+			d.HTTPClient = &http.Client{Timeout: opts.Timeout}
+		}
+		return d, nil
 	default:
 		return nil, fmt.Errorf("ai: unknown driver %q", opts.Driver)
 	}
