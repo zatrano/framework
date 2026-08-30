@@ -25,6 +25,18 @@ func TestFakeGenerateImage(t *testing.T) {
 	}
 }
 
+func TestFakeEditAndVary(t *testing.T) {
+	m := ai.New()
+	edit, err := m.EditImage(context.Background(), ai.ImageEditRequest{Prompt: "add hat", Image: []byte("png")})
+	if err != nil || !strings.Contains(edit.Data[0].URL, "hat") {
+		t.Fatalf("%v %+v", err, edit)
+	}
+	vary, err := m.VaryImage(context.Background(), ai.ImageVaryRequest{Image: []byte("png")})
+	if err != nil || len(vary.Data) != 1 {
+		t.Fatalf("%v %+v", err, vary)
+	}
+}
+
 func TestOpenAIGenerateImage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/images/generations" {

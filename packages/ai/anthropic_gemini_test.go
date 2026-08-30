@@ -62,8 +62,36 @@ func TestAnthropicChat(t *testing.T) {
 	if resp.FinishReason != "stop" || resp.Usage.TotalTokens != 8 {
 		t.Fatalf("%+v", resp)
 	}
-	if !m.Supports(ai.CapVision, "anthropic") || m.Supports(ai.CapImage, "anthropic") {
+	if !m.Supports(ai.CapVision, "anthropic") || !m.Supports(ai.CapTools, "anthropic") || m.Supports(ai.CapImage, "anthropic") {
 		t.Fatal("caps")
+	}
+}
+
+func TestAnthropicTools(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if _, ok := body["tools"]; !ok {
+			t.Fatal("missing tools")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id": "msg_t", "model": "claude-test", "stop_reason": "tool_use",
+			"content": []map[string]any{{
+				"type": "tool_use", "id": "call_1", "name": "lookup",
+				"input": map[string]string{"q": "x"},
+			}},
+			"usage": map[string]int{"input_tokens": 1, "output_tokens": 2},
+		})
+	}))
+	defer srv.Close()
+	m := ai.New()
+	m.Extend("a", &ai.AnthropicDriver{BaseURL: srv.URL, APIKey: "k", HTTPClient: srv.Client()})
+	resp, err := m.Using("a").Chat(context.Background(), ai.ChatRequest{
+		Messages: []ai.Message{{Role: "user", Content: "use tool"}},
+		Tools:    []ai.Tool{ai.FunctionTool("lookup", "look", nil)},
+	})
+	if err != nil || !resp.HasToolCalls() || resp.Message.ToolCalls[0].Function.Name != "lookup" {
+		t.Fatalf("%v %+v", err, resp)
 	}
 }
 
@@ -155,9 +183,23 @@ func TestGeminiHealth(t *testing.T) {
 	}
 }
 
-func TestBuildDriverGemini(t *testing.T) {
-	d, err := ai.BuildDriver(ai.ProviderOptions{Driver: "gemini", APIKey: "k"})
-	if err != nil || d.Name() != "gemini" {
-		t.Fatalf("%v %v", d, err)
+func TestGeminiEmbed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, ":embedContent") {
+			t.Fatalf("%s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"embedding": map[string]any{"values": []float64{0.1, 0.2}},
+		})
+	}))
+	defer srv.Close()
+	m := ai.New()
+	m.Extend("g", &ai.GeminiDriver{BaseURL: srv.URL, APIKey: "k", HTTPClient: srv.Client()})
+	resp, err := m.Using("g").Embed(context.Background(), ai.EmbedRequest{Input: []string{"hi"}})
+	if err != nil || len(resp.Embeddings) != 1 || len(resp.Embeddings[0]) != 2 {
+		t.Fatalf("%v %+v", err, resp)
+	}
+	if !m.Supports(ai.CapEmbed, "g") || !m.Supports(ai.CapStream, "g") {
+		t.Fatal("caps")
 	}
 }

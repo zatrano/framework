@@ -40,7 +40,7 @@ func (d *AnthropicDriver) Name() string {
 }
 
 func (d *AnthropicDriver) Capabilities() []Capability {
-	return []Capability{CapChat, CapVision}
+	return []Capability{CapChat, CapVision, CapTools, CapStream}
 }
 
 func (d *AnthropicDriver) Health(ctx context.Context) error {
@@ -116,6 +116,7 @@ func (d *AnthropicDriver) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 	if req.Temperature != nil {
 		body["temperature"] = *req.Temperature
 	}
+	applyAnthropicTools(body, req.Tools, req.ToolChoice)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -141,13 +142,20 @@ func (d *AnthropicDriver) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, HTTPError(d.Name(), resp.StatusCode, string(payload), parseRetryAfter(resp.Header.Get("Retry-After")))
 	}
+	return parseAnthropicMessage(payload, model)
+}
+
+func parseAnthropicMessage(payload []byte, fallbackModel string) (*ChatResponse, error) {
 	var parsed struct {
 		ID         string `json:"id"`
 		Model      string `json:"model"`
 		StopReason string `json:"stop_reason"`
 		Content    []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
+			Type  string          `json:"type"`
+			Text  string          `json:"text"`
+			ID    string          `json:"id"`
+			Name  string          `json:"name"`
+			Input json.RawMessage `json:"input"`
 		} `json:"content"`
 		Usage struct {
 			InputTokens  int `json:"input_tokens"`
@@ -158,19 +166,41 @@ func (d *AnthropicDriver) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 		return nil, err
 	}
 	var text strings.Builder
+	var calls []ToolCall
 	for _, c := range parsed.Content {
-		if c.Type == "text" {
+		switch c.Type {
+		case "text":
 			text.WriteString(c.Text)
+		case "tool_use":
+			args := "{}"
+			if len(c.Input) > 0 {
+				args = string(c.Input)
+			}
+			calls = append(calls, ToolCall{
+				ID:   c.ID,
+				Type: "function",
+				Function: ToolCallFunction{
+					Name:      c.Name,
+					Arguments: args,
+				},
+			})
 		}
 	}
 	finish := parsed.StopReason
-	if finish == "end_turn" {
+	switch finish {
+	case "end_turn":
 		finish = "stop"
+	case "tool_use":
+		finish = "tool_calls"
 	}
 	return &ChatResponse{
-		ID:           parsed.ID,
-		Model:        firstNonEmpty(parsed.Model, model),
-		Message:      Message{Role: "assistant", Content: text.String()},
+		ID:    parsed.ID,
+		Model: firstNonEmpty(parsed.Model, fallbackModel),
+		Message: Message{
+			Role:      "assistant",
+			Content:   text.String(),
+			ToolCalls: calls,
+		},
 		FinishReason: finish,
 		Usage: Usage{
 			PromptTokens:     parsed.Usage.InputTokens,
@@ -179,6 +209,44 @@ func (d *AnthropicDriver) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 		},
 		Created: time.Now().UTC(),
 	}, nil
+}
+
+func applyAnthropicTools(body map[string]any, tools []Tool, choice *ToolChoice) {
+	if body == nil || len(tools) == 0 {
+		return
+	}
+	out := make([]map[string]any, 0, len(tools))
+	for _, t := range tools {
+		schema := t.Function.Parameters
+		if len(schema) == 0 {
+			schema = json.RawMessage(`{"type":"object","properties":{}}`)
+		}
+		out = append(out, map[string]any{
+			"name":         t.Function.Name,
+			"description":  t.Function.Description,
+			"input_schema": schema,
+		})
+	}
+	body["tools"] = out
+	if choice == nil {
+		return
+	}
+	mode := strings.ToLower(strings.TrimSpace(choice.Mode))
+	switch mode {
+	case "", "auto":
+		body["tool_choice"] = map[string]any{"type": "auto"}
+	case "none":
+		body["tool_choice"] = map[string]any{"type": "none"}
+	case "required":
+		body["tool_choice"] = map[string]any{"type": "any"}
+	case "function":
+		name := strings.TrimSpace(choice.Name)
+		if name == "" {
+			body["tool_choice"] = map[string]any{"type": "auto"}
+		} else {
+			body["tool_choice"] = map[string]any{"type": "tool", "name": name}
+		}
+	}
 }
 
 func splitAnthropicMessages(in []Message) (system string, out []map[string]any) {
@@ -192,6 +260,17 @@ func splitAnthropicMessages(in []Message) (system string, out []map[string]any) 
 			system += m.TextContent()
 			continue
 		}
+		if role == "tool" {
+			out = append(out, map[string]any{
+				"role": "user",
+				"content": []map[string]any{{
+					"type":        "tool_result",
+					"tool_use_id": m.ToolCallID,
+					"content":     m.TextContent(),
+				}},
+			})
+			continue
+		}
 		if role != "user" && role != "assistant" {
 			role = "user"
 		}
@@ -202,6 +281,26 @@ func splitAnthropicMessages(in []Message) (system string, out []map[string]any) 
 }
 
 func anthropicContent(m Message) any {
+	if len(m.ToolCalls) > 0 {
+		parts := make([]map[string]any, 0, len(m.ToolCalls)+1)
+		if txt := m.TextContent(); txt != "" {
+			parts = append(parts, map[string]any{"type": "text", "text": txt})
+		}
+		for _, tc := range m.ToolCalls {
+			var input any = map[string]any{}
+			raw := strings.TrimSpace(tc.Function.Arguments)
+			if raw != "" {
+				_ = json.Unmarshal([]byte(raw), &input)
+			}
+			parts = append(parts, map[string]any{
+				"type":  "tool_use",
+				"id":    tc.ID,
+				"name":  tc.Function.Name,
+				"input": input,
+			})
+		}
+		return parts
+	}
 	if len(m.Parts) == 0 {
 		return m.TextContent()
 	}

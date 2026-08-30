@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -39,7 +40,7 @@ func (d *GeminiDriver) Name() string {
 }
 
 func (d *GeminiDriver) Capabilities() []Capability {
-	return []Capability{CapChat}
+	return []Capability{CapChat, CapEmbed, CapStream, CapVision}
 }
 
 func (d *GeminiDriver) Health(ctx context.Context) error {
@@ -204,7 +205,7 @@ func geminiParts(m Message) []map[string]any {
 	out := make([]map[string]any, 0, len(m.Parts))
 	for _, p := range m.Parts {
 		if p.Type == PartImageURL && p.ImageURL != nil {
-			// URL images: pass as text hint; native fileData needs bytes — keep URL in text for thin driver.
+			// Thin driver: URL as text hint (native multimodal needs bytes/fileData).
 			out = append(out, map[string]any{"text": "[image] " + p.ImageURL.URL})
 			continue
 		}
@@ -214,4 +215,193 @@ func geminiParts(m Message) []map[string]any {
 		return []map[string]any{{"text": m.TextContent()}}
 	}
 	return out
+}
+
+// Embed implements EmbeddingDriver via Gemini embedContent.
+func (d *GeminiDriver) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	base := strings.TrimRight(d.BaseURL, "/")
+	if base == "" {
+		base = "https://generativelanguage.googleapis.com"
+	}
+	model := req.Model
+	if model == "" || model == "zatrano-fake-1" {
+		model = "text-embedding-004"
+	}
+	client := d.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	out := make([][]float64, 0, len(req.Input))
+	var promptTokens int
+	for _, text := range req.Input {
+		body, err := json.Marshal(map[string]any{
+			"model": "models/" + model,
+			"content": map[string]any{
+				"parts": []map[string]string{{"text": text}},
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		endpoint := fmt.Sprintf("%s/v1beta/models/%s:embedContent?key=%s",
+			base, url.PathEscape(model), url.QueryEscape(d.APIKey))
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			return nil, wrapTransportError(d.Name(), err)
+		}
+		payload, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return nil, wrapTransportError(d.Name(), err)
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, HTTPError(d.Name(), resp.StatusCode, string(payload), 0)
+		}
+		var parsed struct {
+			Embedding struct {
+				Values []float64 `json:"values"`
+			} `json:"embedding"`
+		}
+		if err := json.Unmarshal(payload, &parsed); err != nil {
+			return nil, err
+		}
+		out = append(out, parsed.Embedding.Values)
+		promptTokens += len(strings.Fields(text))
+	}
+	return &EmbedResponse{
+		Model:      model,
+		Embeddings: out,
+		Usage:      Usage{PromptTokens: promptTokens, TotalTokens: promptTokens},
+	}, nil
+}
+
+// ChatStream implements StreamDriver via Gemini streamGenerateContent SSE.
+func (d *GeminiDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan StreamChunk, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	base := strings.TrimRight(d.BaseURL, "/")
+	if base == "" {
+		base = "https://generativelanguage.googleapis.com"
+	}
+	model := req.Model
+	if model == "" || model == "zatrano-fake-1" {
+		model = d.Model
+	}
+	if model == "" {
+		model = "gemini-2.0-flash"
+	}
+	contents, system := geminiContents(req.Messages)
+	body := map[string]any{"contents": contents}
+	if system != "" {
+		body["systemInstruction"] = map[string]any{
+			"parts": []map[string]string{{"text": system}},
+		}
+	}
+	gen := map[string]any{}
+	if req.Temperature != nil {
+		gen["temperature"] = *req.Temperature
+	}
+	if req.MaxTokens > 0 {
+		gen["maxOutputTokens"] = req.MaxTokens
+	}
+	if len(gen) > 0 {
+		body["generationConfig"] = gen
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("%s/v1beta/models/%s:streamGenerateContent?alt=sse&key=%s",
+		base, url.PathEscape(model), url.QueryEscape(d.APIKey))
+	client := d.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, wrapTransportError(d.Name(), err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		payload, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		return nil, HTTPError(d.Name(), resp.StatusCode, string(payload), 0)
+	}
+	out := make(chan StreamChunk, 16)
+	go readGeminiSSE(ctx, resp.Body, model, out)
+	return out, nil
+}
+
+func readGeminiSSE(ctx context.Context, body io.ReadCloser, model string, out chan<- StreamChunk) {
+	defer close(out)
+	defer body.Close()
+	sc := bufio.NewScanner(body)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	var usage *Usage
+	send := func(c StreamChunk) {
+		select {
+		case <-ctx.Done():
+		case out <- c:
+		}
+	}
+	for sc.Scan() {
+		line := sc.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		var parsed struct {
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
+			UsageMetadata struct {
+				PromptTokenCount     int `json:"promptTokenCount"`
+				CandidatesTokenCount int `json:"candidatesTokenCount"`
+				TotalTokenCount      int `json:"totalTokenCount"`
+			} `json:"usageMetadata"`
+		}
+		if err := json.Unmarshal([]byte(data), &parsed); err != nil {
+			continue
+		}
+		if len(parsed.Candidates) > 0 {
+			for _, p := range parsed.Candidates[0].Content.Parts {
+				if p.Text != "" {
+					send(StreamChunk{Delta: p.Text, Model: model})
+				}
+			}
+		}
+		if parsed.UsageMetadata.TotalTokenCount > 0 || parsed.UsageMetadata.PromptTokenCount > 0 {
+			usage = &Usage{
+				PromptTokens:     parsed.UsageMetadata.PromptTokenCount,
+				CompletionTokens: parsed.UsageMetadata.CandidatesTokenCount,
+				TotalTokens:      parsed.UsageMetadata.TotalTokenCount,
+			}
+		}
+	}
+	if err := sc.Err(); err != nil {
+		send(StreamChunk{Err: err, Done: true})
+		return
+	}
+	send(StreamChunk{Done: true, Model: model, Usage: usage})
 }

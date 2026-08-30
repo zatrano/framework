@@ -17,6 +17,7 @@ const (
 	CapJSON   Capability = "json"   // structured output / response_format
 	CapVision Capability = "vision" // multimodal image_url message parts
 	CapImage  Capability = "image"  // image generation
+	CapSpeech Capability = "speech" // TTS / STT
 )
 
 // Capabler lets a driver declare capabilities explicitly.
@@ -59,11 +60,16 @@ func InferCapabilities(d Driver) []Capability {
 	if _, ok := d.(ImageDriver); ok {
 		caps = append(caps, CapImage)
 	}
+	if _, ok := d.(SpeechDriver); ok {
+		caps = append(caps, CapSpeech)
+	}
 	switch d := d.(type) {
 	case FakeDriver, *OpenAIDriver:
-		caps = append(caps, CapTools, CapJSON, CapVision, CapImage)
+		caps = append(caps, CapTools, CapJSON, CapVision, CapImage, CapSpeech)
 	case *AnthropicDriver:
-		caps = append(caps, CapVision)
+		caps = append(caps, CapVision, CapTools, CapStream)
+	case *GeminiDriver:
+		caps = append(caps, CapEmbed, CapStream, CapVision)
 	case LogDriver:
 		inner := d.Inner
 		if inner == nil {

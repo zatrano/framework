@@ -18,6 +18,7 @@ type Manager struct {
 	defaults      Defaults
 	obs           Observer
 	models        map[string][]ModelInfo
+	prices        PriceTable
 }
 
 // New creates an AI manager with fake and log drivers.

@@ -54,7 +54,7 @@ func (d *OpenAIDriver) Name() string {
 
 // Capabilities implements Capabler.
 func (d *OpenAIDriver) Capabilities() []Capability {
-	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON, CapVision, CapImage}
+	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON, CapVision, CapImage, CapSpeech}
 }
 
 // Health implements Healthy via GET {base}/models.

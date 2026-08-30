@@ -2,6 +2,15 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.7 - 2026-08-30
+
+### Added
+
+- AI speech: `SpeechDriver`, `TextToSpeech` / `SpeechToText`, `CapSpeech` (OpenAI audio + Fake)
+- AI provider ranking: `SetPrices`, `PreferCheapest`, `PreferSmartest`
+- AI image edit/variation: `EditImage`, `VaryImage` (`ImageEditor`)
+- Anthropic tools + SSE stream; Gemini embed + SSE stream (+ CapVision)
+
 ## 1.5.6 - 2026-08-30
 
 ### Added
