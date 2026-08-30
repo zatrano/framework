@@ -30,12 +30,40 @@ func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 		}
 		reply = string(payload)
 	}
+
+	msg := Message{Role: "assistant", Content: reply}
+	finish := "stop"
+	if len(req.Tools) > 0 && !toolChoiceNone(req.ToolChoice) {
+		tool := req.Tools[0]
+		name := tool.Function.Name
+		if req.ToolChoice != nil && req.ToolChoice.Mode == "function" && req.ToolChoice.Name != "" {
+			name = req.ToolChoice.Name
+		}
+		args, _ := json.Marshal(map[string]string{"query": prompt})
+		msg = Message{
+			Role: "assistant",
+			ToolCalls: []ToolCall{{
+				ID:   "call_" + uuid.New()[:8],
+				Type: "function",
+				Function: ToolCallFunction{
+					Name:      name,
+					Arguments: string(args),
+				},
+			}},
+		}
+		finish = "tool_calls"
+	}
+
 	promptTokens := len(strings.Fields(prompt)) + 1
 	completionTokens := len(strings.Fields(reply))
+	if completionTokens < 1 {
+		completionTokens = 1
+	}
 	return &ChatResponse{
-		ID:      "chat_" + uuid.New()[:8],
-		Model:   req.Model,
-		Message: Message{Role: "assistant", Content: reply},
+		ID:           "chat_" + uuid.New()[:8],
+		Model:        req.Model,
+		Message:      msg,
+		FinishReason: finish,
 		Usage: Usage{
 			PromptTokens:     promptTokens,
 			CompletionTokens: completionTokens,
@@ -43,6 +71,10 @@ func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 		},
 		Created: time.Now().UTC(),
 	}, nil
+}
+
+func toolChoiceNone(c *ToolChoice) bool {
+	return c != nil && strings.EqualFold(strings.TrimSpace(c.Mode), "none")
 }
 
 func (FakeDriver) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, error) {

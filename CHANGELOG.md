@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.5 - 2026-08-30
+
+### Added
+
+- AI tool calling: `Tool` / `FunctionTool`, `ToolCall`, `ToolChoice`, `ToolResultMessage`, `HasToolCalls`
+
 ## 1.4.4 - 2026-08-30
 
 ### Added

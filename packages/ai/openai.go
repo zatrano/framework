@@ -79,6 +79,7 @@ func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse
 		body["max_tokens"] = req.MaxTokens
 	}
 	applyResponseFormat(body, req.ResponseFormat)
+	applyTools(body, req.Tools, req.ToolChoice)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -184,7 +185,8 @@ type openAIChatResponse struct {
 	Model   string `json:"model"`
 	Created int64  `json:"created"`
 	Choices []struct {
-		Message Message `json:"message"`
+		FinishReason string  `json:"finish_reason"`
+		Message      Message `json:"message"`
 	} `json:"choices"`
 	Usage Usage `json:"usage"`
 }
@@ -233,11 +235,13 @@ func parseOpenAIChatResponse(payload []byte, fallbackModel string) (*ChatRespons
 	if parsed.Created > 0 {
 		created = time.Unix(parsed.Created, 0).UTC()
 	}
+	choice := parsed.Choices[0]
 	return &ChatResponse{
-		ID:      parsed.ID,
-		Model:   model,
-		Message: parsed.Choices[0].Message,
-		Usage:   parsed.Usage,
-		Created: created,
+		ID:           parsed.ID,
+		Model:        model,
+		Message:      choice.Message,
+		FinishReason: choice.FinishReason,
+		Usage:        parsed.Usage,
+		Created:      created,
 	}, nil
 }
