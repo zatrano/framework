@@ -120,6 +120,7 @@ var Catalog = []PackageInfo{
 	{Name: "wellknown", Layer: LayerAddon, Kind: KindService, Description: "security.txt / well-known"},
 
 	// Addon libraries — import and use; no package:enable / container binding.
+	{Name: "agent", Layer: LayerAddon, Kind: KindLibrary, Description: "AI agent loop, tools, conversation memory"},
 	{Name: "api", Layer: LayerAddon, Kind: KindLibrary, Description: "API versioning helpers"},
 	{Name: "archive", Layer: LayerAddon, Kind: KindLibrary, Description: "ZIP archive helpers"},
 	{Name: "bloom", Layer: LayerAddon, Kind: KindLibrary, Description: "Bloom filter"},

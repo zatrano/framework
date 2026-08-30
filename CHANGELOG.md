@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.1 - 2026-08-30
+
+### Added
+
+- `packages/agent` library: tool registry, `BufferMemory`, `Agent.Run` loop, `RAGRetrieve` / `FromManager`
+- Catalog entry `agent` (KindLibrary)
+
 ## 1.6.0 - 2026-08-30
 
 ### Added
