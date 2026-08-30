@@ -40,6 +40,7 @@ _ = resp
 | `Embedder` / `FromAI` | Vectors via `ai.Manager.Embed` |
 | `MemoryStore` | In-process cosine top-K |
 | `JSONFileStore` | Durable JSON file store |
+| `SQLStore` | Durable `database/sql` store (JSON embeddings) |
 | `Pipeline` | `Index` + `Query` |
 | `FormatContext` | Prompt-ready hit dump |
 

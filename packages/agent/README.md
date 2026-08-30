@@ -45,7 +45,7 @@ _ = agent.RegisterFileSearch(reg, agent.FileSearchOptions{Root: "./docs", Extens
 ```go
 cat := agent.NewCatalog()
 _ = cat.Register("support", a)
-runner := &agent.Runner{Catalog: cat}
+runner := &agent.Runner{Catalog: cat, Results: agent.NewMemoryResultStore()}
 _ = runner.RegisterQueue(queue.From(app))
 _ = runner.PushRun(queue.From(app), agent.RunJob{Agent: "support", Message: "hi", ID: "1"})
 ```

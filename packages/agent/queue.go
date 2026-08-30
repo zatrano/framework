@@ -96,6 +96,8 @@ func (c *Catalog) Names() []string {
 type Runner struct {
 	Catalog *Catalog
 	JobName string // default DefaultJobName
+	// Results optionally persists outcomes when RunJob.ID is set.
+	Results ResultStore
 	// OnResult is called after each queued run (success or failure). Optional.
 	OnResult func(RunOutcome)
 	// Context factory per job; default context.Background.
@@ -143,14 +145,18 @@ func (r *Runner) Handle(payload map[string]any) error {
 		}
 	}
 	res, runErr := a.Run(ctx, job.Message)
+	outcome := RunOutcome{
+		ID:      job.ID,
+		Agent:   job.Agent,
+		Message: job.Message,
+		Result:  res,
+		Err:     runErr,
+	}
+	if r.Results != nil && job.ID != "" {
+		_ = r.Results.Put(ctx, OutcomeToStored(outcome))
+	}
 	if r.OnResult != nil {
-		r.OnResult(RunOutcome{
-			ID:      job.ID,
-			Agent:   job.Agent,
-			Message: job.Message,
-			Result:  res,
-			Err:     runErr,
-		})
+		r.OnResult(outcome)
 	}
 	return runErr
 }

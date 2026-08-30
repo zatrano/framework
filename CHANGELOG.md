@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.4 - 2026-08-30
+
+### Added
+
+- Agent `ResultStore` (`MemoryResultStore`, `JSONFileResultStore`) wired into `Runner`
+- RAG `SQLStore` durable vector store via `database/sql` (portable cosine search)
+
 ## 1.6.3 - 2026-08-30
 
 ### Added
