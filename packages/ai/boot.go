@@ -17,10 +17,28 @@ func (m *Manager) BootConfig(cfg map[string]any, log LogFn) error {
 
 	timeoutSec := asInt(cfg["timeout"], 30)
 	timeout := time.Duration(timeoutSec) * time.Second
+	retry := DefaultRetryPolicy()
+	if v, ok := cfg["retry_max"]; ok {
+		retry.MaxRetries = asInt(v, retry.MaxRetries)
+	}
+	if v, ok := cfg["retry_initial_ms"]; ok {
+		ms := asInt(v, int(retry.InitialDelay/time.Millisecond))
+		retry.InitialDelay = time.Duration(ms) * time.Millisecond
+	}
+	if v, ok := cfg["retry_max_ms"]; ok {
+		ms := asInt(v, int(retry.MaxDelay/time.Millisecond))
+		retry.MaxDelay = time.Duration(ms) * time.Millisecond
+	}
+	fallbackOnTimeout := true
+	if v, ok := cfg["fallback_on_timeout"]; ok {
+		fallbackOnTimeout = asBool(v, true)
+	}
 	defs := Defaults{
-		Model:     asString(cfg["model"]),
-		MaxTokens: asInt(cfg["max_tokens"], 0),
-		Timeout:   timeout,
+		Model:             asString(cfg["model"]),
+		MaxTokens:         asInt(cfg["max_tokens"], 0),
+		Timeout:           timeout,
+		Retry:             retry,
+		FallbackOnTimeout: fallbackOnTimeout,
 	}
 	if t := ParseTemperature(asString(cfg["temperature"])); t != nil {
 		defs.Temperature = t
@@ -133,6 +151,26 @@ func asInt(v any, fallback int) int {
 		if n, err := strconvAtoi(n); err == nil {
 			return n
 		}
+	}
+	return fallback
+}
+
+func asBool(v any, fallback bool) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		s := strings.ToLower(strings.TrimSpace(b))
+		switch s {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
+	case int:
+		return b != 0
+	case float64:
+		return b != 0
 	}
 	return fallback
 }

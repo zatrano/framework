@@ -13,7 +13,7 @@ type Client struct {
 	profile  string
 }
 
-// Chat runs chat with profile overrides and ordered provider fallback.
+// Chat runs chat with profile overrides, per-provider retry, and ordered fallback.
 func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	if c == nil || c.mgr == nil {
 		return nil, fmt.Errorf("ai: client is nil")
@@ -26,6 +26,8 @@ func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, erro
 	defs := c.mgr.defaults
 	names, req2, err := c.resolveChatLocked(req, defs)
 	timeout := defs.Timeout
+	retry := defs.Retry.normalized()
+	fallbackOnTimeout := defs.FallbackOnTimeout
 	c.mgr.mu.RUnlock()
 	if err != nil {
 		return nil, err
@@ -42,13 +44,21 @@ func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, erro
 		d, err := c.mgr.Driver(name)
 		if err != nil {
 			lastErr = err
+			if !Fallbackable(err, fallbackOnTimeout) {
+				return nil, err
+			}
 			continue
 		}
-		resp, err := d.Chat(ctx, req2)
+		resp, err := callWithRetry(ctx, retry, func(ctx context.Context) (*ChatResponse, error) {
+			return d.Chat(ctx, req2)
+		})
 		if err == nil {
 			return resp, nil
 		}
 		lastErr = err
+		if !Fallbackable(err, fallbackOnTimeout) {
+			return nil, err
+		}
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("ai: no providers available")
@@ -69,6 +79,8 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 	defs := c.mgr.defaults
 	names, err := c.resolveNamesLocked()
 	timeout := defs.Timeout
+	retry := defs.Retry.normalized()
+	fallbackOnTimeout := defs.FallbackOnTimeout
 	modelDefault := defs.Model
 	if c.profile != "" {
 		if p, ok := c.mgr.profileLocked(c.profile); ok && p.Model != "" {
@@ -94,6 +106,9 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 		d, err := c.mgr.Driver(name)
 		if err != nil {
 			lastErr = err
+			if !Fallbackable(err, fallbackOnTimeout) {
+				return nil, err
+			}
 			continue
 		}
 		ed, ok := d.(EmbeddingDriver)
@@ -101,16 +116,45 @@ func (c *Client) Embed(ctx context.Context, req EmbedRequest) (*EmbedResponse, e
 			lastErr = fmt.Errorf("ai: driver [%s] does not support embeddings", name)
 			continue
 		}
-		resp, err := ed.Embed(ctx, req)
+		resp, err := callWithRetry(ctx, retry, func(ctx context.Context) (*EmbedResponse, error) {
+			return ed.Embed(ctx, req)
+		})
 		if err == nil {
 			return resp, nil
 		}
 		lastErr = err
+		if !Fallbackable(err, fallbackOnTimeout) {
+			return nil, err
+		}
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("ai: no embedding providers available")
 	}
 	return nil, lastErr
+}
+
+func callWithRetry[T any](ctx context.Context, policy RetryPolicy, fn func(context.Context) (T, error)) (T, error) {
+	policy = policy.normalized()
+	var zero T
+	var lastErr error
+	for attempt := 0; attempt <= policy.MaxRetries; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return zero, err
+		}
+		out, err := fn(ctx)
+		if err == nil {
+			return out, nil
+		}
+		lastErr = err
+		if attempt == policy.MaxRetries || !Retryable(err) {
+			break
+		}
+		delay := policy.backoffDelay(attempt, retryAfterOf(err))
+		if sleepErr := sleepCtx(ctx, delay); sleepErr != nil {
+			return zero, sleepErr
+		}
+	}
+	return zero, lastErr
 }
 
 func (c *Client) resolveChatLocked(req ChatRequest, defs Defaults) ([]string, ChatRequest, error) {

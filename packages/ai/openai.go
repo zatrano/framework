@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -96,15 +98,15 @@ func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, wrapTransportError(d.Name(), err)
 	}
 	defer resp.Body.Close()
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, wrapTransportError(d.Name(), err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("ai: openai status %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+		return nil, HTTPError(d.Name(), resp.StatusCode, string(payload), parseRetryAfter(resp.Header.Get("Retry-After")))
 	}
 
 	return parseOpenAIChatResponse(payload, model)
@@ -146,15 +148,15 @@ func (d *OpenAIDriver) Embed(ctx context.Context, req EmbedRequest) (*EmbedRespo
 	}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, wrapTransportError(d.Name(), err)
 	}
 	defer resp.Body.Close()
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, wrapTransportError(d.Name(), err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("ai: openai embeddings status %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+		return nil, HTTPError(d.Name(), resp.StatusCode, string(payload), parseRetryAfter(resp.Header.Get("Retry-After")))
 	}
 	var parsed struct {
 		Model string `json:"model"`
@@ -186,13 +188,41 @@ type openAIChatResponse struct {
 	Usage Usage `json:"usage"`
 }
 
+func wrapTransportError(provider string, err error) error {
+	if err == nil {
+		return nil
+	}
+	kind := KindUnavailable
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		kind = KindContext
+	}
+	return &Error{Kind: kind, Provider: provider, Err: err}
+}
+
+func parseRetryAfter(h string) time.Duration {
+	h = strings.TrimSpace(h)
+	if h == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(h); err == nil && secs > 0 {
+		return time.Duration(secs) * time.Second
+	}
+	if t, err := http.ParseTime(h); err == nil {
+		d := time.Until(t)
+		if d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
 func parseOpenAIChatResponse(payload []byte, fallbackModel string) (*ChatResponse, error) {
 	var parsed openAIChatResponse
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		return nil, err
 	}
 	if len(parsed.Choices) == 0 {
-		return nil, fmt.Errorf("ai: openai response missing choices")
+		return nil, &Error{Kind: KindInvalid, Err: fmt.Errorf("openai response missing choices")}
 	}
 	model := parsed.Model
 	if model == "" {

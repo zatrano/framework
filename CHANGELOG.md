@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.1 - 2026-08-30
+
+### Added
+
+- AI error classification (`Kind`, `*Error`, `Classify`) with retry/backoff and smart profile fallback (auth/invalid stop; 429/5xx retry then fallback)
+- AI retry config: `AI_RETRY_MAX`, `AI_RETRY_INITIAL_MS`, `AI_RETRY_MAX_MS`, `AI_FALLBACK_ON_TIMEOUT`
+
 ## 1.4.0 - 2026-08-30
 
 ### Added

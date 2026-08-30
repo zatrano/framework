@@ -262,6 +262,9 @@ func TestOpenAIDriverParse(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error")
 				}
+				if tt.status == http.StatusUnauthorized && ai.Classify(err) != ai.KindAuth {
+					t.Fatalf("kind=%v", ai.Classify(err))
+				}
 				return
 			}
 			if err != nil {

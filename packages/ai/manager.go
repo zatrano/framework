@@ -23,20 +23,27 @@ func New() *Manager {
 		drivers:       make(map[string]Driver),
 		profiles:      make(map[string]Profile),
 		defaultDriver: "fake",
-		defaults:      Defaults{Timeout: 30 * time.Second},
+		defaults: Defaults{
+			Timeout:           30 * time.Second,
+			Retry:             DefaultRetryPolicy(),
+			FallbackOnTimeout: true,
+		},
 	}
 	m.Extend("fake", FakeDriver{})
 	m.Extend("log", LogDriver{})
 	return m
 }
 
-// SetDefaults configures request defaults (model, sampling, timeout).
+// SetDefaults configures request defaults (model, sampling, timeout, retry).
 func (m *Manager) SetDefaults(d Defaults) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if d.Timeout <= 0 {
 		d.Timeout = 30 * time.Second
 	}
+	d.Retry = d.Retry.normalized()
+	// Preserve FallbackOnTimeout zero-value as false only when explicitly set via BootConfig;
+	// callers that omit the field and replace Defaults entirely should set it intentionally.
 	m.defaults = d
 }
 

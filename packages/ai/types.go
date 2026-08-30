@@ -47,8 +47,10 @@ type EmbedResponse struct {
 
 // Defaults are applied by Manager when a request omits values.
 type Defaults struct {
-	Model       string
-	Temperature *float64
-	MaxTokens   int
-	Timeout     time.Duration
+	Model             string
+	Temperature       *float64
+	MaxTokens         int
+	Timeout           time.Duration
+	Retry             RetryPolicy
+	FallbackOnTimeout bool // when true, profile chain continues after DeadlineExceeded
 }
