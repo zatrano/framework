@@ -40,6 +40,16 @@ _ = agent.RegisterWebFetch(reg, agent.WebFetchOptions{})
 _ = agent.RegisterFileSearch(reg, agent.FileSearchOptions{Root: "./docs", Extensions: []string{".md"}})
 ```
 
+## Queue
+
+```go
+cat := agent.NewCatalog()
+_ = cat.Register("support", a)
+runner := &agent.Runner{Catalog: cat}
+_ = runner.RegisterQueue(queue.From(app))
+_ = runner.PushRun(queue.From(app), agent.RunJob{Agent: "support", Message: "hi", ID: "1"})
+```
+
 ## RAG
 
 ```go
@@ -55,4 +65,5 @@ a.Retrieve = agent.RAGRetrieve{Pipeline: ragPipeline, TopK: 5}
 | `BufferMemory` | Conversation buffer (`MaxKeep`) |
 | `Retriever` / `RAGRetrieve` | Optional context injection |
 | `RegisterWebFetch` / `RegisterFileSearch` | HTTPS fetch + sandboxed file search |
+| `Catalog` / `Runner` / `PushRun` | Queue-backed `agent.run` jobs |
 | `Result` | Final response + step count + transcript |

@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.3 - 2026-08-30
+
+### Added
+
+- Agent queue integration: `Catalog`, `Runner`, `PushRun`, job name `agent.run`
+
 ## 1.6.2 - 2026-08-30
 
 ### Added
