@@ -14,7 +14,8 @@ const (
 	CapEmbed  Capability = "embed"
 	CapStream Capability = "stream"
 	CapTools  Capability = "tools"
-	CapJSON   Capability = "json" // structured output / response_format
+	CapJSON   Capability = "json"   // structured output / response_format
+	CapVision Capability = "vision" // multimodal image_url message parts
 )
 
 // Capabler lets a driver declare capabilities explicitly.
@@ -54,11 +55,11 @@ func InferCapabilities(d Driver) []Capability {
 	if _, ok := d.(StreamDriver); ok {
 		caps = append(caps, CapStream)
 	}
-	switch d.(type) {
+	switch d := d.(type) {
 	case FakeDriver, *OpenAIDriver:
-		caps = append(caps, CapTools, CapJSON)
+		caps = append(caps, CapTools, CapJSON, CapVision)
 	case LogDriver:
-		inner := d.(LogDriver).Inner
+		inner := d.Inner
 		if inner == nil {
 			inner = FakeDriver{}
 		}

@@ -81,9 +81,9 @@ func applyResponseFormat(body map[string]any, f *ResponseFormat) {
 	}
 }
 
-// UnmarshalJSON decodes the assistant message content into dest.
+// DecodeJSON decodes the assistant message content into dest.
 // Strips optional markdown code fences (```json … ```).
-func (r *ChatResponse) UnmarshalJSON(dest any) error {
+func (r *ChatResponse) DecodeJSON(dest any) error {
 	if r == nil {
 		return fmt.Errorf("ai: nil ChatResponse")
 	}
@@ -124,7 +124,7 @@ func (c *Client) ChatJSON(ctx context.Context, req ChatRequest, dest any) (*Chat
 	if err != nil {
 		return nil, err
 	}
-	if err := resp.UnmarshalJSON(dest); err != nil {
+	if err := resp.DecodeJSON(dest); err != nil {
 		return resp, err
 	}
 	return resp, nil

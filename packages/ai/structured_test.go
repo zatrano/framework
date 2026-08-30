@@ -30,10 +30,10 @@ func TestChatJSONFake(t *testing.T) {
 	}
 }
 
-func TestUnmarshalJSONFence(t *testing.T) {
+func TestDecodeJSONFence(t *testing.T) {
 	resp := &ai.ChatResponse{Message: ai.Message{Content: "```json\n{\"a\":1}\n```"}}
 	var out map[string]int
-	if err := resp.UnmarshalJSON(&out); err != nil {
+	if err := resp.DecodeJSON(&out); err != nil {
 		t.Fatal(err)
 	}
 	if out["a"] != 1 {
@@ -65,7 +65,7 @@ func TestOpenAIResponseFormatJSONObject(t *testing.T) {
 	var out struct {
 		OK bool `json:"ok"`
 	}
-	if err := resp.UnmarshalJSON(&out); err != nil || !out.OK {
+	if err := resp.DecodeJSON(&out); err != nil || !out.OK {
 		t.Fatalf("%v %+v", err, out)
 	}
 }
@@ -99,7 +99,7 @@ func TestOpenAIResponseFormatJSONSchema(t *testing.T) {
 	var out struct {
 		Name string `json:"name"`
 	}
-	if err := resp.UnmarshalJSON(&out); err != nil || out.Name != "Ada" {
+	if err := resp.DecodeJSON(&out); err != nil || out.Name != "Ada" {
 		t.Fatalf("%v %+v", err, out)
 	}
 }

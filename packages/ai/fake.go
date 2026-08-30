@@ -16,7 +16,7 @@ func (FakeDriver) Name() string { return "fake" }
 
 // Capabilities implements Capabler.
 func (FakeDriver) Capabilities() []Capability {
-	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON}
+	return []Capability{CapChat, CapEmbed, CapStream, CapTools, CapJSON, CapVision}
 }
 
 // Health implements Healthy (always OK unless context canceled).
@@ -35,6 +35,12 @@ func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 	reply := "ZATRANO AI stub: " + prompt
 	if prompt == "" {
 		reply = "ZATRANO AI stub: hello"
+	}
+	if hasVisionInput(req.Messages) {
+		reply = "ZATRANO AI stub (vision): " + prompt
+		if prompt == "" {
+			reply = "ZATRANO AI stub (vision): image"
+		}
 	}
 	if req.ResponseFormat != nil && req.ResponseFormat.wantsJSON() {
 		payload, err := json.Marshal(map[string]string{"text": reply})
@@ -169,13 +175,24 @@ func (FakeDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan Strea
 func lastUser(messages []Message) string {
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {
-			return messages[i].Content
+			if t := messages[i].TextContent(); t != "" {
+				return t
+			}
 		}
 	}
 	if len(messages) > 0 {
-		return messages[len(messages)-1].Content
+		return messages[len(messages)-1].TextContent()
 	}
 	return ""
+}
+
+func hasVisionInput(messages []Message) bool {
+	for _, m := range messages {
+		if m.HasImages() {
+			return true
+		}
+	}
+	return false
 }
 
 func truncate(s string, n int) string {

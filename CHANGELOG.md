@@ -2,6 +2,16 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.5 - 2026-08-30
+
+### Added
+
+- AI vision / multimodal messages: `ContentPart`, `UserVision`, `ImageURLPart`, `CapVision`
+
+### Changed
+
+- Rename `ChatResponse.UnmarshalJSON` → `DecodeJSON` (avoids `json.Unmarshaler` signature clash)
+
 ## 1.5.4 - 2026-08-30
 
 ### Added

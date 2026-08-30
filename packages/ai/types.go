@@ -2,13 +2,14 @@ package ai
 
 import "time"
 
-// Message is a chat message.
+// Message is a chat message (plain Content and/or multimodal Parts).
 type Message struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"` // role=tool
-	Name       string     `json:"name,omitempty"`         // optional tool/function name
+	Role       string        `json:"role"`
+	Content    string        `json:"content,omitempty"`
+	Parts      []ContentPart `json:"-"` // marshaled as content array when set
+	ToolCalls  []ToolCall    `json:"tool_calls,omitempty"`
+	ToolCallID string        `json:"tool_call_id,omitempty"` // role=tool
+	Name       string        `json:"name,omitempty"`         // optional tool/function name
 }
 
 // ChatRequest is a chat completion request.
