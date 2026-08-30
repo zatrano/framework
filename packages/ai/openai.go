@@ -78,6 +78,7 @@ func (d *OpenAIDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse
 	if req.MaxTokens > 0 {
 		body["max_tokens"] = req.MaxTokens
 	}
+	applyResponseFormat(body, req.ResponseFormat)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err

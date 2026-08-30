@@ -42,6 +42,7 @@ func (d *OpenAIDriver) ChatStream(ctx context.Context, req ChatRequest) (<-chan 
 	if req.MaxTokens > 0 {
 		body["max_tokens"] = req.MaxTokens
 	}
+	applyResponseFormat(body, req.ResponseFormat)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err

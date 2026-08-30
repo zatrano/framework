@@ -10,10 +10,11 @@ type Message struct {
 
 // ChatRequest is a chat completion request.
 type ChatRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Temperature *float64  `json:"temperature,omitempty"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
+	Model          string          `json:"model"`
+	Messages       []Message       `json:"messages"`
+	Temperature    *float64        `json:"temperature,omitempty"`
+	MaxTokens      int             `json:"max_tokens,omitempty"`
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 }
 
 // ChatResponse is a chat completion response.

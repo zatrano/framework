@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.4.4 - 2026-08-30
+
+### Added
+
+- AI structured output: `ResponseFormat`, `JSONObject` / `JSONSchema`, `ChatJSON`, `ChatResponse.UnmarshalJSON`
+
 ## 1.4.3 - 2026-08-30
 
 ### Added

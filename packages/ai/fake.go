@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -21,6 +22,13 @@ func (FakeDriver) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 	reply := "ZATRANO AI stub: " + prompt
 	if prompt == "" {
 		reply = "ZATRANO AI stub: hello"
+	}
+	if req.ResponseFormat != nil && req.ResponseFormat.wantsJSON() {
+		payload, err := json.Marshal(map[string]string{"text": reply})
+		if err != nil {
+			return nil, err
+		}
+		reply = string(payload)
 	}
 	promptTokens := len(strings.Fields(prompt)) + 1
 	completionTokens := len(strings.Fields(reply))
