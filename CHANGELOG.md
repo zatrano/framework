@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.2 - 2026-08-30
+
+### Added
+
+- RAG `JSONFileStore` durable vector store (JSON on disk)
+- Agent built-in tools: `RegisterWebFetch`, `RegisterFileSearch`
+
 ## 1.6.1 - 2026-08-30
 
 ### Added

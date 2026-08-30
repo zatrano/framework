@@ -33,6 +33,13 @@ res, err := a.Run(ctx, "How do profiles work?")
 _ = res.Response.Message.Content
 ```
 
+## Built-in tools
+
+```go
+_ = agent.RegisterWebFetch(reg, agent.WebFetchOptions{})
+_ = agent.RegisterFileSearch(reg, agent.FileSearchOptions{Root: "./docs", Extensions: []string{".md"}})
+```
+
 ## RAG
 
 ```go
@@ -47,4 +54,5 @@ a.Retrieve = agent.RAGRetrieve{Pipeline: ragPipeline, TopK: 5}
 | `Registry` | Tool defs + handlers |
 | `BufferMemory` | Conversation buffer (`MaxKeep`) |
 | `Retriever` / `RAGRetrieve` | Optional context injection |
+| `RegisterWebFetch` / `RegisterFileSearch` | HTTPS fetch + sandboxed file search |
 | `Result` | Final response + step count + transcript |

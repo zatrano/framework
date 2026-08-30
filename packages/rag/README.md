@@ -16,7 +16,7 @@ mgr := ai.New() // or ai.From(app)
 p := &rag.Pipeline{
     Chunker: rag.TextChunker{Size: 800, Overlap: 100},
     Embed:   rag.FromAI(mgr, "text-embedding-3-small"),
-    Store:   rag.NewMemoryStore(),
+    Store:   rag.NewJSONFileStore("storage/rag/chunks.json"), // or NewMemoryStore()
 }
 
 _ = p.Index(ctx, rag.Document{ID: "docs", Text: longMarkdown})
@@ -39,6 +39,7 @@ _ = resp
 | `TextChunker` | Rune-sized overlapping splits |
 | `Embedder` / `FromAI` | Vectors via `ai.Manager.Embed` |
 | `MemoryStore` | In-process cosine top-K |
+| `JSONFileStore` | Durable JSON file store |
 | `Pipeline` | `Index` + `Query` |
 | `FormatContext` | Prompt-ready hit dump |
 
