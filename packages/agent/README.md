@@ -66,4 +66,6 @@ a.Retrieve = agent.RAGRetrieve{Pipeline: ragPipeline, TopK: 5}
 | `Retriever` / `RAGRetrieve` | Optional context injection |
 | `RegisterWebFetch` / `RegisterFileSearch` | HTTPS fetch + sandboxed file search |
 | `Catalog` / `Runner` / `PushRun` | Queue-backed `agent.run` jobs |
+| `ResultStore` / `MemoryResultStore` / `JSONFileResultStore` | Persist outcomes by job ID |
+| `Chain` / `CatalogChain` | Sequential multi-agent runs |
 | `Result` | Final response + step count + transcript |

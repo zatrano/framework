@@ -41,6 +41,8 @@ _ = resp
 | `MemoryStore` | In-process cosine top-K |
 | `JSONFileStore` | Durable JSON file store |
 | `SQLStore` | Durable `database/sql` store (JSON embeddings) |
+| `PGVectorStore` | Postgres + pgvector ANN |
+| `Reranker` / `KeywordReranker` / `QueryWith` | Post-retrieval rerank |
 | `Pipeline` | `Index` + `Query` |
 | `FormatContext` | Prompt-ready hit dump |
 

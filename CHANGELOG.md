@@ -2,6 +2,14 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.5 - 2026-08-30
+
+### Added
+
+- RAG rerank: `Reranker`, `KeywordReranker`, `QueryWith` / `QueryRerank`
+- RAG `PGVectorStore` (Postgres + pgvector ANN, `EnsureIndex`)
+- Agent sequential `Chain` / `CatalogChain`
+
 ## 1.6.4 - 2026-08-30
 
 ### Added
