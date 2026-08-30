@@ -9,9 +9,10 @@ import (
 
 // Client is a scoped AI entry point (Using provider or Profile).
 type Client struct {
-	mgr      *Manager
-	provider string
-	profile  string
+	mgr       *Manager
+	provider  string
+	profile   string
+	providers []string // optional explicit fallback chain (ProfileLive / UsingLive)
 }
 
 // Chat runs chat with profile overrides, per-provider retry, and ordered fallback.
@@ -364,6 +365,9 @@ func (c *Client) resolveChatLocked(req ChatRequest, defs Defaults) ([]string, Ch
 }
 
 func (c *Client) resolveNamesLocked() ([]string, error) {
+	if len(c.providers) > 0 {
+		return append([]string(nil), c.providers...), nil
+	}
 	if c.profile != "" {
 		p, ok := c.mgr.profileLocked(c.profile)
 		if !ok {

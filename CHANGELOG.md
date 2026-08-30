@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.4 - 2026-08-30
+
+### Added
+
+- AI live routing: `ProfileLive` / `UsingLive`, `FilterHealthy` / `FilterCapable`, `FailIfNone` / `RequireCaps`
+
 ## 1.5.3 - 2026-08-30
 
 ### Added
