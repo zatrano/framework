@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.6 - 2026-08-30
+
+### Added
+
+- RAG `CrossEncoderReranker`, `LLMReranker` / `FromAIChat`, `FuncReranker` (already) documented
+- Agent branching `Graph` with `RouteIf` / `RouteContains`
+
 ## 1.6.5 - 2026-08-30
 
 ### Added

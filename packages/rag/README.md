@@ -43,6 +43,7 @@ _ = resp
 | `SQLStore` | Durable `database/sql` store (JSON embeddings) |
 | `PGVectorStore` | Postgres + pgvector ANN |
 | `Reranker` / `KeywordReranker` / `QueryWith` | Post-retrieval rerank |
+| `CrossEncoderReranker` / `LLMReranker` / `FuncReranker` | Pair scoring + LLM JSON order |
 | `Pipeline` | `Index` + `Query` |
 | `FormatContext` | Prompt-ready hit dump |
 

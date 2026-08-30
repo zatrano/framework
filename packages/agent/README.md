@@ -68,4 +68,5 @@ a.Retrieve = agent.RAGRetrieve{Pipeline: ragPipeline, TopK: 5}
 | `Catalog` / `Runner` / `PushRun` | Queue-backed `agent.run` jobs |
 | `ResultStore` / `MemoryResultStore` / `JSONFileResultStore` | Persist outcomes by job ID |
 | `Chain` / `CatalogChain` | Sequential multi-agent runs |
+| `Graph` / `RouteIf` / `RouteContains` | Branching multi-agent graph |
 | `Result` | Final response + step count + transcript |
