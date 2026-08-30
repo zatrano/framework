@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.5.2 - 2026-08-30
+
+### Added
+
+- AI `UsageMeter` / `PriceTable` / `MeterSnapshot` for token and optional USD cost aggregation via `Observe`
+- AI `MultiObserver` fan-out
+
 ## 1.5.1 - 2026-08-30
 
 ### Added
