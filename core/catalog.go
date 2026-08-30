@@ -145,6 +145,7 @@ var Catalog = []PackageInfo{
 	{Name: "pdf", Layer: LayerAddon, Kind: KindLibrary, Description: "PDF generation and inline viewing"},
 	{Name: "process", Layer: LayerAddon, Kind: KindLibrary, Description: "OS process runner"},
 	{Name: "qr", Layer: LayerAddon, Kind: KindLibrary, Heavy: true, Description: "QR code generation"},
+	{Name: "rag", Layer: LayerAddon, Kind: KindLibrary, Description: "RAG chunking, embed pipeline, vector store helpers"},
 	{Name: "resources", Layer: LayerAddon, Kind: KindLibrary, Description: "API resource transformers"},
 	{Name: "testing", Layer: LayerAddon, Kind: KindLibrary, Description: "Test helpers"},
 	{Name: "timing", Layer: LayerAddon, Kind: KindLibrary, Description: "Timing / stopwatch helpers"},

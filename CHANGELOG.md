@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 1.6.0 - 2026-08-30
+
+### Added
+
+- `packages/rag` library: chunk → embed → `MemoryStore` / `VectorStore`, `Pipeline`, `FromAI`, `FormatContext`
+- Catalog entry `rag` (KindLibrary)
+
 ## 1.5.7 - 2026-08-30
 
 ### Added
