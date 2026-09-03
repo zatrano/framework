@@ -25,7 +25,6 @@ import (
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/httpclient"
 	"github.com/zatrano/framework/packages/localization"
-	mongopkg "github.com/zatrano/framework/packages/mongo"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
 	"github.com/zatrano/framework/packages/queue"
@@ -64,9 +63,7 @@ func BootDatabase(app *kernel.Application) error {
 			URI:      asString(cfgMap["uri"]),
 		}
 		if database.IsDocumentStore(cfg.Driver) || database.IsDocumentStore(name) {
-			if err := bootMongoConnection(app, name, cfg); err != nil {
-				return err
-			}
+			// Document stores are provided by github.com/zatrano/packages/mongo.
 			continue
 		}
 		connections[name] = cfg
@@ -134,25 +131,6 @@ func BootDatabase(app *kernel.Application) error {
 		}
 		return row != nil, nil
 	})
-	return nil
-}
-
-func bootMongoConnection(app *kernel.Application, name string, cfg database.ConnectionConfig) error {
-	uri := strings.TrimSpace(cfg.URI)
-	if uri == "" {
-		uri = strings.TrimSpace(cfg.Database)
-	}
-	if uri == "" {
-		uri = env.Get("MONGO_URI", "memory")
-	}
-	client := mongopkg.Connect(uri)
-	if err := client.Ping(); err != nil {
-		return fmt.Errorf("mongo connection [%s]: %w", name, err)
-	}
-	app.Container().Instance("mongo", client)
-	if name != "" && name != "mongo" {
-		app.Container().Instance("mongo."+name, client)
-	}
 	return nil
 }
 

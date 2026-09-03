@@ -107,15 +107,15 @@ func DriverModulePath(name string) string {
 	case "sqlite", "sqlite3":
 		return "github.com/zatrano/framework/packages/database/driver/sqlite"
 	case "mysql":
-		return "github.com/zatrano/framework/packages/database/driver/mysql"
+		return "github.com/zatrano/packages/database/driver/mysql"
 	case "pgsql", "postgres", "postgresql":
-		return "github.com/zatrano/framework/packages/database/driver/pgsql"
+		return "github.com/zatrano/packages/database/driver/pgsql"
 	case "mssql", "sqlserver":
-		return "github.com/zatrano/framework/packages/database/driver/mssql"
+		return "github.com/zatrano/packages/database/driver/mssql"
 	case "oracle", "ora":
-		return "github.com/zatrano/framework/packages/database/driver/oracle"
+		return "github.com/zatrano/packages/database/driver/oracle"
 	case "mongo", "mongodb":
-		return "github.com/zatrano/framework/packages/database/driver/mongo"
+		return "github.com/zatrano/packages/database/driver/mongo"
 	default:
 		return ""
 	}

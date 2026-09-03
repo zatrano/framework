@@ -130,10 +130,6 @@ jobs:
           DB_PASSWORD: secret
           DB_SSLMODE: disable
 
-      - name: Mongo package tests
-        working-directory: packages/mongo
-        run: go test . -count=1
-
   windows_tests:
     runs-on: windows-2022
 

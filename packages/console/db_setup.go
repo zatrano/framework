@@ -264,17 +264,21 @@ func ensureDriverReplaces(basePath string, drivers []string) error {
 	changed := false
 	for _, d := range drivers {
 		mod := database.DriverModulePath(d)
-		rel := "./packages/database/driver/" + d
-		line := fmt.Sprintf("\t%s => %s\n", mod, rel)
-		if strings.Contains(src, mod+" =>") {
+		if strings.HasPrefix(mod, "github.com/zatrano/framework/") {
+			rel := "./packages/database/driver/" + d
+			line := fmt.Sprintf("\t%s => %s\n", mod, rel)
+			if strings.Contains(src, mod+" =>") {
+				continue
+			}
+			if strings.Contains(src, "replace (") {
+				src = strings.Replace(src, "replace (", "replace (\n"+line, 1)
+			} else if strings.Contains(src, "\nreplace ") {
+				src = src + "\nreplace (\n" + line + ")\n"
+			} else {
+				src = src + "\nreplace (\n" + line + ")\n"
+			}
+		} else if strings.Contains(src, mod+" =>") {
 			continue
-		}
-		if strings.Contains(src, "replace (") {
-			src = strings.Replace(src, "replace (", "replace (\n"+line, 1)
-		} else if strings.Contains(src, "\nreplace ") {
-			src = src + "\nreplace (\n" + line + ")\n"
-		} else {
-			src = src + "\nreplace (\n" + line + ")\n"
 		}
 		// also require
 		req := fmt.Sprintf("\t%s v1.0.0\n", mod)

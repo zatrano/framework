@@ -22,17 +22,17 @@ func TestSelectEmpty(t *testing.T) {
 }
 
 func TestSelectKnown(t *testing.T) {
-	got, err := addons.Select("mongo", "oauth", "mongo")
+	got, err := addons.Select("ai", "ai")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("expected 2 providers, got %d", len(got))
+	if len(got) != 1 {
+		t.Fatalf("expected 1 provider, got %d", len(got))
 	}
 }
 
-func TestRegistryCoversDefault(t *testing.T) {
-	if len(addons.Available()) < 20 {
+func TestRegistryCoversInTreeServices(t *testing.T) {
+	if len(addons.Available()) < 1 {
 		t.Fatalf("registry too small: %d", len(addons.Available()))
 	}
 }

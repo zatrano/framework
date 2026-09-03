@@ -219,26 +219,26 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		})
 	}
 
-	// Catalog service addons must have registry providers.
-	missingProviders := 0
-	for _, p := range kernel.PackagesByLayer(kernel.LayerAddon) {
-		if p.EffectiveKind() != kernel.KindService {
-			continue
-		}
-		if _, ok := addons.Lookup(p.Name); !ok {
-			missingProviders++
+	// Registered providers must appear in the catalog as KindService.
+	// LayerAddon services now live in github.com/zatrano/packages and are
+	// registered only when the application blank-imports them.
+	badRegistry := 0
+	for _, m := range addons.Available() {
+		info, ok := kernel.LookupPackage(m.Name)
+		if !ok || info.EffectiveKind() != kernel.KindService {
+			badRegistry++
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
 				Code:    "catalog.provider",
-				Message: fmt.Sprintf("catalog service %q has no addon registry provider", p.Name),
+				Message: fmt.Sprintf("registry package %q is not a catalog KindService", m.Name),
 			})
 		}
 	}
-	if missingProviders == 0 {
+	if badRegistry == 0 {
 		out = append(out, doctorFinding{
 			Level:   "OK",
 			Code:    "catalog.providers",
-			Message: "every KindService catalog addon has a registry provider",
+			Message: "every registered addon is a catalog KindService",
 		})
 	}
 
