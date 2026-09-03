@@ -315,13 +315,14 @@ var sampleRouteCalls = map[string]bool{
 }
 
 func parseSampleRoutes(scanRoot string) ([]SampleRoute, error) {
+	empty := []SampleRoute{}
 	if scanRoot == "" {
-		return nil, nil
+		return empty, nil
 	}
 	routesDir := filepath.Join(scanRoot, "app", "routes")
 	st, err := os.Stat(routesDir)
 	if err != nil || !st.IsDir() {
-		return nil, nil
+		return empty, nil
 	}
 	var out []SampleRoute
 	err = filepath.WalkDir(routesDir, func(path string, d os.DirEntry, err error) error {
@@ -347,6 +348,9 @@ func parseSampleRoutes(scanRoot string) ([]SampleRoute, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if out == nil {
+		out = []SampleRoute{}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].File != out[j].File {
