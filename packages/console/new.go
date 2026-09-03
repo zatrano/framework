@@ -86,6 +86,9 @@ func (c *NewCommand) Handle(args []string) error {
 	if err != nil {
 		return err
 	}
+	if _, err := WriteAgentsMarkdown(dest); err != nil {
+		return err
+	}
 	if replace != "" {
 		tidy := exec.Command("go", "mod", "tidy")
 		tidy.Dir = dest

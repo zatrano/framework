@@ -63,6 +63,13 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if strings.Contains(modText, "__FRAMEWORK_VERSION__") || strings.Contains(modText, "__REPLACE_LINE__") {
 		t.Fatalf("placeholders left in go.mod:\n%s", modText)
 	}
+	agents, err := os.ReadFile(filepath.Join(dest, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(agents), "Router") || !strings.Contains(string(agents), "zatrano doctor") {
+		t.Fatalf("AGENTS.md missing describe-derived content:\n%s", agents)
+	}
 	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "app.exe"), "./cmd/app")
 	build.Dir = dest
 	out, err := build.CombinedOutput()
