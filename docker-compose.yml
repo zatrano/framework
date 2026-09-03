@@ -16,7 +16,7 @@ services:
     volumes:
       - ./storage:/app/storage
       - ./database:/app/database
-    command: ["/app/zatrano", "serve", "--port", "8080"]
+    command: ["/app/zatrano", "list"]
 
   # docker compose --profile postgres up
   postgres:

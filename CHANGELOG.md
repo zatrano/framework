@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## Unreleased
+
+### Breaking
+
+- The framework module no longer ships an application skeleton. `app/`, `routes/`, `views/`, `public/`, `lang/`, and application `database/` migrations live in apps created by `zatrano new`. `cmd/zatrano` is the CLI; generated apps use `cmd/app`. Optional addons live in `github.com/zatrano/packages` and must be blank-imported by the consumer.
+- `bootstrap.ApplicationProviders()` is empty; pass `bootstrap.WithProviders(...)` from the application.
+
 ## 1.6.6 - 2026-08-30
 
 ### Added

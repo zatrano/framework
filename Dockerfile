@@ -15,19 +15,6 @@ RUN apk add --no-cache ca-certificates tzdata \
  && adduser -D -H -u 10001 zatrano
 COPY --from=builder /out/zatrano /app/zatrano
 COPY .env.example /app/.env.example
-COPY views /app/views
-COPY public /app/public
-COPY database /app/database
-RUN mkdir -p /app/storage/framework/sessions \
-             /app/storage/framework/cache \
-             /app/storage/framework/schedule \
-             /app/storage/logs \
-             /app/storage/app/public \
- && chown -R zatrano:zatrano /app
 USER zatrano
-ENV APP_ENV=production \
-    APP_URL=http://localhost:8080 \
-    DB_CONNECTION=sqlite \
-    DB_DATABASE=database/database.sqlite
-EXPOSE 8080
-CMD ["/app/zatrano", "serve", "--port", "8080"]
+ENTRYPOINT ["/app/zatrano"]
+CMD ["list"]

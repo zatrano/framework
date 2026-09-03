@@ -70,6 +70,7 @@ func New(app *kernel.Application) *Application {
 	registerDeployCommands(console, app)
 	registerMakeCommand(console, app)
 	registerPackageCommands(console, app)
+	registerNewCommand(console, app)
 	return console
 }
 

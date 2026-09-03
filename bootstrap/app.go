@@ -4,20 +4,27 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/app/providers"
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/foundation"
 	"github.com/zatrano/framework/kernel"
 )
 
 type appOptions struct {
-	kernelOnly bool
-	addons     []string
-	addonsSet  bool
+	kernelOnly   bool
+	addons       []string
+	addonsSet    bool
+	appProviders []kernel.Provider
 }
 
 // Option configures App().
 type Option func(*appOptions)
+
+// WithProviders appends application-layer providers (routes, migrations, …).
+func WithProviders(providers ...kernel.Provider) Option {
+	return func(o *appOptions) {
+		o.appProviders = append(o.appProviders, providers...)
+	}
+}
 
 // WithAddons sets the addon list (does not merge EnabledAddons).
 func WithAddons(names ...string) Option {
@@ -89,7 +96,7 @@ func App(opts ...Option) *kernel.Application {
 	if cfg.addonsSet {
 		names = cfg.addons
 	}
-	app, err := Boot(foundation.Providers(), names, ApplicationProviders()...)
+	app, err := Boot(foundation.Providers(), names, cfg.appProviders...)
 	if err != nil {
 		panic(err)
 	}
@@ -127,16 +134,9 @@ func mergeAddonNames(lists ...[]string) []string {
 	return out
 }
 
-// ApplicationProviders returns app-layer service providers (routes, etc.).
-// Auth/dashboard providers are added by make:auth / make:dashboard.
+// ApplicationProviders is empty in the framework repo; consumer apps pass WithProviders.
 func ApplicationProviders() []kernel.Provider {
-	return []kernel.Provider{
-		&providers.AppServiceProvider{},
-		&providers.DatabaseServiceProvider{},
-		&providers.EventServiceProvider{},
-		&providers.ScheduleServiceProvider{},
-		&providers.RouteServiceProvider{},
-	}
+	return nil
 }
 
 // MinimalProviders is foundation + app wiring without addons.

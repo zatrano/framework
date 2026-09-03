@@ -1,0 +1,41 @@
+package tests
+
+import (
+	"strings"
+	"testing"
+
+	"__MODULE__/app/providers"
+
+	"github.com/zatrano/framework/bootstrap"
+	testkit "github.com/zatrano/framework/packages/testing"
+)
+
+func TestHealthEndpoint(t *testing.T) {
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	tc, err := testkit.New(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tc.AcceptJSON().Get("/api/health").
+		AssertOK().
+		AssertJSONContains("status", "ok")
+
+	tc.AcceptJSON().Get("/up").
+		AssertOK().
+		AssertJSONContains("status", "ok")
+}
+
+func TestWelcomeUsesLayout(t *testing.T) {
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	tc, err := testkit.New(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := tc.Get("/")
+	html.AssertOK()
+	body := string(html.Body)
+	if !strings.Contains(body, "__APP_NAME__") {
+		t.Fatalf("expected brand in welcome page")
+	}
+}

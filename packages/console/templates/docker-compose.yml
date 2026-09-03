@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: local
+      APP_URL: http://localhost:8080
+      DB_CONNECTION: sqlite
+      DB_DATABASE: database/database.sqlite
+      QUEUE_CONNECTION: database
+      CACHE_STORE: file
+      MAIL_MAILER: log
+    volumes:
+      - ./storage:/app/storage
+      - ./database:/app/database
+    command: ["/app/app", "serve", "--port", "8080"]

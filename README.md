@@ -61,10 +61,11 @@ ZATRANO is an opinionated Go web framework: routing, views, validation, ORM, aut
 
 | Layer              | Location               | Role                                                         |
 | ------------------ | ---------------------- | ------------------------------------------------------------ |
-| **Kernel**         | `core/`                | `Application`, container, catalog, secure HTTP hooks         |
+| **Kernel**         | `kernel/`              | `Application`, container, catalog, secure HTTP hooks         |
 | **Foundation**     | `bootstrap/foundation` | DB, auth, mail, session, cache, queue, views                 |
-| **Service addons** | `packages/`*           | Optional container services (`mongo`, `oauth`, `billing`, …) |
-| **Library addons** | `packages/`*           | Import-only helpers (`collection`, `totp`, `support`, …)     |
+| **Intelligence**   | `packages/ai|rag|agent` | First-party AI layer (stays in this module)                 |
+| **Service addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Optional services (`mongo`, `oauth`, `billing`, …) |
+| **Library addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Import-only helpers (`collection`, `totp`, …) |
 
 
 Nothing optional is magic-loaded. You pick a **boot profile** and enable only the addons you need.
@@ -73,14 +74,14 @@ For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│  Your app/  ·  routes/  ·  config/  ·  views/           │
+│  Your app (zatrano new)  ·  routes  ·  views            │
 ├─────────────────────────────────────────────────────────┤
 │  bootstrap/   APP_BOOT · EnabledAddons · presets        │
 ├──────────────────┬──────────────────────────────────────┤
-│  foundation      │  service addons (opt-in)             │
-│  auth db mail …  │  oauth billing ai webauthn …         │
+│  foundation      │  addons (github.com/zatrano/packages)│
+│  auth db mail …  │  oauth billing webauthn …            │
 ├──────────────────┴──────────────────────────────────────┤
-│  core/   thin kernel                                    │
+│  kernel/   thin kernel                                  │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -106,32 +107,25 @@ For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)
 
 ## Quick start
 
+This repository is the framework. Scaffold an application, then serve it:
+
 ```bash
 git clone https://github.com/zatrano/framework.git
 cd framework
+go run ./cmd/zatrano new myapp --replace .
+cd myapp
 cp .env.example .env
-go mod tidy
-go run ./cmd/zatrano key:generate
-go run ./cmd/zatrano serve
+go run ./cmd/app key:generate
+go run ./cmd/app serve
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
 
 ### Docker
 
-Default stack uses SQLite inside the `app` service:
+The image in this repo is the `zatrano` CLI. Application images are generated with `zatrano new` (`Dockerfile` in the new project).
 
-```bash
-docker compose up --build
-```
-
-Optional PostgreSQL (profile `postgres`):
-
-```bash
-docker compose --profile postgres up --build
-```
-
-Point the app at Postgres by setting `DB_CONNECTION=pgsql`, `DB_HOST=postgres`, and matching `DB_*` credentials (see commented env keys in `docker-compose.yml`). Then run `go run ./cmd/zatrano db:create` (or the binary) before migrate if the database does not exist yet.
+Optional database profiles remain in `docker-compose.yml` (`postgres`, `mysql`, `mssql`, `mongo`, `oracle`).
 
 As a module dependency:
 
@@ -317,15 +311,12 @@ Guides: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard 
 ## Project layout
 
 ```text
-app/                 Controllers, providers, models
 bootstrap/           Boot profiles, foundation, EnabledAddons, presets
-cmd/zatrano/         CLI entrypoint
+cmd/zatrano/         CLI (`new`, `make:*`, `package:*`, …)
 config/              Config maps (+ published addon stubs)
-database/            Migrations, seeders, factories
-routes/              web, api, …
-views/               Templates
-packages/            First-party packages (framework module)
-core/                Thin kernel
+kernel/              Thin kernel
+packages/            Foundation + intelligence packages
+packages/console/templates/  Starter copied by `zatrano new`
 ```
 
 

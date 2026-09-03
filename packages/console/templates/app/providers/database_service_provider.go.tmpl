@@ -1,0 +1,21 @@
+package providers
+
+import (
+	"__MODULE__/database/migrations"
+	"__MODULE__/database/seeders"
+
+	"github.com/zatrano/framework/kernel"
+)
+
+// DatabaseServiceProvider registers migrations and seeders.
+type DatabaseServiceProvider struct{}
+
+func (p *DatabaseServiceProvider) Register(app *kernel.Application) error {
+	return nil
+}
+
+func (p *DatabaseServiceProvider) Boot(app *kernel.Application) error {
+	app.SetMigrations(migrations.All())
+	app.SetSeeders(seeders.All())
+	return nil
+}
