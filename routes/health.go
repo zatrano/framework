@@ -1,13 +1,19 @@
 package routes
 
 import (
-	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/routing"
 )
 
-// Health registers liveness and readiness routes.
-func Health(app *kernel.Application) {
-	router := app.Router()
+func init() {
+	routing.RegisterWeb(registerHealth)
+}
+
+func registerHealth(router *routing.Router) {
+	app := currentApp()
+	if app == nil || router == nil || app.Health() == nil {
+		return
+	}
 
 	router.Get("/up", func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"status": "ok"})

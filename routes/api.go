@@ -2,13 +2,17 @@ package routes
 
 import (
 	"github.com/zatrano/framework/app/http/controllers/api"
-	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/routing"
 )
 
-// API registers application API routes.
-func API(app *kernel.Application) {
-	router := app.Router()
+func init() {
+	routing.RegisterAPI(registerAPI)
+}
+
+func registerAPI(router *routing.Router) {
+	if router == nil {
+		return
+	}
 
 	router.Name("api.", func(r *routing.Router) {
 		r.Group("/api", func(r *routing.Router) {
