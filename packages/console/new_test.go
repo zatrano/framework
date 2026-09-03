@@ -63,6 +63,16 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if strings.Contains(modText, "__FRAMEWORK_VERSION__") || strings.Contains(modText, "__REPLACE_LINE__") {
 		t.Fatalf("placeholders left in go.mod:\n%s", modText)
 	}
+	envEx, err := os.ReadFile(filepath.Join(dest, ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(envEx), "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "DB_CONNECTION=") && !strings.HasPrefix(trim, "#") {
+			t.Fatalf("new apps must not set DB_CONNECTION by default:\n%s", envEx)
+		}
+	}
 	agents, err := os.ReadFile(filepath.Join(dest, "AGENTS.md"))
 	if err != nil {
 		t.Fatal(err)

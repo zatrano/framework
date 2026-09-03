@@ -37,7 +37,7 @@ import (
 
 func BootDatabase(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "database", appconfig.Database())
-	defaultConn := app.Config().GetString("database.default", "sqlite")
+	defaultConn := strings.TrimSpace(app.Config().GetString("database.default"))
 	connections := map[string]database.ConnectionConfig{}
 
 	rawConnections, ok := app.Config().Get("database.connections").(map[string]any)
@@ -70,10 +70,7 @@ func BootDatabase(app *kernel.Application) error {
 	}
 
 	if len(connections) == 0 {
-		if database.IsDocumentStore(defaultConn) {
-			return nil
-		}
-		return fmt.Errorf("no SQL database connections configured")
+		return nil
 	}
 
 	sqlDefault := defaultConn

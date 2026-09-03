@@ -9,3 +9,5 @@ go run ./cmd/app serve
 ```
 
 Add optional packages from `github.com/zatrano/packages` with a blank import in `cmd/app/main.go` (or a dedicated `app/addons.go`), then enable them with `go run ./cmd/app package:enable <name>`.
+
+A database is optional. Link one with `go run ./cmd/app db:setup --drivers=sqlite` (or `mysql`, `pgsql`, …).

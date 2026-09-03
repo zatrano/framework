@@ -35,6 +35,8 @@ func TestResolveProfile(t *testing.T) {
 }
 
 func TestProfileAPIDoesNotBindMongo(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	app, err := bootstrap.Profile("api")
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +59,8 @@ func TestProfileAPIDoesNotBindMongo(t *testing.T) {
 }
 
 func TestFromEnvHonorsAPP_BOOT(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	t.Setenv("APP_BOOT", "minimal")
 	app := bootstrap.FromEnv("demo")
 	if err := app.Bootstrap(); err != nil {

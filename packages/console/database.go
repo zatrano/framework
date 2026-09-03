@@ -111,7 +111,10 @@ func (c *DBCreateCommand) Description() string {
 func (c *DBCreateCommand) Handle(args []string) error {
 	_ = env.Load(c.app.BasePath(".env"))
 
-	driver := strings.ToLower(env.Get("DB_CONNECTION", "sqlite"))
+	driver := strings.ToLower(strings.TrimSpace(env.Get("DB_CONNECTION")))
+	if driver == "" {
+		return fmt.Errorf("no database configured; run db:setup --drivers=sqlite (or mysql, pgsql, …)")
+	}
 	switch database.NormalizeDriverName(driver) {
 	case "sqlite":
 		fmt.Println("SQLite does not require db:create; the database file is created on first connection.")

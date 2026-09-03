@@ -100,7 +100,7 @@ For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)
 ## Requirements
 
 - Go **1.25+**
-- SQLite (default); MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup`
+- Optional database: SQLite, MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup` (none linked by default)
 - Optional: Redis, Stripe, OpenAI — only if you enable those addons
 
 
@@ -157,15 +157,16 @@ go run ./cmd/zatrano serve
 
 ## Databases (single & multi)
 
-Drivers are **opt-in modules**. Default checkout links **SQLite** only. Install engines with:
+Drivers are **opt-in modules**. A new app has **no database** until you choose one:
 
 ```bash
 go run ./cmd/zatrano db:setup
 # or non-interactive:
+go run ./cmd/zatrano db:setup --drivers=sqlite --yes
 go run ./cmd/zatrano db:setup --drivers=sqlite,mysql,pgsql,mongo --default=mysql --yes
 ```
 
-Supported: `sqlite` · `mysql` · `pgsql` · `mssql` · `oracle` · `mongo` (same list as SQL — Mongo is not a special-case-only addon path).
+Supported: `sqlite` · `mysql` · `pgsql` · `mssql` · `oracle` · `mongo`. SQLite is installed the same way as MySQL/PostgreSQL (not pre-linked).
 
 ### Env
 

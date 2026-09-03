@@ -8,9 +8,7 @@ services:
     environment:
       APP_ENV: local
       APP_URL: http://localhost:8080
-      DB_CONNECTION: sqlite
-      DB_DATABASE: database/database.sqlite
-      QUEUE_CONNECTION: database
+      QUEUE_CONNECTION: sync
       CACHE_STORE: file
       MAIL_MAILER: log
     volumes:

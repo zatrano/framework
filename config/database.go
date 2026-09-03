@@ -18,12 +18,15 @@ import (
 // Per-connection overrides: DB_<NAME>_HOST, DB_<NAME>_PORT, … (e.g. DB_MYSQL_HOST, DB_PGSQL_DATABASE)
 // Mongo: DB_MONGO_URI / MONGO_URI, DB_MONGO_DATABASE
 func Database() map[string]any {
-	defaultName := database.NormalizeDriverName(env.GetNonEmpty("DB_CONNECTION", "sqlite"))
+	defaultName := database.NormalizeDriverName(env.Get("DB_CONNECTION"))
 	enabled := parseEnabledConnections(env.Get("DB_CONNECTIONS", ""), defaultName)
 
 	connections := map[string]any{}
 	for _, name := range enabled {
 		connections[name] = connectionConfig(name, defaultName)
+	}
+	if defaultName == "" && len(enabled) > 0 {
+		defaultName = enabled[0]
 	}
 
 	return map[string]any{
@@ -35,6 +38,9 @@ func Database() map[string]any {
 func parseEnabledConnections(raw, defaultName string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
+		if defaultName == "" {
+			return nil
+		}
 		return []string{defaultName}
 	}
 	parts := strings.Split(raw, ",")
@@ -48,11 +54,8 @@ func parseEnabledConnections(raw, defaultName string) []string {
 		seen[n] = true
 		out = append(out, n)
 	}
-	if !seen[defaultName] {
+	if defaultName != "" && !seen[defaultName] {
 		out = append([]string{defaultName}, out...)
-	}
-	if len(out) == 0 {
-		return []string{defaultName}
 	}
 	return out
 }

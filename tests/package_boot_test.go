@@ -11,6 +11,8 @@ import (
 )
 
 func TestMinimalAppHasNoAddonsBound(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	app := bootstrap.App(bootstrap.Minimal())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
@@ -54,6 +56,8 @@ func TestKernelOptionBoots(t *testing.T) {
 }
 
 func TestFullAppBindsEnabledAddons(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	app := bootstrap.App()
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
@@ -76,6 +80,8 @@ func TestFullAppBindsEnabledAddons(t *testing.T) {
 }
 
 func TestDemoAppBindsDemoAddons(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	app := bootstrap.App(bootstrap.WithDemo())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
@@ -92,6 +98,8 @@ func TestDemoAppBindsDemoAddons(t *testing.T) {
 }
 
 func TestAPIAppAndWebAppPresets(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	for _, name := range bootstrap.PresetNames() {
 		list, ok := bootstrap.Preset(name)
 		if !ok {
@@ -115,6 +123,8 @@ func TestAPIAppAndWebAppPresets(t *testing.T) {
 }
 
 func TestAddonConfigLoaded(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
 	minimal := bootstrap.App(bootstrap.Minimal())
 	if err := minimal.Bootstrap(); err != nil {
 		t.Fatal(err)
