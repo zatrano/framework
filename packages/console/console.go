@@ -72,6 +72,7 @@ func New(app *kernel.Application) *Application {
 	registerPackageCommands(console, app)
 	registerNewCommand(console, app)
 	registerDescribeCommand(console, app)
+	registerDoctorCommand(console, app)
 	registerAddonCLI(console, app)
 	return console
 }
