@@ -11,7 +11,7 @@ import (
 
 // BootProfiles lists valid APP_BOOT values.
 func BootProfiles() []string {
-	return []string{"app", "api", "web", "minimal", "core", "kernel", "demo"}
+	return []string{"app", "api", "web", "minimal", "core", "kernel"}
 }
 
 // ResolveProfile normalizes an APP_BOOT value.
@@ -20,7 +20,7 @@ func ResolveProfile(name string) (string, error) {
 	switch name {
 	case "", "app", "default":
 		return "app", nil
-	case "api", "web", "minimal", "core", "demo":
+	case "api", "web", "minimal", "core":
 		return name, nil
 	case "kernel":
 		return "core", nil
@@ -44,8 +44,6 @@ func Profile(name string) (*kernel.Application, error) {
 		return App(Minimal()), nil
 	case "core":
 		return App(Kernel()), nil
-	case "demo":
-		return App(WithDemo()), nil
 	default:
 		return App(), nil
 	}

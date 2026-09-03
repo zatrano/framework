@@ -12,18 +12,16 @@ var PresetWeb = []string{}
 
 // PresetNames lists known preset identifiers for CLI discovery.
 func PresetNames() []string {
-	return []string{"api", "web", "demo"}
+	return []string{"api", "web"}
 }
 
-// Preset returns a named addon list (api|web|demo).
+// Preset returns a named addon list (api|web).
 func Preset(name string) ([]string, bool) {
 	switch name {
 	case "api":
 		return append([]string(nil), PresetAPI...), true
 	case "web":
 		return append([]string(nil), PresetWeb...), true
-	case "demo":
-		return append([]string(nil), DemoAddons...), true
 	default:
 		return nil, false
 	}

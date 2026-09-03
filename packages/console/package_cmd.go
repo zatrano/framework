@@ -184,7 +184,7 @@ type PackagePresetCommand struct{ app *kernel.Application }
 
 func (c *PackagePresetCommand) Name() string { return "package:preset" }
 func (c *PackagePresetCommand) Description() string {
-	return "Apply a lean addon preset to bootstrap/enabled.go (api|web|demo)"
+	return "Apply a lean addon preset to bootstrap/enabled.go (api|web)"
 }
 func (c *PackagePresetCommand) Handle(args []string) error {
 	if len(args) < 1 || args[0] == "list" || args[0] == "--list" {
@@ -193,13 +193,13 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 			list, _ := bootstrap.Preset(name)
 			fmt.Printf("%s\t%s\n", name, strings.Join(list, ", "))
 		}
-		fmt.Println("Usage: package:preset <api|web|demo> [--merge] [--force] [--no-publish]")
+		fmt.Println("Usage: package:preset <api|web> [--merge] [--force] [--no-publish]")
 		return nil
 	}
 	name := strings.ToLower(strings.TrimSpace(args[0]))
 	list, ok := bootstrap.Preset(name)
 	if !ok {
-		return fmt.Errorf("unknown preset %q (api|web|demo)", name)
+		return fmt.Errorf("unknown preset %q (api|web)", name)
 	}
 	merge := hasFlag(args[1:], "--merge", "-m")
 	force := hasFlag(args[1:], "--force", "-f")
@@ -273,7 +273,7 @@ func (c *PackageStatusCommand) Handle(args []string) error {
 		return err
 	}
 	if boundExtra {
-		fmt.Println("Note: BOUND without ENABLED means this process used App(WithDemo()) (or custom Boot), not App()+EnabledAddons.")
+		fmt.Println("Note: BOUND without ENABLED means this process used App(WithAddons(...)) (or a custom Boot), not App()+EnabledAddons.")
 	}
 	return nil
 }
@@ -490,7 +490,7 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("//\tzatrano package:install billing\n")
 	b.WriteString("//\n")
 	b.WriteString("// Entrypoint: bootstrap.App() reads this list.\n")
-	b.WriteString("// Alternatives: App(Minimal()), App(WithPresetAPI()), App(WithPresetWeb()), App(WithDemo()), App(Kernel()).\n")
+	b.WriteString("// Alternatives: App(Minimal()), App(WithPresetAPI()), App(WithPresetWeb()), App(Kernel()), App(WithAddons(...)).\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")
 	return b.String()
 }

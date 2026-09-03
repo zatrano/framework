@@ -18,7 +18,6 @@ func TestResolveProfile(t *testing.T) {
 		"minimal": "minimal",
 		"core":    "core",
 		"kernel":  "core",
-		"demo":    "demo",
 	}
 	for in, want := range cases {
 		got, err := bootstrap.ResolveProfile(in)
@@ -31,6 +30,9 @@ func TestResolveProfile(t *testing.T) {
 	}
 	if _, err := bootstrap.ResolveProfile("nope"); err == nil {
 		t.Fatal("expected error for unknown profile")
+	}
+	if _, err := bootstrap.ResolveProfile("demo"); err == nil {
+		t.Fatal("demo boot profile is removed")
 	}
 }
 
@@ -62,7 +64,7 @@ func TestFromEnvHonorsAPP_BOOT(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
 	t.Setenv("APP_BOOT", "minimal")
-	app := bootstrap.FromEnv("demo")
+	app := bootstrap.FromEnv("app")
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

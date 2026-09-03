@@ -2,11 +2,15 @@
 
 How to choose and use first-party packages.
 
-- **Catalog source:** `kernel/catalog.go`
+This repository is the **framework**. `packages/` here is kernel, foundation, and intelligence code (`github.com/zatrano/framework/packages/...`). It is not a copy of the addon repo.
+
+- **Catalog source:** `kernel/catalog.go` (addon *names* are listed for discovery; addon *code* is not in this module)
 - **Kernel / foundation / intelligence:** this repository, under `packages/`
-- **Addon services and libraries:** [`github.com/zatrano/packages`](https://github.com/zatrano/packages) (blank-import + `bootstrap.WithAddons`)
+- **Addon implementations:** [`github.com/zatrano/packages`](https://github.com/zatrano/packages) — `go get` + blank-import + `bootstrap.WithAddons` / `EnabledAddons`
 - **Website docs:** [zatrano.com/docs](https://zatrano.com/docs)
 - **CLI:** `go run ./cmd/zatrano package:list --all`
+
+The two modules cannot be merged: `github.com/zatrano/packages` already requires this framework (Go import cycle).
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
 

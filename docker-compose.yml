@@ -13,7 +13,6 @@ services:
       MAIL_MAILER: log
     volumes:
       - ./storage:/app/storage
-      - ./database:/app/database
     command: ["/app/zatrano", "list"]
 
   # docker compose --profile postgres up

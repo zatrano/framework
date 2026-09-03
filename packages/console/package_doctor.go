@@ -272,14 +272,6 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		Code:    "boot.profile",
 		Message: fmt.Sprintf("APP_BOOT resolves to %q", boot),
 	})
-	if envName == "production" && boot == "demo" {
-		out = append(out, doctorFinding{
-			Level:   "WARN",
-			Code:    "boot.demo_in_prod",
-			Message: "APP_BOOT=demo in production — prefer app|api|web|minimal",
-		})
-	}
-
 	sort.SliceStable(out, func(i, j int) bool {
 		rank := map[string]int{"ERROR": 0, "WARN": 1, "OK": 2}
 		if rank[out[i].Level] != rank[out[j].Level] {

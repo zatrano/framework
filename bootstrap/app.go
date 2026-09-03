@@ -49,15 +49,6 @@ func Kernel() Option {
 	}
 }
 
-// WithDemo boots foundation + every DemoAddons package + app providers.
-func WithDemo() Option {
-	return func(o *appOptions) {
-		o.kernelOnly = false
-		o.addonsSet = true
-		o.addons = append([]string(nil), DemoAddons...)
-	}
-}
-
 // WithPresetAPI boots foundation + PresetAPI ∪ EnabledAddons + app providers.
 func WithPresetAPI() Option {
 	return func(o *appOptions) {

@@ -27,9 +27,9 @@ var EnabledAddons = []string{
 	}
 }
 
-func TestPresetNamesCoverAPIWebDemo(t *testing.T) {
+func TestPresetNamesCoverAPIWeb(t *testing.T) {
 	names := map[string]bool{}
-	for _, n := range []string{"api", "web", "demo"} {
+	for _, n := range []string{"api", "web"} {
 		names[n] = false
 	}
 	for _, n := range bootstrap.PresetNames() {

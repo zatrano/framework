@@ -61,10 +61,11 @@ ZATRANO is an opinionated Go web framework: routing, views, validation, ORM, aut
 
 | Layer              | Location               | Role                                                         |
 | ------------------ | ---------------------- | ------------------------------------------------------------ |
-| **Kernel**         | `kernel/`              | `Application`, container, catalog, secure HTTP hooks         |
-| **Foundation**     | `bootstrap/foundation` | DB, auth, mail, session, cache, queue, views                 |
-| **Intelligence**   | `packages/ai|rag|agent` | First-party AI layer (stays in this module)                 |
-| **Service addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Optional services (`mongo`, `oauth`, `billing`, …) |
+| **Kernel API**     | `kernel/`              | `Application`, container, catalog, secure HTTP hooks         |
+| **Implementations**| `packages/`            | Kernel, foundation, and intelligence (`framework/packages/...`) |
+| **Foundation boot**| `bootstrap/foundation` | Wires DB, auth, session, cache, queue, views                 |
+| **Intelligence**   | `packages/ai`, `rag`, `agent` | First-party AI layer (stays in this module)             |
+| **Service addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Optional services (`mongo`, `oauth`, `billing`, …) — not copied here |
 | **Library addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Import-only helpers (`collection`, `totp`, …) |
 
 
@@ -90,7 +91,7 @@ For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)
 ## Why teams choose it
 
 - **Go speed** with a coherent application skeleton — not 20 micro-libraries glued by hand
-- **Opt-in weight** — health binary stays lean; API/web apps take foundation; demos can load everything
+- **Opt-in weight** — health binary stays lean; API/web apps take foundation; addons are enabled explicitly
 - **Batteries included** — auth (guards, 2FA, lockout, trusted devices), ORM, migrations, queues, mail, notifications, localization
 - **One CLI** — `serve`, `migrate`, `make:`*, `package:enable|preset|doctor`, …
 - **Docs that live with the product** — [zatrano.com/docs](https://zatrano.com/docs)
@@ -142,7 +143,7 @@ go get github.com/zatrano/framework@latest
 go run ./cmd/zatrano package:init api
 # or: package:init web
 
-# Prefer lean profiles in production (never demo)
+# Prefer lean profiles in production
 # APP_BOOT=app   → foundation + EnabledAddons
 # APP_BOOT=api   → foundation + API preset
 # APP_BOOT=web   → foundation + web preset
@@ -215,7 +216,7 @@ Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.co
 | `App(Minimal())`             | `minimal`     | Foundation + your routes, no addons |
 | `App()`                      | `app`         | Minimal + `EnabledAddons`           |
 | `App(WithPresetAPI()/Web())` | `api` / `web` | Lean presets                        |
-| `App(WithDemo())`            | `demo`        | Full demo addon set                 |
+| `App(WithAddons(...))`       | —             | Foundation + an explicit addon list |
 
 
 ```go
@@ -226,7 +227,7 @@ import (
 
 func main() {
     app := bootstrap.FromEnv()       // reads APP_BOOT (default "app")
-    // app := bootstrap.FromEnv("demo")  // CLI default when unset
+    // app := bootstrap.FromEnv("api")   // CLI default when unset
     // app := bootstrap.App(bootstrap.WithPresetAPI())
 
     _ = auth.From(app)               // resolve services — not app.Auth()
@@ -333,7 +334,7 @@ In-repo packages guide: **[PACKAGES.md](PACKAGES.md)** (purpose, enable, usage, 
 | --------------------------------------------------------------- | -------------------------------- |
 | [PACKAGES.md](PACKAGES.md)                                      | Packages guide (this repo)       |
 | [Installation](https://zatrano.com/docs/installation)           | Clone, key, serve                |
-| [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Demo |
+| [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Web  |
 | [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor          |
 | [Resolving Services](https://zatrano.com/docs/accessors)        | `From(app)` migration table      |
 | [Authentication](https://zatrano.com/docs/authentication)       | Full auth surface                |

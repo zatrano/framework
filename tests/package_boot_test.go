@@ -79,21 +79,19 @@ func TestFullAppBindsEnabledAddons(t *testing.T) {
 	}
 }
 
-func TestDemoAppBindsDemoAddons(t *testing.T) {
+func TestAIAddonBinds(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App(bootstrap.WithDemo())
+	app := bootstrap.App(bootstrap.WithAddons("ai"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range bootstrap.DemoAddons {
-		m, ok := addons.Lookup(name)
-		if !ok {
-			t.Fatalf("demo addon %q missing from registry", name)
-		}
-		if !app.Bound(m.Key) {
-			t.Fatalf("demo addon %q should bind %q", m.Name, m.Key)
-		}
+	m, ok := addons.Lookup("ai")
+	if !ok {
+		t.Fatal("ai missing from addon registry")
+	}
+	if !app.Bound(m.Key) {
+		t.Fatalf("ai addon should bind %q", m.Key)
 	}
 }
 
@@ -142,11 +140,11 @@ func TestAddonConfigLoaded(t *testing.T) {
 		t.Fatal("MinimalApp must not load addon configs the kernel no longer owns")
 	}
 
-	app := bootstrap.App(bootstrap.WithDemo())
+	app := bootstrap.App(bootstrap.WithAddons("ai"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
 	if app.Config().Get("ai") == nil {
-		t.Fatal("ai config namespace should load on DemoApp")
+		t.Fatal("ai config namespace should load when the ai addon is enabled")
 	}
 }

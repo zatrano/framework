@@ -8,7 +8,8 @@ All notable changes to ZATRANO are documented in this file.
 
 - The framework module no longer ships an application skeleton. `app/`, `routes/`, `views/`, `public/`, `lang/`, and application `database/` migrations live in apps created by `zatrano new`. `cmd/zatrano` is the CLI; generated apps use `cmd/app`. Optional addons live in `github.com/zatrano/packages` and must be blank-imported by the consumer.
 - `bootstrap.ApplicationProviders()` is empty; pass `bootstrap.WithProviders(...)` from the application.
-- No database is linked by default. SQLite is installed with `db:setup --drivers=sqlite` like MySQL and PostgreSQL. Apps boot without `DB_CONNECTION`.
+- No database is linked by default. SQLite is installed with `db:setup --drivers=sqlite` like MySQL and PostgreSQL. Apps boot without `DB_CONNECTION`. The framework tree no longer has a placeholder `database/` directory.
+- `App(WithDemo())`, `DemoAddons`, `APP_BOOT=demo`, and `package:preset demo` are removed. Enable addons explicitly with `EnabledAddons` or `App(WithAddons(...))`.
 - Duplicate addon libraries (`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`) are no longer top-level under `packages/`. Foundation usage is nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …); CLI-only copies live in `github.com/zatrano/packages`. `db:backup` registers when the backup addon is blank-imported.
 
 ## 1.6.6 - 2026-08-30

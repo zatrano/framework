@@ -26,7 +26,10 @@ const (
 	KindLibrary Kind = "library"
 )
 
-// PackageInfo describes one first-party package under packages/.
+// PackageInfo describes one first-party package.
+// Primitive, foundation, and intelligence implementations live under this
+// module's packages/. LayerAddon names are discovery-only; their code lives in
+// github.com/zatrano/packages (this module must not require that module).
 type PackageInfo struct {
 	Name        string
 	Layer       Layer
@@ -48,6 +51,7 @@ func (p PackageInfo) EffectiveKind() Kind {
 
 // Catalog is the source of truth for package layering.
 // Primitive kernel lives in thin kernel/; implementations live under packages/.
+// LayerAddon entries name packages in github.com/zatrano/packages, not this tree.
 var Catalog = []PackageInfo{
 	// Primitive — process must start; secure HTTP surface.
 	{Name: "container", Layer: LayerPrimitive, Description: "Service container"},
@@ -101,7 +105,7 @@ var Catalog = []PackageInfo{
 	{Name: "rag", Layer: LayerIntelligence, Kind: KindLibrary, Description: "RAG chunking, embed pipeline, vector store helpers"},
 	{Name: "agent", Layer: LayerIntelligence, Kind: KindLibrary, Description: "AI agent loop, tools, conversation memory"},
 
-	// Addon services — opt-in via bootstrap/addons registry + EnabledAddons.
+	// Addon services — opt-in via the consumer blank-importing github.com/zatrano/packages.
 	{Name: "audit", Layer: LayerAddon, Kind: KindService, Description: "Request/audit event log"},
 	{Name: "backup", Layer: LayerAddon, Kind: KindService, Description: "Database backup/restore (SQLite + native dump tools)"},
 	{Name: "billing", Layer: LayerAddon, Kind: KindService, Description: "Central billing manager (memory/stripe gateways, webhooks)"},
