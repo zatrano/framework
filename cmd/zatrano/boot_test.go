@@ -15,6 +15,7 @@ func TestCliUsesCoreBoot(t *testing.T) {
 		{[]string{"make:auth"}, true},
 		{[]string{"make:controller", "X", "--api"}, true},
 		{[]string{"new", "myapp"}, true},
+		{[]string{"describe", "--format=json"}, true},
 		{[]string{"db:setup", "--drivers=sqlite"}, true},
 		{[]string{"list"}, false},
 	}

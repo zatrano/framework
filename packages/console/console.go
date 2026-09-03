@@ -71,6 +71,7 @@ func New(app *kernel.Application) *Application {
 	registerMakeCommand(console, app)
 	registerPackageCommands(console, app)
 	registerNewCommand(console, app)
+	registerDescribeCommand(console, app)
 	registerAddonCLI(console, app)
 	return console
 }

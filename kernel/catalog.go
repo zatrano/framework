@@ -6,10 +6,14 @@ package kernel
 type Layer string
 
 const (
-	LayerPrimitive    Layer = "primitive"
-	LayerFoundation   Layer = "foundation"
+	// LayerPrimitive is always on the boot path: process must start; secure HTTP surface.
+	LayerPrimitive Layer = "primitive"
+	// LayerFoundation is opt-in but common: typical web/API application services.
+	LayerFoundation Layer = "foundation"
+	// LayerIntelligence is the first-party AI identity layer (same activation as addons).
 	LayerIntelligence Layer = "intelligence"
-	LayerAddon        Layer = "addon"
+	// LayerAddon is project opt-in: services and libraries enabled by the consumer.
+	LayerAddon Layer = "addon"
 )
 
 // Kind classifies how an addon is consumed.
