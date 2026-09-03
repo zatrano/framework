@@ -45,3 +45,5 @@ tests/database/*.sqlite
 
 storage/framework/schedule/*
 !storage/framework/schedule/.gitkeep
+# Local Stage A/B/C notes — keep on disk, do not publish
+/docs/
