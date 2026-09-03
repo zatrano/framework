@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - '*.x'
+      - 'v2-stage-*'
   pull_request:
   schedule:
     - cron: '0 0 * * *'
@@ -175,3 +176,29 @@ jobs:
           QUEUE_CONNECTION: sync
           SESSION_DRIVER: file
           MONGO_URI: memory
+
+  starter_smoke:
+    name: zatrano new smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: v2-stage-b
+          path: _packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+
+      - name: Scaffold app, enable billing, hit health
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'true'
+        run: bash .github/scripts/starter-smoke.sh
