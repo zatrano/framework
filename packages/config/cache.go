@@ -11,7 +11,10 @@ import (
 const CacheFileName = "config.json"
 
 // SaveCache writes the repository snapshot to path.
-func SaveCache(path string, repo *Repository) error {
+func SaveCache(path string, repo interface{ All() map[string]any }) error {
+	if repo == nil {
+		return fmt.Errorf("config cache: repository unavailable")
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -61,7 +64,7 @@ func (r *Repository) MergeCached(data map[string]any) {
 }
 
 // MustSaveCache saves or panics (CLI helpers).
-func MustSaveCache(path string, repo *Repository) {
+func MustSaveCache(path string, repo interface{ All() map[string]any }) {
 	if err := SaveCache(path, repo); err != nil {
 		panic(fmt.Errorf("config cache: %w", err))
 	}

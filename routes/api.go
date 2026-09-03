@@ -12,7 +12,7 @@ func API(app *core.Application) {
 
 	router.Name("api.", func(r *routing.Router) {
 		r.Group("/api", func(r *routing.Router) {
-			routing.Controller(r, &api.HomeController{}, func(r *routing.Router, c *api.HomeController) {
+			routing.Controller(r, &api.HomeController{}, func(r routing.RouteRegistrar, c *api.HomeController) {
 				r.Get("/", c.Index).As("home")
 			})
 		})

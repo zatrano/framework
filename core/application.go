@@ -12,6 +12,7 @@ import (
 	"time"
 
 	appconfig "github.com/zatrano/framework/config"
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/container"
 	appcontext "github.com/zatrano/framework/packages/context"
@@ -93,7 +94,10 @@ func (app *Application) BasePath(parts ...string) string {
 }
 
 // Container returns the service container.
-func (app *Application) Container() *container.Container {
+func (app *Application) Container() contracts.Container {
+	if app == nil || app.container == nil {
+		return nil
+	}
 	return app.container
 }
 
@@ -114,17 +118,26 @@ func (app *Application) Bound(abstract string) bool {
 }
 
 // Config returns the config repository.
-func (app *Application) Config() *config.Repository {
+func (app *Application) Config() contracts.ConfigRepository {
+	if app == nil || app.config == nil {
+		return nil
+	}
 	return app.config
 }
 
 // Router returns the HTTP router.
-func (app *Application) Router() *routing.Router {
+func (app *Application) Router() contracts.Router {
+	if app == nil || app.router == nil {
+		return nil
+	}
 	return app.router
 }
 
 // Logger returns the application logger.
-func (app *Application) Logger() *log.Logger {
+func (app *Application) Logger() contracts.Logger {
+	if app == nil || app.logger == nil {
+		return nil
+	}
 	return app.logger
 }
 
@@ -228,8 +241,8 @@ func (app *Application) Bootstrap() error {
 		middleware.RequestID,
 		middleware.SecurityHeaders,
 	)
-	if app.Metrics() != nil {
-		app.router.Use(observability.Timing(app.Metrics(), func(format string, args ...any) {
+	if app.metrics != nil {
+		app.router.Use(observability.Timing(app.metrics, func(format string, args ...any) {
 			if app.logger != nil {
 				app.logger.Infof(format, args...)
 			}
@@ -250,8 +263,8 @@ func (app *Application) Bootstrap() error {
 	if o := middlewareFrom(app, "octane"); o != nil {
 		app.router.Use(o)
 	}
-	if app.Maintenance() != nil {
-		app.router.Use(app.Maintenance().Middleware())
+	if app.maintenance != nil {
+		app.router.Use(app.maintenance.Middleware())
 	}
 	if o := middlewareFrom(app, "inspector"); o != nil {
 		app.router.Use(o)
@@ -362,8 +375,8 @@ func (app *Application) Run(addr string) error {
 }
 
 func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
-	if app.Exceptions() != nil {
-		return app.Exceptions().Middleware()
+	if app.exceptions != nil {
+		return app.exceptions.Middleware()
 	}
 	return middleware.Recover
 }

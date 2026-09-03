@@ -1,51 +1,63 @@
 package core
 
 import (
-	appcontext "github.com/zatrano/framework/packages/context"
-	"github.com/zatrano/framework/packages/encryption"
-	"github.com/zatrano/framework/packages/exceptions"
-	"github.com/zatrano/framework/packages/hashing"
-	"github.com/zatrano/framework/packages/health"
-	"github.com/zatrano/framework/packages/maintenance"
-	"github.com/zatrano/framework/packages/observability"
-	"github.com/zatrano/framework/packages/ratelimit"
-	"github.com/zatrano/framework/packages/report"
-	urlgen "github.com/zatrano/framework/packages/url"
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/version"
 )
 
 // RateLimiter returns the rate limiter.
-func (app *Application) RateLimiter() *ratelimit.Limiter {
+func (app *Application) RateLimiter() contracts.RateLimiter {
+	if app == nil || app.rateLimiter == nil {
+		return nil
+	}
 	return app.rateLimiter
 }
 
 // Context returns the application context store.
-func (app *Application) Context() *appcontext.Store {
+func (app *Application) Context() contracts.ContextStore {
+	if app == nil || app.ctx == nil {
+		return nil
+	}
 	return app.ctx
 }
 
 // URL returns the URL generator.
-func (app *Application) URL() *urlgen.Generator {
+func (app *Application) URL() contracts.URLGenerator {
+	if app == nil || app.urls == nil {
+		return nil
+	}
 	return app.urls
 }
 
 // Encrypter returns the encryption service.
-func (app *Application) Encrypter() *encryption.Encrypter {
+func (app *Application) Encrypter() contracts.Encrypter {
+	if app == nil || app.encrypter == nil {
+		return nil
+	}
 	return app.encrypter
 }
 
 // Hash returns the hashing manager.
-func (app *Application) Hash() *hashing.Manager {
+func (app *Application) Hash() contracts.Hasher {
+	if app == nil || app.hasher == nil {
+		return nil
+	}
 	return app.hasher
 }
 
 // Metrics returns the observability metrics collector.
-func (app *Application) Metrics() *observability.Metrics {
+func (app *Application) Metrics() contracts.Metrics {
+	if app == nil || app.metrics == nil {
+		return nil
+	}
 	return app.metrics
 }
 
 // Health returns the health check manager.
-func (app *Application) Health() *health.Manager {
+func (app *Application) Health() contracts.Health {
+	if app == nil || app.health == nil {
+		return nil
+	}
 	return app.health
 }
 
@@ -55,16 +67,25 @@ func (app *Application) Version() string {
 }
 
 // Maintenance returns the maintenance mode manager.
-func (app *Application) Maintenance() *maintenance.Manager {
+func (app *Application) Maintenance() contracts.Maintenance {
+	if app == nil || app.maintenance == nil {
+		return nil
+	}
 	return app.maintenance
 }
 
 // Exceptions returns the exception handler.
-func (app *Application) Exceptions() *exceptions.Handler {
+func (app *Application) Exceptions() contracts.Exceptions {
+	if app == nil || app.exceptions == nil {
+		return nil
+	}
 	return app.exceptions
 }
 
 // Reports returns the exception report manager.
-func (app *Application) Reports() *report.Manager {
+func (app *Application) Reports() contracts.Reports {
+	if app == nil || app.reports == nil {
+		return nil
+	}
 	return app.reports
 }

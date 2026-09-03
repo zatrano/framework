@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/zatrano/framework/packages/log"
 )
 
 // Broadcaster publishes events to named channels.
@@ -42,13 +40,17 @@ func (m *Manager) Broadcast(channel, event string, payload map[string]any) error
 	return m.Driver().Broadcast(channel, event, payload)
 }
 
+type infoLogger interface {
+	Infof(format string, args ...any)
+}
+
 // LogBroadcaster writes broadcast payloads to the logger.
 type LogBroadcaster struct {
-	logger *log.Logger
+	logger infoLogger
 }
 
 // NewLogBroadcaster creates a log broadcaster.
-func NewLogBroadcaster(logger *log.Logger) *LogBroadcaster {
+func NewLogBroadcaster(logger infoLogger) *LogBroadcaster {
 	return &LogBroadcaster{logger: logger}
 }
 

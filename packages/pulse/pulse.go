@@ -7,19 +7,22 @@ import (
 	"time"
 
 	"github.com/zatrano/framework/packages/http"
-	"github.com/zatrano/framework/packages/observability"
 	"github.com/zatrano/framework/packages/routing"
 )
 
+type metricsSnapshot interface {
+	Snapshot() map[string]any
+}
+
 // Dashboard renders a lightweight metrics pulse UI.
 type Dashboard struct {
-	metrics   *observability.Metrics
+	metrics   metricsSnapshot
 	startedAt time.Time
 	extra     func() map[string]any
 }
 
 // New creates a pulse dashboard.
-func New(metrics *observability.Metrics) *Dashboard {
+func New(metrics metricsSnapshot) *Dashboard {
 	return &Dashboard{metrics: metrics, startedAt: time.Now().UTC()}
 }
 

@@ -14,7 +14,7 @@ import (
 func Web(app *core.Application) {
 	router := app.Router()
 
-	routing.Controller(router, &web.HomeController{}, func(r *routing.Router, c *web.HomeController) {
+	routing.Controller(router, &web.HomeController{}, func(r routing.RouteRegistrar, c *web.HomeController) {
 		r.Get("/", c.Index).As("home")
 	})
 

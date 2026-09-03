@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zatrano/framework/packages/log"
 	"github.com/zatrano/framework/packages/view"
 )
 
@@ -71,14 +70,18 @@ func (m *MailManager) Send(message *MailMessage) error {
 	return m.Mailer().Send(message)
 }
 
+type infoLogger interface {
+	Infof(format string, args ...any)
+}
+
 // LogMailer writes emails to the logger.
 type LogMailer struct {
-	logger *log.Logger
+	logger infoLogger
 	mu     sync.Mutex
 }
 
 // NewLogMailer creates a log mailer.
-func NewLogMailer(logger *log.Logger) *LogMailer {
+func NewLogMailer(logger infoLogger) *LogMailer {
 	return &LogMailer{logger: logger}
 }
 
