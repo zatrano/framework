@@ -140,7 +140,24 @@ func TestAPIAppAndWebAppPresets(t *testing.T) {
 }
 
 func TestAddonConfigLoaded(t *testing.T) {
-	app := bootstrap.MinimalApp()
+	minimal := bootstrap.MinimalApp()
+	if err := minimal.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if minimal.Config().Get("database") == nil {
+		t.Fatal("foundation database config should load on MinimalApp")
+	}
+	if minimal.Config().Get("auth") == nil {
+		t.Fatal("foundation auth config should load on MinimalApp")
+	}
+	if minimal.Config().Get("notifications") == nil {
+		t.Fatal("foundation notifications config should load on MinimalApp")
+	}
+	if minimal.Config().Get("mongo") != nil || minimal.Config().Get("oauth") != nil {
+		t.Fatal("MinimalApp must not load addon configs the kernel no longer owns")
+	}
+
+	app := bootstrap.DemoApp()
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

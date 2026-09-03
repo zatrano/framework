@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	appconfig "github.com/zatrano/framework/config"
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/apitoken"
 	"github.com/zatrano/framework/packages/assets"
@@ -15,6 +16,7 @@ import (
 	"github.com/zatrano/framework/packages/authorization"
 	"github.com/zatrano/framework/packages/broadcasting"
 	"github.com/zatrano/framework/packages/cache"
+	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/database"
 	"github.com/zatrano/framework/packages/database/query"
 	"github.com/zatrano/framework/packages/env"
@@ -35,6 +37,7 @@ import (
 )
 
 func BootDatabase(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "database", appconfig.Database())
 	defaultConn := app.Config().GetString("database.default", "sqlite")
 	connections := map[string]database.ConnectionConfig{}
 
@@ -215,6 +218,7 @@ func BootQueueServices(app *core.Application) error {
 }
 
 func BootAuthServices(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "auth", appconfig.Auth())
 	app.Container().Instance("gate", authorization.New())
 	authManager := auth.NewManager(app.Config().GetString("auth.defaults.guard", "web"))
 	authManager.SetSessionManager(session.From(app))
@@ -433,6 +437,7 @@ func BootBroadcastingServices(app *core.Application) error {
 }
 
 func BootNotificationServices(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "notifications", appconfig.Notifications())
 	mgr := notification.NewManager()
 	if app.Logger() != nil {
 		mgr.SetErrorHandler(func(err error) {

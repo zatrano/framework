@@ -133,6 +133,24 @@ func (r *Repository) Load(name string, values map[string]any) {
 	r.values[name] = values
 }
 
+// Loader is the config surface LoadIfAbsent needs.
+type Loader interface {
+	Get(key string, fallback ...any) any
+	Load(name string, values map[string]any)
+}
+
+// LoadIfAbsent loads values under name only when that key is not already present
+// (so a config cache snapshot is not overwritten with defaults).
+func LoadIfAbsent(repo Loader, name string, values map[string]any) {
+	if repo == nil || name == "" {
+		return
+	}
+	if repo.Get(name) != nil {
+		return
+	}
+	repo.Load(name, values)
+}
+
 func (r *Repository) setNested(root map[string]any, segments []string, value any) {
 	if len(segments) == 1 {
 		root[segments[0]] = value

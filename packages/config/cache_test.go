@@ -27,3 +27,16 @@ func TestConfigCacheRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestLoadIfAbsentSkipsExisting(t *testing.T) {
+	repo := config.New()
+	repo.Load("mongo", map[string]any{"uri": "cached"})
+	config.LoadIfAbsent(repo, "mongo", map[string]any{"uri": "default"})
+	if repo.GetString("mongo.uri") != "cached" {
+		t.Fatalf("cache must win, got %q", repo.GetString("mongo.uri"))
+	}
+	config.LoadIfAbsent(repo, "oauth", map[string]any{"store_path": "x"})
+	if repo.GetString("oauth.store_path") != "x" {
+		t.Fatal("missing namespace should load")
+	}
+}

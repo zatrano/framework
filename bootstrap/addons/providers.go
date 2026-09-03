@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	appconfig "github.com/zatrano/framework/config"
 	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/ai"
 	"github.com/zatrano/framework/packages/audit"
@@ -12,6 +13,7 @@ import (
 	"github.com/zatrano/framework/packages/billing"
 	"github.com/zatrano/framework/packages/bus"
 	"github.com/zatrano/framework/packages/circuit"
+	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/docs"
 	"github.com/zatrano/framework/packages/enums"
 	"github.com/zatrano/framework/packages/env"
@@ -159,6 +161,7 @@ func (p *SearchServiceProvider) Boot(app *core.Application) error { return nil }
 type SocialServiceProvider struct{}
 
 func (p *SocialServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "social", appconfig.Social())
 	social.SetAllowStubProviders(!app.IsProduction())
 	mgr := social.New()
 	cfg := app.Config()
@@ -278,6 +281,7 @@ func (p *DocsServiceProvider) Boot(app *core.Application) error { return nil }
 type BillingServiceProvider struct{}
 
 func (p *BillingServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "billing", appconfig.Billing())
 	baseURL := app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080"))
 	mgr := billing.NewManager(baseURL)
 
@@ -353,6 +357,7 @@ func (p *BillingServiceProvider) Boot(app *core.Application) error {
 type MongoServiceProvider struct{}
 
 func (p *MongoServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "mongo", appconfig.Mongo())
 	if app.Bound("mongo") {
 		return nil // already wired via db:setup / BootDatabase
 	}
@@ -370,6 +375,7 @@ func (p *MongoServiceProvider) Boot(app *core.Application) error { return nil }
 type OAuthServiceProvider struct{}
 
 func (p *OAuthServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "oauth", appconfig.OAuth())
 	var server *oauth.Server
 	storePath := strings.TrimSpace(app.Config().GetString("oauth.store_path", env.Get("OAUTH_STORE_PATH", "")))
 	if storePath != "" {
@@ -403,6 +409,7 @@ func (p *OctaneServiceProvider) Boot(app *core.Application) error { return nil }
 type AIServiceProvider struct{}
 
 func (p *AIServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "ai", appconfig.AI())
 	mgr := ai.New()
 	var logFn ai.LogFn
 	if lg := app.Logger(); lg != nil {
@@ -553,6 +560,7 @@ func (p *GeoServiceProvider) Boot(app *core.Application) error { return nil }
 type WebAuthnServiceProvider struct{}
 
 func (p *WebAuthnServiceProvider) Register(app *core.Application) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "webauthn", appconfig.WebAuthn())
 	cfg := app.Config()
 	rpID := cfg.GetString("webauthn.rp_id", env.Get("WEBAUTHN_RP_ID", ""))
 	rpOrigin := cfg.GetString("webauthn.rp_origin", env.Get("WEBAUTHN_RP_ORIGIN", ""))

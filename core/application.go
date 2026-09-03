@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	appconfig "github.com/zatrano/framework/config"
 	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/container"
@@ -202,16 +201,6 @@ func (app *Application) Bootstrap() error {
 			"locale":   env.Get("APP_LOCALE", "en"),
 			"fallback": env.Get("APP_FALLBACK_LOCALE", "en"),
 		})
-
-		app.config.Load("database", appconfig.Database())
-		app.config.Load("auth", appconfig.Auth())
-		app.config.Load("notifications", appconfig.Notifications())
-		app.config.Load("oauth", appconfig.OAuth())
-		app.config.Load("mongo", appconfig.Mongo())
-		app.config.Load("webauthn", appconfig.WebAuthn())
-		app.config.Load("billing", appconfig.Billing())
-		app.config.Load("ai", appconfig.AI())
-		app.config.Load("social", appconfig.Social())
 	}
 	if app.environment == "" {
 		app.environment = app.config.GetString("app.env", "local")

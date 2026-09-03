@@ -6,4 +6,5 @@ type ConfigRepository interface {
 	GetString(key string, fallback ...string) string
 	GetInt(key string, fallback ...int) int
 	All() map[string]any
+	Load(name string, values map[string]any)
 }
