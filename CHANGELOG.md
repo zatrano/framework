@@ -12,6 +12,10 @@ All notable changes to ZATRANO are documented in this file.
 - `App(WithDemo())`, `DemoAddons`, `APP_BOOT=demo`, and `package:preset demo` are removed. Enable addons explicitly with `EnabledAddons` or `App(WithAddons(...))`.
 - Duplicate addon libraries (`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`) are no longer top-level under `packages/`. Foundation usage is nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …); CLI-only copies live in `github.com/zatrano/packages`. `db:backup` registers when the backup addon is blank-imported.
 
+### Changed
+
+- README rewritten for v2 (`v2-dev`): two-module layout, `zatrano new`, no default database, no demo boot profile. Language name shown as Golang.
+
 ## 1.6.6 - 2026-08-30
 
 ### Added
