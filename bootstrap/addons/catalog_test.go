@@ -1,8 +1,10 @@
-package addons
+package addons_test
 
 import (
 	"testing"
 
+	_ "github.com/zatrano/framework/bootstrap"
+	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/core"
 )
 
@@ -15,7 +17,7 @@ func TestRegistryMatchesCatalogServiceAddons(t *testing.T) {
 		catalogServices[p.Name] = p
 	}
 
-	for _, m := range Available() {
+	for _, m := range addons.Available() {
 		info, ok := catalogServices[m.Name]
 		if !ok {
 			t.Errorf("registry package %q missing from catalog as KindService addon", m.Name)
@@ -36,7 +38,7 @@ func TestLibraryAddonsAreNotInRegistry(t *testing.T) {
 		if p.EffectiveKind() != core.KindLibrary {
 			continue
 		}
-		if _, ok := Lookup(p.Name); ok {
+		if _, ok := addons.Lookup(p.Name); ok {
 			t.Errorf("library addon %q should not be in provider registry", p.Name)
 		}
 	}
@@ -44,7 +46,7 @@ func TestLibraryAddonsAreNotInRegistry(t *testing.T) {
 
 func TestEnabledAddonsAreKnown(t *testing.T) {
 	for _, name := range []string{"mongo", "oauth", "webauthn", "ai", "octane"} {
-		if _, ok := Lookup(name); !ok {
+		if _, ok := addons.Lookup(name); !ok {
 			t.Errorf("expected %q in registry", name)
 		}
 	}

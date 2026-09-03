@@ -1,23 +1,28 @@
-package addons
+package addons_test
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/zatrano/framework/bootstrap"
+	"github.com/zatrano/framework/bootstrap/addons"
+)
 
 func TestSelectUnknown(t *testing.T) {
-	_, err := Select("not-a-real-package")
+	_, err := addons.Select("not-a-real-package")
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestSelectEmpty(t *testing.T) {
-	got, err := Select()
+	got, err := addons.Select()
 	if err != nil || got != nil {
 		t.Fatalf("got %#v err=%v", got, err)
 	}
 }
 
 func TestSelectKnown(t *testing.T) {
-	got, err := Select("mongo", "oauth", "mongo")
+	got, err := addons.Select("mongo", "oauth", "mongo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +32,7 @@ func TestSelectKnown(t *testing.T) {
 }
 
 func TestRegistryCoversDefault(t *testing.T) {
-	if len(Available()) < 20 {
-		t.Fatalf("registry too small: %d", len(Available()))
+	if len(addons.Available()) < 20 {
+		t.Fatalf("registry too small: %d", len(addons.Available()))
 	}
 }
