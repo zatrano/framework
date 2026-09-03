@@ -2,7 +2,7 @@ package audit
 
 import (
 	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func init() {
@@ -10,14 +10,14 @@ func init() {
 		Name:        "audit",
 		Key:         "audit",
 		Description: "Request/audit event log",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the audit addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	memoryAudit := NewMemoryStore(500)
 	fileAudit, err := NewFileStore(app.BasePath("storage", "logs", "audit.jsonl"))
 	var mgr *Manager
@@ -33,7 +33,7 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *ServiceProvider) Boot(app *kernel.Application) error { return nil }
 
 type teeAuditStore struct {
 	primary   Store

@@ -7,15 +7,15 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerRuleCommands(console *Application, app *core.Application) {
+func registerRuleCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeRuleCommand{app: app})
 }
 
 type MakeRuleCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeRuleCommand) Name() string        { return "make:rule" }

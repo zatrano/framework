@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/env"
 )
 
@@ -30,7 +30,7 @@ func ResolveProfile(name string) (string, error) {
 }
 
 // Profile returns an application for the given boot profile name.
-func Profile(name string) (*core.Application, error) {
+func Profile(name string) (*kernel.Application, error) {
 	resolved, err := ResolveProfile(name)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func Profile(name string) (*core.Application, error) {
 }
 
 // MustProfile is Profile and panics on unknown names.
-func MustProfile(name string) *core.Application {
+func MustProfile(name string) *kernel.Application {
 	app, err := Profile(name)
 	if err != nil {
 		panic(err)
@@ -62,7 +62,7 @@ func MustProfile(name string) *core.Application {
 
 // FromEnv selects a boot profile from APP_BOOT (after loading .env).
 // defaultProfile is used when APP_BOOT is unset (defaults to "app").
-func FromEnv(defaultProfile ...string) *core.Application {
+func FromEnv(defaultProfile ...string) *kernel.Application {
 	loadDotEnv()
 	def := "app"
 	if len(defaultProfile) > 0 && strings.TrimSpace(defaultProfile[0]) != "" {

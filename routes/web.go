@@ -4,14 +4,14 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/app/http/controllers/web"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/localization"
 	"github.com/zatrano/framework/packages/routing"
 )
 
 // Web registers application web routes.
-func Web(app *core.Application) {
+func Web(app *kernel.Application) {
 	router := app.Router()
 
 	routing.Controller(router, &web.HomeController{}, func(r routing.RouteRegistrar, c *web.HomeController) {

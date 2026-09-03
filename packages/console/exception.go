@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerExceptionCommands(console *Application, app *core.Application) {
+func registerExceptionCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeExceptionCommand{app: app})
 }
 
 type MakeExceptionCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeExceptionCommand) Name() string { return "make:exception" }

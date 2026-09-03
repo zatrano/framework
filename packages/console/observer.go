@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerObserverCommands(console *Application, app *core.Application) {
+func registerObserverCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeObserverCommand{app: app})
 }
 
 type MakeObserverCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeObserverCommand) Name() string        { return "make:observer" }

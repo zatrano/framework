@@ -1,8 +1,8 @@
 package tenancy
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Manager {
-	return core.Resolve[*Manager](app, "tenancy")
+func From(app *kernel.Application) *Manager {
+	return kernel.Resolve[*Manager](app, "tenancy")
 }

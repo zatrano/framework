@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerRepositoryCommands(console *Application, app *core.Application) {
+func registerRepositoryCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeRepositoryCommand{app: app})
 }
 
 type MakeRepositoryCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeRepositoryCommand) Name() string        { return "make:repository" }

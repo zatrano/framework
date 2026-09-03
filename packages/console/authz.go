@@ -5,17 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerAuthzCommands(console *Application, app *core.Application) {
+func registerAuthzCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&MakePolicyCommand{app: app},
 	)
 }
 
 type MakePolicyCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakePolicyCommand) Name() string        { return "make:policy" }

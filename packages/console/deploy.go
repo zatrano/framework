@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerDeployCommands(console *Application, app *core.Application) {
+func registerDeployCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&DeployCheckCommand{app: app},
 		&DeployBuildCommand{app: app},
@@ -18,7 +18,7 @@ func registerDeployCommands(console *Application, app *core.Application) {
 }
 
 type DeployCheckCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DeployCheckCommand) Name() string        { return "deploy:check" }
@@ -65,7 +65,7 @@ func (c *DeployCheckCommand) Handle(args []string) error {
 }
 
 type DeployBuildCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DeployBuildCommand) Name() string { return "deploy:build" }

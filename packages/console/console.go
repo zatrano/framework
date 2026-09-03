@@ -9,12 +9,12 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 // Application is the console kernel.
 type Application struct {
-	app      *core.Application
+	app      *kernel.Application
 	commands map[string]Command
 }
 
@@ -26,7 +26,7 @@ type Command interface {
 }
 
 // New creates a console application.
-func New(app *core.Application) *Application {
+func New(app *kernel.Application) *Application {
 	console := &Application{
 		app:      app,
 		commands: make(map[string]Command),
@@ -116,7 +116,7 @@ func (c *ListCommand) Handle(args []string) error {
 }
 
 type ServeCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *ServeCommand) Name() string        { return "serve" }
@@ -139,7 +139,7 @@ func (c *ServeCommand) Handle(args []string) error {
 }
 
 type AboutCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *AboutCommand) Name() string        { return "about" }
@@ -160,7 +160,7 @@ func (c *AboutCommand) Handle(args []string) error {
 }
 
 type KeyGenerateCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *KeyGenerateCommand) Name() string        { return "key:generate" }
@@ -199,7 +199,7 @@ func (c *KeyGenerateCommand) Handle(args []string) error {
 }
 
 type MakeControllerCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeControllerCommand) Name() string        { return "make:controller" }
@@ -252,7 +252,7 @@ func (c *%s) Index(req *Request) *Response {
 }
 
 type MakeMiddlewareCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeMiddlewareCommand) Name() string        { return "make:middleware" }

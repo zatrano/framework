@@ -1,8 +1,8 @@
 package wellknown
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Repository {
-	return core.Resolve[*Repository](app, "wellknown")
+func From(app *kernel.Application) *Repository {
+	return kernel.Resolve[*Repository](app, "wellknown")
 }

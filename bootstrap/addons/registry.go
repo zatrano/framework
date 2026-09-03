@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 // Meta describes a first-party addon package for discovery and CLI.
@@ -15,7 +15,7 @@ type Meta struct {
 	Key         string // container binding key
 	Description string
 	Heavy       bool
-	Factory     func() core.Provider
+	Factory     func() kernel.Provider
 }
 
 var (
@@ -80,12 +80,12 @@ func Names() []string {
 }
 
 // Select builds providers for the given addon names (unknown names error).
-func Select(names ...string) ([]core.Provider, error) {
+func Select(names ...string) ([]kernel.Provider, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
 	seen := map[string]bool{}
-	out := make([]core.Provider, 0, len(names))
+	out := make([]kernel.Provider, 0, len(names))
 	for _, name := range names {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name == "" || seen[name] {
@@ -102,9 +102,9 @@ func Select(names ...string) ([]core.Provider, error) {
 }
 
 // DefaultPackageProviders returns every registered addon provider (demo/full stack).
-func DefaultPackageProviders() []core.Provider {
+func DefaultPackageProviders() []kernel.Provider {
 	avail := Available()
-	out := make([]core.Provider, 0, len(avail))
+	out := make([]kernel.Provider, 0, len(avail))
 	for _, m := range avail {
 		out = append(out, m.Factory())
 	}

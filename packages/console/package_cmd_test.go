@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func TestParseEnabledAddons(t *testing.T) {
@@ -63,7 +63,7 @@ func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
 }
 
 func TestPublishPackagesQuietOnlyStubbed(t *testing.T) {
-	app := core.NewApplication(t.TempDir())
+	app := kernel.NewApplication(t.TempDir())
 	published, skipped, err := publishPackagesQuiet(app, []string{"features", "oauth", "hashid"}, false)
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestPublishPackagesQuietOnlyStubbed(t *testing.T) {
 }
 
 func TestPackageDoctorEmptyEnabled(t *testing.T) {
-	app := core.NewApplication(t.TempDir())
+	app := kernel.NewApplication(t.TempDir())
 	findings := runPackageDoctor(app)
 	codes := map[string]string{}
 	for _, f := range findings {
@@ -114,7 +114,7 @@ func TestPackageDoctorFlagsLibrary(t *testing.T) {
 	bootstrap.EnabledAddons = []string{"collection", "features"}
 	defer func() { bootstrap.EnabledAddons = prev }()
 
-	app := core.NewApplication(t.TempDir())
+	app := kernel.NewApplication(t.TempDir())
 	findings := runPackageDoctor(app)
 	found := false
 	for _, f := range findings {

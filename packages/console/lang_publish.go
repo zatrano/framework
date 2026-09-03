@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/localization/defaults"
 )
 
 type LangPublishCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *LangPublishCommand) Name() string { return "lang:publish" }

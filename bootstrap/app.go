@@ -7,7 +7,7 @@ import (
 	"github.com/zatrano/framework/app/providers"
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/foundation"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 type appOptions struct {
@@ -71,7 +71,7 @@ func WithPresetWeb() Option {
 
 // App creates the configured application.
 // With no options: foundation + EnabledAddons + app providers.
-func App(opts ...Option) *core.Application {
+func App(opts ...Option) *kernel.Application {
 	cfg := appOptions{}
 	for _, opt := range opts {
 		if opt != nil {
@@ -97,9 +97,9 @@ func App(opts ...Option) *core.Application {
 }
 
 // Boot assembles an application from foundation providers, addon names, and app providers.
-func Boot(foundationProviders []core.Provider, addonNames []string, appProviders ...core.Provider) (*core.Application, error) {
+func Boot(foundationProviders []kernel.Provider, addonNames []string, appProviders ...kernel.Provider) (*kernel.Application, error) {
 	basePath, _ := findBasePath()
-	application := core.NewApplication(basePath)
+	application := kernel.NewApplication(basePath)
 	application.RegisterProviders(foundationProviders...)
 	selected, err := addons.Select(addonNames...)
 	if err != nil {
@@ -129,8 +129,8 @@ func mergeAddonNames(lists ...[]string) []string {
 
 // ApplicationProviders returns app-layer service providers (routes, etc.).
 // Auth/dashboard providers are added by make:auth / make:dashboard.
-func ApplicationProviders() []core.Provider {
-	return []core.Provider{
+func ApplicationProviders() []kernel.Provider {
+	return []kernel.Provider{
 		&providers.AppServiceProvider{},
 		&providers.DatabaseServiceProvider{},
 		&providers.EventServiceProvider{},
@@ -140,20 +140,20 @@ func ApplicationProviders() []core.Provider {
 }
 
 // MinimalProviders is foundation + app wiring without addons.
-func MinimalProviders() []core.Provider {
-	out := make([]core.Provider, 0, len(foundation.Providers())+len(ApplicationProviders()))
+func MinimalProviders() []kernel.Provider {
+	out := make([]kernel.Provider, 0, len(foundation.Providers())+len(ApplicationProviders()))
 	out = append(out, foundation.Providers()...)
 	out = append(out, ApplicationProviders()...)
 	return out
 }
 
 // CoreProviders boots secure kernel only.
-func CoreProviders() []core.Provider {
+func CoreProviders() []kernel.Provider {
 	return foundation.KernelProviders()
 }
 
 // KernelProviders is an alias of CoreProviders.
-func KernelProviders() []core.Provider { return CoreProviders() }
+func KernelProviders() []kernel.Provider { return CoreProviders() }
 
 func findBasePath() (string, error) {
 	wd, err := lookWorkingDirectory()

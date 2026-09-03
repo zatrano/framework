@@ -5,7 +5,7 @@ import (
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/env"
 )
@@ -15,14 +15,14 @@ func init() {
 		Name:        "ai",
 		Key:         "ai",
 		Description: "AI chat providers",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the AI addon (registration only; driver logic is unchanged).
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "ai", appconfig.AI())
 	mgr := New()
 	var logFn LogFn
@@ -76,7 +76,7 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error {
+func (p *ServiceProvider) Boot(app *kernel.Application) error {
 	if app == nil || app.Router() == nil {
 		return nil
 	}

@@ -7,15 +7,15 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerEnumCommands(console *Application, app *core.Application) {
+func registerEnumCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeEnumCommand{app: app})
 }
 
 type MakeEnumCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeEnumCommand) Name() string        { return "make:enum" }

@@ -1,8 +1,8 @@
 package pulse
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Dashboard {
-	return core.Resolve[*Dashboard](app, "pulse")
+func From(app *kernel.Application) *Dashboard {
+	return kernel.Resolve[*Dashboard](app, "pulse")
 }

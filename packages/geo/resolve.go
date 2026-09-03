@@ -1,8 +1,8 @@
 package geo
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Resolver {
-	return core.Resolve[*Resolver](app, "geo")
+func From(app *kernel.Application) *Resolver {
+	return kernel.Resolve[*Resolver](app, "geo")
 }

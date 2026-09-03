@@ -9,7 +9,7 @@ import (
 	"time"
 
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/apitoken"
 	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/packages/auth"
@@ -36,7 +36,7 @@ import (
 	"github.com/zatrano/framework/packages/view"
 )
 
-func BootDatabase(app *core.Application) error {
+func BootDatabase(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "database", appconfig.Database())
 	defaultConn := app.Config().GetString("database.default", "sqlite")
 	connections := map[string]database.ConnectionConfig{}
@@ -137,7 +137,7 @@ func BootDatabase(app *core.Application) error {
 	return nil
 }
 
-func bootMongoConnection(app *core.Application, name string, cfg database.ConnectionConfig) error {
+func bootMongoConnection(app *kernel.Application, name string, cfg database.ConnectionConfig) error {
 	uri := strings.TrimSpace(cfg.URI)
 	if uri == "" {
 		uri = strings.TrimSpace(cfg.Database)
@@ -156,7 +156,7 @@ func bootMongoConnection(app *core.Application, name string, cfg database.Connec
 	return nil
 }
 
-func BootCacheServices(app *core.Application) error {
+func BootCacheServices(app *kernel.Application) error {
 	fileStore, err := cache.NewFileStore(app.BasePath("storage", "framework", "cache"))
 	if err != nil {
 		return err
@@ -190,14 +190,14 @@ func BootCacheServices(app *core.Application) error {
 	return nil
 }
 
-func BootEventsServices(app *core.Application) error {
+func BootEventsServices(app *kernel.Application) error {
 	dispatcher := events.New()
 	app.Container().Instance("events", dispatcher)
 	orm.SetDispatcher(dispatcher)
 	return nil
 }
 
-func BootQueueServices(app *core.Application) error {
+func BootQueueServices(app *kernel.Application) error {
 	queues := map[string]queue.Queue{"sync": queue.NewSyncQueue()}
 	if dbMgr := database.From(app); dbMgr != nil {
 		if db, err := dbMgr.DB(); err == nil {
@@ -217,7 +217,7 @@ func BootQueueServices(app *core.Application) error {
 	return nil
 }
 
-func BootAuthServices(app *core.Application) error {
+func BootAuthServices(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "auth", appconfig.Auth())
 	app.Container().Instance("gate", authorization.New())
 	authManager := auth.NewManager(app.Config().GetString("auth.defaults.guard", "web"))
@@ -394,7 +394,7 @@ func BootAuthServices(app *core.Application) error {
 	return nil
 }
 
-func BootLocalizationServices(app *core.Application) error {
+func BootLocalizationServices(app *kernel.Application) error {
 	locale := app.Config().GetString("app.locale", env.Get("APP_LOCALE", "en"))
 	fallback := app.Config().GetString("app.fallback", env.Get("APP_FALLBACK_LOCALE", "en"))
 	translator := localization.New(app.BasePath("lang"), locale, fallback)
@@ -406,17 +406,17 @@ func BootLocalizationServices(app *core.Application) error {
 	return nil
 }
 
-func BootScheduleServices(app *core.Application) error {
+func BootScheduleServices(app *kernel.Application) error {
 	app.Container().Instance("scheduler", schedule.New())
 	return nil
 }
 
-func BootHTTPClientServices(app *core.Application) error {
+func BootHTTPClientServices(app *kernel.Application) error {
 	app.Container().Instance("http", httpclient.New())
 	return nil
 }
 
-func BootBroadcastingServices(app *core.Application) error {
+func BootBroadcastingServices(app *kernel.Application) error {
 	fileBroadcast, err := broadcasting.NewFileBroadcaster(app.BasePath("storage", "logs", "broadcast.jsonl"))
 	if err != nil {
 		return err
@@ -436,7 +436,7 @@ func BootBroadcastingServices(app *core.Application) error {
 	return nil
 }
 
-func BootNotificationServices(app *core.Application) error {
+func BootNotificationServices(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "notifications", appconfig.Notifications())
 	mgr := notification.NewManager()
 	if app.Logger() != nil {
@@ -520,7 +520,7 @@ func BootNotificationServices(app *core.Application) error {
 	return nil
 }
 
-func BootFilesystemServices(app *core.Application) error {
+func BootFilesystemServices(app *kernel.Application) error {
 	localDisk, err := filesystem.NewLocalDisk(app.BasePath("storage", "app"))
 	if err != nil {
 		return err
@@ -549,14 +549,14 @@ func BootFilesystemServices(app *core.Application) error {
 	return nil
 }
 
-func BootAssetsServices(app *core.Application) error {
+func BootAssetsServices(app *kernel.Application) error {
 	publicURL := strings.TrimRight(app.Config().GetString("app.url", "http://localhost:8080"), "/")
 	mgr := assets.LoadDefault(app.BasePath(), publicURL)
 	app.Container().Instance("assets", mgr)
 	return nil
 }
 
-func BootViewSession(app *core.Application) error {
+func BootViewSession(app *kernel.Application) error {
 	engine := view.New(app.BasePath("views"))
 	engine.EnableCache(!app.IsDebug())
 	engine.Share("appName", app.Config().GetString("app.name", "ZATRANO"))

@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/packages/middleware/csrf"
 	"github.com/zatrano/framework/packages/view"
@@ -11,12 +11,12 @@ import (
 type AppServiceProvider struct{}
 
 // Register registers bindings into the container.
-func (p *AppServiceProvider) Register(app *core.Application) error {
+func (p *AppServiceProvider) Register(app *kernel.Application) error {
 	return nil
 }
 
 // Boot boots application services.
-func (p *AppServiceProvider) Boot(app *core.Application) error {
+func (p *AppServiceProvider) Boot(app *kernel.Application) error {
 	// Optional CDN-friendly public GETs (no XSRF seed without a session cookie):
 	// csrf.SkipAnonymousSeed(func(req *http.Request) bool {
 	// 	return req.Path() == "/" || strings.HasPrefix(req.Path(), "/docs")

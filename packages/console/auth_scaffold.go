@@ -8,16 +8,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerAuthCommands(console *Application, app *core.Application) {
+func registerAuthCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeAuthCommand{app: app})
 }
 
 // MakeAuthCommand scaffolds the full application auth layer.
 type MakeAuthCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeAuthCommand) Name() string { return "make:auth" }

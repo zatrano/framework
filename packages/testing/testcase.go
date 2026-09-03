@@ -10,18 +10,18 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 // TestCase wraps an application for HTTP feature tests.
 type TestCase struct {
-	App     *core.Application
+	App     *kernel.Application
 	headers map[string]string
 	cookies []*stdhttp.Cookie
 }
 
 // New creates a test case from an application.
-func New(app *core.Application) (*TestCase, error) {
+func New(app *kernel.Application) (*TestCase, error) {
 	if !appIsBooted(app) {
 		if err := app.Bootstrap(); err != nil {
 			return nil, err
@@ -34,7 +34,7 @@ func New(app *core.Application) (*TestCase, error) {
 	}, nil
 }
 
-func appIsBooted(app *core.Application) bool {
+func appIsBooted(app *kernel.Application) bool {
 	// Bootstrap is safe to call only when needed; detect via logger presence.
 	return app.Logger() != nil && app.Router() != nil
 }

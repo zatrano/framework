@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerScopeCommands(console *Application, app *core.Application) {
+func registerScopeCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeScopeCommand{app: app})
 }
 
 type MakeScopeCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeScopeCommand) Name() string        { return "make:scope" }

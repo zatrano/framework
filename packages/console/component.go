@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerComponentCommands(console *Application, app *core.Application) {
+func registerComponentCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeComponentCommand{app: app})
 }
 
 type MakeComponentCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeComponentCommand) Name() string        { return "make:component" }

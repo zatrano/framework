@@ -2,7 +2,7 @@ package inspector
 
 import (
 	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func init() {
@@ -10,16 +10,16 @@ func init() {
 		Name:        "inspector",
 		Key:         "inspector",
 		Description: "Request inspector toolbar data",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the inspector addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	app.Container().Instance("inspector", New(200))
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *ServiceProvider) Boot(app *kernel.Application) error { return nil }

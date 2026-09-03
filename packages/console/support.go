@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerSupportCommands(console *Application, app *core.Application) {
+func registerSupportCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&QueueWorkCommand{app: app},
 		&CacheClearCommand{app: app},
@@ -23,7 +23,7 @@ func registerSupportCommands(console *Application, app *core.Application) {
 }
 
 type QueueWorkCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *QueueWorkCommand) Name() string        { return "queue:work" }
@@ -69,7 +69,7 @@ func (c *QueueWorkCommand) Handle(args []string) error {
 }
 
 type CacheClearCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *CacheClearCommand) Name() string        { return "cache:clear" }
@@ -86,7 +86,7 @@ func (c *CacheClearCommand) Handle(args []string) error {
 }
 
 type MakeJobCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeJobCommand) Name() string        { return "make:job" }
@@ -123,7 +123,7 @@ func Handle%s(payload map[string]any) error {
 }
 
 type MakeEventCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeEventCommand) Name() string        { return "make:event" }
@@ -154,7 +154,7 @@ type %s struct {
 }
 
 type MakeListenerCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeListenerCommand) Name() string        { return "make:listener" }

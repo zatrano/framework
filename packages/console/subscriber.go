@@ -5,15 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerSubscriberCommands(console *Application, app *core.Application) {
+func registerSubscriberCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeSubscriberCommand{app: app})
 }
 
 type MakeSubscriberCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeSubscriberCommand) Name() string        { return "make:subscriber" }

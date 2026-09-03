@@ -5,16 +5,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/openapi"
 )
 
-func registerOpenAPICommands(console *Application, app *core.Application) {
+func registerOpenAPICommands(console *Application, app *kernel.Application) {
 	console.Register(&OpenAPIGenerateCommand{app: app})
 }
 
 type OpenAPIGenerateCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *OpenAPIGenerateCommand) Name() string { return "openapi:generate" }

@@ -1,8 +1,8 @@
 package features
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the feature manager from the application container.
-func From(app *core.Application) *Manager {
-	return core.Resolve[*Manager](app, "features")
+func From(app *kernel.Application) *Manager {
+	return kernel.Resolve[*Manager](app, "features")
 }

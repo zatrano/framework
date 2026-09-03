@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func TestMakeModelTranslationColumns(t *testing.T) {
 	dir := t.TempDir()
-	app := core.NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	cmd := &MakeModelCommand{app: app}
 	if err := cmd.Handle([]string{"Product", "--translation"}); err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func TestMakeModelTranslationColumns(t *testing.T) {
 
 func TestMakeModelTranslationJSON(t *testing.T) {
 	dir := t.TempDir()
-	app := core.NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	cmd := &MakeModelCommand{app: app}
 	if err := cmd.Handle([]string{"Category", "--translation=json", "-m"}); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestMakeModelTranslationJSON(t *testing.T) {
 
 func TestMakeModelMigrationColumns(t *testing.T) {
 	dir := t.TempDir()
-	app := core.NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	cmd := &MakeModelCommand{app: app}
 	if err := cmd.Handle([]string{"Tag", "-t", "-m"}); err != nil {
 		t.Fatal(err)

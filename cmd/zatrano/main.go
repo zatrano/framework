@@ -7,7 +7,7 @@ import (
 
 	appconsole "github.com/zatrano/framework/app/console"
 	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/console"
 )
 
@@ -25,7 +25,7 @@ func main() {
 
 // bootForCLI uses App(Kernel()) for make:* (scaffold needs BasePath only — no DB/session).
 // Other commands follow APP_BOOT via FromEnv("app").
-func bootForCLI(args []string) *core.Application {
+func bootForCLI(args []string) *kernel.Application {
 	if cliUsesCoreBoot(args) {
 		return bootstrap.App(bootstrap.Kernel())
 	}

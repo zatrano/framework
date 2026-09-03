@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/backup"
 )
 
-func registerBackupCommands(console *Application, app *core.Application) {
+func registerBackupCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&DBBackupCommand{app: app},
 		&DBBackupListCommand{app: app},
@@ -20,7 +20,7 @@ func registerBackupCommands(console *Application, app *core.Application) {
 	)
 }
 
-func backupManager(app *core.Application, args []string) (*backup.Manager, []string, error) {
+func backupManager(app *kernel.Application, args []string) (*backup.Manager, []string, error) {
 	if err := app.Bootstrap(); err != nil {
 		return nil, nil, err
 	}
@@ -53,7 +53,7 @@ func parseBackupFlags(args []string) (connection string, rest []string) {
 	return connection, rest
 }
 
-type DBBackupCommand struct{ app *core.Application }
+type DBBackupCommand struct{ app *kernel.Application }
 
 func (c *DBBackupCommand) Name() string { return "db:backup" }
 func (c *DBBackupCommand) Description() string {
@@ -79,7 +79,7 @@ func (c *DBBackupCommand) Handle(args []string) error {
 	return nil
 }
 
-type DBBackupListCommand struct{ app *core.Application }
+type DBBackupListCommand struct{ app *kernel.Application }
 
 func (c *DBBackupListCommand) Name() string { return "db:backup:list" }
 func (c *DBBackupListCommand) Description() string {
@@ -111,7 +111,7 @@ func (c *DBBackupListCommand) Handle(args []string) error {
 	return nil
 }
 
-type DBRestoreCommand struct{ app *core.Application }
+type DBRestoreCommand struct{ app *kernel.Application }
 
 func (c *DBRestoreCommand) Name() string { return "db:restore" }
 func (c *DBRestoreCommand) Description() string {
@@ -132,7 +132,7 @@ func (c *DBRestoreCommand) Handle(args []string) error {
 	return nil
 }
 
-type MakeProviderCommand struct{ app *core.Application }
+type MakeProviderCommand struct{ app *kernel.Application }
 
 func (c *MakeProviderCommand) Name() string        { return "make:provider" }
 func (c *MakeProviderCommand) Description() string { return "Create a new service provider" }
@@ -154,16 +154,16 @@ func (c *MakeProviderCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package providers
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // %s registers application services.
 type %s struct{}
 
-func (p *%s) Register(app *core.Application) {
+func (p *%s) Register(app *kernel.Application) {
 	// Bind services into the container.
 }
 
-func (p *%s) Boot(app *core.Application) {
+func (p *%s) Boot(app *kernel.Application) {
 	// Boot services after all providers are registered.
 }
 `, name, name, name, name)

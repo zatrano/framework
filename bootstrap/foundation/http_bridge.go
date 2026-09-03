@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/authorization"
 	"github.com/zatrano/framework/packages/env"
@@ -20,10 +20,10 @@ import (
 )
 
 type httpBridge struct {
-	app *core.Application
+	app *kernel.Application
 }
 
-func installHTTPBridge(app *core.Application) {
+func installHTTPBridge(app *kernel.Application) {
 	app.SetHTTPBridge(&httpBridge{app: app})
 }
 

@@ -6,16 +6,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/octane"
 )
 
-func registerOctaneCommands(console *Application, app *core.Application) {
+func registerOctaneCommands(console *Application, app *kernel.Application) {
 	console.Register(&OctaneStartCommand{app: app})
 }
 
 type OctaneStartCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *OctaneStartCommand) Name() string { return "octane:start" }

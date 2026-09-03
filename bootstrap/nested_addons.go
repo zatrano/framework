@@ -5,7 +5,7 @@ import (
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/env"
 	"github.com/zatrano/framework/packages/mongo"
@@ -19,20 +19,20 @@ func init() {
 		Key:         "mongo",
 		Description: "MongoDB client (separate module)",
 		Heavy:       true,
-		Factory:     func() core.Provider { return &mongoServiceProvider{} },
+		Factory:     func() kernel.Provider { return &mongoServiceProvider{} },
 	})
 	addons.Register(addons.Meta{
 		Name:        "webauthn",
 		Key:         "webauthn",
 		Description: "WebAuthn/passkeys (separate module)",
 		Heavy:       true,
-		Factory:     func() core.Provider { return &webauthnServiceProvider{} },
+		Factory:     func() kernel.Provider { return &webauthnServiceProvider{} },
 	})
 }
 
 type mongoServiceProvider struct{}
 
-func (p *mongoServiceProvider) Register(app *core.Application) error {
+func (p *mongoServiceProvider) Register(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "mongo", appconfig.Mongo())
 	if app.Bound("mongo") {
 		return nil
@@ -46,11 +46,11 @@ func (p *mongoServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *mongoServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *mongoServiceProvider) Boot(app *kernel.Application) error { return nil }
 
 type webauthnServiceProvider struct{}
 
-func (p *webauthnServiceProvider) Register(app *core.Application) error {
+func (p *webauthnServiceProvider) Register(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "webauthn", appconfig.WebAuthn())
 	cfg := app.Config()
 	rpID := cfg.GetString("webauthn.rp_id", env.Get("WEBAUTHN_RP_ID", ""))
@@ -60,4 +60,4 @@ func (p *webauthnServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *webauthnServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *webauthnServiceProvider) Boot(app *kernel.Application) error { return nil }

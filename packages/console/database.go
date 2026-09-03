@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/database"
 	"github.com/zatrano/framework/packages/env"
 )
 
-func registerDatabaseCommands(console *Application, app *core.Application) {
+func registerDatabaseCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&MigrateCommand{app: app},
 		&MigrateRollbackCommand{app: app},
@@ -30,7 +30,7 @@ func registerDatabaseCommands(console *Application, app *core.Application) {
 }
 
 type MigrateCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MigrateCommand) Name() string        { return "migrate" }
@@ -47,7 +47,7 @@ func (c *MigrateCommand) Handle(args []string) error {
 }
 
 type MigrateRollbackCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MigrateRollbackCommand) Name() string        { return "migrate:rollback" }
@@ -64,7 +64,7 @@ func (c *MigrateRollbackCommand) Handle(args []string) error {
 }
 
 type MigrateStatusCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MigrateStatusCommand) Name() string        { return "migrate:status" }
@@ -81,7 +81,7 @@ func (c *MigrateStatusCommand) Handle(args []string) error {
 }
 
 type MigrateFreshCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MigrateFreshCommand) Name() string { return "migrate:fresh" }
@@ -101,7 +101,7 @@ func (c *MigrateFreshCommand) Handle(args []string) error {
 
 // DBCreateCommand creates the configured MySQL/PostgreSQL database.
 type DBCreateCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DBCreateCommand) Name() string { return "db:create" }
@@ -236,7 +236,7 @@ func createOracleDatabase() error {
 }
 
 type DBSeedCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DBSeedCommand) Name() string        { return "db:seed" }
@@ -254,7 +254,7 @@ func (c *DBSeedCommand) Handle(args []string) error {
 }
 
 type MakeModelCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeModelCommand) Name() string { return "make:model" }
@@ -376,7 +376,7 @@ func (m *%s) TableName() string {
 	}
 }
 
-func writeModelMigration(app *core.Application, modelName, table, translation string) error {
+func writeModelMigration(app *kernel.Application, modelName, table, translation string) error {
 	description := "create_" + table + "_table"
 	stamp := time.Now().Format("20060102_150405")
 	structName := toExported(description)
@@ -437,7 +437,7 @@ func (m *%s) Down(s *schema.Builder) error {
 }
 
 type MakeMigrationCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeMigrationCommand) Name() string        { return "make:migration" }
@@ -494,7 +494,7 @@ func (m *%s) Down(s *schema.Builder) error {
 }
 
 type MakeSeederCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeSeederCommand) Name() string        { return "make:seeder" }

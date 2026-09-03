@@ -2,7 +2,7 @@ package tenancy
 
 import (
 	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func init() {
@@ -10,14 +10,14 @@ func init() {
 		Name:        "tenancy",
 		Key:         "tenancy",
 		Description: "Multi-tenant resolution",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the tenancy addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	mgr := New()
 	mgr.Register(Tenant{ID: "acme", Name: "Acme Corp", Domain: "acme.localhost"})
 	mgr.Register(Tenant{ID: "globex", Name: "Globex", Domain: "globex.localhost"})
@@ -33,4 +33,4 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *ServiceProvider) Boot(app *kernel.Application) error { return nil }

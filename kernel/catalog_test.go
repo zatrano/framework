@@ -1,16 +1,31 @@
-package core
+package kernel
 
 import "testing"
 
 func TestCatalogCoversLayers(t *testing.T) {
-	if len(PackagesByLayer(LayerKernel)) < 5 {
-		t.Fatalf("expected kernel packages, got %d", len(PackagesByLayer(LayerKernel)))
+	if len(PackagesByLayer(LayerPrimitive)) < 5 {
+		t.Fatalf("expected primitive packages, got %d", len(PackagesByLayer(LayerPrimitive)))
 	}
 	if len(PackagesByLayer(LayerFoundation)) < 10 {
 		t.Fatalf("expected foundation packages, got %d", len(PackagesByLayer(LayerFoundation)))
 	}
+	if len(PackagesByLayer(LayerIntelligence)) != 3 {
+		t.Fatalf("expected 3 intelligence packages, got %d", len(PackagesByLayer(LayerIntelligence)))
+	}
 	if len(PackagesByLayer(LayerAddon)) < 20 {
 		t.Fatalf("expected addon packages, got %d", len(PackagesByLayer(LayerAddon)))
+	}
+	ai, ok := LookupPackage("ai")
+	if !ok || ai.Layer != LayerIntelligence || ai.EffectiveKind() != KindService {
+		t.Fatal("ai should be an intelligence service")
+	}
+	rag, ok := LookupPackage("rag")
+	if !ok || rag.Layer != LayerIntelligence || rag.EffectiveKind() != KindLibrary {
+		t.Fatal("rag should be an intelligence library")
+	}
+	agent, ok := LookupPackage("agent")
+	if !ok || agent.Layer != LayerIntelligence || agent.EffectiveKind() != KindLibrary {
+		t.Fatal("agent should be an intelligence library")
 	}
 }
 

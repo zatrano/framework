@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerChannelCommands(console *Application, app *core.Application) {
+func registerChannelCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeChannelCommand{app: app})
 }
 
 type MakeChannelCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeChannelCommand) Name() string { return "make:channel" }

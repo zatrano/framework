@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerPhase4Commands(console *Application, app *core.Application) {
+func registerPhase4Commands(console *Application, app *kernel.Application) {
 	console.Register(
 		&ScheduleRunCommand{app: app},
 		&ScheduleListCommand{app: app},
@@ -21,7 +21,7 @@ func registerPhase4Commands(console *Application, app *core.Application) {
 }
 
 type ScheduleRunCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *ScheduleRunCommand) Name() string        { return "schedule:run" }
@@ -42,7 +42,7 @@ func (c *ScheduleRunCommand) Handle(args []string) error {
 }
 
 type ScheduleListCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *ScheduleListCommand) Name() string        { return "schedule:list" }
@@ -63,7 +63,7 @@ func (c *ScheduleListCommand) Handle(args []string) error {
 }
 
 type MakeNotificationCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeNotificationCommand) Name() string        { return "make:notification" }

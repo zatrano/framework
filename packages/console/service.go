@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerServiceCommands(console *Application, app *core.Application) {
+func registerServiceCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeServiceCommand{app: app})
 }
 
 type MakeServiceCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeServiceCommand) Name() string        { return "make:service" }

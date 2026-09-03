@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerCastCommands(console *Application, app *core.Application) {
+func registerCastCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeCastCommand{app: app})
 }
 
 type MakeCastCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeCastCommand) Name() string        { return "make:cast" }

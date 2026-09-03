@@ -5,15 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerRequestCommands(console *Application, app *core.Application) {
+func registerRequestCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeRequestCommand{app: app})
 }
 
 type MakeRequestCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeRequestCommand) Name() string        { return "make:request" }

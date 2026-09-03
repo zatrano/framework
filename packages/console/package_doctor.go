@@ -10,7 +10,7 @@ import (
 	"github.com/zatrano/framework/bootstrap"
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/stubs"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/env"
 )
 
@@ -20,14 +20,14 @@ type doctorFinding struct {
 	Message string
 }
 
-func registerPackageHealthCommands(console *Application, app *core.Application) {
+func registerPackageHealthCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&PackageDoctorCommand{app: app},
 		&PackageInitCommand{app: app},
 	)
 }
 
-type PackageDoctorCommand struct{ app *core.Application }
+type PackageDoctorCommand struct{ app *kernel.Application }
 
 func (c *PackageDoctorCommand) Name() string { return "package:doctor" }
 func (c *PackageDoctorCommand) Description() string {
@@ -53,7 +53,7 @@ func (c *PackageDoctorCommand) Handle(args []string) error {
 	return nil
 }
 
-type PackageInitCommand struct{ app *core.Application }
+type PackageInitCommand struct{ app *kernel.Application }
 
 func (c *PackageInitCommand) Name() string { return "package:init" }
 func (c *PackageInitCommand) Description() string {
@@ -127,7 +127,7 @@ func (c *PackageInitCommand) Handle(args []string) error {
 	return nil
 }
 
-func runPackageDoctor(app *core.Application) []doctorFinding {
+func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	var out []doctorFinding
 
 	enabled := append([]string{}, bootstrap.EnabledAddons...)
@@ -154,7 +154,7 @@ func runPackageDoctor(app *core.Application) []doctorFinding {
 		if name == "" {
 			continue
 		}
-		if info, ok := core.LookupPackage(name); ok && info.EffectiveKind() == core.KindLibrary {
+		if info, ok := kernel.LookupPackage(name); ok && info.EffectiveKind() == kernel.KindLibrary {
 			libs++
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
@@ -221,8 +221,8 @@ func runPackageDoctor(app *core.Application) []doctorFinding {
 
 	// Catalog service addons must have registry providers.
 	missingProviders := 0
-	for _, p := range core.PackagesByLayer(core.LayerAddon) {
-		if p.EffectiveKind() != core.KindService {
+	for _, p := range kernel.PackagesByLayer(kernel.LayerAddon) {
+		if p.EffectiveKind() != kernel.KindService {
 			continue
 		}
 		if _, ok := addons.Lookup(p.Name); !ok {

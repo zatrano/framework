@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/env"
 )
 
@@ -13,14 +13,14 @@ func init() {
 		Name:        "wellknown",
 		Key:         "wellknown",
 		Description: "security.txt / well-known",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the wellknown addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	base := strings.TrimRight(app.Config().GetString("app.url", env.Get("APP_URL", "http://localhost:8080")), "/")
 	app.Container().Instance("wellknown", New(Config{
 		ContactEmail:  env.Get("SECURITY_CONTACT_EMAIL", "security@zatrano.test"),
@@ -32,4 +32,4 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *ServiceProvider) Boot(app *kernel.Application) error { return nil }

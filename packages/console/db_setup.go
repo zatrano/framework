@@ -8,18 +8,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/database"
 )
 
-func registerDBSetupCommand(console *Application, app *core.Application) {
+func registerDBSetupCommand(console *Application, app *kernel.Application) {
 	console.Register(&DBSetupCommand{app: app})
 }
 
 // DBSetupCommand interactively (or via flags) selects SQL drivers, writes
 // bootstrap/database_drivers.go, updates .env, and runs go get for selected modules.
 type DBSetupCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DBSetupCommand) Name() string { return "db:setup" }

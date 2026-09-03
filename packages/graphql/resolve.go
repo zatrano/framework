@@ -1,8 +1,8 @@
 package graphql
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Schema {
-	return core.Resolve[*Schema](app, "graphql")
+func From(app *kernel.Application) *Schema {
+	return kernel.Resolve[*Schema](app, "graphql")
 }

@@ -12,10 +12,10 @@ import (
 	"github.com/zatrano/framework/bootstrap"
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/stubs"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerPackageCommands(console *Application, app *core.Application) {
+func registerPackageCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&PackageListCommand{app: app},
 		&PackageEnableCommand{app: app},
@@ -28,7 +28,7 @@ func registerPackageCommands(console *Application, app *core.Application) {
 	registerPackageHealthCommands(console, app)
 }
 
-type PackageListCommand struct{ app *core.Application }
+type PackageListCommand struct{ app *kernel.Application }
 
 func (c *PackageListCommand) Name() string { return "package:list" }
 func (c *PackageListCommand) Description() string {
@@ -42,10 +42,7 @@ func (c *PackageListCommand) Handle(args []string) error {
 	fmt.Fprintln(w, "PACKAGE\tKIND\tSTATUS\tHEAVY\tSTUBS\tDESCRIPTION")
 
 	if showLibs && !showAll {
-		for _, p := range core.PackagesByLayer(core.LayerAddon) {
-			if p.EffectiveKind() != core.KindLibrary {
-				continue
-			}
+		for _, p := range kernel.LibraryCatalog() {
 			heavy := ""
 			if p.Heavy {
 				heavy = "yes"
@@ -73,16 +70,13 @@ func (c *PackageListCommand) Handle(args []string) error {
 			stub = "yes"
 		}
 		desc := m.Description
-		if info, ok := core.LookupPackage(m.Name); ok && info.Description != "" {
+		if info, ok := kernel.LookupPackage(m.Name); ok && info.Description != "" {
 			desc = info.Description
 		}
 		fmt.Fprintf(w, "%s\tservice\t%s\t%s\t%s\t%s\n", m.Name, status, heavy, stub, desc)
 	}
 	if showAll {
-		for _, p := range core.PackagesByLayer(core.LayerAddon) {
-			if p.EffectiveKind() != core.KindLibrary {
-				continue
-			}
+		for _, p := range kernel.LibraryCatalog() {
 			heavy := ""
 			if p.Heavy {
 				heavy = "yes"
@@ -97,7 +91,7 @@ func (c *PackageListCommand) Handle(args []string) error {
 	return w.Flush()
 }
 
-type PackageEnableCommand struct{ app *core.Application }
+type PackageEnableCommand struct{ app *kernel.Application }
 
 func (c *PackageEnableCommand) Name() string { return "package:enable" }
 func (c *PackageEnableCommand) Description() string {
@@ -121,7 +115,7 @@ func (c *PackageEnableCommand) Handle(args []string) error {
 	return nil
 }
 
-type PackageDisableCommand struct{ app *core.Application }
+type PackageDisableCommand struct{ app *kernel.Application }
 
 func (c *PackageDisableCommand) Name() string { return "package:disable" }
 func (c *PackageDisableCommand) Description() string {
@@ -143,7 +137,7 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 	return nil
 }
 
-type PackagePublishCommand struct{ app *core.Application }
+type PackagePublishCommand struct{ app *kernel.Application }
 
 func (c *PackagePublishCommand) Name() string { return "package:publish" }
 func (c *PackagePublishCommand) Description() string {
@@ -158,7 +152,7 @@ func (c *PackagePublishCommand) Handle(args []string) error {
 	return publishPackage(c.app, name, force)
 }
 
-type PackageInstallCommand struct{ app *core.Application }
+type PackageInstallCommand struct{ app *kernel.Application }
 
 func (c *PackageInstallCommand) Name() string { return "package:install" }
 func (c *PackageInstallCommand) Description() string {
@@ -186,7 +180,7 @@ func (c *PackageInstallCommand) Handle(args []string) error {
 	return nil
 }
 
-type PackagePresetCommand struct{ app *core.Application }
+type PackagePresetCommand struct{ app *kernel.Application }
 
 func (c *PackagePresetCommand) Name() string { return "package:preset" }
 func (c *PackagePresetCommand) Description() string {
@@ -247,7 +241,7 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 	return nil
 }
 
-type PackageStatusCommand struct{ app *core.Application }
+type PackageStatusCommand struct{ app *kernel.Application }
 
 func (c *PackageStatusCommand) Name() string { return "package:status" }
 func (c *PackageStatusCommand) Description() string {
@@ -305,8 +299,8 @@ func hasFlag(args []string, flags ...string) bool {
 	return false
 }
 
-func enablePackage(app *core.Application, name string) (bool, error) {
-	if info, ok := core.LookupPackage(name); ok && info.EffectiveKind() == core.KindLibrary {
+func enablePackage(app *kernel.Application, name string) (bool, error) {
+	if info, ok := kernel.LookupPackage(name); ok && info.EffectiveKind() == kernel.KindLibrary {
 		return false, fmt.Errorf("%q is a library package (import-only); no package:enable needed — see package:list --libraries", name)
 	}
 	if _, ok := addons.Lookup(name); !ok {
@@ -358,7 +352,7 @@ func insertEnabledAddonName(path, name string) (bool, error) {
 	return true, os.WriteFile(path, []byte(out), 0o644)
 }
 
-func disablePackage(app *core.Application, name string) (bool, error) {
+func disablePackage(app *kernel.Application, name string) (bool, error) {
 	list := make([]string, 0, len(bootstrap.EnabledAddons))
 	found := false
 	for _, n := range bootstrap.EnabledAddons {
@@ -378,7 +372,7 @@ func disablePackage(app *core.Application, name string) (bool, error) {
 	return true, nil
 }
 
-func publishPackage(app *core.Application, name string, force bool) error {
+func publishPackage(app *kernel.Application, name string, force bool) error {
 	if _, ok := addons.Lookup(name); !ok {
 		return fmt.Errorf("unknown package %q (see package:list)", name)
 	}
@@ -392,7 +386,7 @@ func publishPackage(app *core.Application, name string, force bool) error {
 }
 
 // publishPackagesQuiet publishes stubs for packages that have them (no "no stubs" noise).
-func publishPackagesQuiet(app *core.Application, names []string, force bool) (published, skipped int, err error) {
+func publishPackagesQuiet(app *kernel.Application, names []string, force bool) (published, skipped int, err error) {
 	for _, name := range names {
 		files := stubs.ForPackage(name)
 		if len(files) == 0 {
@@ -408,7 +402,7 @@ func publishPackagesQuiet(app *core.Application, names []string, force bool) (pu
 	return published, skipped, nil
 }
 
-func publishStubFiles(app *core.Application, files []string, force, verbose bool) (published, skipped int, err error) {
+func publishStubFiles(app *kernel.Application, files []string, force, verbose bool) (published, skipped int, err error) {
 	dir := app.BasePath("config")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return 0, 0, err

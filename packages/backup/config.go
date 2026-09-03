@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/database"
 )
 
@@ -14,7 +14,7 @@ type ConfigGetter interface {
 	Get(key string, fallback ...any) any
 }
 
-// BasePather is satisfied by *core.Application.
+// BasePather is satisfied by *kernel.Application.
 type BasePather interface {
 	BasePath(parts ...string) string
 }
@@ -65,7 +65,7 @@ func ConfigFromApp(app BasePather, cfg ConfigGetter, connection string) (Config,
 }
 
 // ManagerFromApp resolves Config and returns a Manager for the connection.
-func ManagerFromApp(app *core.Application, connection string) (*Manager, error) {
+func ManagerFromApp(app *kernel.Application, connection string) (*Manager, error) {
 	if app == nil {
 		return nil, fmt.Errorf("backup: application unavailable")
 	}

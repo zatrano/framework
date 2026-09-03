@@ -5,7 +5,7 @@ import (
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/env"
 )
@@ -15,14 +15,14 @@ func init() {
 		Name:        "oauth",
 		Key:         "oauth",
 		Description: "OAuth2 authorization server",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the OAuth addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "oauth", appconfig.OAuth())
 	var server *Server
 	storePath := strings.TrimSpace(app.Config().GetString("oauth.store_path", env.Get("OAUTH_STORE_PATH", "")))
@@ -43,4 +43,4 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error { return nil }
+func (p *ServiceProvider) Boot(app *kernel.Application) error { return nil }

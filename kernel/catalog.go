@@ -1,13 +1,15 @@
-package core
+package kernel
 
 // Layer classifies a framework package for the packages migration.
-// Kernel boots always; Foundation is opt-in but common; Addon is project opt-in.
+// Primitive boots always; Foundation is opt-in but common; Intelligence is the
+// first-party AI identity layer; Addon is project opt-in.
 type Layer string
 
 const (
-	LayerKernel     Layer = "kernel"
-	LayerFoundation Layer = "foundation"
-	LayerAddon      Layer = "addon"
+	LayerPrimitive    Layer = "primitive"
+	LayerFoundation   Layer = "foundation"
+	LayerIntelligence Layer = "intelligence"
+	LayerAddon        Layer = "addon"
 )
 
 // Kind classifies how an addon is consumed.
@@ -41,22 +43,22 @@ func (p PackageInfo) EffectiveKind() Kind {
 }
 
 // Catalog is the source of truth for package layering.
-// Kernel lives in thin core/; implementations live under packages/.
+// Primitive kernel lives in thin kernel/; implementations live under packages/.
 var Catalog = []PackageInfo{
-	// Kernel — process must start; secure HTTP surface.
-	{Name: "container", Layer: LayerKernel, Description: "Service container"},
-	{Name: "config", Layer: LayerKernel, Description: "Configuration repository"},
-	{Name: "env", Layer: LayerKernel, Description: "Environment loader"},
-	{Name: "context", Layer: LayerKernel, Description: "Request/app context store"},
-	{Name: "http", Layer: LayerKernel, Description: "HTTP request/response helpers"},
-	{Name: "routing", Layer: LayerKernel, Description: "HTTP router"},
-	{Name: "middleware", Layer: LayerKernel, Description: "HTTP middleware primitives"},
-	{Name: "pipeline", Layer: LayerKernel, Description: "Middleware pipeline"},
-	{Name: "exceptions", Layer: LayerKernel, Description: "Exception handler"},
-	{Name: "log", Layer: LayerKernel, Description: "Application logger"},
-	{Name: "encryption", Layer: LayerKernel, Description: "Symmetric encryption"},
-	{Name: "trustedproxy", Layer: LayerKernel, Description: "Trusted proxy headers"},
-	{Name: "report", Layer: LayerKernel, Description: "Exception reporting"},
+	// Primitive — process must start; secure HTTP surface.
+	{Name: "container", Layer: LayerPrimitive, Description: "Service container"},
+	{Name: "config", Layer: LayerPrimitive, Description: "Configuration repository"},
+	{Name: "env", Layer: LayerPrimitive, Description: "Environment loader"},
+	{Name: "context", Layer: LayerPrimitive, Description: "Request/app context store"},
+	{Name: "http", Layer: LayerPrimitive, Description: "HTTP request/response helpers"},
+	{Name: "routing", Layer: LayerPrimitive, Description: "HTTP router"},
+	{Name: "middleware", Layer: LayerPrimitive, Description: "HTTP middleware primitives"},
+	{Name: "pipeline", Layer: LayerPrimitive, Description: "Middleware pipeline"},
+	{Name: "exceptions", Layer: LayerPrimitive, Description: "Exception handler"},
+	{Name: "log", Layer: LayerPrimitive, Description: "Application logger"},
+	{Name: "encryption", Layer: LayerPrimitive, Description: "Symmetric encryption"},
+	{Name: "trustedproxy", Layer: LayerPrimitive, Description: "Trusted proxy headers"},
+	{Name: "report", Layer: LayerPrimitive, Description: "Exception reporting"},
 
 	// Foundation — typical web/API apps.
 	{Name: "session", Layer: LayerFoundation, Description: "HTTP sessions"},
@@ -90,8 +92,12 @@ var Catalog = []PackageInfo{
 	{Name: "support", Layer: LayerFoundation, Description: "Support helpers"},
 	{Name: "version", Layer: LayerFoundation, Description: "Version helper"},
 
+	// Intelligence — first-party AI identity (same activation as addons; distinct catalog layer).
+	{Name: "ai", Layer: LayerIntelligence, Kind: KindService, Description: "AI chat providers"},
+	{Name: "rag", Layer: LayerIntelligence, Kind: KindLibrary, Description: "RAG chunking, embed pipeline, vector store helpers"},
+	{Name: "agent", Layer: LayerIntelligence, Kind: KindLibrary, Description: "AI agent loop, tools, conversation memory"},
+
 	// Addon services — opt-in via bootstrap/addons registry + EnabledAddons.
-	{Name: "ai", Layer: LayerAddon, Kind: KindService, Description: "AI chat providers"},
 	{Name: "audit", Layer: LayerAddon, Kind: KindService, Description: "Request/audit event log"},
 	{Name: "backup", Layer: LayerAddon, Kind: KindService, Description: "Database backup/restore (SQLite + native dump tools)"},
 	{Name: "billing", Layer: LayerAddon, Kind: KindService, Description: "Central billing manager (memory/stripe gateways, webhooks)"},
@@ -120,7 +126,6 @@ var Catalog = []PackageInfo{
 	{Name: "wellknown", Layer: LayerAddon, Kind: KindService, Description: "security.txt / well-known"},
 
 	// Addon libraries — import and use; no package:enable / container binding.
-	{Name: "agent", Layer: LayerAddon, Kind: KindLibrary, Description: "AI agent loop, tools, conversation memory"},
 	{Name: "api", Layer: LayerAddon, Kind: KindLibrary, Description: "API versioning helpers"},
 	{Name: "archive", Layer: LayerAddon, Kind: KindLibrary, Description: "ZIP archive helpers"},
 	{Name: "bloom", Layer: LayerAddon, Kind: KindLibrary, Description: "Bloom filter"},
@@ -146,7 +151,6 @@ var Catalog = []PackageInfo{
 	{Name: "pdf", Layer: LayerAddon, Kind: KindLibrary, Description: "PDF generation and inline viewing"},
 	{Name: "process", Layer: LayerAddon, Kind: KindLibrary, Description: "OS process runner"},
 	{Name: "qr", Layer: LayerAddon, Kind: KindLibrary, Heavy: true, Description: "QR code generation"},
-	{Name: "rag", Layer: LayerAddon, Kind: KindLibrary, Description: "RAG chunking, embed pipeline, vector store helpers"},
 	{Name: "resources", Layer: LayerAddon, Kind: KindLibrary, Description: "API resource transformers"},
 	{Name: "testing", Layer: LayerAddon, Kind: KindLibrary, Description: "Test helpers"},
 	{Name: "timing", Layer: LayerAddon, Kind: KindLibrary, Description: "Timing / stopwatch helpers"},
@@ -172,6 +176,19 @@ func PackagesByKind(kind Kind) []PackageInfo {
 	for _, p := range Catalog {
 		if p.EffectiveKind() == kind {
 			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// LibraryCatalog returns KindLibrary packages from intelligence and addon layers.
+func LibraryCatalog() []PackageInfo {
+	out := make([]PackageInfo, 0)
+	for _, layer := range []Layer{LayerIntelligence, LayerAddon} {
+		for _, p := range PackagesByLayer(layer) {
+			if p.EffectiveKind() == KindLibrary {
+				out = append(out, p)
+			}
 		}
 	}
 	return out

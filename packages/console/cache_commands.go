@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/routing"
 )
 
-func registerCacheCommands(console *Application, app *core.Application) {
+func registerCacheCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&ConfigCacheCommand{app: app},
 		&ConfigClearCommand{app: app},
@@ -21,15 +21,15 @@ func registerCacheCommands(console *Application, app *core.Application) {
 	)
 }
 
-func configCachePath(app *core.Application) string {
+func configCachePath(app *kernel.Application) string {
 	return app.BasePath("storage", "framework", "cache", config.CacheFileName)
 }
 
-func routeCachePath(app *core.Application) string {
+func routeCachePath(app *kernel.Application) string {
 	return app.BasePath("storage", "framework", "cache", "routes.json")
 }
 
-type ConfigCacheCommand struct{ app *core.Application }
+type ConfigCacheCommand struct{ app *kernel.Application }
 
 func (c *ConfigCacheCommand) Name() string { return "config:cache" }
 func (c *ConfigCacheCommand) Description() string {
@@ -47,7 +47,7 @@ func (c *ConfigCacheCommand) Handle(args []string) error {
 	return nil
 }
 
-type ConfigClearCommand struct{ app *core.Application }
+type ConfigClearCommand struct{ app *kernel.Application }
 
 func (c *ConfigClearCommand) Name() string        { return "config:clear" }
 func (c *ConfigClearCommand) Description() string { return "Remove the configuration cache file" }
@@ -60,7 +60,7 @@ func (c *ConfigClearCommand) Handle(args []string) error {
 	return nil
 }
 
-type RouteListCommand struct{ app *core.Application }
+type RouteListCommand struct{ app *kernel.Application }
 
 func (c *RouteListCommand) Name() string        { return "route:list" }
 func (c *RouteListCommand) Description() string { return "List all registered routes" }
@@ -80,7 +80,7 @@ func (c *RouteListCommand) Handle(args []string) error {
 	return w.Flush()
 }
 
-type RouteCacheCommand struct{ app *core.Application }
+type RouteCacheCommand struct{ app *kernel.Application }
 
 func (c *RouteCacheCommand) Name() string { return "route:cache" }
 func (c *RouteCacheCommand) Description() string {
@@ -98,7 +98,7 @@ func (c *RouteCacheCommand) Handle(args []string) error {
 	return nil
 }
 
-type RouteClearCommand struct{ app *core.Application }
+type RouteClearCommand struct{ app *kernel.Application }
 
 func (c *RouteClearCommand) Name() string        { return "route:clear" }
 func (c *RouteClearCommand) Description() string { return "Remove the route cache file" }

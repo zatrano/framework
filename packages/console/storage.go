@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerStorageCommands(console *Application, app *core.Application) {
+func registerStorageCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&StorageLinkCommand{app: app},
 		&MakeTestCommand{app: app},
@@ -16,7 +16,7 @@ func registerStorageCommands(console *Application, app *core.Application) {
 }
 
 type StorageLinkCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *StorageLinkCommand) Name() string { return "storage:link" }
@@ -53,7 +53,7 @@ func (c *StorageLinkCommand) Handle(args []string) error {
 }
 
 type MakeTestCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeTestCommand) Name() string        { return "make:test" }

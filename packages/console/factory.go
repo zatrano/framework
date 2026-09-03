@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerFactoryCommands(console *Application, app *core.Application) {
+func registerFactoryCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&MakeResourceCommand{app: app},
 		&MakeFactoryCommand{app: app},
@@ -16,7 +16,7 @@ func registerFactoryCommands(console *Application, app *core.Application) {
 }
 
 type MakeResourceCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeResourceCommand) Name() string        { return "make:resource" }
@@ -53,7 +53,7 @@ func %s(model models.%s) map[string]any {
 }
 
 type MakeFactoryCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeFactoryCommand) Name() string        { return "make:factory" }

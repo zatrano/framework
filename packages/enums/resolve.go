@@ -1,8 +1,8 @@
 package enums
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Registry {
-	return core.Resolve[*Registry](app, "enums")
+func From(app *kernel.Application) *Registry {
+	return kernel.Resolve[*Registry](app, "enums")
 }

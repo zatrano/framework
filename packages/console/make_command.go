@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerMakeCommand(console *Application, app *core.Application) {
+func registerMakeCommand(console *Application, app *kernel.Application) {
 	console.Register(&MakeCommandCommand{app: app})
 }
 
 type MakeCommandCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeCommandCommand) Name() string        { return "make:command" }
@@ -41,12 +41,12 @@ func (c *MakeCommandCommand) Handle(args []string) error {
 import (
 	"fmt"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 // %s is an application console command.
 type %s struct {
-	App *core.Application
+	App *kernel.Application
 }
 
 func (c *%s) Name() string        { return "%s" }
@@ -70,12 +70,12 @@ func (c *%s) Handle(args []string) error {
 
 import (
 	"github.com/zatrano/framework/app/console/commands"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	coreconsole "github.com/zatrano/framework/packages/console"
 )
 
 // Register registers application console commands.
-func Register(cli *coreconsole.Application, app *core.Application) {
+func Register(cli *coreconsole.Application, app *kernel.Application) {
 	cli.Register(
 		&commands.%s{App: app},
 	)

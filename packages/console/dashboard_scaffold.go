@@ -7,16 +7,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerDashboardCommands(console *Application, app *core.Application) {
+func registerDashboardCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeDashboardCommand{app: app})
 }
 
 // MakeDashboardCommand scaffolds the management dashboard (davet.link-style shell).
 type MakeDashboardCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeDashboardCommand) Name() string { return "make:dashboard" }

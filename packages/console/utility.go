@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerUtilityCommands(console *Application, app *core.Application) {
+func registerUtilityCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&InspireCommand{},
 		&TinkerCommand{app: app},
@@ -43,7 +43,7 @@ func (c *InspireCommand) Handle(args []string) error {
 }
 
 type TinkerCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *TinkerCommand) Name() string        { return "tinker" }

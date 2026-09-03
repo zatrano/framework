@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/localization/defaults"
 )
 
 // MakeLangCommand scaffolds a new locale directory from built-in defaults.
 type MakeLangCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeLangCommand) Name() string        { return "make:lang" }

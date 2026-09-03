@@ -6,7 +6,7 @@ import (
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/env"
 )
@@ -16,14 +16,14 @@ func init() {
 		Name:        "social",
 		Key:         "social",
 		Description: "Social OAuth login (GitHub/Google)",
-		Factory:     func() core.Provider { return &ServiceProvider{} },
+		Factory:     func() kernel.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the social addon.
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *core.Application) error {
+func (p *ServiceProvider) Register(app *kernel.Application) error {
 	pkgconfig.LoadIfAbsent(app.Config(), "social", appconfig.Social())
 	SetAllowStubProviders(!app.IsProduction())
 	mgr := New()
@@ -53,7 +53,7 @@ func (p *ServiceProvider) Register(app *core.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *core.Application) error {
+func (p *ServiceProvider) Boot(app *kernel.Application) error {
 	if app == nil || app.Router() == nil {
 		return nil
 	}

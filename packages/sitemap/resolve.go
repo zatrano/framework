@@ -1,8 +1,8 @@
 package sitemap
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // From resolves the package service from the application container.
-func From(app *core.Application) *Builder {
-	return core.Resolve[*Builder](app, "sitemap")
+func From(app *kernel.Application) *Builder {
+	return kernel.Resolve[*Builder](app, "sitemap")
 }

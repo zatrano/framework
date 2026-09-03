@@ -5,16 +5,18 @@ import (
 
 	_ "github.com/zatrano/framework/bootstrap"
 	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
 func TestRegistryMatchesCatalogServiceAddons(t *testing.T) {
-	catalogServices := map[string]core.PackageInfo{}
-	for _, p := range core.PackagesByLayer(core.LayerAddon) {
-		if p.EffectiveKind() != core.KindService {
-			continue
+	catalogServices := map[string]kernel.PackageInfo{}
+	for _, layer := range []kernel.Layer{kernel.LayerAddon, kernel.LayerIntelligence} {
+		for _, p := range kernel.PackagesByLayer(layer) {
+			if p.EffectiveKind() != kernel.KindService {
+				continue
+			}
+			catalogServices[p.Name] = p
 		}
-		catalogServices[p.Name] = p
 	}
 
 	for _, m := range addons.Available() {
@@ -34,12 +36,14 @@ func TestRegistryMatchesCatalogServiceAddons(t *testing.T) {
 }
 
 func TestLibraryAddonsAreNotInRegistry(t *testing.T) {
-	for _, p := range core.PackagesByLayer(core.LayerAddon) {
-		if p.EffectiveKind() != core.KindLibrary {
-			continue
-		}
-		if _, ok := addons.Lookup(p.Name); ok {
-			t.Errorf("library addon %q should not be in provider registry", p.Name)
+	for _, layer := range []kernel.Layer{kernel.LayerAddon, kernel.LayerIntelligence} {
+		for _, p := range kernel.PackagesByLayer(layer) {
+			if p.EffectiveKind() != kernel.KindLibrary {
+				continue
+			}
+			if _, ok := addons.Lookup(p.Name); ok {
+				t.Errorf("library package %q should not be in provider registry", p.Name)
+			}
 		}
 	}
 }

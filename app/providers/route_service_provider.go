@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/routes"
 )
 
@@ -9,12 +9,12 @@ import (
 type RouteServiceProvider struct{}
 
 // Register registers route-related services.
-func (p *RouteServiceProvider) Register(app *core.Application) error {
+func (p *RouteServiceProvider) Register(app *kernel.Application) error {
 	return nil
 }
 
 // Boot loads route files.
-func (p *RouteServiceProvider) Boot(app *core.Application) error {
+func (p *RouteServiceProvider) Boot(app *kernel.Application) error {
 	routes.Web(app)
 	routes.API(app)
 	routes.Health(app)

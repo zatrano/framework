@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 	"github.com/zatrano/framework/packages/maintenance"
 )
 
-func registerMaintenanceCommands(console *Application, app *core.Application) {
+func registerMaintenanceCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&DownCommand{app: app},
 		&UpCommand{app: app},
@@ -17,7 +17,7 @@ func registerMaintenanceCommands(console *Application, app *core.Application) {
 }
 
 type DownCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *DownCommand) Name() string        { return "down" }
@@ -64,7 +64,7 @@ func (c *DownCommand) Handle(args []string) error {
 }
 
 type UpCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *UpCommand) Name() string        { return "up" }

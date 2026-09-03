@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerEnvCommands(console *Application, app *core.Application) {
+func registerEnvCommands(console *Application, app *kernel.Application) {
 	console.Register(
 		&EnvEncryptCommand{app: app},
 		&EnvDecryptCommand{app: app},
@@ -15,7 +15,7 @@ func registerEnvCommands(console *Application, app *core.Application) {
 }
 
 type EnvEncryptCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *EnvEncryptCommand) Name() string        { return "env:encrypt" }
@@ -37,7 +37,7 @@ func (c *EnvEncryptCommand) Handle(args []string) error {
 }
 
 type EnvDecryptCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *EnvDecryptCommand) Name() string        { return "env:decrypt" }

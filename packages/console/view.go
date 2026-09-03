@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/kernel"
 )
 
-func registerViewCommands(console *Application, app *core.Application) {
+func registerViewCommands(console *Application, app *kernel.Application) {
 	console.Register(&MakeViewCommand{app: app})
 }
 
 type MakeViewCommand struct {
-	app *core.Application
+	app *kernel.Application
 }
 
 func (c *MakeViewCommand) Name() string        { return "make:view" }

@@ -1,15 +1,15 @@
 package providers
 
-import "github.com/zatrano/framework/core"
+import "github.com/zatrano/framework/kernel"
 
 // ScheduleServiceProvider registers scheduled tasks.
 type ScheduleServiceProvider struct{}
 
-func (p *ScheduleServiceProvider) Register(app *core.Application) error {
+func (p *ScheduleServiceProvider) Register(app *kernel.Application) error {
 	return nil
 }
 
-func (p *ScheduleServiceProvider) Boot(app *core.Application) error {
+func (p *ScheduleServiceProvider) Boot(app *kernel.Application) error {
 	// Register scheduled commands here, e.g.:
 	// schedule.From(app).Command("reports", fn).Daily()
 	return nil
