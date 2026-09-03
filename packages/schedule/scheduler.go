@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zatrano/framework/packages/cron"
+	"github.com/zatrano/framework/packages/schedule/cron"
 )
 
 // Event is a scheduled callback.

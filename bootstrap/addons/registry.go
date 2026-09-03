@@ -16,6 +16,15 @@ type Meta struct {
 	Description string
 	Heavy       bool
 	Factory     func() kernel.Provider
+	// CLI, if set, is invoked from console.New when this addon is imported.
+	CLI func(app *kernel.Application) []CLICommand
+}
+
+// CLICommand is an addon-provided console command.
+type CLICommand struct {
+	Name        string
+	Description string
+	Handle      func(args []string) error
 }
 
 var (

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/packages/useragent"
+	"github.com/zatrano/framework/packages/http/useragent"
 )
 
 // Host returns the request host (prefers trusted forwarded host).

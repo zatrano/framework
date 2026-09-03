@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/zatrano/framework/packages/http"
+	"github.com/zatrano/framework/packages/observability/timing"
 	"github.com/zatrano/framework/packages/routing"
-	"github.com/zatrano/framework/packages/timing"
 )
 
 // Metrics collects simple request timing statistics.

@@ -1,41 +1,59 @@
 package tests
 
 import (
+	"encoding/json"
+	"io"
+	stdhttp "net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"__MODULE__/app/providers"
 
 	"github.com/zatrano/framework/bootstrap"
-	testkit "github.com/zatrano/framework/packages/testing"
 )
 
-func TestHealthEndpoint(t *testing.T) {
+func doGet(t *testing.T, path string, acceptJSON bool) *stdhttp.Response {
+	t.Helper()
 	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
-	tc, err := testkit.New(app)
-	if err != nil {
+	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	req := httptest.NewRequest(stdhttp.MethodGet, path, nil)
+	if acceptJSON {
+		req.Header.Set("Accept", "application/json")
+	}
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	return rec.Result()
+}
 
-	tc.AcceptJSON().Get("/api/health").
-		AssertOK().
-		AssertJSONContains("status", "ok")
-
-	tc.AcceptJSON().Get("/up").
-		AssertOK().
-		AssertJSONContains("status", "ok")
+func TestHealthEndpoint(t *testing.T) {
+	for _, path := range []string{"/api/health", "/up"} {
+		resp := doGet(t, path, true)
+		defer resp.Body.Close()
+		if resp.StatusCode != stdhttp.StatusOK {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		var body map[string]any
+		if err := json.Unmarshal(raw, &body); err != nil {
+			t.Fatalf("%s: json: %v body=%s", path, err, raw)
+		}
+		if body["status"] != "ok" {
+			t.Fatalf("%s: expected status ok, got %#v", path, body)
+		}
+	}
 }
 
 func TestWelcomeUsesLayout(t *testing.T) {
-	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
-	tc, err := testkit.New(app)
-	if err != nil {
-		t.Fatal(err)
+	resp := doGet(t, "/", false)
+	defer resp.Body.Close()
+	if resp.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
 	}
-	html := tc.Get("/")
-	html.AssertOK()
-	body := string(html.Body)
-	if !strings.Contains(body, "__APP_NAME__") {
+	raw, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(raw), "__APP_NAME__") {
 		t.Fatalf("expected brand in welcome page")
 	}
 }

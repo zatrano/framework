@@ -51,7 +51,7 @@ func (c *MakeEnumCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package enums
 
-import "github.com/zatrano/framework/packages/enums"
+import "github.com/zatrano/packages/enums"
 
 // %s is a backed string enumeration.
 var %s = enums.NewString(%q, %s)

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/packages/octane"
 )
 
 func registerOctaneCommands(console *Application, app *kernel.Application) {
@@ -43,17 +42,9 @@ func (c *OctaneStartCommand) Handle(args []string) error {
 	if err := c.app.Bootstrap(); err != nil {
 		return err
 	}
-	runtimeSvc := octane.From(c.app)
 	if workers > 0 {
-		if runtimeSvc != nil {
-			runtimeSvc.SetWorkers(workers)
-		}
 		runtime.GOMAXPROCS(workers)
 	}
-	n := 0
-	if runtimeSvc != nil {
-		n = runtimeSvc.Workers()
-	}
-	fmt.Printf("Octane workers=%d gomaxprocs=%d\n", n, runtime.GOMAXPROCS(0))
+	fmt.Printf("Octane workers hint=%d gomaxprocs=%d\n", workers, runtime.GOMAXPROCS(0))
 	return c.app.Run(addr)
 }

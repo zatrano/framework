@@ -2,6 +2,8 @@
 # Local Go workspace — use go.mod replace directives, not go.work
 go.work
 go.work.sum
+# Runtime dirs created by tests / local serve (not part of the framework tree)
+/storage/
 # Track application locale JSON; ignore only local overrides if needed.
 # /lang/
 *.exe

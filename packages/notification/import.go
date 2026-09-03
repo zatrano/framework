@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/packages/export/csv"
-	"github.com/zatrano/framework/packages/export/xlsx"
+	"github.com/zatrano/framework/packages/notification/export/csv"
+	"github.com/zatrano/framework/packages/notification/export/xlsx"
 )
 
 // ImportRecipients parses CSV or Excel (.xlsx) content into recipients.

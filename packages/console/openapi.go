@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/packages/openapi"
 )
 
 func registerOpenAPICommands(console *Application, app *kernel.Application) {
@@ -43,7 +42,7 @@ func (c *OpenAPIGenerateCommand) Handle(args []string) error {
 		out = strings.TrimSuffix(out, filepath.Ext(out)) + ".yaml"
 	}
 
-	spec := openapi.Generate(c.app.Router().Routes(), openapi.Options{
+	spec := Generate(c.app.Router().Routes(), Options{
 		Title:       c.app.Config().GetString("app.name", "ZATRANO") + " API",
 		Description: "Auto-generated from route definitions",
 		Version:     "1.0.0",
@@ -52,9 +51,9 @@ func (c *OpenAPIGenerateCommand) Handle(args []string) error {
 
 	var err error
 	if format == "yaml" {
-		err = openapi.WriteYAML(out, spec)
+		err = WriteYAML(out, spec)
 	} else {
-		err = openapi.WriteJSON(out, spec)
+		err = WriteJSON(out, spec)
 	}
 	if err != nil {
 		return err

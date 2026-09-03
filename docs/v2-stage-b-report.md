@@ -18,8 +18,7 @@ Intelligence katmanı (`packages/ai`, `packages/rag`, `packages/agent`) **taşı
 - `config/*.go` (foundation + addon provider’ların okuduğu namespace’ler)
 - `cmd/zatrano` — yalnızca CLI (`new`, `make:*`, `package:*`, …)
 
-Foundation hâlâ içe aktardığı için framework’te **kopyası duran** addon kütüphaneler (tam taşıma sonraki tur):  
-`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`. Aynı isimler packages reposunda da var.
+Foundation hâlâ içe aktardığı için framework’te **kopyası duran** addon kütüphaneler: yok (sonraki turda 12 kopya foundation altına alındı veya packages CLI hook’una taşındı).
 
 ### `github.com/zatrano/packages`
 
@@ -79,7 +78,7 @@ Mongo / WebAuthn: uygulama blank-import eder (`github.com/zatrano/packages/datab
 
 ## 5. Bilinçli eksikler / sonraki tur
 
-- 12 foundation-bağımlı kütüphane hâlâ framework kopyası; import kesilmeden tek kaynak packages olamaz.
+- 12 foundation-bağımlı kütüphane top-level `packages/` altında yok: `totp`→`auth/totp`, `cron`→`schedule/cron`, `pagination`→`orm/pagination`, `timing`→`observability/timing`, `useragent`→`http/useragent`, `export`→`notification/export`; `testing`/`factory`/`enums` iskelet string’leri `github.com/zatrano/packages/…`; `backup` CLI addon hook; `openapi` console’a alındı; `octane:start` octane paketi olmadan çalışır.
 - `make:*` iskelet string’leri hâlâ `github.com/zatrano/framework/app/...` yazabilir; üretilen uygulama kendi modül yolunu kullanmalı (ayrı iş).
 - Sürüm etiketi / GitHub Release yok (Stage B dal çalışması; `framework-release` checklist’i main kesiminde).
 - `mongo` / `webauthn` canlı CI ispatı smoke’da yok (billing + `/health` var). Nested sürücü `go get` + blank-import uygulama tarafında.

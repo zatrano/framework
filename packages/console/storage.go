@@ -74,7 +74,7 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap"
-	testkit "github.com/zatrano/framework/packages/testing"
+	testkit "github.com/zatrano/packages/testing"
 )
 
 func Test%s(t *testing.T) {

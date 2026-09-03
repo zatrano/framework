@@ -1,8 +1,10 @@
 # ZATRANO packages guide
 
-How to choose and use first-party packages under `packages/`.
+How to choose and use first-party packages.
 
-- **Catalog source:** `core/catalog.go`
+- **Catalog source:** `kernel/catalog.go`
+- **Kernel / foundation / intelligence:** this repository, under `packages/`
+- **Addon services and libraries:** [`github.com/zatrano/packages`](https://github.com/zatrano/packages) (blank-import + `bootstrap.WithAddons`)
 - **Website docs:** [zatrano.com/docs](https://zatrano.com/docs)
 - **CLI:** `go run ./cmd/zatrano package:list --all`
 

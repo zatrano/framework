@@ -36,7 +36,7 @@ func (c *MakeResourceCommand) Handle(args []string) error {
 import "github.com/zatrano/framework/app/models"
 
 // %s transforms a models.%s into an API resource array.
-// Use with packages/resources (github.com/zatrano/framework/packages/resources):
+// Use with github.com/zatrano/packages/resources:
 //
 //	resources.JSON(model, %s)
 func %s(model models.%s) map[string]any {
@@ -72,7 +72,7 @@ func (c *MakeFactoryCommand) Handle(args []string) error {
 
 import (
 	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/packages/factory"
+	"github.com/zatrano/packages/factory"
 )
 
 func init() {
@@ -87,6 +87,6 @@ func init() {
 		return err
 	}
 	fmt.Printf("Factory created: %s\n", path)
-	fmt.Println("Import _ \"github.com/zatrano/framework/database/factories\" from your seeder/tests to register it.")
+	fmt.Println("Import _ \"your/module/database/factories\" from your seeder/tests to register it.")
 	return nil
 }

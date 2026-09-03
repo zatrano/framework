@@ -40,7 +40,7 @@ func New(app *kernel.Application) *Application {
 		&AboutCommand{app: app},
 	)
 	registerDatabaseCommands(console, app)
-	registerBackupCommands(console, app)
+	registerMakeProviderCommand(console, app)
 	registerSupportCommands(console, app)
 	registerObserverCommands(console, app)
 	registerRuleCommands(console, app)
@@ -71,6 +71,7 @@ func New(app *kernel.Application) *Application {
 	registerMakeCommand(console, app)
 	registerPackageCommands(console, app)
 	registerNewCommand(console, app)
+	registerAddonCLI(console, app)
 	return console
 }
 
