@@ -55,7 +55,7 @@ func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, want := range []string{"package:preset api", "APIApp()", "features", "hashid"} {
+	for _, want := range []string{"package:preset api", "WithPresetAPI()", "features", "hashid"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, text)
 		}

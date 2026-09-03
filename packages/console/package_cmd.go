@@ -279,7 +279,7 @@ func (c *PackageStatusCommand) Handle(args []string) error {
 		return err
 	}
 	if boundExtra {
-		fmt.Println("Note: BOUND without ENABLED means this process used DemoApp() (or custom Boot), not App()+EnabledAddons.")
+		fmt.Println("Note: BOUND without ENABLED means this process used App(WithDemo()) (or custom Boot), not App()+EnabledAddons.")
 	}
 	return nil
 }
@@ -496,7 +496,7 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("//\tzatrano package:install billing\n")
 	b.WriteString("//\n")
 	b.WriteString("// Entrypoint: bootstrap.App() reads this list.\n")
-	b.WriteString("// Alternatives: MinimalApp(), APIApp(), WebApp(), DemoApp(), CoreApp().\n")
+	b.WriteString("// Alternatives: App(Minimal()), App(WithPresetAPI()), App(WithPresetWeb()), App(WithDemo()), App(Kernel()).\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")
 	return b.String()
 }

@@ -10,64 +10,91 @@ import (
 	"github.com/zatrano/framework/core"
 )
 
-// App creates the configured application (foundation + EnabledAddons + app providers).
-// Production baseline: keep EnabledAddons lean (or empty) and enable packages via CLI.
-func App() *core.Application {
-	app, err := Boot(foundation.Providers(), EnabledAddons, ApplicationProviders()...)
+type appOptions struct {
+	kernelOnly bool
+	addons     []string
+	addonsSet  bool
+}
+
+// Option configures App().
+type Option func(*appOptions)
+
+// WithAddons sets the addon list (does not merge EnabledAddons).
+func WithAddons(names ...string) Option {
+	return func(o *appOptions) {
+		o.kernelOnly = false
+		o.addonsSet = true
+		o.addons = append([]string(nil), names...)
+	}
+}
+
+// Minimal boots foundation + app providers with no addons.
+func Minimal() Option {
+	return WithAddons()
+}
+
+// Kernel boots only the secure kernel (no DB/session/auth/addons/app routes).
+func Kernel() Option {
+	return func(o *appOptions) {
+		o.kernelOnly = true
+		o.addonsSet = true
+		o.addons = nil
+	}
+}
+
+// WithDemo boots foundation + every DemoAddons package + app providers.
+func WithDemo() Option {
+	return func(o *appOptions) {
+		o.kernelOnly = false
+		o.addonsSet = true
+		o.addons = append([]string(nil), DemoAddons...)
+	}
+}
+
+// WithPresetAPI boots foundation + PresetAPI ∪ EnabledAddons + app providers.
+func WithPresetAPI() Option {
+	return func(o *appOptions) {
+		o.kernelOnly = false
+		o.addonsSet = true
+		o.addons = mergeAddonNames(PresetAPI, EnabledAddons)
+	}
+}
+
+// WithPresetWeb boots foundation + PresetWeb ∪ EnabledAddons + app providers.
+func WithPresetWeb() Option {
+	return func(o *appOptions) {
+		o.kernelOnly = false
+		o.addonsSet = true
+		o.addons = mergeAddonNames(PresetWeb, EnabledAddons)
+	}
+}
+
+// App creates the configured application.
+// With no options: foundation + EnabledAddons + app providers.
+func App(opts ...Option) *core.Application {
+	cfg := appOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+	if cfg.kernelOnly {
+		app, err := Boot(foundation.KernelProviders(), nil)
+		if err != nil {
+			panic(err)
+		}
+		return app
+	}
+	names := EnabledAddons
+	if cfg.addonsSet {
+		names = cfg.addons
+	}
+	app, err := Boot(foundation.Providers(), names, ApplicationProviders()...)
 	if err != nil {
 		panic(err)
 	}
 	return app
 }
-
-// APIApp boots foundation + PresetAPI ∪ EnabledAddons + app providers.
-func APIApp() *core.Application {
-	app, err := Boot(foundation.Providers(), mergeAddonNames(PresetAPI, EnabledAddons), ApplicationProviders()...)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// WebApp boots foundation + PresetWeb ∪ EnabledAddons + app providers.
-func WebApp() *core.Application {
-	app, err := Boot(foundation.Providers(), mergeAddonNames(PresetWeb, EnabledAddons), ApplicationProviders()...)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// DemoApp boots foundation + every DemoAddons package + app providers (full exploration stack).
-func DemoApp() *core.Application {
-	app, err := Boot(foundation.Providers(), DemoAddons, ApplicationProviders()...)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// MinimalApp boots foundation + app providers with no addons.
-// This is the smallest *useful web/API app* (DB, auth, session, view, …) — not the kernel.
-func MinimalApp() *core.Application {
-	app, err := Boot(foundation.Providers(), nil, ApplicationProviders()...)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// CoreApp boots only the secure kernel (env/config/log/HTTP stack; no DB/session/auth/addons/app routes).
-func CoreApp() *core.Application {
-	app, err := Boot(foundation.KernelProviders(), nil)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// KernelApp is an alias of CoreApp (kept for older call sites).
-func KernelApp() *core.Application { return CoreApp() }
 
 // Boot assembles an application from foundation providers, addon names, and app providers.
 func Boot(foundationProviders []core.Provider, addonNames []string, appProviders ...core.Provider) (*core.Application, error) {

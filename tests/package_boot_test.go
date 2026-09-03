@@ -11,7 +11,7 @@ import (
 )
 
 func TestMinimalAppHasNoAddonsBound(t *testing.T) {
-	app := bootstrap.MinimalApp()
+	app := bootstrap.App(bootstrap.Minimal())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestMinimalAppHasNoAddonsBound(t *testing.T) {
 }
 
 func TestCoreAppHasNoSession(t *testing.T) {
-	app := bootstrap.CoreApp()
+	app := bootstrap.App(bootstrap.Kernel())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -50,9 +50,9 @@ func TestCoreAppHasNoSession(t *testing.T) {
 	}
 }
 
-func TestKernelAppAliasesCoreApp(t *testing.T) {
-	if bootstrap.KernelApp() == nil || bootstrap.CoreApp() == nil {
-		t.Fatal("aliases must return apps")
+func TestKernelOptionBoots(t *testing.T) {
+	if bootstrap.App(bootstrap.Kernel()) == nil {
+		t.Fatal("kernel option must return an app")
 	}
 }
 
@@ -82,7 +82,7 @@ func TestFullAppBindsEnabledAddons(t *testing.T) {
 }
 
 func TestDemoAppBindsDemoAddons(t *testing.T) {
-	app := bootstrap.DemoApp()
+	app := bootstrap.App(bootstrap.WithDemo())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestAPIAppAndWebAppPresets(t *testing.T) {
 		}
 	}
 
-	api := bootstrap.APIApp()
+	api := bootstrap.App(bootstrap.WithPresetAPI())
 	if err := api.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestAPIAppAndWebAppPresets(t *testing.T) {
 		t.Fatal("APIApp should not bind heavy mongo by default")
 	}
 
-	web := bootstrap.WebApp()
+	web := bootstrap.App(bootstrap.WithPresetWeb())
 	if err := web.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestAPIAppAndWebAppPresets(t *testing.T) {
 }
 
 func TestAddonConfigLoaded(t *testing.T) {
-	minimal := bootstrap.MinimalApp()
+	minimal := bootstrap.App(bootstrap.Minimal())
 	if err := minimal.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestAddonConfigLoaded(t *testing.T) {
 		t.Fatal("MinimalApp must not load addon configs the kernel no longer owns")
 	}
 
-	app := bootstrap.DemoApp()
+	app := bootstrap.App(bootstrap.WithDemo())
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

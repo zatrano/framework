@@ -118,7 +118,7 @@ func (c *PackageInitCommand) Handle(args []string) error {
 	}
 	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  1. Use bootstrap.App() (or APIApp()/WebApp()) in your entrypoint")
+	fmt.Println("  1. Use bootstrap.App() (or App(WithPresetAPI())/App(WithPresetWeb())) in your entrypoint")
 	fmt.Println("  2. Rebuild/restart the process")
 	fmt.Println("  3. zatrano package:status")
 	if errors > 0 {
@@ -135,7 +135,7 @@ func runPackageDoctor(app *core.Application) []doctorFinding {
 		out = append(out, doctorFinding{
 			Level:   "WARN",
 			Code:    "enabled.empty",
-			Message: "EnabledAddons is empty — App() has no service addons (use package:preset/init or MinimalApp)",
+			Message: "EnabledAddons is empty — App() has no service addons (use package:preset/init or App(Minimal()))",
 		})
 	} else {
 		out = append(out, doctorFinding{

@@ -12,6 +12,6 @@ package bootstrap
 //	zatrano package:install billing
 //
 // Entrypoint: bootstrap.App() reads this list.
-// Alternatives: MinimalApp(), APIApp(), WebApp(), DemoApp(), CoreApp().
+// Alternatives: bootstrap.App(bootstrap.Minimal()), App(WithPresetAPI()), App(WithPresetWeb()), App(WithDemo()), App(Kernel()).
 // Keep this list explicit for production: only enable what the project needs.
 var EnabledAddons = []string{}

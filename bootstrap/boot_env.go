@@ -37,15 +37,15 @@ func Profile(name string) (*core.Application, error) {
 	}
 	switch resolved {
 	case "api":
-		return APIApp(), nil
+		return App(WithPresetAPI()), nil
 	case "web":
-		return WebApp(), nil
+		return App(WithPresetWeb()), nil
 	case "minimal":
-		return MinimalApp(), nil
+		return App(Minimal()), nil
 	case "core":
-		return CoreApp(), nil
+		return App(Kernel()), nil
 	case "demo":
-		return DemoApp(), nil
+		return App(WithDemo()), nil
 	default:
 		return App(), nil
 	}

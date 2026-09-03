@@ -159,7 +159,7 @@ go run ./cmd/zatrano migrate
 go run ./cmd/zatrano serve
 ```
 
-`cmd/zatrano` defaults to **app** when `APP_BOOT` is unset. Set `APP_BOOT` explicitly before shipping. Scaffold commands (`make:`*) always boot with `CoreApp()` (no database).
+`cmd/zatrano` defaults to **app** when `APP_BOOT` is unset. Set `APP_BOOT` explicitly before shipping. Scaffold commands (`make:`*) always boot with `App(Kernel())` (no database).
 
 ## Databases (single & multi)
 
@@ -214,13 +214,13 @@ Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.co
 ## Boot profiles
 
 
-| API                     | `APP_BOOT`    | Boots                               |
-| ----------------------- | ------------- | ----------------------------------- |
-| `CoreApp()`             | `core`        | Kernel only                         |
-| `MinimalApp()`          | `minimal`     | Foundation + your routes, no addons |
-| `App()`                 | `app`         | Minimal + `EnabledAddons`           |
-| `APIApp()` / `WebApp()` | `api` / `web` | Lean presets                        |
-| `DemoApp()`             | `demo`        | Full demo addon set                 |
+| API                          | `APP_BOOT`    | Boots                               |
+| ---------------------------- | ------------- | ----------------------------------- |
+| `App(Kernel())`              | `core`        | Kernel only                         |
+| `App(Minimal())`             | `minimal`     | Foundation + your routes, no addons |
+| `App()`                      | `app`         | Minimal + `EnabledAddons`           |
+| `App(WithPresetAPI()/Web())` | `api` / `web` | Lean presets                        |
+| `App(WithDemo())`            | `demo`        | Full demo addon set                 |
 
 
 ```go
@@ -232,7 +232,7 @@ import (
 func main() {
     app := bootstrap.FromEnv()       // reads APP_BOOT (default "app")
     // app := bootstrap.FromEnv("demo")  // CLI default when unset
-    // app := bootstrap.APIApp()
+    // app := bootstrap.App(bootstrap.WithPresetAPI())
 
     _ = auth.From(app)               // resolve services — not app.Auth()
     app.Run()

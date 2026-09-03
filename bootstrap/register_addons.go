@@ -2,7 +2,7 @@ package bootstrap
 
 // Side-effect imports so addon packages register themselves with bootstrap/addons.
 // Consumer apps should blank-import only the addons they enable; this repo imports
-// the full service set so package:enable / DemoApp / tests keep working.
+// the full service set so package:enable / App(WithDemo()) / tests keep working.
 import (
 	_ "github.com/zatrano/framework/packages/ai"
 	_ "github.com/zatrano/framework/packages/audit"

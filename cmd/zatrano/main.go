@@ -23,11 +23,11 @@ func main() {
 	}
 }
 
-// bootForCLI uses CoreApp for make:* (scaffold needs BasePath only — no DB/session).
+// bootForCLI uses App(Kernel()) for make:* (scaffold needs BasePath only — no DB/session).
 // Other commands follow APP_BOOT via FromEnv("app").
 func bootForCLI(args []string) *core.Application {
 	if cliUsesCoreBoot(args) {
-		return bootstrap.CoreApp()
+		return bootstrap.App(bootstrap.Kernel())
 	}
 	return bootstrap.FromEnv("app")
 }
