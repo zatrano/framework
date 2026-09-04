@@ -419,20 +419,6 @@ Pointer and arbitrary struct values are not cloned. Copy semantics cover the con
 
 After bootstrap, the configuration repository is frozen.
 
-## Databases
-
-No database driver is part of the kernel. Database capabilities are provided through the packages ecosystem:
-
-```bash
-go run ./cmd/app db:setup
-```
-
-Drivers are opt-in. A kernel-only application does not automatically carry database dependencies.
-
-## AI
-
-AI is part of the optional application capability layer, not the kernel. The package ecosystem provides AI, RAG, and agent packages so that functionality can evolve independently from the runtime.
-
 ## CLI
 
 This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app`.
