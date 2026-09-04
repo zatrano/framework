@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/contracts"
@@ -70,23 +69,6 @@ func Boot(providers []kernel.Provider, _ ...any) (*kernel.Application, error) {
 	application := kernel.NewApplication(basePath)
 	application.RegisterProviders(providers...)
 	return application, nil
-}
-
-// mergeAddonNames concatenates preset + EnabledAddons with first-seen order, skipping blanks/dupes.
-func mergeAddonNames(lists ...[]string) []string {
-	seen := make(map[string]bool)
-	out := make([]string, 0)
-	for _, list := range lists {
-		for _, name := range list {
-			name = strings.TrimSpace(name)
-			if name == "" || seen[name] {
-				continue
-			}
-			seen[name] = true
-			out = append(out, name)
-		}
-	}
-	return out
 }
 
 // ApplicationProviders is empty in the framework repo; consumer apps pass WithProviders.

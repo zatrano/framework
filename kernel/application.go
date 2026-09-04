@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel/config"
 	"github.com/zatrano/framework/kernel/container"
 	appcontext "github.com/zatrano/framework/kernel/context"
-	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel/encryption"
 	"github.com/zatrano/framework/kernel/env"
 	"github.com/zatrano/framework/kernel/exceptions"

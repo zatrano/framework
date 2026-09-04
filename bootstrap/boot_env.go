@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zatrano/framework/kernel/env"
 	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/kernel/env"
 )
 
 // BootProfiles lists valid APP_BOOT values.

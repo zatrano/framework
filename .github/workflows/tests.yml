@@ -62,9 +62,6 @@ jobs:
       matrix:
         go: ['1.25.13']
     name: Go ${{ matrix.go }} - Windows
-    defaults:
-      run:
-        working-directory: framework
     steps:
       - name: Set git to use LF
         run: |
@@ -91,9 +88,11 @@ jobs:
           cache-dependency-path: framework/go.sum
 
       - name: Download modules
+        working-directory: framework
         run: go mod download
 
       - name: Execute tests
+        working-directory: framework
         run: go test ./...
 
   starter_smoke:

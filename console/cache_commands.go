@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/kernel/config"
 	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/kernel/config"
 	"github.com/zatrano/framework/kernel/routing"
 )
 
