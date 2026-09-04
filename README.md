@@ -102,7 +102,7 @@ if err := app.Run(":8080"); err != nil {
 | **Library addon** | Normal `import` — never enable | `collection`, `totp`, `resources` |
 | **Heavy** | Own module, only when needed | `webauthn`, `mongo`, `qr` |
 
-There is no `mail` package. Send mail through `notification` with `Channels: ["mail"]`. Catalog: **[PACKAGES.md](PACKAGES.md)**.
+What each package is for: **[PACKAGES.md](PACKAGES.md)**.
 
 ## Contracts vs kernel
 
