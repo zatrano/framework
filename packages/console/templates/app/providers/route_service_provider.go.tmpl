@@ -5,21 +5,20 @@ import (
 	_ "__MODULE__/app/routes/api"
 	_ "__MODULE__/app/routes/web"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/routing"
 )
 
 // RouteServiceProvider registers application routes.
 type RouteServiceProvider struct{}
 
-func (p *RouteServiceProvider) Register(app *kernel.Application) error {
+func (p *RouteServiceProvider) Register(app contracts.App) error {
 	return nil
 }
 
-func (p *RouteServiceProvider) Boot(app *kernel.Application) error {
+func (p *RouteServiceProvider) Boot(app contracts.App) error {
 	approutes.Use(app)
-	router, _ := app.Router().(*routing.Router)
-	routing.ApplyWeb(router)
-	routing.ApplyAPI(router)
+	routing.ApplyWeb(routing.From(app))
+	routing.ApplyAPI(routing.From(app))
 	return nil
 }

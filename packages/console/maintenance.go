@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/packages/maintenance"
 )
 
 func registerMaintenanceCommands(console *Application, app *kernel.Application) {
@@ -26,7 +26,7 @@ func (c *DownCommand) Handle(args []string) error {
 	if err := c.app.Bootstrap(); err != nil {
 		return err
 	}
-	payload := maintenance.Payload{
+	payload := contracts.MaintenancePayload{
 		Message:    "Application is in maintenance mode.",
 		RetryAfter: 60,
 	}

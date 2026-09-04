@@ -1,15 +1,15 @@
 package routes
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
-var application *kernel.Application
+var application contracts.App
 
 // Use binds the application for self-registered route functions.
-func Use(app *kernel.Application) {
+func Use(app contracts.App) {
 	application = app
 }
 
 // Current returns the bound application.
-func Current() *kernel.Application {
+func Current() contracts.App {
 	return application
 }

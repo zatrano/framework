@@ -1,8 +1,8 @@
 package web
 
 import (
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/orm"
@@ -13,7 +13,7 @@ const pathDashboardRoles = "/dashboard/roles"
 
 // DashboardRolesController manages roles.
 type DashboardRolesController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *DashboardRolesController) Index(req *http.Request) *http.Response {

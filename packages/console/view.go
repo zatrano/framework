@@ -57,9 +57,9 @@ func (c *MakeViewCommand) Handle(args []string) error {
 		}
 	}
 	rel := strings.Join(parts, string(os.PathSeparator))
-	dir := c.app.BasePath("views", filepath.Dir(rel))
+	dir := joinRoot(viewsRoot(c.app), filepath.Dir(rel))
 	if filepath.Dir(rel) == "." {
-		dir = c.app.BasePath("views")
+		dir = viewsRoot(c.app)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err

@@ -1,9 +1,9 @@
-package config
+package ai
 
 import "github.com/zatrano/framework/packages/env"
 
-// AI returns AI manager configuration (named providers + profiles + flat legacy keys).
-func AI() map[string]any {
+// DefaultConfig returns AI manager configuration defaults.
+func DefaultConfig() map[string]any {
 	return map[string]any{
 		"default":             env.Get("AI_DEFAULT", env.Get("AI_DRIVER", "")),
 		"driver":              env.Get("AI_DRIVER", ""),

@@ -1,8 +1,8 @@
 package web
 
 import (
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
@@ -10,7 +10,7 @@ import (
 
 // DashboardAnalyticsController serves live analytics pages and JSON.
 type DashboardAnalyticsController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *DashboardAnalyticsController) Index(req *http.Request) *http.Response {

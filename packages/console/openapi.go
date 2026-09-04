@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/packages/routing"
 )
 
 func registerOpenAPICommands(console *Application, app *kernel.Application) {
@@ -42,7 +43,11 @@ func (c *OpenAPIGenerateCommand) Handle(args []string) error {
 		out = strings.TrimSuffix(out, filepath.Ext(out)) + ".yaml"
 	}
 
-	spec := Generate(c.app.Router().Routes(), Options{
+	r := routing.From(c.app)
+	if r == nil {
+		return fmt.Errorf("router unavailable")
+	}
+	spec := Generate(r.Routes(), Options{
 		Title:       c.app.Config().GetString("app.name", "ZATRANO") + " API",
 		Description: "Auto-generated from route definitions",
 		Version:     "1.0.0",

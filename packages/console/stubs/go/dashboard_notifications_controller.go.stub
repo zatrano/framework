@@ -1,12 +1,12 @@
 package web
 
 import (
+	"github.com/zatrano/framework/contracts"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
@@ -18,7 +18,7 @@ const pathDashboardNotifications = "/dashboard/notifications"
 
 // DashboardNotificationsController manages inbox and outbound notifications.
 type DashboardNotificationsController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *DashboardNotificationsController) Index(req *http.Request) *http.Response {

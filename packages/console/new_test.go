@@ -52,6 +52,18 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if !strings.Contains(text, "example.com/demo/app/providers") {
 		t.Fatalf("expected module import in main.go:\n%s", text)
 	}
+	if _, err := os.Stat(filepath.Join(dest, "app", "views", "welcome.html")); err != nil {
+		t.Fatalf("expected app/views/welcome.html: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "app", "database", "migrations", "migrations.go")); err != nil {
+		t.Fatalf("expected app/database/migrations: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "app", "localization", "en")); err != nil {
+		t.Fatalf("expected app/localization: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "bootstrap", "addons.go")); err != nil {
+		t.Fatalf("expected bootstrap/addons.go: %v", err)
+	}
 	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
@@ -85,6 +97,15 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	out, err := build.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
+	}
+}
+
+func TestFrameworkGoModVersion(t *testing.T) {
+	if got := frameworkGoModVersion("2.0.0-dev"); got != "v0.0.0" {
+		t.Fatalf("got %q", got)
+	}
+	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
+		t.Fatalf("got %q", got)
 	}
 }
 

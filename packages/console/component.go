@@ -29,7 +29,7 @@ func (c *MakeComponentCommand) Handle(args []string) error {
 	if slug == "" {
 		slug = strings.ToLower(name)
 	}
-	dir := c.app.BasePath("views", "components")
+	dir := joinRoot(viewsRoot(c.app), "components")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

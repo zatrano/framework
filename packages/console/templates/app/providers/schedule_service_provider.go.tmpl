@@ -1,14 +1,14 @@
 package providers
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
 // ScheduleServiceProvider registers scheduled tasks.
 type ScheduleServiceProvider struct{}
 
-func (p *ScheduleServiceProvider) Register(app *kernel.Application) error {
+func (p *ScheduleServiceProvider) Register(app contracts.App) error {
 	return nil
 }
 
-func (p *ScheduleServiceProvider) Boot(app *kernel.Application) error {
+func (p *ScheduleServiceProvider) Boot(app contracts.App) error {
 	return nil
 }

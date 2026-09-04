@@ -34,10 +34,7 @@ import (
 )
 
 // Provider boots services into the application.
-type Provider interface {
-	Register(app *Application) error
-	Boot(app *Application) error
-}
+type Provider = contracts.Provider
 
 // Application is the ZATRANO application kernel.
 // Foundation and addon services live in the container (see accessors / package From helpers).
@@ -61,7 +58,7 @@ type Application struct {
 	httpBridge  HTTPBridge
 	migrations  any
 	seeders     any
-	providers   []Provider
+	providers   []contracts.Provider
 	booted      bool
 	environment string
 }
@@ -77,7 +74,7 @@ func NewApplication(basePath string) *Application {
 		container: container.New(),
 		config:    config.New(),
 		router:    routing.New(),
-		providers: make([]Provider, 0),
+		providers: make([]contracts.Provider, 0),
 	}
 
 	app.container.Instance("app", app)
@@ -129,7 +126,7 @@ func (app *Application) Router() contracts.Router {
 	if app == nil || app.router == nil {
 		return nil
 	}
-	return app.router
+	return &routerFacade{inner: app.router}
 }
 
 // Logger returns the application logger.

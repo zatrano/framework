@@ -4,17 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"time"
-
-	"github.com/zatrano/framework/packages/maintenance"
-	"github.com/zatrano/framework/packages/ratelimit"
-	"github.com/zatrano/framework/packages/report"
-	"github.com/zatrano/framework/packages/routing"
 )
 
+// RateLimit is a named limiter policy (key functions stay on the concrete type).
+type RateLimit struct {
+	MaxAttempts int
+	Decay       time.Duration
+}
+
 // RateLimiter is returned by Application.RateLimiter().
-// No external call sites exist; For is the method invoked on the same instance during kernel boot.
 type RateLimiter interface {
-	For(name string, limit ratelimit.Limit)
+	For(name string, limit RateLimit)
 }
 
 // ContextStore is the request/app context surface used via Application.Context().
@@ -49,22 +49,40 @@ type Metrics interface {
 type Health interface {
 	Custom(name string, check func(ctx context.Context) error)
 	Database(db *sql.DB)
-	Handler() routing.HandlerFunc
+	Handler() any
+}
+
+// MaintenancePayload describes an active maintenance window.
+type MaintenancePayload struct {
+	Message    string
+	RetryAfter int
+	AllowedIPs []string
+	Secret     string
+	Time       string
 }
 
 // Maintenance is the maintenance-mode surface used via Application.Maintenance().
 type Maintenance interface {
-	Enable(payload maintenance.Payload) error
+	Enable(payload MaintenancePayload) error
 	Disable() error
 }
 
 // Exceptions is the exception-handler surface used via Application.Exceptions().
 type Exceptions interface {
-	Middleware() routing.MiddlewareFunc
+	Middleware() any
+}
+
+// ReportEvent is a captured exception report.
+type ReportEvent struct {
+	ID        int64
+	Message   string
+	Level     string
+	Path      string
+	Method    string
+	CreatedAt time.Time
 }
 
 // Reports is returned by Application.Reports().
-// No external call sites exist; Recent is the public read method on the boot-wired instance.
 type Reports interface {
-	Recent(limit int) []report.Event
+	Recent(limit int) []ReportEvent
 }

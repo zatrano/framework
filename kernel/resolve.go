@@ -1,27 +1,13 @@
 package kernel
 
-import "github.com/zatrano/framework/packages/routing"
+import (
+	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/packages/routing"
+)
 
 // Resolve loads a typed service from the container.
-// Missing bindings return the zero value (typically nil for pointers).
-func Resolve[T any](app *Application, key string) T {
-	return serviceOf[T](app, key)
-}
-
-func serviceOf[T any](app *Application, key string) T {
-	var zero T
-	if app == nil || app.container == nil {
-		return zero
-	}
-	raw, err := app.container.Make(key)
-	if err != nil {
-		return zero
-	}
-	v, ok := raw.(T)
-	if !ok {
-		return zero
-	}
-	return v
+func Resolve[T any](app contracts.App, key string) T {
+	return contracts.Resolve[T](app, key)
 }
 
 type middlewareProvider interface {

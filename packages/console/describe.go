@@ -172,7 +172,7 @@ func BuildDescribeDocument(scanRoot string) (*DescribeDocument, error) {
 	if err != nil {
 		return nil, err
 	}
-	provider, err := parseNamedInterface(filepath.Join(root, "kernel"), "Provider")
+	provider, err := parseNamedInterface(filepath.Join(root, "contracts"), "Provider")
 	if err != nil {
 		return nil, err
 	}

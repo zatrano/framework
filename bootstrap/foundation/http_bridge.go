@@ -71,7 +71,7 @@ func (b *httpBridge) Finalize(w stdhttp.ResponseWriter, req *http.Request, resp 
 				}
 			}
 			data["locale"] = locale
-			langPath := app.BasePath("lang")
+			langPath := kernel.LocalizationDir(app)
 			data["langPublished"] = localization.Published(langPath)
 			data["locales"] = localization.Options(langPath, locale)
 		}
@@ -143,7 +143,7 @@ func (b *httpBridge) localeMiddleware() routing.MiddlewareFunc {
 		return func(req *http.Request) *http.Response {
 			tr := localization.From(b.app)
 			if tr != nil {
-				langPath := b.app.BasePath("lang")
+				langPath := kernel.LocalizationDir(b.app)
 				locale := ""
 				if sess := req.Session(); sess != nil {
 					if raw, ok := sess.Get("locale").(string); ok {

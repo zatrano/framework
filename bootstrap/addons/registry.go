@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 )
 
 // Meta describes a first-party addon package for discovery and CLI.
@@ -15,9 +15,9 @@ type Meta struct {
 	Key         string // container binding key
 	Description string
 	Heavy       bool
-	Factory     func() kernel.Provider
+	Factory     func() contracts.Provider
 	// CLI, if set, is invoked from console.New when this addon is imported.
-	CLI func(app *kernel.Application) []CLICommand
+	CLI func(app contracts.App) []CLICommand
 }
 
 // CLICommand is an addon-provided console command.
@@ -89,12 +89,12 @@ func Names() []string {
 }
 
 // Select builds providers for the given addon names (unknown names error).
-func Select(names ...string) ([]kernel.Provider, error) {
+func Select(names ...string) ([]contracts.Provider, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
 	seen := map[string]bool{}
-	out := make([]kernel.Provider, 0, len(names))
+	out := make([]contracts.Provider, 0, len(names))
 	for _, name := range names {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name == "" || seen[name] {
@@ -111,9 +111,9 @@ func Select(names ...string) ([]kernel.Provider, error) {
 }
 
 // DefaultPackageProviders returns every registered addon provider (demo/full stack).
-func DefaultPackageProviders() []kernel.Provider {
+func DefaultPackageProviders() []contracts.Provider {
 	avail := Available()
-	out := make([]kernel.Provider, 0, len(avail))
+	out := make([]contracts.Provider, 0, len(avail))
 	for _, m := range avail {
 		out = append(out, m.Factory())
 	}

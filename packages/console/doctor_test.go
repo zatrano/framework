@@ -88,7 +88,7 @@ func TestDoctorParseContractConcretes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := parseContractConcretes(filepath.Join(fw, "contracts", "assert.go"))
+	got, err := collectContractConcretes(fw)
 	if err != nil {
 		t.Fatal(err)
 	}

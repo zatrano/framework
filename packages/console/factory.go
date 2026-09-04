@@ -26,6 +26,7 @@ func (c *MakeResourceCommand) Handle(args []string) error {
 		return fmt.Errorf("resource name required")
 	}
 	name := args[0]
+	mod := consumerModule(c.app)
 	dir := c.app.BasePath("app", "http", "resources")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -33,7 +34,7 @@ func (c *MakeResourceCommand) Handle(args []string) error {
 	path := filepath.Join(dir, toSnake(name)+"_resource.go")
 	content := fmt.Sprintf(`package resources
 
-import "github.com/zatrano/framework/app/models"
+import "%s/app/models"
 
 // %s transforms a models.%s into an API resource array.
 // Use with github.com/zatrano/packages/resources:
@@ -44,7 +45,7 @@ func %s(model models.%s) map[string]any {
 		"id": model.ID,
 	}
 }
-`, name, name, name, name, name)
+`, mod, name, name, name, name, name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}
@@ -63,7 +64,8 @@ func (c *MakeFactoryCommand) Handle(args []string) error {
 		return fmt.Errorf("factory model name required")
 	}
 	name := args[0]
-	dir := c.app.BasePath("database", "factories")
+	mod := consumerModule(c.app)
+	dir := joinRoot(databaseRoot(c.app), "factories")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -71,7 +73,7 @@ func (c *MakeFactoryCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package factories
 
 import (
-	"github.com/zatrano/framework/app/models"
+	"%s/app/models"
 	"github.com/zatrano/packages/factory"
 )
 
@@ -82,11 +84,11 @@ func init() {
 		}
 	})
 }
-`, name)
+`, mod, name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}
 	fmt.Printf("Factory created: %s\n", path)
-	fmt.Println("Import _ \"your/module/database/factories\" from your seeder/tests to register it.")
+	fmt.Printf("Import _ %q from your seeder/tests to register it.\n", mod+"/app/database/factories")
 	return nil
 }

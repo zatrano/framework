@@ -46,14 +46,14 @@ func TestMakeModelTranslationJSON(t *testing.T) {
 	if !strings.Contains(ms, `Translations map[string]string`) || !strings.Contains(ms, `"translations": "json"`) {
 		t.Fatalf("bad model:\n%s", ms)
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "database", "migrations"))
+	entries, err := os.ReadDir(filepath.Join(dir, "app", "database", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var mig []byte
 	for _, e := range entries {
 		if strings.Contains(e.Name(), "create_categories_table") {
-			mig, err = os.ReadFile(filepath.Join(dir, "database", "migrations", e.Name()))
+			mig, err = os.ReadFile(filepath.Join(dir, "app", "database", "migrations", e.Name()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -79,14 +79,14 @@ func TestMakeModelMigrationColumns(t *testing.T) {
 	if err := cmd.Handle([]string{"Tag", "-t", "-m"}); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "database", "migrations"))
+	entries, err := os.ReadDir(filepath.Join(dir, "app", "database", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var mig string
 	for _, e := range entries {
 		if strings.Contains(e.Name(), "create_tags_table") {
-			b, err := os.ReadFile(filepath.Join(dir, "database", "migrations", e.Name()))
+			b, err := os.ReadFile(filepath.Join(dir, "app", "database", "migrations", e.Name()))
 			if err != nil {
 				t.Fatal(err)
 			}

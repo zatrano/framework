@@ -1,21 +1,24 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/assets"
 	"github.com/zatrano/framework/packages/middleware/csrf"
+	"github.com/zatrano/framework/packages/routing"
 	"github.com/zatrano/framework/packages/view"
 )
 
 // AppServiceProvider registers application-level services.
 type AppServiceProvider struct{}
 
-func (p *AppServiceProvider) Register(app *kernel.Application) error {
+func (p *AppServiceProvider) Register(app contracts.App) error {
 	return nil
 }
 
-func (p *AppServiceProvider) Boot(app *kernel.Application) error {
-	app.Router().Use(csrf.Except("/api"))
+func (p *AppServiceProvider) Boot(app contracts.App) error {
+	if r := routing.From(app); r != nil {
+		r.Use(csrf.Except("/api"))
+	}
 
 	if v := view.From(app); v != nil {
 		v.Share("appUrl", app.Config().GetString("app.url"))

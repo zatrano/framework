@@ -35,17 +35,17 @@ func (c *MakeProviderCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package providers
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
 // %s registers application services.
 type %s struct{}
 
-func (p *%s) Register(app *kernel.Application) {
-	// Bind services into the container.
+func (p *%s) Register(app contracts.App) error {
+	return nil
 }
 
-func (p *%s) Boot(app *kernel.Application) {
-	// Boot services after all providers are registered.
+func (p *%s) Boot(app contracts.App) error {
+	return nil
 }
 `, name, name, name, name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {

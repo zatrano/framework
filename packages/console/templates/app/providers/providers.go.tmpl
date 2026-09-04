@@ -1,10 +1,10 @@
 package providers
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
 // All returns application-layer providers registered with bootstrap.WithProviders.
-func All() []kernel.Provider {
-	return []kernel.Provider{
+func All() []contracts.Provider {
+	return []contracts.Provider{
 		&AppServiceProvider{},
 		&RouteServiceProvider{},
 		&DatabaseServiceProvider{},

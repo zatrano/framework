@@ -8,6 +8,6 @@ go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
 
-Add optional packages from `github.com/zatrano/packages` with a blank import in `cmd/app/main.go` (or a dedicated `app/addons.go`), then enable them with `go run ./cmd/app package:enable <name>`.
+Add optional packages from `github.com/zatrano/packages` with `go run ./cmd/app package:enable <name>` (writes a blank-import in `bootstrap/addons.go` and runs `go get`). Views live in `app/views`, locales in `app/localization`, and migrations in `app/database`.
 
 A database is optional. Link one with `go run ./cmd/app db:setup --drivers=sqlite` (or `mysql`, `pgsql`, …).

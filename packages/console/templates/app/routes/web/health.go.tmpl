@@ -20,6 +20,8 @@ func registerHealth(router *routing.Router) {
 	router.Get("/up", func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"status": "ok"})
 	}).As("up")
-	router.Get("/health", app.Health().Handler()).As("health")
-	router.Get("/api/health", app.Health().Handler()).As("api.health")
+	if h, ok := app.Health().Handler().(routing.HandlerFunc); ok {
+		router.Get("/health", h).As("health")
+		router.Get("/api/health", h).As("api.health")
+	}
 }

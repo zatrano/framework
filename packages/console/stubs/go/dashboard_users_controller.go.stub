@@ -1,11 +1,11 @@
 package web
 
 import (
+	"github.com/zatrano/framework/contracts"
 	"strings"
 
-	"github.com/zatrano/framework/app/http/middleware"
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"__MODULE__/app/http/middleware"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/hashing"
@@ -18,7 +18,7 @@ const pathDashboardUsers = "/dashboard/users"
 
 // DashboardUsersController manages users in the dashboard.
 type DashboardUsersController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *DashboardUsersController) Index(req *http.Request) *http.Response {

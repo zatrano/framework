@@ -4,7 +4,7 @@ import "testing"
 
 func TestServiceOfMissingReturnsNil(t *testing.T) {
 	app := NewApplication(".")
-	if got := serviceOf[*struct{}](app, "missing"); got != nil {
+	if got := Resolve[*struct{}](app, "missing"); got != nil {
 		t.Fatalf("expected nil, got %#v", got)
 	}
 }

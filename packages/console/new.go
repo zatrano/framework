@@ -39,10 +39,7 @@ func (c *NewCommand) Handle(args []string) error {
 	if _, err := os.Stat(dest); err == nil {
 		return fmt.Errorf("directory already exists: %s", dest)
 	}
-	fwVer := strings.TrimSpace(version.Get())
-	if fwVer != "" && fwVer[0] != 'v' {
-		fwVer = "v" + fwVer
-	}
+	fwVer := frameworkGoModVersion(version.Get())
 	replaceLine := ""
 	if replace != "" {
 		replaceLine = "\nreplace github.com/zatrano/framework => " + replace + "\n"
@@ -164,6 +161,20 @@ func sanitizeModule(name string) string {
 		return "myapp"
 	}
 	return out
+}
+
+// frameworkGoModVersion maps the product VERSION onto a go.mod require that is
+// valid for module path github.com/zatrano/framework (major v0/v1 until /v2).
+func frameworkGoModVersion(product string) string {
+	v := strings.TrimSpace(product)
+	v = strings.TrimPrefix(v, "v")
+	if v == "" {
+		return "v0.0.0"
+	}
+	if strings.HasPrefix(v, "2.") || strings.HasPrefix(v, "2-") || v == "2" {
+		return "v0.0.0"
+	}
+	return "v" + v
 }
 
 func renameTemplatePath(rel string) string {

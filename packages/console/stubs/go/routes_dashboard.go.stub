@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/zatrano/framework/app/http/controllers/web"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/http/controllers/web"
 	"github.com/zatrano/framework/packages/api"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/authorization"
@@ -12,8 +12,8 @@ import (
 
 // RegisterDashboardWeb registers the management dashboard under /dashboard.
 // Requires make:auth (User + auth middleware) and DashboardServiceProvider gates.
-func RegisterDashboardWeb(app *core.Application) {
-	router := app.Router()
+func RegisterDashboardWeb(app contracts.App) {
+	router := routing.From(app)
 	dash := &web.DashboardController{App: app}
 	// @module users
 	users := &web.DashboardUsersController{App: app}
@@ -95,7 +95,7 @@ func RegisterDashboardWeb(app *core.Application) {
 
 // @module api
 // RegisterDashboardAPI registers versioned JSON routes under /api/v1.
-func RegisterDashboardAPI(app *core.Application) {
+func RegisterDashboardAPI(app contracts.App) {
 	apiCtrl := &web.DashboardAPIController{App: app}
 	// @module analytics
 	analytics := &web.DashboardAnalyticsController{App: app}
@@ -108,7 +108,7 @@ func RegisterDashboardAPI(app *core.Application) {
 		authorization.Middleware(gate, current, "dashboard.access"),
 	}
 
-	api.Version(app.Router(), "v1", func(r *routing.Router) {
+	api.Version(routing.From(app), "v1", func(r *routing.Router) {
 		// @module users
 		r.Get("/users", apiCtrl.UsersIndex).As("api.v1.users")
 		r.Get("/users/{id}", apiCtrl.UsersShow).As("api.v1.users.show")

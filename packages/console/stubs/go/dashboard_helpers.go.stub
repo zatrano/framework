@@ -1,24 +1,24 @@
 package web
 
 import (
+	"github.com/zatrano/framework/contracts"
 	"fmt"
 	"strconv"
 
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/localization"
 )
 
-func dashboardLang(app *core.Application, key string, replace ...map[string]string) string {
+func dashboardLang(app contracts.App, key string, replace ...map[string]string) string {
 	if tr := localization.From(app); tr != nil {
 		return tr.Get(key, replace...)
 	}
 	return key
 }
 
-func dashboardCurrentUser(req *http.Request, app *core.Application) *models.User {
+func dashboardCurrentUser(req *http.Request, app contracts.App) *models.User {
 	raw := auth.From(app).User(req)
 	if raw == nil {
 		return nil

@@ -154,7 +154,7 @@ func (c *MakeDashboardCommand) Handle(args []string) error {
 			}
 		}
 		src := filepath.Join(stubRoot, filepath.FromSlash(pair.stub))
-		dst := c.app.BasePath(pair.dest...)
+		dst := scaffoldDest(c.app, pair.dest)
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
@@ -179,11 +179,16 @@ func (c *MakeDashboardCommand) Handle(args []string) error {
 			return fmt.Errorf("%s: %w", pair.stub, err)
 		}
 		text := filterDashboardModules(string(body), mods)
+		if strings.HasSuffix(dst, ".go") {
+			text = applyConsumerPlaceholders(c.app, text)
+		}
+		mod := consumerModule(c.app)
 		if strings.HasSuffix(dst, ".go") && !mods["api"] {
 			text = stripUnusedImport(text, "github.com/zatrano/framework/packages/api")
 		}
 		if strings.HasSuffix(dst, ".go") && !mods["impersonate"] {
 			text = stripUnusedImport(text, "github.com/zatrano/framework/app/http/middleware")
+			text = stripUnusedImport(text, mod+"/app/http/middleware")
 		}
 		base := filepath.Base(dst)
 		if (base == "dashboard_controller.go" || base == "dashboard_analytics_controller.go") && !mods["notifications"] {
@@ -193,6 +198,7 @@ func (c *MakeDashboardCommand) Handle(args []string) error {
 			text = stripUnusedImport(text, "github.com/zatrano/framework/packages/orm")
 			if !mods["notifications"] {
 				text = stripUnusedImport(text, "github.com/zatrano/framework/app/models")
+				text = stripUnusedImport(text, mod+"/app/models")
 			}
 		}
 		if base == "dashboard_analytics_controller.go" && !mods["roles"] && !mods["settings"] && !mods["users"] {
@@ -228,8 +234,8 @@ func (c *MakeDashboardCommand) Handle(args []string) error {
 		fmt.Println("Next steps:")
 		fmt.Println("  1. Ensure make:auth has been run (User model + auth routes).")
 		fmt.Println("  2. Register DashboardServiceProvider in bootstrap/providers.")
-		fmt.Println("  3. In database/migrations/migrations.go register CreateDashboard* migrations.")
-		fmt.Println("  4. In routes/web.go call: RegisterDashboardWeb(app)")
+		fmt.Println("  3. In app/database/migrations/migrations.go register CreateDashboard* migrations.")
+		fmt.Println("  4. In app/routes/web call: RegisterDashboardWeb(app)")
 		if mods["api"] {
 			fmt.Println("  5. In routes/api.go call: RegisterDashboardAPI(app)")
 			fmt.Println("  6. Run: go run ./cmd/zatrano migrate")

@@ -1,11 +1,11 @@
 package web
 
 import (
+	"github.com/zatrano/framework/contracts"
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/orm"
@@ -15,7 +15,7 @@ const pathDashboardRBAC = "/dashboard/rbac"
 
 // DashboardRBACController serves the role Ã— permission matrix.
 type DashboardRBACController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *DashboardRBACController) Matrix(req *http.Request) *http.Response {

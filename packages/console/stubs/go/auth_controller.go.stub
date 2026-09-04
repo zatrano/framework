@@ -1,10 +1,10 @@
 package web
 
 import (
+	"github.com/zatrano/framework/contracts"
 	"errors"
 	"fmt"
 
-	"github.com/zatrano/framework/core"
 	"github.com/zatrano/framework/packages/auth"
 	"github.com/zatrano/framework/packages/flash"
 	"github.com/zatrano/framework/packages/http"
@@ -14,7 +14,7 @@ import (
 
 // AuthController handles all authentication screens and actions.
 type AuthController struct {
-	App *core.Application
+	App contracts.App
 }
 
 func (c *AuthController) lang(key string, replace ...map[string]string) string {

@@ -37,6 +37,7 @@ func (c *MakeScopeCommand) Handle(args []string) error {
 	structName := toExported(name)
 	scopeKey := strings.ToLower(toSnake(structName))
 	scopeKey = strings.TrimSuffix(scopeKey, "_scope")
+	mod := consumerModule(c.app)
 	dir := c.app.BasePath("app", "scopes")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -49,7 +50,7 @@ func (c *MakeScopeCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package scopes
 
 import (
-	"github.com/zatrano/framework/app/models"
+	"%s/app/models"
 	"github.com/zatrano/framework/packages/orm"
 )
 
@@ -63,7 +64,7 @@ func Scope%s(q *orm.Querier[models.%s]) *orm.Querier[models.%s] {
 	// TODO: apply filters for "%s".
 	return q
 }
-`, structName, scopeKey, model, structName, registerCall, structName, model, structName, model, model, scopeKey)
+`, mod, structName, scopeKey, model, structName, registerCall, structName, model, structName, model, model, scopeKey)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}

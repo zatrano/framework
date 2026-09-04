@@ -111,6 +111,11 @@ func (c *PackageEnableCommand) Handle(args []string) error {
 		return nil
 	}
 	fmt.Printf("Enabled package %s in bootstrap/enabled.go\n", name)
+	if err := wireEnabledAddon(c.app, name); err != nil {
+		fmt.Printf("Note: %v\n", err)
+	} else {
+		fmt.Println("Wrote blank-import in bootstrap/addons.go (and go get github.com/zatrano/packages when needed).")
+	}
 	fmt.Println("Restart the app (or rebuild) to load the provider.")
 	return nil
 }
@@ -134,6 +139,9 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 		return fmt.Errorf("package %q is not enabled", name)
 	}
 	fmt.Printf("Disabled package %s in bootstrap/enabled.go\n", name)
+	if err := removeAddonBlankImport(c.app.BasePath(), addonImportPath(name)); err != nil {
+		fmt.Printf("Note: %v\n", err)
+	}
 	return nil
 }
 
@@ -172,6 +180,9 @@ func (c *PackageInstallCommand) Handle(args []string) error {
 		fmt.Printf("Enabled package %s\n", name)
 	} else {
 		fmt.Printf("Package %s already enabled\n", name)
+	}
+	if err := wireEnabledAddon(c.app, name); err != nil {
+		fmt.Printf("Note: %v\n", err)
 	}
 	if err := publishPackage(c.app, name, force); err != nil {
 		return err
@@ -221,6 +232,9 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 	path := c.app.BasePath("bootstrap", "enabled.go")
 	if err := writeEnabledAddons(path, final); err != nil {
 		return err
+	}
+	if err := wireEnabledAddons(c.app, final); err != nil {
+		fmt.Printf("Note: %v\n", err)
 	}
 	if merge {
 		fmt.Printf("Merged preset %q into %s (%d packages)\n", name, path, len(final))

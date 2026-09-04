@@ -1,8 +1,8 @@
 package web
 
 import (
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/http"
 	"github.com/zatrano/framework/packages/notification"
 	"github.com/zatrano/framework/packages/orm"
@@ -10,7 +10,7 @@ import (
 
 // DashboardAPIController exposes versioned JSON endpoints under /api/v1.
 type DashboardAPIController struct {
-	App *core.Application
+	App contracts.App
 }
 
 // @module users

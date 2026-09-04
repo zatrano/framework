@@ -27,6 +27,7 @@ func (c *MakeCommandCommand) Handle(args []string) error {
 	raw := args[0]
 	structName := strings.TrimSuffix(raw, "Command") + "Command"
 	signature := toCommandSignature(raw)
+	mod := consumerModule(c.app)
 	dir := c.app.BasePath("app", "console", "commands")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -69,7 +70,7 @@ func (c *%s) Handle(args []string) error {
 		kernelContent := fmt.Sprintf(`package console
 
 import (
-	"github.com/zatrano/framework/app/console/commands"
+	"%s/app/console/commands"
 	"github.com/zatrano/framework/kernel"
 	coreconsole "github.com/zatrano/framework/packages/console"
 )
@@ -80,7 +81,7 @@ func Register(cli *coreconsole.Application, app *kernel.Application) {
 		&commands.%s{App: app},
 	)
 }
-`, structName)
+`, mod, structName)
 		if err := os.WriteFile(kernel, []byte(kernelContent), 0o644); err != nil {
 			return err
 		}

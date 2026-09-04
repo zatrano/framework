@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/zatrano/framework/bootstrap/addons"
-	appconfig "github.com/zatrano/framework/config"
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 	pkgconfig "github.com/zatrano/framework/packages/config"
 	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/packages/routing"
 )
 
 func init() {
@@ -15,15 +15,15 @@ func init() {
 		Name:        "ai",
 		Key:         "ai",
 		Description: "AI chat providers",
-		Factory:     func() kernel.Provider { return &ServiceProvider{} },
+		Factory:     func() contracts.Provider { return &ServiceProvider{} },
 	})
 }
 
 // ServiceProvider boots the AI addon (registration only; driver logic is unchanged).
 type ServiceProvider struct{}
 
-func (p *ServiceProvider) Register(app *kernel.Application) error {
-	pkgconfig.LoadIfAbsent(app.Config(), "ai", appconfig.AI())
+func (p *ServiceProvider) Register(app contracts.App) error {
+	pkgconfig.LoadIfAbsent(app.Config(), "ai", DefaultConfig())
 	mgr := New()
 	var logFn LogFn
 	if lg := app.Logger(); lg != nil {
@@ -76,14 +76,14 @@ func (p *ServiceProvider) Register(app *kernel.Application) error {
 	return nil
 }
 
-func (p *ServiceProvider) Boot(app *kernel.Application) error {
-	if app == nil || app.Router() == nil {
+func (p *ServiceProvider) Boot(app contracts.App) error {
+	if app == nil || routing.From(app) == nil {
 		return nil
 	}
 	mgr := From(app)
 	if mgr == nil {
 		return nil
 	}
-	app.Router().Post("/demo/ai/chat", DemoChatHandler(mgr)).As("demo.ai.chat")
+	routing.From(app).Post("/demo/ai/chat", DemoChatHandler(mgr)).As("demo.ai.chat")
 	return nil
 }

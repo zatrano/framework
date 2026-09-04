@@ -15,6 +15,11 @@ All notable changes to ZATRANO are documented in this file.
 ### Changed
 
 - README rewritten for v2 (`v2-dev`): two-module layout, `zatrano new`, no default database, no demo boot profile. Language name shown as Golang.
+- `contracts` no longer imports `packages/*`. `App`, `Provider`, and `Migrator` live in `contracts`. Addon providers take `contracts.App`.
+- Addon config defaults live with the addon (`DefaultConfig()`); framework `config/` keeps `app`, `auth`, `session`, `database`, `notifications`.
+- Starter layout uses `app/views`, `app/localization`, and `app/database` (old `views/`, `lang/`, `database/` still load if present).
+- `make:*` scaffolds use the consumer `go.mod` module path. `package:enable` writes `bootstrap/addons.go` blank-imports and `go get github.com/zatrano/packages`.
+- Development VERSION line is `2.0.0-dev` (no GitHub Release until v2 is cut).
 
 ## 1.6.6 - 2026-08-30
 

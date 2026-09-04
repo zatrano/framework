@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/packages/database/migration"
 	"github.com/zatrano/framework/packages/database/query"
 	"github.com/zatrano/framework/packages/database/seeder"
@@ -26,7 +27,7 @@ func Table(app App, table string) (*query.Builder, error) {
 }
 
 // Migrator creates a migrator for the application's registered migrations.
-func Migrator(app Bootable) (*migration.Migrator, error) {
+func Migrator(app Bootable) (contracts.Migrator, error) {
 	if app == nil {
 		return nil, fmt.Errorf("application unavailable")
 	}

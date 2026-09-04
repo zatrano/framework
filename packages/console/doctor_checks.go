@@ -103,7 +103,7 @@ func checkConcreteLeak(root string) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	concretes, err := parseContractConcretes(filepath.Join(fw, "contracts", "assert.go"))
+	concretes, err := collectContractConcretes(fw)
 	if err != nil {
 		return nil, err
 	}
@@ -138,19 +138,57 @@ func checkConcreteLeak(root string) ([]Finding, error) {
 
 func concreteImportAllowed(rel, importPath string) bool {
 	rel = filepath.ToSlash(rel)
+	if strings.HasSuffix(importPath, "/kernel") && strings.HasPrefix(rel, "app/console/") {
+		return true
+	}
+	if strings.HasSuffix(importPath, "/packages/database/migration") && strings.HasPrefix(rel, "app/database/") {
+		return true
+	}
 	if !strings.HasSuffix(importPath, "/packages/routing") {
 		return false
 	}
 	if strings.HasPrefix(rel, "app/routes/web/") || strings.HasPrefix(rel, "app/routes/api/") {
 		return true
 	}
-	if strings.HasPrefix(rel, "app/providers/") && strings.Contains(rel, "route_service_provider") {
+	if strings.HasPrefix(rel, "app/providers/") {
 		return true
 	}
 	return false
 }
 
-func parseContractConcretes(path string) (map[string]string, error) {
+func collectContractConcretes(fw string) (map[string]string, error) {
+	files := []string{
+		filepath.Join("kernel", "services.go"),
+		filepath.Join("packages", "config", "assert.go"),
+		filepath.Join("packages", "container", "assert.go"),
+		filepath.Join("packages", "context", "assert.go"),
+		filepath.Join("packages", "log", "assert.go"),
+		filepath.Join("packages", "url", "assert.go"),
+		filepath.Join("packages", "encryption", "assert.go"),
+		filepath.Join("packages", "hashing", "assert.go"),
+		filepath.Join("packages", "observability", "assert.go"),
+		filepath.Join("packages", "database", "migration", "assert.go"),
+	}
+	out := map[string]string{}
+	for _, rel := range files {
+		part, err := parseContractConcretes(fw, filepath.Join(fw, rel))
+		if err != nil {
+			return nil, err
+		}
+		for ip, iface := range part {
+			out[ip] = iface
+		}
+	}
+	if out["github.com/zatrano/framework/packages/routing"] == "" {
+		out["github.com/zatrano/framework/packages/routing"] = "Router"
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("console: no contract concrete bindings")
+	}
+	return out, nil
+}
+
+func parseContractConcretes(fw, path string) (map[string]string, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
@@ -180,8 +218,11 @@ func parseContractConcretes(path string) (map[string]string, error) {
 				continue
 			}
 			ifaceName := ""
-			if ident, ok := vs.Type.(*ast.Ident); ok {
-				ifaceName = ident.Name
+			switch t := vs.Type.(type) {
+			case *ast.Ident:
+				ifaceName = t.Name
+			case *ast.SelectorExpr:
+				ifaceName = t.Sel.Name
 			}
 			star, ok := vs.Values[0].(*ast.CallExpr)
 			if !ok {
@@ -195,23 +236,26 @@ func parseContractConcretes(path string) (map[string]string, error) {
 			if !ok {
 				continue
 			}
-			sel, ok := starExpr.X.(*ast.SelectorExpr)
-			if !ok {
-				continue
+			ip := ""
+			switch typed := starExpr.X.(type) {
+			case *ast.SelectorExpr:
+				pkgIdent, ok := typed.X.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				ip = pkgPath[pkgIdent.Name]
+			case *ast.Ident:
+				rel, err := filepath.Rel(fw, filepath.Dir(path))
+				if err != nil {
+					continue
+				}
+				ip = "github.com/zatrano/framework/" + filepath.ToSlash(rel)
 			}
-			pkgIdent, ok := sel.X.(*ast.Ident)
-			if !ok {
-				continue
-			}
-			ip := pkgPath[pkgIdent.Name]
 			if ip == "" || ifaceName == "" {
 				continue
 			}
 			out[ip] = ifaceName
 		}
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("console: no contract concrete bindings in %s", path)
 	}
 	return out, nil
 }
@@ -330,7 +374,7 @@ func checkProviders(root string) ([]Finding, error) {
 			Line:     line,
 			Found:    fmt.Sprintf("type %s missing %s", name, missing),
 			Why:      "kernel.Provider requires both Register and Boot so bootstrap.WithProviders can load the type.",
-			How:      fmt.Sprintf("Add func (p *%s) %s(app *kernel.Application) error on this type.", name, missing),
+			How:      fmt.Sprintf("Add func (p *%s) %s(app contracts.App) error on this type.", name, missing),
 		})
 	}
 	addonNames := map[string]bool{}

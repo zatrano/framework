@@ -2,7 +2,6 @@ package console
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -103,7 +102,7 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 	var routesAuthPath, loginViewPath, registerViewPath string
 	for _, pair := range pairs {
 		src := filepath.Join(stubRoot, filepath.FromSlash(pair.stub))
-		dst := c.app.BasePath(pair.dest...)
+		dst := scaffoldDest(c.app, pair.dest)
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
@@ -127,7 +126,7 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 				continue
 			}
 		}
-		if err := copyFile(src, dst); err != nil {
+		if err := copyStubFile(c.app, src, dst); err != nil {
 			return fmt.Errorf("%s: %w", pair.stub, err)
 		}
 		fmt.Printf("Created: %s\n", dst)
@@ -163,14 +162,14 @@ func (c *MakeAuthCommand) Handle(args []string) error {
 		fmt.Println("Mode: --views (layout + auth HTML only)")
 	} else {
 		fmt.Println("Next steps:")
-		fmt.Println("  1. In database/migrations/migrations.go add:")
+		fmt.Println("  1. In app/database/migrations/migrations.go add:")
 		migLine := "     &CreateUsersTable{}, &CreatePasswordResetTokensTable{}, &CreatePersonalAccessTokensTable{},"
 		if wantSocial {
 			migLine += " &CreateSocialAccountsTable{},"
 		}
 		fmt.Println(migLine)
-		fmt.Println("  2. In routes/web.go call: RegisterAuthWeb(app)")
-		fmt.Println("  3. In routes/api.go call: RegisterAuthAPI(app)  // mounts /api/v1/auth")
+		fmt.Println("  2. In app/routes/web call: RegisterAuthWeb(app)")
+		fmt.Println("  3. In app/routes/api call: RegisterAuthAPI(app)  // mounts /api/v1/auth")
 		if wantSocial {
 			var envs []string
 			if wantGoogle {
@@ -289,19 +288,16 @@ func uniqueMatches(re *regexp.Regexp, src string) []string {
 	return out
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+func copyStubFile(app *kernel.Application, src, dst string) error {
+	body, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
+	text := string(body)
+	if strings.HasSuffix(dst, ".go") {
+		text = applyConsumerPlaceholders(app, text)
 	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
+	return os.WriteFile(dst, []byte(text), 0o644)
 }
 
 func containsStr(list []string, want string) bool {

@@ -27,7 +27,7 @@ func registerWeb(router *routing.Router) {
 
 	router.Post("/locale", func(req *http.Request) *http.Response {
 		locale := strings.TrimSpace(strings.ToLower(req.Input("locale")))
-		langPath := app.BasePath("lang")
+		langPath := app.BasePath("app", "localization")
 		if localization.Published(langPath) && localization.HasLocale(langPath, locale) {
 			if sess := req.Session(); sess != nil {
 				sess.Put("locale", locale)

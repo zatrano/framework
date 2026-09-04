@@ -17,7 +17,7 @@ type LangPublishCommand struct {
 
 func (c *LangPublishCommand) Name() string { return "lang:publish" }
 func (c *LangPublishCommand) Description() string {
-	return "Publish built-in language files into lang/"
+	return "Publish built-in language files into app/localization (or lang/)"
 }
 func (c *LangPublishCommand) Handle(args []string) error {
 	published := 0
@@ -32,7 +32,7 @@ func (c *LangPublishCommand) Handle(args []string) error {
 		if err != nil {
 			return err
 		}
-		dest := c.app.BasePath("lang", filepath.FromSlash(path))
+		dest := filepath.Join(localizationRoot(c.app), filepath.FromSlash(path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}

@@ -5,12 +5,14 @@ import (
 	"github.com/zatrano/framework/packages/version"
 )
 
+var _ contracts.App = (*Application)(nil)
+
 // RateLimiter returns the rate limiter.
 func (app *Application) RateLimiter() contracts.RateLimiter {
 	if app == nil || app.rateLimiter == nil {
 		return nil
 	}
-	return app.rateLimiter
+	return &rateLimiterFacade{inner: app.rateLimiter}
 }
 
 // Context returns the application context store.
@@ -58,7 +60,7 @@ func (app *Application) Health() contracts.Health {
 	if app == nil || app.health == nil {
 		return nil
 	}
-	return app.health
+	return &healthFacade{inner: app.health}
 }
 
 // Version returns the application/framework version.
@@ -71,7 +73,7 @@ func (app *Application) Maintenance() contracts.Maintenance {
 	if app == nil || app.maintenance == nil {
 		return nil
 	}
-	return app.maintenance
+	return &maintenanceFacade{inner: app.maintenance}
 }
 
 // Exceptions returns the exception handler.
@@ -79,7 +81,7 @@ func (app *Application) Exceptions() contracts.Exceptions {
 	if app == nil || app.exceptions == nil {
 		return nil
 	}
-	return app.exceptions
+	return &exceptionsFacade{inner: app.exceptions}
 }
 
 // Reports returns the exception report manager.
@@ -87,5 +89,5 @@ func (app *Application) Reports() contracts.Reports {
 	if app == nil || app.reports == nil {
 		return nil
 	}
-	return app.reports
+	return &reportsFacade{inner: app.reports}
 }

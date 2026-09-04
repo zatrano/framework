@@ -1,14 +1,14 @@
 package providers
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
 // EventServiceProvider registers application events and listeners.
 type EventServiceProvider struct{}
 
-func (p *EventServiceProvider) Register(app *kernel.Application) error {
+func (p *EventServiceProvider) Register(app contracts.App) error {
 	return nil
 }
 
-func (p *EventServiceProvider) Boot(app *kernel.Application) error {
+func (p *EventServiceProvider) Boot(app contracts.App) error {
 	return nil
 }

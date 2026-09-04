@@ -1,6 +1,6 @@
 package resources
 
-import "github.com/zatrano/framework/app/models"
+import "__MODULE__/app/models"
 
 // User transforms a user model for API output.
 // Created by make:auth; use with packages/resources:

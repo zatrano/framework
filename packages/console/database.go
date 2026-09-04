@@ -385,7 +385,7 @@ func writeModelMigration(app *kernel.Application, modelName, table, translation 
 	structName := toExported(description)
 	fileName := stamp + "_" + description + ".go"
 
-	dir := app.BasePath("database", "migrations")
+	dir := joinRoot(databaseRoot(app), "migrations")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -433,7 +433,7 @@ func (m *%s) Down(s *schema.Builder) error {
 	} else if registered {
 		fmt.Printf("Registered in %s\n", regPath)
 	} else {
-		fmt.Println("Remember to register it in database/migrations/migrations.go")
+		fmt.Println("Remember to register it in app/database/migrations/migrations.go")
 	}
 	_ = modelName
 	return nil
@@ -454,7 +454,7 @@ func (c *MakeMigrationCommand) Handle(args []string) error {
 	structName := toExported(description)
 	fileName := stamp + "_" + description + ".go"
 
-	dir := c.app.BasePath("database", "migrations")
+	dir := joinRoot(databaseRoot(c.app), "migrations")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -491,7 +491,7 @@ func (m *%s) Down(s *schema.Builder) error {
 	} else if registered {
 		fmt.Printf("Registered in %s\n", regPath)
 	} else {
-		fmt.Println("Remember to register it in database/migrations/migrations.go")
+		fmt.Println("Remember to register it in app/database/migrations/migrations.go")
 	}
 	return nil
 }
@@ -510,7 +510,7 @@ func (c *MakeSeederCommand) Handle(args []string) error {
 	if !strings.HasSuffix(name, "Seeder") {
 		name += "Seeder"
 	}
-	dir := c.app.BasePath("database", "seeders")
+	dir := joinRoot(databaseRoot(c.app), "seeders")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

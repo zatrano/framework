@@ -1,23 +1,24 @@
 package routes
 
 import (
-	"github.com/zatrano/framework/app/http/controllers/web"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/http/controllers/web"
 	apipkg "github.com/zatrano/framework/packages/api"
 	"github.com/zatrano/framework/packages/auth"
+	"github.com/zatrano/framework/packages/ratelimit"
 	"github.com/zatrano/framework/packages/routing"
 )
 
 // RegisterAuthWeb registers session authentication web routes under /auth.
 // Wire from Web(): RegisterAuthWeb(app)
-func RegisterAuthWeb(app *core.Application) {
-	router := app.Router()
+func RegisterAuthWeb(app contracts.App) {
+	router := routing.From(app)
 	ctrl := &web.AuthController{App: app}
 	social := &web.SocialAuthController{App: app}
 
 	router.Group("/auth", func(r *routing.Router) {
 		r.Get("/login", ctrl.LoginForm).As("login")
-		r.Post("/login", ctrl.Login).As("login.attempt").Through(app.RateLimiter().Named("login"))
+		r.Post("/login", ctrl.Login).As("login.attempt").Through(ratelimit.From(app).Named("login"))
 		r.Post("/logout", ctrl.Logout).As("logout")
 
 		r.Get("/google/login", social.GoogleRedirect).As("login.google")
@@ -27,14 +28,14 @@ func RegisterAuthWeb(app *core.Application) {
 
 		r.Group("", func(g *routing.Router) {
 			g.Get("/register", ctrl.RegisterForm).As("register")
-			g.Post("/register", ctrl.Register).As("register.store").Through(app.RateLimiter().Named("login"))
+			g.Post("/register", ctrl.Register).As("register.store").Through(ratelimit.From(app).Named("login"))
 		}, auth.RedirectIfAuthenticated(auth.From(app), "/"))
 
 		r.Get("/two-factor-challenge", ctrl.TwoFactorChallengeForm).As("two-factor.challenge")
 		r.Post("/two-factor-challenge", ctrl.TwoFactorChallenge).As("two-factor.challenge.store")
 
 		r.Get("/forgot-password", ctrl.ForgotForm).As("password.request")
-		r.Post("/forgot-password", ctrl.Forgot).As("password.email").Through(app.RateLimiter().Named("login"))
+		r.Post("/forgot-password", ctrl.Forgot).As("password.email").Through(ratelimit.From(app).Named("login"))
 		r.Get("/reset-password", ctrl.ResetForm).As("password.reset")
 		r.Post("/reset-password", ctrl.Reset).As("password.update")
 		r.Get("/email/verify/{id}", ctrl.Verify).As("verification.verify")
@@ -65,14 +66,14 @@ func RegisterAuthWeb(app *core.Application) {
 
 // RegisterAuthAPI registers JSON authentication API routes under /api/v1/auth.
 // Wire from API(): RegisterAuthAPI(app)
-func RegisterAuthAPI(app *core.Application) {
+func RegisterAuthAPI(app contracts.App) {
 	ctrl := &web.AuthController{App: app}
 
-	apipkg.Version(app.Router(), "v1", func(api *routing.Router) {
+	apipkg.Version(routing.From(app), "v1", func(api *routing.Router) {
 		api.Group("/auth", func(r *routing.Router) {
-			r.Post("/login", ctrl.Login).As("api.v1.login").Through(app.RateLimiter().Named("login"))
-			r.Post("/register", ctrl.Register).As("api.v1.register").Through(app.RateLimiter().Named("login"))
-			r.Post("/password/forgot", ctrl.Forgot).As("api.v1.password.forgot").Through(app.RateLimiter().Named("login"))
+			r.Post("/login", ctrl.Login).As("api.v1.login").Through(ratelimit.From(app).Named("login"))
+			r.Post("/register", ctrl.Register).As("api.v1.register").Through(ratelimit.From(app).Named("login"))
+			r.Post("/password/forgot", ctrl.Forgot).As("api.v1.password.forgot").Through(ratelimit.From(app).Named("login"))
 			r.Post("/password/reset", ctrl.Reset).As("api.v1.password.reset")
 			r.Post("/two-factor/challenge", ctrl.TwoFactorChallenge).As("api.v1.auth.two-factor.challenge")
 			r.Group("", func(g *routing.Router) {

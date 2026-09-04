@@ -36,6 +36,7 @@ func (c *MakeRepositoryCommand) Handle(args []string) error {
 			model = toExported(strings.TrimPrefix(arg, "--model="))
 		}
 	}
+	mod := consumerModule(c.app)
 	dir := c.app.BasePath("app", "repositories")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -44,7 +45,7 @@ func (c *MakeRepositoryCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package repositories
 
 import (
-	"github.com/zatrano/framework/app/models"
+	"%s/app/models"
 	"github.com/zatrano/framework/packages/orm"
 )
 
@@ -70,7 +71,7 @@ func (r *%s) Find(id any) (*models.%s, error) {
 func (r *%s) Create(attrs map[string]any) (*models.%s, error) {
 	return orm.Create[models.%s](attrs)
 }
-`, name, model, name, name, name, name, name, name, model, name, model, model, model, name, model, model, model, name, model, model)
+`, mod, name, model, name, name, name, name, name, name, model, name, model, model, model, name, model, model, model, name, model, model)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}

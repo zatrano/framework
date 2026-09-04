@@ -1,8 +1,8 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/app/models"
-	"github.com/zatrano/framework/core"
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
 	"github.com/zatrano/framework/packages/authorization"
 	"github.com/zatrano/framework/packages/view"
 )
@@ -10,11 +10,11 @@ import (
 // DashboardServiceProvider registers dashboard gates and view composers.
 type DashboardServiceProvider struct{}
 
-func (p *DashboardServiceProvider) Register(app *core.Application) error {
+func (p *DashboardServiceProvider) Register(app contracts.App) error {
 	return nil
 }
 
-func (p *DashboardServiceProvider) Boot(app *core.Application) error {
+func (p *DashboardServiceProvider) Boot(app contracts.App) error {
 	if gate := authorization.From(app); gate != nil {
 		gate.Define("dashboard.access", func(user authorization.Authenticatable, _ ...any) bool {
 			u, ok := user.(*models.User)

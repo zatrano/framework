@@ -1,8 +1,8 @@
 package ai
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/contracts"
 
 // From resolves the AI manager from the application container.
-func From(app *kernel.Application) *Manager {
-	return kernel.Resolve[*Manager](app, "ai")
+func From(app contracts.App) *Manager {
+	return contracts.Resolve[*Manager](app, "ai")
 }

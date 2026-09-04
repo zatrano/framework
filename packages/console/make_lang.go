@@ -16,8 +16,10 @@ type MakeLangCommand struct {
 	app *kernel.Application
 }
 
-func (c *MakeLangCommand) Name() string        { return "make:lang" }
-func (c *MakeLangCommand) Description() string { return "Create a new locale catalog under lang/" }
+func (c *MakeLangCommand) Name() string { return "make:lang" }
+func (c *MakeLangCommand) Description() string {
+	return "Create a new locale catalog under app/localization"
+}
 func (c *MakeLangCommand) Handle(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("locale code required (example: make:lang de)")
@@ -38,7 +40,7 @@ func (c *MakeLangCommand) Handle(args []string) error {
 		if strings.ContainsAny(group, `/\`) {
 			return fmt.Errorf("invalid group name")
 		}
-		dir := c.app.BasePath("lang", locale)
+		dir := joinRoot(localizationRoot(c.app), locale)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
@@ -73,7 +75,7 @@ func (c *MakeLangCommand) Handle(args []string) error {
 			return err
 		}
 		rel := strings.TrimPrefix(filepath.ToSlash(path), source+"/")
-		dest := c.app.BasePath("lang", locale, filepath.FromSlash(rel))
+		dest := joinRoot(localizationRoot(c.app), locale, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func (c *MakeLangCommand) Handle(args []string) error {
 			if readErr != nil {
 				continue
 			}
-			dest := c.app.BasePath("lang", locale+".json")
+			dest := joinRoot(localizationRoot(c.app), locale+".json")
 			if writeErr := os.MkdirAll(filepath.Dir(dest), 0o755); writeErr != nil {
 				return writeErr
 			}
