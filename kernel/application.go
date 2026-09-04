@@ -38,7 +38,9 @@ const (
 	lifeCreated lifeState = iota
 	lifeBootstrapping
 	lifeBooted
+	lifeStarting
 	lifeRunning
+	lifeStopping
 	lifeStopped
 	lifeBootFailed
 )
@@ -57,11 +59,10 @@ type Application struct {
 	exceptions    *exceptions.Handler
 	reports       *report.Manager
 	httpBridge    contracts.HTTPBridge
-	migrations    any
-	seeders       any
 	providers     []contracts.Provider
 	life          lifeState
 	lifeMu        sync.Mutex
+	transitionMu  sync.Mutex
 	environment   string
 	enabledAddons []string
 }
@@ -140,26 +141,6 @@ func (app *Application) Logger() contracts.Logger {
 	return app.logger
 }
 
-// SetMigrations registers application migrations (typically []migration.Migration).
-func (app *Application) SetMigrations(items any) {
-	app.migrations = items
-}
-
-// Migrations returns registered migrations (opaque; cast in database helpers).
-func (app *Application) Migrations() any {
-	return app.migrations
-}
-
-// SetSeeders registers application seeders (typically []seeder.Seeder).
-func (app *Application) SetSeeders(items any) {
-	app.seeders = items
-}
-
-// Seeders returns registered seeders (opaque; cast in database helpers).
-func (app *Application) Seeders() any {
-	return app.seeders
-}
-
 // Environment returns the current environment name.
 func (app *Application) Environment() string {
 	return app.environment
@@ -207,7 +188,7 @@ func (app *Application) RegisterProviders(providers ...Provider) {
 func (app *Application) Bootstrapped() bool {
 	app.lifeMu.Lock()
 	defer app.lifeMu.Unlock()
-	return app.life == lifeBooted || app.life == lifeRunning || app.life == lifeStopped
+	return app.life == lifeBooted || app.life == lifeStarting || app.life == lifeRunning || app.life == lifeStopping || app.life == lifeStopped
 }
 
 // BootstrapFailed reports whether Bootstrap returned an error. Failed
@@ -223,7 +204,7 @@ func (app *Application) BootstrapFailed() bool {
 func (app *Application) Bootstrap() error {
 	app.lifeMu.Lock()
 	switch app.life {
-	case lifeBooted, lifeRunning, lifeStopped:
+	case lifeBooted, lifeStarting, lifeRunning, lifeStopping, lifeStopped:
 		app.lifeMu.Unlock()
 		return nil
 	case lifeBootstrapping:
@@ -343,20 +324,33 @@ func (app *Application) bootstrapLocked() error {
 
 // Start launches optional LifecycleProvider.Start hooks. Bootstrap runs first.
 // A second call while running is a no-op. Stopped applications cannot restart.
+// Concurrent Start/Stop calls are serialized. If a provider's Start returns an
+// error, that provider must clean up any work it already launched; the kernel
+// only stops providers that returned nil from Start.
 func (app *Application) Start() error {
+	app.transitionMu.Lock()
+	defer app.transitionMu.Unlock()
+
 	if err := app.Bootstrap(); err != nil {
 		return err
 	}
+
 	app.lifeMu.Lock()
 	switch app.life {
 	case lifeRunning:
 		app.lifeMu.Unlock()
 		return nil
-	case lifeStopped:
+	case lifeStopped, lifeStopping:
 		app.lifeMu.Unlock()
 		return errors.New("application: cannot start a stopped application")
+	case lifeBooted:
+		app.life = lifeStarting
+		app.lifeMu.Unlock()
+	default:
+		state := app.life
+		app.lifeMu.Unlock()
+		return fmt.Errorf("application: cannot start from state %d", state)
 	}
-	app.lifeMu.Unlock()
 
 	var started []contracts.LifecycleProvider
 	for _, p := range app.providers {
@@ -368,12 +362,15 @@ func (app *Application) Start() error {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_ = app.stopLifecycle(ctx, started)
 			cancel()
+			app.lifeMu.Lock()
+			app.life = lifeBooted
+			app.lifeMu.Unlock()
 			return err
 		}
 		started = append(started, lp)
 	}
 	app.lifeMu.Lock()
-	if app.life == lifeBooted {
+	if app.life == lifeStarting {
 		app.life = lifeRunning
 	}
 	app.lifeMu.Unlock()
@@ -385,11 +382,15 @@ func (app *Application) Stop(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	app.transitionMu.Lock()
+	defer app.transitionMu.Unlock()
+
 	app.lifeMu.Lock()
 	if app.life != lifeRunning {
 		app.lifeMu.Unlock()
 		return nil
 	}
+	app.life = lifeStopping
 	app.lifeMu.Unlock()
 
 	var started []contracts.LifecycleProvider

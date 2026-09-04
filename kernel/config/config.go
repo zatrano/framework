@@ -191,11 +191,26 @@ func (r *Repository) setNested(root map[string]any, segments []string, value any
 func deepCopyMap(src map[string]any) map[string]any {
 	dst := make(map[string]any, len(src))
 	for key, value := range src {
-		if nested, ok := value.(map[string]any); ok {
-			dst[key] = deepCopyMap(nested)
-			continue
-		}
-		dst[key] = value
+		dst[key] = deepCopyValue(value)
 	}
 	return dst
+}
+
+func deepCopyValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return deepCopyMap(v)
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = deepCopyValue(item)
+		}
+		return out
+	case []string:
+		return append([]string(nil), v...)
+	case []int:
+		return append([]int(nil), v...)
+	default:
+		return v
+	}
 }

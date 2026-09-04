@@ -3,6 +3,7 @@ package kernel_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/zatrano/framework/contracts"
@@ -227,5 +228,59 @@ func TestLifecycleStartFailureStopsPrior(t *testing.T) {
 	}
 	if fail.starts != 1 || fail.stops != 0 {
 		t.Fatalf("fail start=%d stop=%d", fail.starts, fail.stops)
+	}
+}
+
+func TestLifecycleConcurrentStartOnce(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(p)
+	var wg sync.WaitGroup
+	errCh := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errCh <- app.Start()
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if p.starts != 1 {
+		t.Fatalf("concurrent Start launched worker %d times", p.starts)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p.stops != 1 {
+		t.Fatalf("stops=%d", p.stops)
+	}
+}
+
+func TestLifecycleConcurrentStopOnce(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(p)
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = app.Stop(context.Background())
+		}()
+	}
+	wg.Wait()
+	if p.stops != 1 {
+		t.Fatalf("concurrent Stop called worker %d times", p.stops)
 	}
 }

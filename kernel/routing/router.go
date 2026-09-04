@@ -25,6 +25,7 @@ type Route struct {
 	paramNames []string
 	pattern    *regexp.Regexp
 	namePrefix string
+	router     *Router
 }
 
 type methodTable struct {
@@ -73,9 +74,28 @@ func (r *Router) Freeze() error {
 	if err != nil {
 		return err
 	}
+	named, err := r.compileNamed()
+	if err != nil {
+		return err
+	}
 	r.byMethod = tables
+	r.named = named
 	r.frozen = true
 	return nil
+}
+
+func (r *Router) compileNamed() (map[string]*Route, error) {
+	named := make(map[string]*Route)
+	for _, route := range r.routes {
+		if route == nil || route.Name == "" {
+			continue
+		}
+		if _, exists := named[route.Name]; exists {
+			return nil, fmt.Errorf("router: duplicate route name %s", route.Name)
+		}
+		named[route.Name] = route
+	}
+	return named, nil
 }
 
 func (r *Router) compileTables() (map[string]*methodTable, error) {
@@ -119,13 +139,13 @@ func (r *Router) Group(prefix string, fn func(router *Router), middleware ...Mid
 	r.mutate()
 	previousPrefix := r.groupPrefix
 	previousMiddleware := r.groupMiddleware
-
 	r.groupPrefix = joinPath(previousPrefix, prefix)
 	r.groupMiddleware = append(append([]MiddlewareFunc{}, previousMiddleware...), middleware...)
+	defer func() {
+		r.groupPrefix = previousPrefix
+		r.groupMiddleware = previousMiddleware
+	}()
 	fn(r)
-
-	r.groupPrefix = previousPrefix
-	r.groupMiddleware = previousMiddleware
 }
 
 // Name sets a route name prefix for routes registered inside fn.
@@ -133,8 +153,10 @@ func (r *Router) Name(prefix string, fn func(router *Router)) {
 	r.mutate()
 	previous := r.groupName
 	r.groupName = previous + prefix
+	defer func() {
+		r.groupName = previous
+	}()
 	fn(r)
-	r.groupName = previous
 }
 
 // Get registers a GET route.
@@ -217,6 +239,7 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 		paramNames: paramNames,
 		pattern:    pattern,
 		namePrefix: r.groupName,
+		router:     r,
 	}
 	r.routes = append(r.routes, route)
 	return route
@@ -224,12 +247,18 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 
 // As assigns a name to the route (with any active group name prefix).
 func (route *Route) As(name string) *Route {
+	if route != nil && route.router != nil {
+		route.router.mutate()
+	}
 	route.Name = route.namePrefix + name
 	return route
 }
 
 // Through assigns route-specific middleware.
 func (route *Route) Through(middleware ...MiddlewareFunc) *Route {
+	if route != nil && route.router != nil {
+		route.router.mutate()
+	}
 	route.Middleware = append(route.Middleware, middleware...)
 	return route
 }
@@ -357,6 +386,9 @@ func (r *Router) URL(name string, params ...map[string]string) (string, error) {
 	path = strings.ReplaceAll(path, "//", "/")
 	if path == "" {
 		path = "/"
+	}
+	if strings.Contains(path, "{") {
+		return "", fmt.Errorf("route [%s] missing required parameter", name)
 	}
 	return path, nil
 }

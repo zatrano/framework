@@ -25,7 +25,6 @@ type Request struct {
 	raw          *stdhttp.Request
 	route        map[string]string
 	attrs        map[string]any
-	session      SessionStore
 	cookies      *cookie.Jar
 	jsonData     map[string]string
 	jsonRaw      map[string]any
@@ -36,7 +35,9 @@ type Request struct {
 	maxBodyBytes int64
 }
 
-// SessionStore is the session contract used by requests.
+// SessionStore is an optional request capability (flash/csrf bag).
+// Kernel HTTP does not import the session package; the implementation is
+// attached as a request attribute.
 type SessionStore interface {
 	Get(key string, fallback ...any) any
 	Put(key string, value any)
@@ -242,6 +243,9 @@ func (r *Request) RouteParams() map[string]string {
 
 // Set sets a request attribute.
 func (r *Request) Set(key string, value any) {
+	if r.attrs == nil {
+		r.attrs = make(map[string]any)
+	}
 	r.attrs[key] = value
 }
 
@@ -250,14 +254,20 @@ func (r *Request) Get(key string) any {
 	return r.attrs[key]
 }
 
-// SetSession attaches a session store.
+const sessionAttrKey = "session"
+
+// SetSession attaches a session store as a request attribute.
 func (r *Request) SetSession(store SessionStore) {
-	r.session = store
+	r.Set(sessionAttrKey, store)
 }
 
-// Session returns the session store.
+// Session returns the session store attached to this request, if any.
 func (r *Request) Session() SessionStore {
-	return r.session
+	if r == nil {
+		return nil
+	}
+	s, _ := r.Get(sessionAttrKey).(SessionStore)
+	return s
 }
 
 // Cookie returns a cookie value.

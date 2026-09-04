@@ -15,7 +15,7 @@ func (p *DatabaseServiceProvider) Register(app contracts.App) error {
 }
 
 func (p *DatabaseServiceProvider) Boot(app contracts.App) error {
-	app.SetMigrations(migrations.All())
-	app.SetSeeders(seeders.All())
+	app.Container().Instance("migrations", migrations.All())
+	app.Container().Instance("seeders", seeders.All())
 	return nil
 }

@@ -110,7 +110,8 @@ func (c *Container) Alias(abstract, alias string) {
 }
 
 // Freeze locks registration (Bind/Singleton/Instance/Alias). Make still
-// publishes lazy singleton instances.
+// publishes lazy singleton instances: frozen means the binding graph is
+// immutable, not that the instance map is frozen.
 func (c *Container) Freeze() {
 	c = c.core()
 	if c == nil {

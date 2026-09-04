@@ -208,3 +208,100 @@ func TestAmbiguousParamRouteFreezeErrors(t *testing.T) {
 		t.Fatal("expected ambiguous route error")
 	}
 }
+
+func TestFrozenRouteCannotAsOrThrough(t *testing.T) {
+	r := routing.New()
+	route := r.Get("/users", func(req *http.Request) *http.Response { return http.Text("ok") })
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected As panic after freeze")
+		}
+	}()
+	route.As("users")
+}
+
+func TestFrozenRouteCannotThrough(t *testing.T) {
+	r := routing.New()
+	route := r.Get("/users", func(req *http.Request) *http.Response { return http.Text("ok") })
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected Through panic after freeze")
+		}
+	}()
+	route.Through(func(next routing.HandlerFunc) routing.HandlerFunc { return next })
+}
+
+func TestGroupPanicRestoresPrefix(t *testing.T) {
+	r := routing.New()
+	func() {
+		defer func() { _ = recover() }()
+		r.Group("/api", func(router *routing.Router) {
+			panic("boom")
+		})
+	}()
+	r.Get("/ok", func(req *http.Request) *http.Response { return http.Text("ok") })
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/ok", nil)))
+	if resp.StatusCode() != 200 {
+		t.Fatalf("group panic leaked prefix, status=%d", resp.StatusCode())
+	}
+	leaked := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/api/ok", nil)))
+	if leaked.StatusCode() == 200 {
+		t.Fatal("group prefix should have been restored")
+	}
+}
+
+func TestNamePanicRestoresPrefix(t *testing.T) {
+	r := routing.New()
+	func() {
+		defer func() { _ = recover() }()
+		r.Name("api.", func(router *routing.Router) {
+			panic("boom")
+		})
+	}()
+	r.Get("/x", func(req *http.Request) *http.Response { return http.Text("ok") }).As("show")
+	r.RegisterName(r.Routes()[0])
+	if _, ok := r.Route("show"); !ok {
+		t.Fatal("name prefix leaked; expected show")
+	}
+	if _, ok := r.Route("api.show"); ok {
+		t.Fatal("name prefix was not restored")
+	}
+}
+
+func TestDuplicateRouteNameFreezeErrors(t *testing.T) {
+	r := routing.New()
+	h := func(req *http.Request) *http.Response { return http.Text("ok") }
+	r.Get("/a", h).As("same")
+	r.Get("/b", h).As("same")
+	if err := r.Freeze(); err == nil {
+		t.Fatal("expected duplicate route name error")
+	}
+	if r.Frozen() {
+		t.Fatal("failed freeze must not lock the router")
+	}
+}
+
+func TestURLMissingRequiredParamErrors(t *testing.T) {
+	r := routing.New()
+	r.Get("/users/{id}", func(req *http.Request) *http.Response { return http.Text("ok") }).As("users.show")
+	r.RegisterName(r.Routes()[0])
+	if _, err := r.URL("users.show"); err == nil {
+		t.Fatal("expected missing required parameter error")
+	}
+	got, err := r.URL("users.show", map[string]string{"id": "9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/users/9" {
+		t.Fatalf("got %q", got)
+	}
+}

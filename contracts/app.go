@@ -20,10 +20,6 @@ type App interface {
 	Encrypter() Encrypter
 	Exceptions() Exceptions
 	Reports() Reports
-	SetMigrations(items any)
-	Migrations() any
-	SetSeeders(items any)
-	Seeders() any
 	Environment() string
 	IsProduction() bool
 	IsDebug() bool
@@ -36,8 +32,9 @@ type App interface {
 }
 
 // HTTPBridge is installed by view (render) and session (cookies, flash) at boot.
-// Middleware entries are routing.MiddlewareFunc values.
-// Finalize req is *framework/http.Request and resp is *framework/http.Response.
+// Middleware/request/response are untyped so this package does not import
+// kernel/http or kernel/routing (those packages import contracts). Kernel
+// asserts the concrete types at the HTTP boundary.
 type HTTPBridge interface {
 	Middleware() []any
 	Finalize(w stdhttp.ResponseWriter, req any, resp any) any
@@ -52,6 +49,10 @@ type Provider interface {
 // LifecycleProvider is an optional Provider that owns long-running work
 // (queue workers, schedulers, consumers). Boot initializes; Start launches;
 // Stop shuts down with the process.
+//
+// If Start returns an error after allocating resources or starting goroutines,
+// the provider must clean those up itself. The kernel only Stop()s providers
+// whose Start() returned nil.
 type LifecycleProvider interface {
 	Provider
 	Start(app App) error

@@ -78,6 +78,26 @@ func TestKernelConfigHasNoPackageSchemas(t *testing.T) {
 			t.Errorf("package-specific config must not live in kernel: %s", name)
 		}
 	}
+	banned := []string{"func Auth(", "func Database(", "func Session(", "func Notifications("}
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		src := string(body)
+		for _, fn := range banned {
+			if strings.Contains(src, fn) {
+				t.Errorf("%s still defines package schema %s", filepath.Base(path), fn)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestContractsAppMethodFreeze(t *testing.T) {
@@ -85,7 +105,6 @@ func TestContractsAppMethodFreeze(t *testing.T) {
 		"BasePath": true, "Container": true, "Make": true, "Bound": true,
 		"Config": true, "Router": true, "Logger": true, "Context": true,
 		"Encrypter": true, "Exceptions": true, "Reports": true,
-		"SetMigrations": true, "Migrations": true, "SetSeeders": true, "Seeders": true,
 		"Environment": true, "IsProduction": true, "IsDebug": true,
 		"RegisterProviders": true, "Bootstrap": true, "ServeHTTP": true, "Run": true,
 		"SetHTTPBridge": true, "HTTPBridge": true,

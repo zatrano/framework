@@ -58,3 +58,27 @@ func TestRepositoryFreeze(t *testing.T) {
 	}()
 	repo.Set("app.name", "nope")
 }
+
+func TestAllDeepCopiesSlices(t *testing.T) {
+	repo := config.New()
+	repo.Load("app", map[string]any{
+		"hosts": []any{"a", "b"},
+		"tags":  []string{"one", "two"},
+	})
+	all := repo.All()
+	hosts, ok := all["app"].(map[string]any)["hosts"].([]any)
+	if !ok {
+		t.Fatal("hosts")
+	}
+	hosts[0] = "mutated"
+	got := repo.Get("app.hosts").([]any)
+	if got[0] != "a" {
+		t.Fatalf("All() must not alias nested slices, got %#v", got)
+	}
+	tags := all["app"].(map[string]any)["tags"].([]string)
+	tags[0] = "mutated"
+	raw := repo.Get("app.tags").([]string)
+	if raw[0] != "one" {
+		t.Fatalf("All() must copy []string, got %#v", raw)
+	}
+}
