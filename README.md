@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>The Golang framework for web artisans — thin kernel, opt-in packages, full-stack DX.</em>
+  <em>A Golang web framework with a thin kernel. You import what you run.</em>
 </p>
 
 <p align="center">
@@ -28,78 +28,82 @@
 </p>
 
 <p align="center">
-  <a href="https://zatrano.com/docs">Documentation</a> ·
-  <a href="https://zatrano.com/docs/installation">Installation</a> ·
-  <a href="https://zatrano.com/docs/boot-profiles">Boot Profiles</a> ·
-  <a href="https://zatrano.com/docs/package-ecosystem">Package Ecosystem</a> ·
-  <a href="PACKAGES.md">Packages guide</a> ·
+  <a href="https://zatrano.com/docs">Docs</a>
+  ·
+  <a href="https://zatrano.com/docs/installation">Install</a>
+  ·
+  <a href="PACKAGES.md">Package guide</a>
+  ·
+  <a href="https://github.com/zatrano/packages">Addons</a>
+  ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
 </p>
 
 ---
 
-## The story
+ZATRANO started in **February 2018** as the internal spine of real products — logins, migrations, queues, mail, production uptime. **v1** opened that stack under MIT in August 2026. **v2** is the same lineage, cut clean: this repository is only the kernel. Applications are created with `zatrano new`. Everything optional lives in [`github.com/zatrano/packages`](https://github.com/zatrano/packages) and is linked only when you import it.
 
-ZATRANO began in **February 2018** as the internal spine of real applications — not a public demo, not a portfolio piece. For years it lived where frameworks are judged hardest: behind logins, migrations, queues, mail, and production uptime. Pieces were added only when a shipped product needed them; pieces were rewritten when they failed that test.
+## Two modules
 
-**v1** (August 2026) opened that stack under MIT. **v2** is the next cut of the same lineage: this repository is only the framework. Applications are created with `zatrano new`. Optional addons live in a separate module. Nothing optional is linked until you ask for it.
+| | Module | What it is |
+| --- | --- | --- |
+| **Framework** | [`github.com/zatrano/framework`](https://github.com/zatrano/framework) | Kernel, contracts, HTTP, CLI, `zatrano new` |
+| **Addons** | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Auth, database, views, queues, AI, OAuth, billing, … |
 
-Eight years in the dark. Then the doors opened. Welcome aboard.
-
----
-
-## What is ZATRANO?
-
-ZATRANO is an opinionated Golang web framework: routing, views, validation, ORM, auth, queues, notifications, CLI, and a first-party AI layer — without forcing every package into every binary.
-
-**v2** is two modules and a generated app:
-
-| Piece | Module / location | Role |
-| ----- | ----------------- | ---- |
-| **Kernel** | `kernel/` | `Application`, container, catalog, secure HTTP hooks |
-| **Implementations** | `packages/` | Kernel, foundation, and intelligence (`github.com/zatrano/framework/...`) |
-| **Foundation boot** | `bootstrap/foundation` | Wires DB, auth, session, cache, queue, views, notifications |
-| **Intelligence** | `packages/ai`, `rag`, `agent` | First-party AI layer (stays in this module) |
-| **Your app** | `zatrano new` | Routes, views, providers, `cmd/app` |
-| **Service addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Optional services (`oauth`, `billing`, `social`, …) |
-| **Library addons** | [`zatrano/packages`](https://github.com/zatrano/packages) | Import-only helpers (`collection`, `totp`, …) |
-
-`packages/` in this repo is the framework implementation. It is not a copy of the addon repo. Addon **names** appear in `kernel/catalog.go` for discovery; addon **code** lives in [`github.com/zatrano/packages`](https://github.com/zatrano/packages). This module must not `require` that one (import cycle).
-
-Nothing optional is magic-loaded. You pick a **boot profile** and enable only the addons you need.
-
-For what each package is for and how to use it, see **[PACKAGES.md](PACKAGES.md)**.
+They cannot be merged: the addon module already requires the framework (Go import cycle). Addon **names** are listed in [`kernel/catalog.go`](kernel/catalog.go) for discovery. Addon **code** is not in this tree.
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  Your app (zatrano new)  ·  routes  ·  views            │
-├─────────────────────────────────────────────────────────┤
-│  bootstrap/   APP_BOOT · EnabledAddons · presets        │
-├──────────────────┬──────────────────────────────────────┤
-│  foundation      │  addons (github.com/zatrano/packages)│
-│  auth db queue … │  oauth billing webauthn …            │
-├──────────────────┴──────────────────────────────────────┤
-│  kernel/   thin kernel                                  │
-└─────────────────────────────────────────────────────────┘
+  your app  (zatrano new)
+       │
+       │  blank-import  github.com/zatrano/packages/<name>
+       ▼
+  bootstrap.App()
+       │
+       ├─ kernel     always on
+       │              Application, http, routing, middleware,
+       │              config, env, encryption, cookie, support
+       │
+       └─ addons     only what this process imported
+                      session, auth, database, view, queue, ai, …
 ```
 
-## Why teams choose it
+A new app has **no session, no database, no views, no auth** until you import those packages. `bootstrap.App()` boots the kernel plus every package the process blank-imported. That is the whole rule.
 
-- **Golang speed** with a coherent application model — not 20 micro-libraries glued by hand
-- **Opt-in weight** — kernel stays lean; API/web apps take foundation; addons are enabled explicitly
-- **Batteries included** — auth (guards, 2FA, lockout, trusted devices), ORM, migrations, queues, notifications, localization
-- **One CLI** — `new`, `serve`, `migrate`, `make:`*, `package:enable|preset|doctor`, `db:setup`, …
-- **Docs that live with the product** — [zatrano.com/docs](https://zatrano.com/docs)
+## This repository
+
+```text
+kernel/         Application + primitives
+  http/         Request / response
+  routing/      Router
+  middleware/   CSRF, CORS, security, …
+  config/ env/  Configuration and .env
+  cookie/       Cookie jar
+  support/      Strings, UUID, helpers
+  layout/       app/views vs views/ path helpers
+contracts/      Public interfaces (App, Provider, …)
+bootstrap/      App() and the addon registry
+console/        Framework CLI (new, make:*, package:*, describe)
+cmd/zatrano/    CLI entrypoint
+tests/          Integration fixtures
+```
+
+Import kernel types from under `kernel/`:
+
+```go
+import "github.com/zatrano/framework/kernel/http"
+import "github.com/zatrano/framework/kernel/routing"
+import "github.com/zatrano/framework/contracts"
+```
+
+There is no application skeleton here. `app/`, `app/routes`, `app/views`, and `app/database` belong to apps created by `zatrano new`. Generated apps use `cmd/app`; this repo’s CLI is `cmd/zatrano`.
 
 ## Requirements
 
 - Golang **1.25+**
-- Optional database: SQLite, MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup` (none linked by default)
-- Optional: Redis, Stripe, OpenAI — only if you enable those addons
+- A database only if you opt in: SQLite, MySQL, PostgreSQL, SQL Server, Oracle, MongoDB via `db:setup`
+- Redis, Stripe, OpenAI — only if you import those addons
 
 ## Quick start
-
-This repository is the **framework**. Scaffold an application, then serve it:
 
 ```bash
 git clone -b v2-dev https://github.com/zatrano/framework.git
@@ -113,279 +117,182 @@ go run ./cmd/app serve
 
 Open [http://localhost:8080](http://localhost:8080).
 
-A new app has **no database** and **no addons** until you opt in.
+Kernel-only scaffold (no addon module in `go.mod`):
 
-### Docker
+```bash
+go run ./cmd/zatrano new lite --minimal --replace .
+```
 
-The image in this repo is the `zatrano` CLI. Application images are generated with `zatrano new` (`Dockerfile` in the new project).
-
-Optional database profiles remain in `docker-compose.yml` (`postgres`, `mysql`, `mssql`, `mongo`, `oracle`).
-
-As a module dependency (v2 development line):
+As a module (development line):
 
 ```bash
 go get github.com/zatrano/framework@v2-dev
 ```
 
-Tagged v1 releases remain on [GitHub Releases](https://github.com/zatrano/framework/releases).
+Tagged v1 releases stay on [GitHub Releases](https://github.com/zatrano/framework/releases).
 
-### First production-shaped boot
+The Docker image in this repo is the `zatrano` CLI. Application images are generated with `zatrano new`. Optional database services are in `docker-compose.yml`.
 
-```bash
-# Write EnabledAddons + config stubs for an API or web starter
-go run ./cmd/app package:init api
-# or: package:init web
+## Turning packages on
 
-# APP_BOOT=app     → foundation + EnabledAddons
-# APP_BOOT=api     → foundation + API preset
-# APP_BOOT=web     → foundation + web preset
-# APP_BOOT=minimal → foundation only
-# APP_BOOT=core    → kernel only
+In the **application**, blank-import the addon. Its `init()` registers a provider. `App()` loads every registered provider.
 
-go run ./cmd/app package:doctor
-go run ./cmd/app serve
+```go
+// bootstrap/addons.go  (package:enable writes this)
+import (
+    _ "github.com/zatrano/packages/session"
+    _ "github.com/zatrano/packages/auth"
+    _ "github.com/zatrano/packages/database"
+    _ "github.com/zatrano/packages/view"
+)
+
+func main() {
+    app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+    _ = auth.From(app) // resolve from the container — not app.Auth()
+    app.Run(":8080")
+}
 ```
 
-`APP_BOOT` defaults to **app** when unset. Scaffold commands (`make:`*) always boot with `App(Kernel())` (no database).
+```bash
+go get github.com/zatrano/packages@v2-dev
+go run ./cmd/app package:list
+go run ./cmd/app package:enable auth
+go run ./cmd/app package:doctor
+```
 
-## Databases (single & multi)
+| Kind | How you use it | Examples |
+| --- | --- | --- |
+| **Kernel** | Always on | `http`, `routing`, `middleware`, `config` |
+| **Service addon** | Blank-import (or `package:enable`) | `auth`, `database`, `queue`, `ai`, `oauth` |
+| **Library addon** | Normal `import` — never enable | `collection`, `totp`, `resources` |
+| **Heavy** | Own Go module, only when needed | `webauthn`, `mongo`, `qr` |
 
-Drivers are **opt-in modules**. A new app has **no database** until you choose one:
+There is no `mail` package. Send email through `notification` with `Channels: ["mail"]`.
+
+What each package is for: **[PACKAGES.md](PACKAGES.md)**. Addon module: **[zatrano/packages](https://github.com/zatrano/packages)**.
+
+## Databases
+
+No driver is linked by default. SQLite is not special — install it the same way as MySQL:
 
 ```bash
 go run ./cmd/app db:setup
-# or non-interactive:
 go run ./cmd/app db:setup --drivers=sqlite --yes
 go run ./cmd/app db:setup --drivers=sqlite,mysql,pgsql,mongo --default=mysql --yes
 ```
 
-Supported: `sqlite` · `mysql` · `pgsql` · `mssql` · `oracle` · `mongo`. SQLite is installed the same way as MySQL/PostgreSQL (not pre-linked).
-
-SQLite’s driver lives in this module (`packages/database/driver/sqlite`). MySQL, PostgreSQL, SQL Server, Oracle, and Mongo drivers live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
-
-### Env
+Drivers live in [`github.com/zatrano/packages/database/driver/...`](https://github.com/zatrano/packages).
 
 ```env
 DB_CONNECTION=mysql
 DB_CONNECTIONS=mysql,pgsql,mongo
-
-DB_HOST=127.0.0.1
 DB_MYSQL_HOST=127.0.0.1
 DB_MYSQL_DATABASE=shop
 DB_PGSQL_HOST=127.0.0.1
-DB_PGSQL_DATABASE=analytics
-DB_PGSQL_USERNAME=postgres
 DB_MONGO_URI=mongodb://localhost:27017
-DB_MONGO_DATABASE=zatrano
 ```
 
-Per-connection keys: `DB_<NAME>_HOST`, `_PORT`, `_DATABASE`, `_USERNAME`, `_PASSWORD`, `_SSLMODE`, `_SERVICE`, `_URI`.
+A model can pin a connection:
 
-### Models pick a connection
-
-```golang
-type Order struct {
-    orm.Model
-    Total int64 `db:"total"`
-}
-
-func (m *Order) TableName() string  { return "orders" }
-func (m *Order) Connection() string { return "pgsql" } // must appear in DB_CONNECTIONS
+```go
+func (m *Order) Connection() string { return "pgsql" }
 ```
 
 ```bash
 go run ./cmd/app make:model Order --connection=pgsql
 ```
 
-Runtime: `app.DB().Connection("pgsql")` for SQL; Mongo binds as container key `mongo` (and `mongo.<name>` when the connection name is not `mongo`).
+Guides: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) · [MongoDB](https://zatrano.com/docs/mongodb).
 
-Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) · [MongoDB](https://zatrano.com/docs/mongodb).
+## HTTP
 
-## Boot profiles
+Controllers talk to kernel types:
 
-| API                          | `APP_BOOT`    | Boots                               |
-| ---------------------------- | ------------- | ----------------------------------- |
-| `App(Kernel())`              | `core`        | Kernel only                         |
-| `App(Minimal())`             | `minimal`     | Foundation + your routes, no addons |
-| `App()`                      | `app`         | Minimal + `EnabledAddons`           |
-| `App(WithPresetAPI()/Web())` | `api` / `web` | Lean presets                        |
-| `App(WithAddons(...))`       | —             | Foundation + an explicit addon list |
+```go
+package web
 
-```golang
-import (
-    "github.com/zatrano/framework/bootstrap"
-    "github.com/zatrano/packages/auth"
-)
+import "github.com/zatrano/framework/kernel/http"
 
-func main() {
-    app := bootstrap.FromEnv()       // reads APP_BOOT (default "app")
-    // app := bootstrap.FromEnv("api")
-    // app := bootstrap.App(bootstrap.WithPresetAPI())
+type HomeController struct{}
 
-    _ = auth.From(app)               // resolve services — not app.Auth()
-    app.Run()
+func (c *HomeController) Index(req *http.Request) *http.Response {
+    return http.JSON(map[string]any{"ok": true})
 }
 ```
 
-There is no demo boot profile. Enable addons with `EnabledAddons` or `App(WithAddons(...))`.
+Routes live under `app/routes/{web,api}` in the generated app. CSRF, CORS, trusted proxies, and exception handling are kernel middleware.
 
-Full guide: [Boot Profiles](https://zatrano.com/docs/boot-profiles).
-
-## Package ecosystem
-
-Foundation packages (`auth`, `database`, `orm`, `queue`, …) ship in this module. Optional addons ship in [`github.com/zatrano/packages`](https://github.com/zatrano/packages): blank-import them in the app, then enable.
-
-```bash
-go get github.com/zatrano/packages@dev
-
-# in cmd/app/main.go (or app/addons.go):
-#   import _ "github.com/zatrano/packages/oauth"
-
-go run ./cmd/app package:list
-go run ./cmd/app package:list --libraries
-go run ./cmd/app package:status
-go run ./cmd/app package:enable oauth
-go run ./cmd/app package:preset api --merge
-go run ./cmd/app package:doctor
-```
-
-| Kind         | Enable?                        | Where                                                          | Examples                                                       |
-| ------------ | ------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------- |
-| **Service**  | Yes — `EnabledAddons` / preset | `github.com/zatrano/packages`                                  | `oauth`, `billing`, `social`                                   |
-| **Library**  | No — just `import`             | `github.com/zatrano/packages`                                  | `collection`, `totp`                                           |
-| **Intelligence** | Same as a service          | this module                                                    | `ai` (RAG / agent are libraries)                               |
-| **Heavy**    | Only when needed               | separate modules                                               | `webauthn`, `qr`; DB engines via `db:setup`                    |
-| **Database** | `db:setup`                     | sqlite here; others in `zatrano/packages`                      | `sqlite`, `mysql`, `pgsql`, `mssql`, `oracle`, `mongo`         |
-
-Resolve from the container:
-
-```golang
-auth.From(app)
-auth.Passwords(app)
-notification.From(app)
-session.From(app)
-database.Migrator(app)
-```
-
-There is no `packages/mail`. Send email through `notification` with `Channels: ["mail"]`.
-
-Guide: [PACKAGES.md](PACKAGES.md) (what + how) · [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) · [Resolving Services](https://zatrano.com/docs/accessors).
-
-## Authentication (highlights)
+## Authentication
 
 ```bash
 go run ./cmd/app make:auth
 go run ./cmd/app make:dashboard
 ```
 
-Session guards with **per-guard keys**, remember-me, password reset (no enumeration), email verification events, cache-backed lockout, TOTP MFA, **remember this device**, multi-device logout, intended URLs, password confirmation.
+Session guards, remember-me, password reset, email verification, lockout, TOTP, trusted devices, multi-device logout. `make:dashboard` scaffolds `/dashboard` and optional JSON under `/api/v1` — not preinstalled.
 
-`make:dashboard` scaffolds a modular admin shell (`/dashboard`), optional users / notifications / roles / RBAC / settings / analytics / impersonate, and JSON under `/api/v1` (with auth at `/api/v1/auth`). Not pre-installed in the default app — run the CLI and follow its next steps.
-
-```golang
+```go
 ok, err := auth.From(app).Attempt(req, map[string]string{
     "email": "ada@example.com", "password": "secret",
 }, true)
-ok, err = auth.From(app).ChallengeTwoFactor(req, code, true) // trusted device
 ```
 
-Guides: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold).
+Guides: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard](https://zatrano.com/docs/dashboard-scaffold).
 
-## What ships in the box
+## What you get
 
-**This module (framework)**
+**Kernel (this module)** — process start and a secure HTTP surface: container, config, env, router, request/response, middleware, encryption, cookies, logging, exceptions.
 
-| Area                | Capabilities                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **HTTP**            | Router, controllers, middleware (CSRF, CORS, throttle, security), requests/responses, cookies, flash, URLs             |
-| **Views**           | Layouts, components, directives, markdown, file-based pages                                                            |
-| **Validation**      | Rules, form requests, error bags                                                                                       |
-| **Data**            | Query builder, schema, migrations, ORM (relations, scopes, eager load), seeders                                        |
-| **Auth & security** | Guards, 2FA, lockout, API tokens, encryption, hashing, trusted proxies, `make:dashboard` admin shell                   |
-| **Async**           | Queues (sync/DB/Redis), notifications (database/mail/SMS/push), broadcasting, scheduler                                |
-| **Platform**        | Config + `.env`, sessions, cache, filesystem, localization, health, maintenance                                        |
-| **Intelligence**    | AI chat, RAG, agents                                                                                                   |
-| **Tooling**         | CLI (`zatrano new`, `make:*`, `package:*`, `db:setup`, `describe`, `doctor`)                                           |
+**Addons (packages module)** — sessions, validation, views, auth, ORM, queues, notifications, scheduler, localization, cache, AI (`ai`, `rag`, `agent`), plus opt-in services (OAuth, social login, WebAuthn, billing, backups, OpenAPI, GraphQL) and import-only libraries.
 
-**Addon module** ([`zatrano/packages`](https://github.com/zatrano/packages)): OAuth server, social login, WebAuthn, billing, Mongo client, backups, OpenAPI/GraphQL helpers, inspector, and import-only libraries.
+**CLI** — `zatrano new`, `serve`, `make:*`, `package:enable|list|doctor`, `db:setup`, `describe`.
 
-## Project layout
+## v2
 
-```text
-bootstrap/                     Boot profiles, foundation, EnabledAddons, presets
-cmd/zatrano/                   Framework CLI (`new`, `make:*`, `package:*`, `db:setup`, …)
-config/                        Default config maps
-kernel/                        Thin kernel + catalog
-packages/                      Kernel, foundation, and intelligence implementations
-packages/console/templates/    Starter copied by `zatrano new`
-```
+Unreleased (`v2-dev`). Create apps with `zatrano new`; do not clone this repo as a project.
 
-There is no application skeleton in this tree (`app/`, `routes/`, `views/`, `database/` belong to apps created by `zatrano new`). Generated apps use `cmd/app`.
+- Primitives live under `kernel/` (`kernel/http`, `kernel/routing`, …). The module root is `kernel`, `contracts`, `bootstrap`, `console`, `cmd`.
+- Auth, database, views, queues, AI, and the rest are addons. Blank-import them.
+- `bootstrap.ApplicationProviders()` is empty; pass `WithProviders` from the app.
+- No database until `db:setup`.
+- Demo boot profiles are gone. Import what you want.
 
-## Documentation
-
-Product guides: **[https://zatrano.com/docs](https://zatrano.com/docs)**.
-
-In-repo packages guide: **[PACKAGES.md](PACKAGES.md)** (purpose, enable, usage, docs links).
-
-| Start here                                                      |                                  |
-| --------------------------------------------------------------- | -------------------------------- |
-| [PACKAGES.md](PACKAGES.md)                                      | Packages guide (this repo)       |
-| [Installation](https://zatrano.com/docs/installation)           | Clone, key, serve                |
-| [Boot Profiles](https://zatrano.com/docs/boot-profiles)         | `APP_BOOT`, Minimal / API / Web  |
-| [Package Ecosystem](https://zatrano.com/docs/package-ecosystem) | enable, presets, doctor          |
-| [Resolving Services](https://zatrano.com/docs/accessors)        | `From(app)` migration table      |
-| [Authentication](https://zatrano.com/docs/authentication)       | Full auth surface                |
-| [Release Notes](https://zatrano.com/docs/releases)              | Version history                  |
-
-## Breaking changes in v2
-
-Unreleased (`v2-dev`). Apps should be created with `zatrano new`, not by cloning this repo as a project.
-
-- No application skeleton in the framework module. `app/`, `routes/`, `views/`, `public/`, `lang/`, and application `database/` live in generated apps. `cmd/zatrano` is the framework CLI; apps use `cmd/app`.
-- Optional addons live in `github.com/zatrano/packages` and must be blank-imported by the consumer. This module does not `require` that one.
-- `bootstrap.ApplicationProviders()` is empty; pass `bootstrap.WithProviders(...)` from the application.
-- No database is linked by default. SQLite is installed with `db:setup --drivers=sqlite`.
-- `App(WithDemo())`, `DemoAddons`, `APP_BOOT=demo`, and `package:preset demo` are removed. Enable addons explicitly.
-- Duplicate top-level addon copies are gone from `packages/`. Foundation helpers are nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …).
-
-Upgrade from v1: generate a new app (`zatrano new`) or move your application tree out of the framework clone, then `go get github.com/zatrano/framework@v2-dev` and blank-import addons you still need. See [Release Notes](https://zatrano.com/docs/releases).
+Upgrade: generate a new app, or move your tree out of a framework clone, then `go get github.com/zatrano/framework@v2-dev` and blank-import the addons you still need. [Release notes](https://zatrano.com/docs/releases).
 
 ## Versioning
 
 Semantic versioning. Tags: `vMAJOR.MINOR.PATCH` on [GitHub Releases](https://github.com/zatrano/framework/releases).
 
-| Line       | Meaning                                      |
-| ---------- | -------------------------------------------- |
-| **v2-dev** | Two-module architecture (this branch)        |
-| **v1.x**   | Last tagged line (`v1.6.6`)                  |
-| **v0.2.x** | Pre-ecosystem line (historical)              |
+| Line | Meaning |
+| --- | --- |
+| **v2-dev** | Two-module architecture (this branch) |
+| **v1.x** | Last tagged line (`v1.6.6`) |
+
+v2 work lands on **`v2-dev`** here and **`v2-dev`** in `zatrano/packages`.
+
+## Documentation
+
+| | |
+| --- | --- |
+| [zatrano.com/docs](https://zatrano.com/docs) | Product guides |
+| [PACKAGES.md](PACKAGES.md) | What each package is for |
+| [Installation](https://zatrano.com/docs/installation) | Clone, key, serve |
+| [Package ecosystem](https://zatrano.com/docs/package-ecosystem) | Enable, doctor |
+| [Resolving services](https://zatrano.com/docs/accessors) | `From(app)` |
+| [Contributing](https://zatrano.com/docs/contributions) | PRs and tests |
 
 ## Community
 
-- Docs: [zatrano.com/docs](https://zatrano.com/docs)
-- Framework: [github.com/zatrano/framework](https://github.com/zatrano/framework)
-- Addons: [github.com/zatrano/packages](https://github.com/zatrano/packages)
-- LinkedIn: [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
+- [zatrano.com/docs](https://zatrano.com/docs)
+- [github.com/zatrano/framework](https://github.com/zatrano/framework)
+- [github.com/zatrano/packages](https://github.com/zatrano/packages)
+- [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
 
-## Contributing
-
-Issues and PRs welcome. Keep changes focused, add tests when practical, follow `gofmt` and existing package boundaries. Guide: [Contributing](https://zatrano.com/docs/contributions).
-
-v2 work lands on **`v2-dev`** in this repository and **`dev`** in `zatrano/packages`.
+Issues and PRs welcome. Keep changes focused, add tests when practical, follow `gofmt`.
 
 ## Security
 
-CI (`.github/workflows/security.yml`) runs on `main` pushes, pull requests, and a weekly cron:
-
-| Tool | Role |
-|------|------|
-| **go vet** / **go test -race** | Compiler checks and data-race detection |
-| **gosec** | Golang SAST; SARIF uploaded to the GitHub Security tab (excludes in `.github/gosec.json`) |
-| **govulncheck** | Known Golang module CVEs |
-| **Semgrep** | `p/golang` + `p/security-audit` plus `.github/semgrep/zatrano-rules.yml` |
-| **Trivy FS** | Dependency/secret/misconfig scan (fails on HIGH/CRITICAL only) |
-| **Golang fuzz** | `tests/fuzz` targets (3m each in CI; longer locally) |
+CI (`.github/workflows/security.yml`) runs on `main` pushes, pull requests, and a weekly cron: **go vet**, **go test -race**, **gosec**, **govulncheck**, **Semgrep**, **Trivy FS**, and Golang fuzz in `tests/fuzz`.
 
 Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com).
 
