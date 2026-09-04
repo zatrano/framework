@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>A Golang web framework with a thin kernel. You import what you run.</em>
+  <em>A Go application platform for building production-grade software.</em>
 </p>
 
 <p align="center">
@@ -28,75 +28,94 @@
 </p>
 
 <p align="center">
-  <a href="https://zatrano.com/docs">Docs</a>
+  <a href="https://zatrano.com/docs">Documentation</a>
   ·
-  <a href="https://zatrano.com/docs/installation">Install</a>
+  <a href="https://zatrano.com/docs/installation">Installation</a>
   ·
-  <a href="PACKAGES.md">Package guide</a>
+  <a href="PACKAGES.md">Packages</a>
   ·
-  <a href="https://github.com/zatrano/packages">Addons</a>
+  <a href="https://github.com/zatrano/packages">Package ecosystem</a>
   ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
 </p>
 
 ---
 
-ZATRANO is a Golang web framework with a **thin kernel**. This repository is the kernel: process boot, HTTP, routing, config, and the stable ABI. Everything else — session, auth, database, views, queues, AI — lives in [`github.com/zatrano/packages`](https://github.com/zatrano/packages) and is linked only when you import it.
+## What is ZATRANO?
 
-The kernel has **zero third-party runtime dependencies**.
+ZATRANO is a **Go application platform** for building, running, and extending production-grade software.
 
-Create applications with `zatrano new`. This repository is the framework, not a project skeleton.
+It is built around a small, dependency-neutral kernel and an opt-in package ecosystem. The kernel is the stable runtime foundation. Packages add capabilities such as databases, authentication, sessions, queues, notifications, AI, RAG, agents, billing, OAuth, and other application services.
+
+You import what you run. The kernel has **zero third-party runtime dependencies**.
 
 ```text
-                    your app
-                       │
-              bootstrap.App()
-                       │
-              ┌────────┴────────┐
-              │                 │
-           CONTRACTS          KERNEL
-              │                 │
-         stable ABI         primitives
-                                │
-                     ┌──────────┼──────────┐
-                     │          │          │
-                 Foundation  Intelligence  Addons
+                           ZATRANO
+                    Go Application Platform
+                              │
+             ┌────────────────┼────────────────┐
+             │                │                │
+          Contracts         Kernel          Packages
+             │                │                │
+        Stable public      Runtime          Optional
+            ABI            foundation      capabilities
+             │                │                │
+             │        ┌───────┼───────┐        │
+             │        │       │       │        │
+             │      HTTP   Router  Config     AI
+             │        │       │       │        │
+             │   Middleware Container …       RAG
+             │                                Agent
+             │                                Auth
+             │                                Database
+             │                                Queue
+             │                                …
+             │
+             └──────────── Application ────────────┘
+                              │
+                         bootstrap.App()
+                              │
+                              ▼
+                         Your application
 ```
 
-## Two modules
+ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-| | Module | Role |
-| --- | --- | --- |
-| **Framework** | [`github.com/zatrano/framework`](https://github.com/zatrano/framework) | Kernel, contracts, HTTP, CLI |
-| **Packages** | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Opt-in services and libraries |
+This repository (`github.com/zatrano/framework`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`.
 
-`bootstrap.App()` starts the kernel, then every package this process blank-imported. Resolve services with `From(app)` helpers — they are not methods on `App`.
+## Architecture
 
-```go
-import (
-    _ "github.com/zatrano/packages/session"
-    _ "github.com/zatrano/packages/auth"
-    _ "github.com/zatrano/packages/database"
-    _ "github.com/zatrano/packages/view"
-)
+ZATRANO separates the stable runtime foundation from optional application capabilities.
 
-app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
-_ = auth.From(app)
-if err := app.Run(":8080"); err != nil {
-    panic(err)
-}
-```
+### Kernel
 
-```bash
-go run ./cmd/app package:list
-go run ./cmd/app package:enable auth
-```
+The kernel contains the primitives required to run an application:
 
-Catalog: **[PACKAGES.md](PACKAGES.md)**. Guides: [zatrano.com/docs](https://zatrano.com/docs).
+- Application lifecycle
+- HTTP request / response
+- Routing
+- Middleware
+- Dependency container
+- Configuration
+- Environment
+- Encryption
+- Cookies
+- Logging
+- Exceptions
+- Reports
+- Trusted proxies
+- Safe paths
+- Core support utilities
 
-## Contracts and kernel
+The kernel does not depend on the packages module.
 
-`contracts` is the public ABI (`App`, `Provider`, `Container`, `Router`). It does not import `kernel/*` or the packages module. Typed APIs live next to their implementation:
+### Contracts
+
+`contracts` is ZATRANO's dependency-neutral public ABI. It contains stable interfaces such as `App`, `Provider`, `LifecycleProvider`, `Container`, `Router`, and the HTTP bridge.
+
+The contracts package does not import kernel implementation packages or the packages module. That keeps the ABI stable and prevents dependency cycles.
+
+Typed developer APIs live next to their implementations:
 
 ```go
 import (
@@ -105,23 +124,111 @@ import (
 )
 
 r := routing.From(app)
+
 r.Get("/health", func(req *http.Request) *http.Response {
-    return http.JSON(map[string]any{"ok": true})
+    return http.JSON(map[string]any{
+        "ok": true,
+    })
 })
 ```
 
-After bootstrap, registration is frozen. Optional long-running work uses `contracts.LifecycleProvider`; `Start` / `Stop` (and `Run`) own process lifetime.
+The distinction is intentional:
 
 ```text
-kernel/         Application + primitives
-contracts/      Public ABI
-bootstrap/      App() and the addon registry
-console/        CLI (new, make:*, package:*, describe)
-cmd/zatrano/    CLI entrypoint
-tests/          Architecture, boot, compatibility, fuzz
+contracts
+    ↓
+stable, dependency-neutral ABI
+
+kernel/*
+    ↓
+strongly typed implementation
+
+From(app)
+    ↓
+typed developer facade
 ```
 
-Generated apps use `cmd/app`. This repo’s CLI is `cmd/zatrano`.
+### Packages
+
+Optional capabilities live in the separate [`github.com/zatrano/packages`](https://github.com/zatrano/packages) module.
+
+Examples include sessions, validation, authentication, database, ORM, views, queues, notifications, scheduler, localization, cache, AI, RAG, agents, OAuth, social login, WebAuthn, billing, backups, OpenAPI, GraphQL, database drivers, and other import-only libraries.
+
+Packages are enabled only when an application needs them.
+
+```text
+Kernel
+  │
+  ├── always available
+  │
+  └── no optional application services
+
+Packages
+  │
+  ├── session
+  ├── auth
+  ├── database
+  ├── queue
+  ├── notification
+  ├── ai
+  ├── rag
+  ├── agent
+  └── …
+```
+
+A minimal application does not pay for capabilities it does not use.
+
+## Two modules
+
+| Module | Role |
+| --- | --- |
+| [`github.com/zatrano/framework`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
+| [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Optional application services and libraries |
+
+The packages module depends on this module. This module does not import `github.com/zatrano/packages`.
+
+```text
+Application
+    │
+    ├── github.com/zatrano/framework
+    │
+    └── selected packages
+             │
+             ▼
+        framework/contracts
+```
+
+There is no reverse dependency from the kernel into application capabilities.
+
+## Application model
+
+Applications are created with:
+
+```bash
+zatrano new myapp
+```
+
+Generated applications contain application-specific structure. A typical tree looks like:
+
+```text
+myapp/
+├── app/
+│   ├── http/controllers/
+│   ├── routes/
+│   ├── providers/
+│   ├── views/
+│   ├── database/
+│   └── …
+├── bootstrap/
+├── cmd/
+│   └── app/
+├── public/
+├── storage/
+├── tests/
+└── go.mod
+```
+
+The exact generated structure depends on the selected application capabilities.
 
 ## Quick start
 
@@ -130,8 +237,10 @@ Requires **Golang 1.25+**.
 ```bash
 git clone -b v2-dev https://github.com/zatrano/framework.git
 cd framework
+
 go run ./cmd/zatrano new myapp --replace .
 cd myapp
+
 cp .env.example .env
 go run ./cmd/app key:generate
 go run ./cmd/app serve
@@ -139,14 +248,67 @@ go run ./cmd/app serve
 
 Open [http://localhost:8080](http://localhost:8080).
 
+Use the modules directly:
+
 ```bash
 go get github.com/zatrano/framework@v2-dev
 go get github.com/zatrano/packages@v2-dev
 ```
 
-Kernel-only scaffold: `zatrano new lite --minimal --replace .`
+Kernel-only scaffold (no package ecosystem):
+
+```bash
+go run ./cmd/zatrano new lite --minimal --replace .
+```
+
+## Enabling packages
+
+Service packages register providers with the platform. An application enables them through blank imports:
+
+```go
+import (
+    _ "github.com/zatrano/packages/session"
+    _ "github.com/zatrano/packages/auth"
+    _ "github.com/zatrano/packages/database"
+    _ "github.com/zatrano/packages/view"
+)
+```
+
+`bootstrap.App()` starts the kernel, then every package this process blank-imported. Resolve services with typed `From(app)` helpers — they are not methods on `App`:
+
+```go
+authService := auth.From(app)
+```
+
+Do not expect `app.Auth()`, `app.Database()`, or `app.AI()`. That would turn the central application object into a dependency-heavy service locator.
+
+```text
+Application
+    │
+    └── Container
+          │
+          ├── auth
+          ├── database
+          ├── session
+          ├── ai
+          └── …
+```
+
+Each package owns its typed developer API.
+
+### Package management
+
+```bash
+go run ./cmd/app package:list
+go run ./cmd/app package:enable auth
+go run ./cmd/app package:doctor
+```
+
+Catalog: **[PACKAGES.md](PACKAGES.md)**. The package ecosystem is maintained separately from the kernel.
 
 ## HTTP
+
+The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives:
 
 ```go
 package web
@@ -156,21 +318,239 @@ import "github.com/zatrano/framework/kernel/http"
 type HomeController struct{}
 
 func (c *HomeController) Index(req *http.Request) *http.Response {
-    return http.JSON(map[string]any{"ok": true})
+    return http.JSON(map[string]any{
+        "ok": true,
+    })
 }
 ```
 
-Routes live in the generated app. Kernel middleware covers CSRF, CORS, trusted proxies, and exceptions.
+Routes are defined in the generated application:
 
-## Line
+```go
+r.Get("/", controller.Index)
+```
 
-v2 is developed on **`v2-dev`** (this branch and `zatrano/packages`). Version: `2.0.0-dev` ([`VERSION`](VERSION)).
+Kernel middleware provides the HTTP security and infrastructure layer, including CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static-file resolution.
+
+## Routing
+
+The router is mutable during application registration and immutable after bootstrap.
+
+```text
+Registration
+     │
+     ▼
+ Mutable route graph
+     │
+     ▼
+   Freeze()
+     │
+     ▼
+ Immutable runtime graph
+     │
+     ├── dispatch
+     ├── snapshot
+     └── cache
+```
+
+After freezing, route registration and mutation are rejected. Typed routing APIs are provided by `routing.From(app)`.
+
+## Application lifecycle
+
+Providers can implement `contracts.LifecycleProvider`:
+
+```go
+Start(app contracts.App) error
+Stop(ctx context.Context) error
+```
+
+`Start` / `Stop` (and `Run`) own process lifetime. Lifecycle transitions are serialized and protected against concurrent `Start` / `Stop` calls.
+
+```text
+Created
+   │
+   ▼
+Bootstrapping
+   │
+   ├── fail → BootFailed (terminal)
+   ▼
+Booted
+   │
+   ▼
+Starting
+   │
+   ▼
+Running
+   │
+   ▼
+Stopping
+   │
+   ▼
+Stopped (terminal)
+```
+
+Failed bootstrap is terminal for that application instance. Stopped applications cannot restart.
+
+## Dependency container
+
+The kernel includes a concurrency-safe dependency container. It supports bindings, singletons, instances, aliases, lazy resolution, cycle detection, concurrent singleton initialization, and frozen registration.
+
+The public contract exposes the essential resolver operations without exposing the implementation:
+
+```go
+value, err := app.Container().Make("service")
+```
+
+After application bootstrap, registration is frozen. Frozen means registration is immutable; it does not mean that runtime singleton instances can never be initialized.
+
+## Configuration
+
+Configuration is isolated from application ownership. The repository protects callers from accidental aliasing by recursively copying supported mutable configuration structures:
+
+```text
+primitive
+map
+  └── recursive
+slice
+  └── recursive
+```
+
+Pointer and arbitrary struct values are not cloned. Copy semantics cover the configuration value graph managed by the repository, not a universal Go object cloner.
+
+After bootstrap, the configuration repository is frozen.
+
+## Databases
+
+No database driver is part of the kernel. Database capabilities are provided through the packages ecosystem:
+
+```bash
+go run ./cmd/app db:setup
+```
+
+Drivers are opt-in. A kernel-only application does not automatically carry database dependencies.
+
+## AI
+
+AI is part of the optional application capability layer, not the kernel. The package ecosystem provides AI, RAG, and agent packages so that functionality can evolve independently from the runtime.
+
+## CLI
+
+This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app`.
+
+```bash
+zatrano new
+zatrano serve
+zatrano make:*
+zatrano package:list
+zatrano package:enable
+zatrano package:doctor
+zatrano db:setup
+zatrano describe
+```
+
+## Repository structure
+
+```text
+kernel/            Application + primitives
+  http/            HTTP request / response
+  routing/         Router
+  middleware/      HTTP middleware
+  config/          Configuration
+  container/       Dependency container
+  context/         Application context
+  env/             Environment
+  encryption/      Encryption primitives
+  cookie/          Cookie handling
+  exceptions/      Exception handling
+  log/             Logging
+  pipeline/        Pipelines
+  report/          Reporting
+  safepath/        Safe path resolution
+  trustedproxy/    Trusted proxy handling
+  support/         Support utilities
+contracts/         Public dependency-neutral ABI
+bootstrap/         Application boot and package registry
+console/           Platform CLI commands
+cmd/zatrano/       CLI entrypoint
+tests/             Architecture, compatibility, boot, and fuzz tests
+```
+
+The packages ecosystem is maintained in the separate [packages](https://github.com/zatrano/packages) repository.
 
 ## Security
 
-CI runs **go vet**, **go test -race**, **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and fuzz.
+Security is a platform concern. CI runs **go vet**, **go test -race**, **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and Go fuzzing.
 
-Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com).
+The release gate:
+
+```bash
+bash .github/scripts/release-gate.sh
+```
+
+Optional extended checks:
+
+```bash
+RACE=1 bash .github/scripts/release-gate.sh
+FUZZ=1 bash .github/scripts/release-gate.sh
+```
+
+Kernel security primitives include request size limits, safe path resolution, secure request IDs, security headers, trusted proxy handling, production secret validation, exception isolation, and cookie protection.
+
+Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com). Do not open a public GitHub issue for security reports.
+
+## Architecture principles
+
+1. **Small kernel** — primitives, not every application feature.
+2. **Dependency-neutral contracts** — the ABI does not import kernel implementation packages or optional packages.
+3. **Opt-in capabilities** — application capabilities are packages.
+4. **Typed developer APIs** — the public developer experience stays strongly typed even where the ABI must remain untyped.
+5. **One-way dependency flow** — application → packages → framework contracts / kernel. The kernel never depends on the packages ecosystem.
+6. **Immutable runtime configuration** — registration structures are mutable during boot and frozen before runtime.
+7. **Explicit application lifecycle** — startup and shutdown are deterministic and concurrency-safe.
+8. **Platform, not monolith** — the runtime foundation and the capability ecosystem without forcing every application to use every subsystem.
+
+```text
+Application
+    ↓
+Packages
+    ↓
+Framework contracts / kernel
+```
+
+## v2
+
+v2 is currently under development on **`v2-dev`**. Version: `2.0.0-dev` ([`VERSION`](VERSION)).
+
+The v2 line is two independently maintained modules: `github.com/zatrano/framework` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
+
+```text
+ZATRANO Platform
+      │
+      ├── Kernel
+      ├── Contracts
+      ├── Bootstrap
+      ├── CLI
+      └── Package ecosystem
+```
+
+| Line | Meaning |
+| --- | --- |
+| `v2-dev` | Current two-module application platform |
+| `v1.x` | Previous tagged ZATRANO line |
+
+ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`.
+
+## Documentation
+
+- [zatrano.com/docs](https://zatrano.com/docs)
+- [Installation](https://zatrano.com/docs/installation)
+- [PACKAGES.md](PACKAGES.md)
+- [github.com/zatrano/packages](https://github.com/zatrano/packages)
+- [Releases](https://github.com/zatrano/framework/releases)
+
+## Community
+
+Issues and pull requests are welcome. Keep changes focused, preserve architectural boundaries, add tests for behavioral changes, and run `gofmt`.
 
 ## License
 
