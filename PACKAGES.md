@@ -122,6 +122,18 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 
 Docs: [Requests & Responses](https://zatrano.com/docs/requests)
 
+### `cookie`
+
+**For:** Queue cookies onto responses (jar). Prefer `http.Response` cookie helpers for simple cases.  
+Always available under `kernel/cookie`; not opt-in.  
+Docs: [Cookies](https://zatrano.com/docs/cookies)
+
+### `support`
+
+**For:** Strings, arrays, UUID, and similar helpers (`kernel/support`, `kernel/support/str`, …).  
+Always available; not opt-in.  
+Docs: [Helpers](https://zatrano.com/docs/helpers)
+
 ### `routing`
 
 **For:** Register routes, groups, named URLs, resources.  
@@ -206,11 +218,6 @@ _ = sess.Regenerate() // after login
 ```
 
 Docs: [Session](https://zatrano.com/docs/session)
-
-### `cookie`
-
-**For:** Queue cookies onto responses (jar). Prefer `http.Response` cookie helpers for simple cases.  
-Docs: [Cookies](https://zatrano.com/docs/cookies)
 
 ### `flash`
 
@@ -487,15 +494,14 @@ Docs: [URL Generation](https://zatrano.com/docs/urls)
 **For:** `/health` style checks.  
 Docs: [Health](https://zatrano.com/docs/health)
 
-### `observability` · `maintenance` · `assets` · `console` · `support` · `version`
+### `observability` · `maintenance` · `assets` · `console` · `version`
 
 | Package | For | Docs / CLI |
 |---------|-----|------------|
 | `observability` | Metrics collection | [Observability](https://zatrano.com/docs/observability) |
 | `maintenance` | Downtime page (`down` / `up`) | [Maintenance](https://zatrano.com/docs/maintenance-mode) |
 | `assets` | Vite/Mix manifest URLs in views | [Assets](https://zatrano.com/docs/assets) |
-| `console` | `cmd/zatrano` CLI | [Artisan](https://zatrano.com/docs/artisan) |
-| `support` | Strings, arrays, UUID helpers | [Helpers](https://zatrano.com/docs/helpers) |
+| `console` | `cmd/zatrano` CLI | [CLI](https://zatrano.com/docs/artisan) |
 | `version` | Framework version helper | — |
 | `apitoken` | Personal access tokens | [API Tokens](https://zatrano.com/docs/api-tokens) |
 
@@ -717,6 +723,11 @@ Used internally; call if you write custom file APIs:
 ```go
 if !safepath.Under(root, candidate) { /* reject */ }
 ```
+
+### `layout`
+
+**For:** Resolve `app/views` vs `views/`, `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
+Not a consumer-facing service; CLI and addons import `kernel/layout` when they need a path.
 
 ---
 

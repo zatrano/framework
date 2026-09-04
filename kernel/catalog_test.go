@@ -65,6 +65,23 @@ func TestCatalogAddonKinds(t *testing.T) {
 	}
 }
 
+func TestCatalogKernelInternals(t *testing.T) {
+	for _, name := range []string{"cookie", "support"} {
+		p, ok := LookupPackage(name)
+		if !ok {
+			t.Fatalf("%s missing from catalog", name)
+		}
+		if p.Layer != LayerPrimitive {
+			t.Fatalf("%s layer=%q want primitive", name, p.Layer)
+		}
+	}
+	for _, name := range []string{"safepath", "layout"} {
+		if _, ok := LookupPackage(name); ok {
+			t.Fatalf("%s should stay out of the catalog (kernel-internal helper)", name)
+		}
+	}
+}
+
 func TestMakeMissingService(t *testing.T) {
 	app := NewApplication(".")
 	if _, err := app.Make("missing"); err == nil {

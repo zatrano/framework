@@ -67,10 +67,11 @@ var Catalog = []PackageInfo{
 	{Name: "encryption", Layer: LayerPrimitive, Description: "Symmetric encryption"},
 	{Name: "trustedproxy", Layer: LayerPrimitive, Description: "Trusted proxy headers"},
 	{Name: "report", Layer: LayerPrimitive, Description: "Exception reporting"},
+	{Name: "cookie", Layer: LayerPrimitive, Description: "Cookie jar helpers"},
+	{Name: "support", Layer: LayerPrimitive, Description: "Support helpers"},
 
 	// Foundation — typical web/API apps.
 	{Name: "session", Layer: LayerFoundation, Description: "HTTP sessions"},
-	{Name: "cookie", Layer: LayerFoundation, Description: "Cookie jar helpers"},
 	{Name: "flash", Layer: LayerFoundation, Description: "Flash / toast messages"},
 	{Name: "validation", Layer: LayerFoundation, Description: "Input validation"},
 	{Name: "auth", Layer: LayerFoundation, Description: "Authentication guards"},
@@ -97,7 +98,6 @@ var Catalog = []PackageInfo{
 	{Name: "apitoken", Layer: LayerFoundation, Description: "Personal access tokens"},
 	{Name: "assets", Layer: LayerFoundation, Description: "Asset manifest / Vite mix"},
 	{Name: "console", Layer: LayerFoundation, Description: "CLI application"},
-	{Name: "support", Layer: LayerFoundation, Description: "Support helpers"},
 	{Name: "version", Layer: LayerFoundation, Description: "Version helper"},
 
 	// Intelligence — first-party AI identity (same activation as addons; distinct catalog layer).
