@@ -62,8 +62,16 @@ func App(opts ...Option) *kernel.Application {
 			enabled = append(enabled, m.Name)
 		}
 	} else {
-		extra = addons.DefaultPackageProviders()
-		enabled = addons.Names()
+		metas := addons.DefaultMetas()
+		extra = make([]contracts.Provider, 0, len(metas))
+		enabled = make([]string, 0, len(metas))
+		for _, m := range metas {
+			enabled = append(enabled, m.Name)
+			if m.Factory == nil {
+				continue
+			}
+			extra = append(extra, m.Factory())
+		}
 	}
 	providers := []kernel.Provider{&KernelServiceProvider{}}
 	providers = append(providers, extra...)

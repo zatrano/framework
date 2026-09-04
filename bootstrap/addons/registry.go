@@ -188,14 +188,63 @@ func Expand(names []string, lookup func(string) (Meta, bool)) ([]Meta, error) {
 	return out, nil
 }
 
-// DefaultPackageProviders returns every registered addon provider in dependency order.
-func DefaultPackageProviders() []contracts.Provider {
-	avail := Available()
-	ordered, err := OrderMetas(avail)
+// Bootable drops addons whose Meta.Requires are not in the same set, then
+// repeats until the graph is stable. A Go import of a helper (for example
+// validation pulling flash) must not crash App() because session was not
+// imported. Explicit Select/WithAddons still error on missing Requires.
+func Bootable(metas []Meta) []Meta {
+	byName := make(map[string]Meta, len(metas))
+	for _, m := range metas {
+		if m.Name == "" {
+			continue
+		}
+		byName[m.Name] = m
+	}
+	for {
+		next := make(map[string]Meta, len(byName))
+		dropped := false
+		for name, m := range byName {
+			ok := true
+			for _, req := range m.Requires {
+				if req == "" || req == name {
+					continue
+				}
+				if _, has := byName[req]; !has {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				next[name] = m
+			} else {
+				dropped = true
+			}
+		}
+		byName = next
+		if !dropped {
+			break
+		}
+	}
+	out := make([]Meta, 0, len(byName))
+	for _, m := range byName {
+		out = append(out, m)
+	}
+	return out
+}
+
+// DefaultMetas is the default enable-set: every imported addon whose
+// Requires are present, in boot order.
+func DefaultMetas() []Meta {
+	ordered, err := OrderMetas(Bootable(Available()))
 	if err != nil {
 		panic(err)
 	}
-	return providersOf(ordered)
+	return ordered
+}
+
+// DefaultPackageProviders returns DefaultMetas factories in boot order.
+func DefaultPackageProviders() []contracts.Provider {
+	return providersOf(DefaultMetas())
 }
 
 func providersOf(metas []Meta) []contracts.Provider {

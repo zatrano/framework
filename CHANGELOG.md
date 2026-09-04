@@ -13,7 +13,7 @@ All notable changes to ZATRANO are documented in this file.
 - Duplicate addon libraries (`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`) are no longer top-level under `packages/`. Foundation usage is nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …); CLI-only copies live in `github.com/zatrano/packages`. `db:backup` registers when the backup addon is blank-imported.
 - `contracts.App` no longer exposes package services (`RateLimiter`, `URL`, `Hash`, `Metrics`, `Health`, `Maintenance`). Resolve them with `From(app)` / `app.Make`. Kernel accessors remain on `*kernel.Application` for the CLI.
 - Package config schemas (`auth`, `database`, `session`, `notifications`) moved out of `kernel/config` into the addon `DefaultConfig()` functions. Kernel config is the generic repository plus `app` defaults.
-- `Meta.Requires` is now a hard dependency: missing names fail `Select`/`OrderMetas` instead of being skipped. Use `Meta.Optional` for “boot first if imported”. `WithAddons("auth")` expands imported requirements into the boot set.
+- `Meta.Requires` is now a hard dependency: missing names fail `Select`/`OrderMetas` instead of being skipped. Use `Meta.Optional` for “boot first if imported”. `WithAddons("auth")` expands imported requirements into the boot set. The default enable-set (`App()` without `WithAddons`) boots only imported addons whose Requires are present (`Bootable`); a helper import must not panic the process.
 
 ### Added
 

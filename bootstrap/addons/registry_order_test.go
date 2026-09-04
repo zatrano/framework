@@ -149,3 +149,34 @@ func TestOrderMetasOptionalMissingIsSkipped(t *testing.T) {
 		t.Fatalf("got %#v", got)
 	}
 }
+
+func TestBootableDropsUnsatisfiedRequiresAndDependents(t *testing.T) {
+	got := addons.Bootable([]addons.Meta{
+		{Name: "flash", Requires: []string{"session"}},
+		{Name: "apitoken", Requires: []string{"auth"}},
+		{Name: "auth", Requires: []string{"session"}},
+		{Name: "health"},
+		{Name: "orm", Requires: []string{"database"}},
+		{Name: "database"},
+	})
+	names := map[string]bool{}
+	for _, m := range got {
+		names[m.Name] = true
+	}
+	if !names["health"] || !names["database"] || !names["orm"] {
+		t.Fatalf("kept=%v", names)
+	}
+	if names["flash"] || names["session"] || names["auth"] || names["apitoken"] {
+		t.Fatalf("should drop flash/auth chain without session, got %v", names)
+	}
+}
+
+func TestBootableKeepsSatisfiedRequires(t *testing.T) {
+	got := addons.Bootable([]addons.Meta{
+		{Name: "flash", Requires: []string{"session"}},
+		{Name: "session"},
+	})
+	if len(got) != 2 {
+		t.Fatalf("got %#v", got)
+	}
+}
