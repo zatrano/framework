@@ -1,14 +1,16 @@
-package kernel
+package layout
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/zatrano/framework/kernel"
 )
 
 func TestLayoutDirPrefersNewTree(t *testing.T) {
 	dir := t.TempDir()
-	app := NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	if err := os.MkdirAll(filepath.Join(dir, "app", "views"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +26,7 @@ func TestLayoutDirPrefersNewTree(t *testing.T) {
 
 func TestLayoutDirFallsBack(t *testing.T) {
 	dir := t.TempDir()
-	app := NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	if err := os.MkdirAll(filepath.Join(dir, "lang"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +39,7 @@ func TestLayoutDirFallsBack(t *testing.T) {
 
 func TestLayoutDirForCreateUsesNewWhenMissing(t *testing.T) {
 	dir := t.TempDir()
-	app := NewApplication(dir)
+	app := kernel.NewApplication(dir)
 	got := DatabaseDirForCreate(app)
 	want := filepath.Join(dir, "app", "database")
 	if got != want {

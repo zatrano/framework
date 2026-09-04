@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/layout"
 )
 
 func consumerModule(app *kernel.Application) string {
@@ -26,15 +27,15 @@ func applyConsumerPlaceholders(app *kernel.Application, body string) string {
 }
 
 func viewsRoot(app *kernel.Application) string {
-	return kernel.ViewsDirForCreate(app)
+	return layout.ViewsDirForCreate(app)
 }
 
 func localizationRoot(app *kernel.Application) string {
-	return kernel.LocalizationDirForCreate(app)
+	return layout.LocalizationDirForCreate(app)
 }
 
 func databaseRoot(app *kernel.Application) string {
-	return kernel.DatabaseDirForCreate(app)
+	return layout.DatabaseDirForCreate(app)
 }
 
 func joinRoot(root string, parts ...string) string {

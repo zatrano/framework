@@ -1,6 +1,6 @@
 package contracts
 
-import "net/http"
+import stdhttp "net/http"
 
 // App is the stable application surface for providers, addons, and CLI helpers.
 type App interface {
@@ -30,7 +30,18 @@ type App interface {
 	IsDebug() bool
 	RegisterProviders(providers ...Provider)
 	Bootstrap() error
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
+	ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request)
+	Run(addr string) error
+	SetHTTPBridge(bridge HTTPBridge)
+	HTTPBridge() HTTPBridge
+}
+
+// HTTPBridge is installed by session (and similar) at boot.
+// Middleware entries are routing.MiddlewareFunc values.
+// Finalize req is *framework/http.Request and resp is *framework/http.Response.
+type HTTPBridge interface {
+	Middleware() []any
+	Finalize(w stdhttp.ResponseWriter, req any, resp any) any
 }
 
 // Provider boots services into the application.

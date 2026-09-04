@@ -43,7 +43,7 @@ type Application struct {
 	encrypter   *encryption.Encrypter
 	exceptions  *exceptions.Handler
 	reports     *report.Manager
-	httpBridge  HTTPBridge
+	httpBridge  contracts.HTTPBridge
 	migrations  any
 	seeders     any
 	providers   []contracts.Provider
@@ -215,11 +215,7 @@ func (app *Application) Bootstrap() error {
 		middleware.RequestID,
 		middleware.SecurityHeaders,
 	)
-	if bridge := app.HTTPBridge(); bridge != nil {
-		for _, mw := range bridge.Middleware() {
-			app.router.Use(mw)
-		}
-	}
+	applyHTTPBridgeMiddleware(app)
 	app.router.Use(
 		middleware.TrimStrings(),
 		middleware.ConvertEmptyStringsToNull("password", "password_confirmation", "current_password"),
@@ -280,9 +276,7 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 	if resp == nil {
 		resp = http.Abort(204)
 	}
-	if bridge := app.HTTPBridge(); bridge != nil {
-		resp = bridge.Finalize(w, req, resp)
-	}
+	resp = finalizeHTTPBridge(app, w, req, resp)
 
 	for _, c := range req.Cookies().Apply() {
 		resp.WithCookie(c)
