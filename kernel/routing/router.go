@@ -61,15 +61,24 @@ func (r *Router) mutate() {
 
 // Freeze compiles the lookup table and makes the routing table immutable.
 // After freeze, exact static paths are preferred over parameterized routes.
-func (r *Router) Freeze() {
+// A second call is a no-op. Ambiguous or duplicate routes return an error.
+func (r *Router) Freeze() error {
 	if r == nil {
-		return
+		return nil
 	}
-	r.compile()
+	if r.frozen {
+		return nil
+	}
+	tables, err := r.compileTables()
+	if err != nil {
+		return err
+	}
+	r.byMethod = tables
 	r.frozen = true
+	return nil
 }
 
-func (r *Router) compile() {
+func (r *Router) compileTables() (map[string]*methodTable, error) {
 	tables := make(map[string]*methodTable)
 	for _, route := range r.routes {
 		t := tables[route.Method]
@@ -78,17 +87,20 @@ func (r *Router) compile() {
 			tables[route.Method] = t
 		}
 		if len(route.paramNames) == 0 {
-			if _, exists := t.static[route.Path]; !exists {
-				t.static[route.Path] = route
+			if _, exists := t.static[route.Path]; exists {
+				return nil, fmt.Errorf("router: duplicate route %s %s", route.Method, route.Path)
 			}
+			t.static[route.Path] = route
 			continue
 		}
 		if t.tree == nil {
 			t.tree = newTrieNode()
 		}
-		t.tree.insert(parseRouteSegs(route.Path), route)
+		if err := t.tree.insert(parseRouteSegs(route.Path), route); err != nil {
+			return nil, err
+		}
 	}
-	r.byMethod = tables
+	return tables, nil
 }
 
 // Frozen reports whether the router has been frozen.
@@ -230,9 +242,11 @@ func (r *Router) RegisterName(route *Route) {
 	}
 }
 
-// Routes returns all registered routes.
+// Routes returns a copy of the registered route slice.
 func (r *Router) Routes() []*Route {
-	return r.routes
+	out := make([]*Route, len(r.routes))
+	copy(out, r.routes)
+	return out
 }
 
 // Route finds a named route.

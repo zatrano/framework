@@ -1,6 +1,9 @@
 package routing
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type segKind int
 
@@ -68,12 +71,13 @@ func requestSegs(path string) []string {
 	return strings.Split(path, "/")
 }
 
-func (n *trieNode) insert(segs []routeSeg, route *Route) {
+func (n *trieNode) insert(segs []routeSeg, route *Route) error {
 	if len(segs) == 0 {
-		if n.route == nil {
-			n.route = route
+		if n.route != nil {
+			return ambiguousRoute(n.route, route)
 		}
-		return
+		n.route = route
+		return nil
 	}
 	s := segs[0]
 	rest := segs[1:]
@@ -84,25 +88,41 @@ func (n *trieNode) insert(segs []routeSeg, route *Route) {
 			child = newTrieNode()
 			n.static[s.value] = child
 		}
-		child.insert(rest, route)
+		return child.insert(rest, route)
 	case segParam:
+		if n.param != nil && n.paramName != "" && n.paramName != s.value {
+			return fmt.Errorf("router: ambiguous route %s %s conflicts with parameter {%s}", route.Method, route.Path, n.paramName)
+		}
 		if n.param == nil {
 			n.param = newTrieNode()
 			n.paramName = s.value
 		}
-		if s.optional && len(rest) == 0 && n.route == nil {
+		if s.optional && len(rest) == 0 {
+			if n.route != nil && n.route != route {
+				return ambiguousRoute(n.route, route)
+			}
 			n.route = route
 		}
-		n.param.insert(rest, route)
+		return n.param.insert(rest, route)
 	case segCatchAll:
+		if n.catchAll != nil && n.catchName != "" && n.catchName != s.value {
+			return fmt.Errorf("router: ambiguous route %s %s conflicts with catch-all {%s}", route.Method, route.Path, n.catchName)
+		}
 		if n.catchAll == nil {
 			n.catchAll = newTrieNode()
 			n.catchName = s.value
 		}
-		if n.catchAll.route == nil {
-			n.catchAll.route = route
+		if n.catchAll.route != nil {
+			return ambiguousRoute(n.catchAll.route, route)
 		}
+		n.catchAll.route = route
+		return nil
 	}
+	return nil
+}
+
+func ambiguousRoute(existing, incoming *Route) error {
+	return fmt.Errorf("router: ambiguous route %s %s conflicts with %s %s", incoming.Method, incoming.Path, existing.Method, existing.Path)
 }
 
 func (n *trieNode) lookup(parts []string, params map[string]string) *Route {

@@ -13,14 +13,19 @@ All notable changes to ZATRANO are documented in this file.
 - Duplicate addon libraries (`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`) are no longer top-level under `packages/`. Foundation usage is nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …); CLI-only copies live in `github.com/zatrano/packages`. `db:backup` registers when the backup addon is blank-imported.
 - `contracts.App` no longer exposes package services (`RateLimiter`, `URL`, `Hash`, `Metrics`, `Health`, `Maintenance`). Resolve them with `From(app)` / `app.Make`. Kernel accessors remain on `*kernel.Application` for the CLI.
 - Package config schemas (`auth`, `database`, `session`, `notifications`) moved out of `kernel/config` into the addon `DefaultConfig()` functions. Kernel config is the generic repository plus `app` defaults.
+- `Meta.Requires` is now a hard dependency: missing names fail `Select`/`OrderMetas` instead of being skipped. Use `Meta.Optional` for “boot first if imported”. `WithAddons("auth")` expands imported requirements into the boot set.
 
 ### Added
 
-- Factory container no longer holds its mutex while running factories (nested `Make` no longer deadlocks). Singletons use per-binding publish; alias chains and circular factories error instead of hanging.
-- Application bootstrap is idempotent and rejects `RegisterProviders` after boot. The router freezes at the end of bootstrap.
-- Addon registry topological sort via `Meta.Requires` (missing requires are skipped). Duplicate addon names panic at `init`.
+- Factory container no longer holds its mutex while running factories (nested `Make` no longer deadlocks). Singletons use per-binding publish; alias chains and circular factories error instead of hanging. Cross-goroutine singleton cycles return an error instead of deadlocking. After bootstrap, `Bind`/`Singleton`/`Instance`/`Alias` panic (`Make` still publishes lazy singletons).
+- Application bootstrap is idempotent and rejects `RegisterProviders` after boot. Bootstrap failure is terminal (`BootstrapFailed`); retrying the same instance is rejected. The router, config, and container registrations freeze at the end of bootstrap.
+- Addon registry topological sort via `Meta.Requires` (missing requires are errors) and `Meta.Optional` (skipped when absent). `Select`/`Resolve` expand the dependency closure from the process registry. Duplicate addon names panic at `init`.
+- After bootstrap the router compiles a per-method static map plus a segment trie for parameterized, optional, and catch-all routes (exact static paths win). Duplicate static paths and ambiguous parameterized shapes (`GET /users/{id}` vs `GET /users/{name}`) fail freeze. Config repository is frozen (Load/Set panic).
+- JSON/`Body()` no longer close the raw body; bodies are capped (`MAX_BODY_BYTES`, default 2 MiB) and replayable. The HTTP server sets `MaxHeaderBytes` and wraps the body with an absolute ceiling (`MaxRequestBytes`, the larger of JSON and multipart limits).
+- Optional `contracts.LifecycleProvider` (`Start`/`Stop`) for long-running workers. `Application.Start`/`Stop` run those hooks; `Run` starts them before listen and stops them on shutdown.
+- Typed `ResolveOK` / `MustResolve` beside `Resolve`. Container nested `Make` uses an explicit resolution view (no goroutine-id parsing).
+- Architecture tests freeze `contracts.App` methods and keep input helpers out of `kernel/http/request.go`. `tests/compatibility` golden-app: `zatrano new --minimal` must `go vet`/`go test` against this checkout.
 - Production panic recovery no longer writes panic values into the response body. `X-Request-ID` is propagated when valid. Incoming `traceparent` supplies the request id when no `X-Request-ID` is present.
-- After bootstrap the router compiles a per-method static map plus a segment trie for parameterized, optional, and catch-all routes (exact static paths win). Config repository is frozen (Load/Set panic).
 - Kernel `Catalog` lists primitive packages only. Foundation / intelligence / addon discovery lives in the CLI aggregator (`console`), so the kernel does not know names like `auth`, `billing`, or `agent`.
 - Addon lifecycle snapshot: `addons.NewPlan` (`imported` vs `enabled`). `Application.EnabledAddons` records the enable-set.
 

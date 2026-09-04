@@ -1,6 +1,9 @@
 package contracts
 
-import stdhttp "net/http"
+import (
+	"context"
+	stdhttp "net/http"
+)
 
 // App is the stable kernel surface for providers, addons, and CLI helpers.
 // Package services (auth, database, queue, AI, …) resolve via their own From(app)
@@ -44,6 +47,15 @@ type HTTPBridge interface {
 type Provider interface {
 	Register(app App) error
 	Boot(app App) error
+}
+
+// LifecycleProvider is an optional Provider that owns long-running work
+// (queue workers, schedulers, consumers). Boot initializes; Start launches;
+// Stop shuts down with the process.
+type LifecycleProvider interface {
+	Provider
+	Start(app App) error
+	Stop(ctx context.Context) error
 }
 
 // Migrator runs outstanding migrations and rollbacks.

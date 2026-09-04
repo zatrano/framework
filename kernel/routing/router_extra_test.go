@@ -88,7 +88,9 @@ func TestCatchAllEmptyAndRoot(t *testing.T) {
 	r.Get("/docs/{*slug}", func(req *http.Request) *http.Response {
 		return http.Text(req.Route("slug"))
 	})
-	r.Freeze()
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
 	missing := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs", nil)))
 	if missing.StatusCode() == 200 {
 		t.Fatal("empty catch-all should not match /docs")
@@ -102,7 +104,12 @@ func TestCatchAllEmptyAndRoot(t *testing.T) {
 func TestRouterFreeze(t *testing.T) {
 	r := routing.New()
 	r.Get("/", func(req *http.Request) *http.Response { return http.Text("ok") })
-	r.Freeze()
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if recover() == nil {
 			t.Fatal("expected panic")
@@ -119,7 +126,9 @@ func TestCompiledStaticBeatsParam(t *testing.T) {
 	r.Get("/users/new", func(req *http.Request) *http.Response {
 		return http.Text("static")
 	})
-	r.Freeze()
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
 	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
 	if string(resp.Content()) != "static" {
 		t.Fatalf("got %s", resp.Content())
@@ -141,7 +150,9 @@ func TestTrieParamAndCatchAll(t *testing.T) {
 	r.Get("/docs/{page?}", func(req *http.Request) *http.Response {
 		return http.Text("page:" + req.Route("page"))
 	})
-	r.Freeze()
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
 
 	meta := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/files/abc/meta", nil)))
 	if string(meta.Content()) != "meta:abc" {
@@ -172,5 +183,28 @@ func TestUnfrozenStillFirstMatchWins(t *testing.T) {
 	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
 	if string(resp.Content()) != "param" {
 		t.Fatalf("unfrozen should keep registration order, got %s", resp.Content())
+	}
+}
+
+func TestDuplicateStaticRouteFreezeErrors(t *testing.T) {
+	r := routing.New()
+	h := func(req *http.Request) *http.Response { return http.Text("ok") }
+	r.Get("/ping", h)
+	r.Get("/ping", h)
+	if err := r.Freeze(); err == nil {
+		t.Fatal("expected duplicate route error")
+	}
+	if r.Frozen() {
+		t.Fatal("failed freeze must not lock the router")
+	}
+}
+
+func TestAmbiguousParamRouteFreezeErrors(t *testing.T) {
+	r := routing.New()
+	h := func(req *http.Request) *http.Response { return http.Text("ok") }
+	r.Get("/users/{id}", h)
+	r.Get("/users/{name}", h)
+	if err := r.Freeze(); err == nil {
+		t.Fatal("expected ambiguous route error")
 	}
 }

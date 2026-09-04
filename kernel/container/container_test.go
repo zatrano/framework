@@ -70,6 +70,102 @@ func TestConcurrentSingletonBuildsOnce(t *testing.T) {
 	}
 }
 
+func TestConcurrentCircularSingletons(t *testing.T) {
+	c := container.New()
+	var started sync.WaitGroup
+	started.Add(2)
+	ready := make(chan struct{})
+
+	c.Singleton("a", func(c *container.Container) (any, error) {
+		started.Done()
+		<-ready
+		return c.Make("b")
+	})
+	c.Singleton("b", func(c *container.Container) (any, error) {
+		started.Done()
+		<-ready
+		return c.Make("a")
+	})
+
+	errCh := make(chan error, 2)
+	go func() { _, err := c.Make("a"); errCh <- err }()
+	go func() { _, err := c.Make("b"); errCh <- err }()
+
+	done := make(chan struct{})
+	go func() {
+		started.Wait()
+		close(ready)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("factories never started")
+	}
+
+	var errA, errB error
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errCh:
+			if errA == nil {
+				errA = err
+			} else {
+				errB = err
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("cross-goroutine circular Make deadlocked")
+		}
+	}
+	if errA == nil && errB == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	joined := ""
+	if errA != nil {
+		joined += errA.Error()
+	}
+	if errB != nil {
+		joined += errB.Error()
+	}
+	if !strings.Contains(joined, "circular") {
+		t.Fatalf("errA=%v errB=%v", errA, errB)
+	}
+}
+
+func TestContainerFreezeAllowsLazyMake(t *testing.T) {
+	c := container.New()
+	c.Singleton("svc", func() any { return "ok" })
+	c.Freeze()
+	if !c.Frozen() {
+		t.Fatal("expected frozen")
+	}
+	if c.MustMake("svc") != "ok" {
+		t.Fatal("Make after freeze")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected bind panic")
+		}
+	}()
+	c.Bind("late", func() any { return 1 })
+}
+
+func TestTransientCircularDependency(t *testing.T) {
+	c := container.New()
+	c.Bind("a", func(c *container.Container) (any, error) {
+		return c.Make("b")
+	})
+	c.Bind("b", func(c *container.Container) (any, error) {
+		return c.Make("a")
+	})
+	_, err := c.Make("a")
+	if err == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	if !strings.Contains(err.Error(), "circular") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestCircularDependency(t *testing.T) {
 	c := container.New()
 	c.Singleton("a", func(c *container.Container) (any, error) {

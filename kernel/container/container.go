@@ -21,19 +21,26 @@ type Binding struct {
 }
 
 type sharedSlot struct {
-	ready chan struct{}
-	val   any
-	err   error
+	ready     chan struct{}
+	val       any
+	err       error
+	waitingOn string
 }
 
 // Container is the ZATRANO factory-based service container.
+//
+// Nested Make uses an explicit resolution view (stack on a child *Container)
+// so cycle detection does not parse goroutine IDs. Shared singleton cycles
+// across goroutines use the slot wait-graph.
 type Container struct {
 	mu        sync.Mutex
 	bindings  map[string]Binding
 	instances map[string]any
 	aliases   map[string]string
 	slots     map[string]*sharedSlot
-	chains    sync.Map // goroutine id -> []string
+	frozen    bool
+	root      *Container
+	stack     []string
 }
 
 // New creates an empty service container.
@@ -46,10 +53,26 @@ func New() *Container {
 	}
 }
 
+func (c *Container) core() *Container {
+	if c == nil {
+		return nil
+	}
+	if c.root != nil {
+		return c.root
+	}
+	return c
+}
+
+func (c *Container) view(stack []string) *Container {
+	return &Container{root: c.core(), stack: stack}
+}
+
 // Bind registers a non-shared binding.
 func (c *Container) Bind(abstract string, concrete any) {
+	c = c.core()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.mustMutate()
 	delete(c.instances, abstract)
 	delete(c.slots, abstract)
 	c.bindings[abstract] = Binding{Concrete: concrete, Shared: false}
@@ -57,8 +80,10 @@ func (c *Container) Bind(abstract string, concrete any) {
 
 // Singleton registers a shared binding.
 func (c *Container) Singleton(abstract string, concrete any) {
+	c = c.core()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.mustMutate()
 	delete(c.instances, abstract)
 	delete(c.slots, abstract)
 	c.bindings[abstract] = Binding{Concrete: concrete, Shared: true}
@@ -66,8 +91,10 @@ func (c *Container) Singleton(abstract string, concrete any) {
 
 // Instance registers an existing shared instance.
 func (c *Container) Instance(abstract string, instance any) {
+	c = c.core()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.mustMutate()
 	delete(c.slots, abstract)
 	c.instances[abstract] = instance
 	c.bindings[abstract] = Binding{Concrete: instance, Shared: true}
@@ -75,13 +102,45 @@ func (c *Container) Instance(abstract string, instance any) {
 
 // Alias creates an alias that resolves to abstract.
 func (c *Container) Alias(abstract, alias string) {
+	c = c.core()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.mustMutate()
 	c.aliases[alias] = abstract
+}
+
+// Freeze locks registration (Bind/Singleton/Instance/Alias). Make still
+// publishes lazy singleton instances.
+func (c *Container) Freeze() {
+	c = c.core()
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.frozen = true
+	c.mu.Unlock()
+}
+
+// Frozen reports whether registration is locked.
+func (c *Container) Frozen() bool {
+	c = c.core()
+	if c == nil {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.frozen
+}
+
+func (c *Container) mustMutate() {
+	if c.frozen {
+		panic("container: cannot register bindings after bootstrap")
+	}
 }
 
 // Bound reports whether an abstract is bound.
 func (c *Container) Bound(abstract string) bool {
+	c = c.core()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	resolved, err := c.resolveAlias(abstract)
@@ -97,6 +156,14 @@ func (c *Container) Bound(abstract string) bool {
 
 // Make resolves a binding from the container.
 func (c *Container) Make(abstract string) (any, error) {
+	if c == nil {
+		return nil, fmt.Errorf("container: nil container")
+	}
+	stack := c.stack
+	return c.core().resolve(stack, abstract)
+}
+
+func (c *Container) resolve(stack []string, abstract string) (any, error) {
 	c.mu.Lock()
 	resolved, err := c.resolveAlias(abstract)
 	if err != nil {
@@ -116,34 +183,50 @@ func (c *Container) Make(abstract string) (any, error) {
 		return nil, fmt.Errorf("container: no binding for %q", abstract)
 	}
 
-	if err := c.pushResolving(abstract); err != nil {
+	if err := cycleIn(stack, abstract); err != nil {
 		c.mu.Unlock()
 		return nil, err
+	}
+	next := appendStack(stack, abstract)
+	parent := ""
+	if len(stack) > 0 {
+		parent = stack[len(stack)-1]
 	}
 
 	if !binding.Shared {
 		concrete := binding.Concrete
 		c.mu.Unlock()
-		resolvedVal, buildErr := c.build(concrete)
-		c.popResolving()
-		return resolvedVal, buildErr
+		return c.build(c.view(next), concrete)
 	}
 
 	if slot, ok := c.slots[abstract]; ok {
+		if err := c.markWaitingLocked(parent, abstract); err != nil {
+			c.mu.Unlock()
+			return nil, err
+		}
 		c.mu.Unlock()
 		<-slot.ready
-		c.popResolving()
-		return slot.val, slot.err
+		c.mu.Lock()
+		c.clearWaitingLocked(parent)
+		val, slotErr := slot.val, slot.err
+		c.mu.Unlock()
+		return val, slotErr
 	}
 
 	slot := &sharedSlot{ready: make(chan struct{})}
 	c.slots[abstract] = slot
+	if err := c.markWaitingLocked(parent, abstract); err != nil {
+		delete(c.slots, abstract)
+		c.mu.Unlock()
+		return nil, err
+	}
 	concrete := binding.Concrete
 	c.mu.Unlock()
 
-	val, buildErr := c.build(concrete)
+	val, buildErr := c.build(c.view(next), concrete)
 
 	c.mu.Lock()
+	c.clearWaitingLocked(parent)
 	slot.val, slot.err = val, buildErr
 	if buildErr == nil {
 		c.instances[abstract] = val
@@ -152,7 +235,6 @@ func (c *Container) Make(abstract string) (any, error) {
 	}
 	close(slot.ready)
 	c.mu.Unlock()
-	c.popResolving()
 	return val, buildErr
 }
 
@@ -163,6 +245,23 @@ func (c *Container) MustMake(abstract string) any {
 		panic(err)
 	}
 	return resolved
+}
+
+func cycleIn(stack []string, abstract string) error {
+	for _, prev := range stack {
+		if prev == abstract {
+			cycle := appendStack(stack, abstract)
+			return fmt.Errorf("container: circular dependency: %s", strings.Join(cycle, " -> "))
+		}
+	}
+	return nil
+}
+
+func appendStack(stack []string, abstract string) []string {
+	next := make([]string, len(stack)+1)
+	copy(next, stack)
+	next[len(stack)] = abstract
+	return next
 }
 
 func (c *Container) resolveAlias(abstract string) (string, error) {
@@ -180,48 +279,54 @@ func (c *Container) resolveAlias(abstract string) (string, error) {
 	}
 }
 
-func (c *Container) pushResolving(abstract string) error {
-	id := goroutineID()
-	raw, _ := c.chains.Load(id)
-	var chain []string
-	if raw != nil {
-		chain = raw.([]string)
+func (c *Container) markWaitingLocked(parent, target string) error {
+	if parent == "" {
+		return nil
 	}
-	for _, prev := range chain {
-		if prev == abstract {
-			cycle := append(append([]string{}, chain...), abstract)
-			return fmt.Errorf("container: circular dependency: %s", strings.Join(cycle, " -> "))
-		}
+	ps, ok := c.slots[parent]
+	if !ok {
+		return nil
 	}
-	next := make([]string, len(chain)+1)
-	copy(next, chain)
-	next[len(chain)] = abstract
-	c.chains.Store(id, next)
+	ps.waitingOn = target
+	if c.waitCycleLocked(target) {
+		ps.waitingOn = ""
+		return fmt.Errorf("container: circular dependency: %s -> %s", parent, target)
+	}
 	return nil
 }
 
-func (c *Container) popResolving() {
-	id := goroutineID()
-	raw, ok := c.chains.Load(id)
-	if !ok {
+func (c *Container) clearWaitingLocked(parent string) {
+	if parent == "" {
 		return
 	}
-	chain := raw.([]string)
-	if len(chain) <= 1 {
-		c.chains.Delete(id)
-		return
+	if ps, ok := c.slots[parent]; ok {
+		ps.waitingOn = ""
 	}
-	next := make([]string, len(chain)-1)
-	copy(next, chain[:len(chain)-1])
-	c.chains.Store(id, next)
 }
 
-func (c *Container) build(concrete any) (any, error) {
+func (c *Container) waitCycleLocked(start string) bool {
+	seen := map[string]struct{}{}
+	cur := start
+	for cur != "" {
+		if _, ok := seen[cur]; ok {
+			return true
+		}
+		seen[cur] = struct{}{}
+		slot, ok := c.slots[cur]
+		if !ok {
+			return false
+		}
+		cur = slot.waitingOn
+	}
+	return false
+}
+
+func (c *Container) build(view *Container, concrete any) (any, error) {
 	switch v := concrete.(type) {
 	case func(*Container) any:
-		return v(c), nil
+		return v(view), nil
 	case func(*Container) (any, error):
-		return v(c)
+		return v(view)
 	case func() any:
 		return v(), nil
 	default:

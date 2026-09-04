@@ -1,6 +1,7 @@
 package addons_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap/addons"
@@ -31,17 +32,16 @@ func TestOrderMetasRequiresBeforeDependents(t *testing.T) {
 	}
 }
 
-func TestOrderMetasSkipsMissingRequires(t *testing.T) {
-	metas := []addons.Meta{
+func TestOrderMetasMissingRequiresErrors(t *testing.T) {
+	_, err := addons.OrderMetas([]addons.Meta{
 		{Name: "auth", Order: 50, Requires: []string{"database", "session"}},
 		{Name: "hashing", Order: 15},
+	})
+	if err == nil {
+		t.Fatal("expected missing Requires to error")
 	}
-	got, err := addons.OrderMetas(metas)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 || got[0].Name != "hashing" || got[1].Name != "auth" {
-		t.Fatalf("got %#v", got)
+	if !strings.Contains(err.Error(), "requires") {
+		t.Fatalf("err=%v", err)
 	}
 }
 
@@ -82,5 +82,70 @@ func TestNewPlanEmptyMeansKernelOnly(t *testing.T) {
 	}
 	if len(p.Enabled) != 0 {
 		t.Fatalf("enabled=%v", p.Enabled)
+	}
+}
+
+func TestExpandPullsRequiresAndSkipsMissingOptional(t *testing.T) {
+	catalog := map[string]addons.Meta{
+		"auth":     {Name: "auth", Requires: []string{"database"}, Optional: []string{"redisx", "missing"}},
+		"database": {Name: "database"},
+		"redisx":   {Name: "redisx"},
+	}
+	lookup := func(name string) (addons.Meta, bool) {
+		m, ok := catalog[name]
+		return m, ok
+	}
+	got, err := addons.Expand([]string{"auth"}, lookup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, m := range got {
+		names[m.Name] = true
+	}
+	if !names["auth"] || !names["database"] || !names["redisx"] {
+		t.Fatalf("expanded=%v", names)
+	}
+	if names["missing"] {
+		t.Fatal("missing optional should not be included")
+	}
+}
+
+func TestExpandMissingRequiresErrors(t *testing.T) {
+	lookup := func(name string) (addons.Meta, bool) {
+		if name == "auth" {
+			return addons.Meta{Name: "auth", Requires: []string{"database"}}, true
+		}
+		return addons.Meta{}, false
+	}
+	_, err := addons.Expand([]string{"auth"}, lookup)
+	if err == nil || !strings.Contains(err.Error(), "requires") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestOrderMetasOptionalPresentBootsFirst(t *testing.T) {
+	got, err := addons.OrderMetas([]addons.Meta{
+		{Name: "auth", Order: 50, Optional: []string{"session"}},
+		{Name: "session", Order: 130},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Name != "session" || got[1].Name != "auth" {
+		t.Fatalf("got %s %s", got[0].Name, got[1].Name)
+	}
+}
+
+func TestOrderMetasOptionalMissingIsSkipped(t *testing.T) {
+	got, err := addons.OrderMetas([]addons.Meta{
+		{Name: "auth", Order: 50, Optional: []string{"session"}},
+		{Name: "hashing", Order: 15},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Name != "hashing" || got[1].Name != "auth" {
+		t.Fatalf("got %#v", got)
 	}
 }

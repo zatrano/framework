@@ -19,9 +19,12 @@ type Meta struct {
 	// Order is a tie-breaker among independent addons (lower first).
 	// Real boot order is computed from Requires via topological sort.
 	Order int
-	// Requires lists addon names that must Register/Boot first when they are
-	// also present in the process registry. Missing names are skipped (opt-in).
+	// Requires lists addon names that must be imported and must Register/Boot
+	// first. A missing requirement is a startup error, not a skip.
 	Requires []string
+	// Optional lists addon names that boot first when they are imported, and
+	// are ignored when they are not.
+	Optional []string
 	// CLI, if set, is invoked from console.New when this addon is imported.
 	CLI func(app contracts.App) []CLICommand
 }
@@ -53,9 +56,8 @@ func Register(m Meta) {
 		m.Key = name
 	}
 	m.Name = name
-	for i, req := range m.Requires {
-		m.Requires[i] = strings.ToLower(strings.TrimSpace(req))
-	}
+	m.Requires = normalizeDeps(m.Requires)
+	m.Optional = normalizeDeps(m.Optional)
 
 	registryMu.Lock()
 	defer registryMu.Unlock()
@@ -101,30 +103,89 @@ func Names() []string {
 	return out
 }
 
-// Select builds providers for the given addon names (unknown names error).
-func Select(names ...string) ([]contracts.Provider, error) {
-	if len(names) == 0 {
-		return nil, nil
-	}
-	seen := map[string]bool{}
-	var selected []Meta
-	for _, name := range names {
-		name = strings.ToLower(strings.TrimSpace(name))
-		if name == "" || seen[name] {
-			continue
-		}
-		m, ok := Lookup(name)
-		if !ok {
-			return nil, fmt.Errorf("unknown addon package %q (run package:list)", name)
-		}
-		seen[name] = true
-		selected = append(selected, m)
-	}
-	ordered, err := OrderMetas(selected)
+// Resolve expands Requires/Optional from the process registry, then returns
+// metas in boot order. Unknown names and missing Requires are errors.
+func Resolve(names ...string) ([]Meta, error) {
+	selected, err := Expand(names, Lookup)
 	if err != nil {
 		return nil, err
 	}
+	if len(selected) == 0 {
+		return nil, nil
+	}
+	return OrderMetas(selected)
+}
+
+// Select builds providers for the given addon names (unknown names error).
+// Required dependencies that are imported are pulled in automatically.
+func Select(names ...string) ([]contracts.Provider, error) {
+	ordered, err := Resolve(names...)
+	if err != nil {
+		return nil, err
+	}
+	if len(ordered) == 0 {
+		return nil, nil
+	}
 	return providersOf(ordered), nil
+}
+
+// Expand closes a name set over Requires (must exist) and Optional (if present).
+func Expand(names []string, lookup func(string) (Meta, bool)) ([]Meta, error) {
+	if lookup == nil {
+		lookup = Lookup
+	}
+	if len(names) == 0 {
+		return nil, nil
+	}
+	seen := map[string]Meta{}
+	queue := make([]string, 0, len(names))
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" {
+			continue
+		}
+		queue = append(queue, name)
+	}
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		m, ok := lookup(name)
+		if !ok {
+			return nil, fmt.Errorf("unknown addon package %q (run package:list)", name)
+		}
+		seen[name] = m
+		for _, req := range m.Requires {
+			if req == "" || req == name {
+				continue
+			}
+			if _, already := seen[req]; already {
+				continue
+			}
+			if _, ok := lookup(req); !ok {
+				return nil, fmt.Errorf("addons: %q requires %q, which is not imported", name, req)
+			}
+			queue = append(queue, req)
+		}
+		for _, opt := range m.Optional {
+			if opt == "" || opt == name {
+				continue
+			}
+			if _, already := seen[opt]; already {
+				continue
+			}
+			if _, ok := lookup(opt); ok {
+				queue = append(queue, opt)
+			}
+		}
+	}
+	out := make([]Meta, 0, len(seen))
+	for _, m := range seen {
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 // DefaultPackageProviders returns every registered addon provider in dependency order.
@@ -153,8 +214,9 @@ func AllNames() []string {
 	return Names()
 }
 
-// OrderMetas returns metas in boot order: Requires form a graph; missing
-// requirements (not in the input set) are ignored. Ties use Order then Name.
+// OrderMetas returns metas in boot order. Requires missing from the input set
+// are errors. Optional dependencies participate only when present. Ties use
+// Order then Name.
 func OrderMetas(metas []Meta) ([]Meta, error) {
 	byName := make(map[string]Meta, len(metas))
 	incoming := make(map[string]int, len(metas))
@@ -167,16 +229,27 @@ func OrderMetas(metas []Meta) ([]Meta, error) {
 		incoming[m.Name] = 0
 	}
 	for _, m := range metas {
-		seenReq := map[string]bool{}
+		seenDep := map[string]bool{}
 		for _, req := range m.Requires {
-			if req == "" || req == m.Name || seenReq[req] {
+			if req == "" || req == m.Name || seenDep[req] {
 				continue
 			}
-			seenReq[req] = true
+			seenDep[req] = true
 			if _, ok := byName[req]; !ok {
-				continue
+				return nil, fmt.Errorf("addons: %q requires %q, which is not in the boot set", m.Name, req)
 			}
 			graph[req] = append(graph[req], m.Name)
+			incoming[m.Name]++
+		}
+		for _, opt := range m.Optional {
+			if opt == "" || opt == m.Name || seenDep[opt] {
+				continue
+			}
+			seenDep[opt] = true
+			if _, ok := byName[opt]; !ok {
+				continue
+			}
+			graph[opt] = append(graph[opt], m.Name)
 			incoming[m.Name]++
 		}
 	}
@@ -219,6 +292,23 @@ func namesOf(metas []Meta) []string {
 		out[i] = m.Name
 	}
 	sort.Strings(out)
+	return out
+}
+
+func normalizeDeps(deps []string) []string {
+	if len(deps) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(deps))
+	seen := map[string]bool{}
+	for _, dep := range deps {
+		dep = strings.ToLower(strings.TrimSpace(dep))
+		if dep == "" || seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		out = append(out, dep)
+	}
 	return out
 }
 

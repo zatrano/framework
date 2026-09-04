@@ -44,14 +44,26 @@ func App(opts ...Option) *kernel.Application {
 		}
 	}
 	var extra []contracts.Provider
-	var err error
+	var enabled []string
 	if cfg.addonsSet {
-		extra, err = addons.Select(cfg.addons...)
+		metas, err := addons.Resolve(cfg.addons...)
+		if err != nil {
+			panic(err)
+		}
+		extra = make([]contracts.Provider, 0, len(metas))
+		for _, m := range metas {
+			if m.Factory == nil {
+				continue
+			}
+			extra = append(extra, m.Factory())
+		}
+		enabled = make([]string, 0, len(metas))
+		for _, m := range metas {
+			enabled = append(enabled, m.Name)
+		}
 	} else {
 		extra = addons.DefaultPackageProviders()
-	}
-	if err != nil {
-		panic(err)
+		enabled = addons.Names()
 	}
 	providers := []kernel.Provider{&KernelServiceProvider{}}
 	providers = append(providers, extra...)
@@ -60,11 +72,7 @@ func App(opts ...Option) *kernel.Application {
 	if err != nil {
 		panic(err)
 	}
-	if cfg.addonsSet {
-		app.SetEnabledAddons(cfg.addons)
-	} else {
-		app.SetEnabledAddons(addons.Names())
-	}
+	app.SetEnabledAddons(enabled)
 	return app
 }
 

@@ -1,12 +1,346 @@
 package http
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// Input convenience helpers live here, not in request.go.
+
+// Input returns an input value from form, multipart, JSON, or query.
+func (r *Request) Input(key string, fallback ...string) string {
+	if err := r.raw.ParseForm(); err == nil {
+		if value := r.raw.Form.Get(key); value != "" {
+			return value
+		}
+	}
+	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
+		if values := r.raw.MultipartForm.Value[key]; len(values) > 0 && values[0] != "" {
+			return values[0]
+		}
+	}
+	if value := r.jsonInput()[key]; value != "" {
+		return value
+	}
+	return r.Query(key, fallback...)
+}
+
+// All returns all input values from form and JSON body.
+func (r *Request) All() map[string]string {
+	_ = r.raw.ParseForm()
+	values := make(map[string]string)
+	for key, items := range r.raw.Form {
+		if len(items) > 0 {
+			values[key] = items[0]
+		}
+	}
+	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
+		for key, items := range r.raw.MultipartForm.Value {
+			if _, exists := values[key]; exists {
+				continue
+			}
+			if len(items) > 0 {
+				values[key] = items[0]
+			}
+		}
+	}
+	for key, value := range r.jsonInput() {
+		if _, exists := values[key]; !exists {
+			values[key] = value
+		}
+	}
+	return values
+}
+
+// TransformInputs mutates form and JSON inputs. When keep is false the key is removed.
+func (r *Request) TransformInputs(fn func(key, value string) (string, bool)) {
+	if r == nil || r.raw == nil || fn == nil {
+		return
+	}
+	_ = r.raw.ParseForm()
+	if r.raw.Form != nil {
+		for key, items := range r.raw.Form {
+			if len(items) == 0 {
+				continue
+			}
+			next, keep := fn(key, items[0])
+			if !keep {
+				r.raw.Form.Del(key)
+				if r.raw.PostForm != nil {
+					r.raw.PostForm.Del(key)
+				}
+				continue
+			}
+			r.raw.Form.Set(key, next)
+			if r.raw.PostForm != nil {
+				r.raw.PostForm.Set(key, next)
+			}
+		}
+	}
+	data := r.jsonInput()
+	for key, value := range data {
+		next, keep := fn(key, value)
+		if !keep {
+			delete(data, key)
+			continue
+		}
+		data[key] = next
+	}
+}
+
+func (r *Request) jsonInput() map[string]string {
+	if r.jsonRead {
+		return r.jsonData
+	}
+	r.jsonRead = true
+	r.jsonData = map[string]string{}
+	r.jsonRaw = map[string]any{}
+	if r.raw == nil || r.raw.Body == nil || !r.IsJSON() {
+		return r.jsonData
+	}
+	raw, err := r.readBody()
+	if err != nil {
+		return r.jsonData
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return r.jsonData
+	}
+	r.jsonRaw = payload
+	for key, value := range payload {
+		r.jsonData[key] = stringifyJSON(value)
+	}
+	flattenJSON("", payload, r.jsonData)
+	return r.jsonData
+}
+
+func stringifyJSON(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		if v == float64(int64(v)) {
+			return strconv.FormatInt(int64(v), 10)
+		}
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(v)
+	case nil:
+		return ""
+	default:
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprint(v)
+		}
+		return string(raw)
+	}
+}
+
+// Only returns a subset of input values.
+func (r *Request) Only(keys ...string) map[string]string {
+	all := r.All()
+	selected := make(map[string]string, len(keys))
+	for _, key := range keys {
+		if value, ok := all[key]; ok {
+			selected[key] = value
+		}
+	}
+	return selected
+}
+
+// OnlyFilled returns a subset of keys that exist and are non-empty.
+func (r *Request) OnlyFilled(keys ...string) map[string]string {
+	selected := make(map[string]string)
+	for _, key := range keys {
+		if r.Filled(key) {
+			selected[key] = r.Input(key)
+		}
+	}
+	return selected
+}
+
+// ExceptFilled returns all filled inputs except the given keys.
+func (r *Request) ExceptFilled(keys ...string) map[string]string {
+	skip := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		skip[key] = true
+	}
+	all := r.All()
+	out := make(map[string]string)
+	for key, value := range all {
+		if skip[key] || strings.TrimSpace(value) == "" {
+			continue
+		}
+		out[key] = value
+	}
+	return out
+}
+
+// ExceptEmpty returns all non-empty input values.
+func (r *Request) ExceptEmpty() map[string]string {
+	return r.ExceptFilled()
+}
+
+// Exists is an alias for Has.
+func (r *Request) Exists(key string) bool {
+	return r.Has(key)
+}
+
+// AnyFilled is an alias for FilledAny.
+func (r *Request) AnyFilled(keys ...string) bool {
+	return r.FilledAny(keys...)
+}
+
+// EmptyAny reports whether any of the given keys are empty/missing.
+func (r *Request) EmptyAny(keys ...string) bool {
+	for _, key := range keys {
+		if r.Empty(key) {
+			return true
+		}
+	}
+	return false
+}
+
+// EmptyAll reports whether all of the given keys are empty/missing.
+func (r *Request) EmptyAll(keys ...string) bool {
+	if len(keys) == 0 {
+		return true
+	}
+	for _, key := range keys {
+		if !r.Empty(key) {
+			return false
+		}
+	}
+	return true
+}
+
+// WhenNotFilled runs fn when the key is missing or blank.
+func (r *Request) WhenNotFilled(key string, fn func(*Request)) *Request {
+	return r.WhenEmpty(key, fn)
+}
+
+// WhenNotEmpty runs fn when the key is filled.
+func (r *Request) WhenNotEmpty(key string, fn func(*Request)) *Request {
+	return r.WhenFilled(key, fn)
+}
+
+// WhenEmptyAny runs fn when any of the given keys are empty/missing.
+func (r *Request) WhenEmptyAny(keys []string, fn func(*Request)) *Request {
+	if r != nil && fn != nil && r.EmptyAny(keys...) {
+		fn(r)
+	}
+	return r
+}
+
+// WhenEmptyAll runs fn when all of the given keys are empty/missing.
+func (r *Request) WhenEmptyAll(keys []string, fn func(*Request)) *Request {
+	if r != nil && fn != nil && r.EmptyAll(keys...) {
+		fn(r)
+	}
+	return r
+}
+
+// IntegerOK parses an integer and reports success.
+func (r *Request) IntegerOK(key string) (int, bool) {
+	raw := strings.TrimSpace(r.Input(key))
+	if raw == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// FloatOK parses a float and reports success.
+func (r *Request) FloatOK(key string) (float64, bool) {
+	raw := strings.TrimSpace(r.Input(key))
+	if raw == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// BooleanOK reports whether the key is present and a recognized boolean-ish value.
+func (r *Request) BooleanOK(key string) (bool, bool) {
+	if r.Missing(key) {
+		return false, false
+	}
+	raw := strings.ToLower(strings.TrimSpace(r.Input(key)))
+	switch raw {
+	case "1", "true", "on", "yes":
+		return true, true
+	case "0", "false", "off", "no":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+// DateOr parses a date input or returns fallback.
+func (r *Request) DateOr(key string, fallback time.Time, layout ...string) time.Time {
+	if t, ok := r.Date(key, layout...); ok {
+		return t
+	}
+	return fallback
+}
+
+// EnumOr returns the enum value or fallback.
+func (r *Request) EnumOr(key, fallback string, options ...string) string {
+	if value, ok := r.Enum(key, options...); ok {
+		return value
+	}
+	return fallback
+}
+
+// Forget removes input keys from form and JSON overlays.
+func (r *Request) Forget(keys ...string) {
+	if r == nil || r.raw == nil || len(keys) == 0 {
+		return
+	}
+	_ = r.raw.ParseForm()
+	data := r.jsonInput()
+	for _, key := range keys {
+		if r.raw.Form != nil {
+			r.raw.Form.Del(key)
+		}
+		if r.raw.PostForm != nil {
+			r.raw.PostForm.Del(key)
+		}
+		delete(data, key)
+	}
+}
+
+// Pull returns an input value and removes it from the request.
+func (r *Request) Pull(key string, fallback ...string) string {
+	value := r.Input(key, fallback...)
+	r.Forget(key)
+	return value
+}
+
+// MergeIfFilled merges only non-empty values.
+func (r *Request) MergeIfFilled(values map[string]string) {
+	if r == nil || len(values) == 0 {
+		return
+	}
+	pending := make(map[string]string)
+	for key, value := range values {
+		if strings.TrimSpace(value) != "" {
+			pending[key] = value
+		}
+	}
+	r.Merge(pending)
+}
 
 // Except returns all inputs except the given keys.
 func (r *Request) Except(keys ...string) map[string]string {

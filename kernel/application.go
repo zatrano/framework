@@ -40,6 +40,7 @@ const (
 	lifeBooted
 	lifeRunning
 	lifeStopped
+	lifeBootFailed
 )
 
 // Application is the ZATRANO application kernel.
@@ -209,6 +210,14 @@ func (app *Application) Bootstrapped() bool {
 	return app.life == lifeBooted || app.life == lifeRunning || app.life == lifeStopped
 }
 
+// BootstrapFailed reports whether Bootstrap returned an error. Failed
+// applications cannot be retried; construct a new Application.
+func (app *Application) BootstrapFailed() bool {
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	return app.life == lifeBootFailed
+}
+
 // Bootstrap loads environment, config, and core services.
 // A second call is a no-op so providers, routes, and middleware are not registered twice.
 func (app *Application) Bootstrap() error {
@@ -220,13 +229,16 @@ func (app *Application) Bootstrap() error {
 	case lifeBootstrapping:
 		app.lifeMu.Unlock()
 		return errors.New("application: bootstrap already in progress")
+	case lifeBootFailed:
+		app.lifeMu.Unlock()
+		return errors.New("application: bootstrap failed; create a new Application")
 	}
 	app.life = lifeBootstrapping
 	app.lifeMu.Unlock()
 
 	if err := app.bootstrapLocked(); err != nil {
 		app.lifeMu.Lock()
-		app.life = lifeCreated
+		app.life = lifeBootFailed
 		app.lifeMu.Unlock()
 		return err
 	}
@@ -319,15 +331,95 @@ func (app *Application) bootstrapLocked() error {
 	for _, route := range app.router.Routes() {
 		app.router.RegisterName(route)
 	}
-	app.router.Freeze()
+	if err := app.router.Freeze(); err != nil {
+		return err
+	}
 	app.config.Freeze()
+	app.container.Freeze()
 
 	app.logger.Infof("%s application bootstrapped (%s)", app.config.GetString("app.name"), app.environment)
 	return nil
 }
 
+// Start launches optional LifecycleProvider.Start hooks. Bootstrap runs first.
+// A second call while running is a no-op. Stopped applications cannot restart.
+func (app *Application) Start() error {
+	if err := app.Bootstrap(); err != nil {
+		return err
+	}
+	app.lifeMu.Lock()
+	switch app.life {
+	case lifeRunning:
+		app.lifeMu.Unlock()
+		return nil
+	case lifeStopped:
+		app.lifeMu.Unlock()
+		return errors.New("application: cannot start a stopped application")
+	}
+	app.lifeMu.Unlock()
+
+	var started []contracts.LifecycleProvider
+	for _, p := range app.providers {
+		lp, ok := p.(contracts.LifecycleProvider)
+		if !ok {
+			continue
+		}
+		if err := lp.Start(app); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_ = app.stopLifecycle(ctx, started)
+			cancel()
+			return err
+		}
+		started = append(started, lp)
+	}
+	app.lifeMu.Lock()
+	if app.life == lifeBooted {
+		app.life = lifeRunning
+	}
+	app.lifeMu.Unlock()
+	return nil
+}
+
+// Stop runs LifecycleProvider.Stop in reverse start order. No-op unless Running.
+func (app *Application) Stop(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	app.lifeMu.Lock()
+	if app.life != lifeRunning {
+		app.lifeMu.Unlock()
+		return nil
+	}
+	app.lifeMu.Unlock()
+
+	var started []contracts.LifecycleProvider
+	for _, p := range app.providers {
+		if lp, ok := p.(contracts.LifecycleProvider); ok {
+			started = append(started, lp)
+		}
+	}
+	err := app.stopLifecycle(ctx, started)
+	app.lifeMu.Lock()
+	app.life = lifeStopped
+	app.lifeMu.Unlock()
+	return err
+}
+
+func (app *Application) stopLifecycle(ctx context.Context, started []contracts.LifecycleProvider) error {
+	var first error
+	for i := len(started) - 1; i >= 0; i-- {
+		if err := started[i].Stop(ctx); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 // ServeHTTP implements net/stdhttp.Handler.
 func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	if r != nil && r.Body != nil {
+		r.Body = stdhttp.MaxBytesReader(w, r.Body, http.MaxRequestBytes())
+	}
 	req := http.NewRequest(r)
 	middleware.ApplyMethodOverride(req)
 
@@ -359,14 +451,9 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 
 // Run starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.
 func (app *Application) Run(addr string) error {
-	if err := app.Bootstrap(); err != nil {
+	if err := app.Start(); err != nil {
 		return err
 	}
-	app.lifeMu.Lock()
-	if app.life == lifeBooted {
-		app.life = lifeRunning
-	}
-	app.lifeMu.Unlock()
 	if addr == "" {
 		port := strings.TrimSpace(env.Get("APP_PORT", "8080"))
 		if port == "" {
@@ -382,6 +469,7 @@ func (app *Application) Run(addr string) error {
 		ReadTimeout:       60 * time.Second,
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
 	errCh := make(chan error, 1)
@@ -399,17 +487,24 @@ func (app *Application) Run(addr string) error {
 
 	select {
 	case err := <-errCh:
-		return err
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		stopErr := app.Stop(ctx)
+		if err != nil {
+			return err
+		}
+		return stopErr
 	case sig := <-sigCh:
 		app.logger.Infof("shutting down gracefully (%v)...", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
+			_ = app.Stop(ctx)
 			return err
 		}
-		app.lifeMu.Lock()
-		app.life = lifeStopped
-		app.lifeMu.Unlock()
+		if err := app.Stop(ctx); err != nil {
+			return err
+		}
 		app.logger.Infof("server stopped")
 		return nil
 	}
