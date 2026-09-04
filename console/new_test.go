@@ -9,14 +9,21 @@ import (
 )
 
 func TestParseNewArgs(t *testing.T) {
-	dir, mod, replace, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
+	dir, mod, replace, minimal, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != "demo" || mod != "example.com/demo" || replace != "" {
-		t.Fatalf("dir=%q mod=%q replace=%q", dir, mod, replace)
+	if dir != "demo" || mod != "example.com/demo" || replace != "" || minimal {
+		t.Fatalf("dir=%q mod=%q replace=%q minimal=%v", dir, mod, replace, minimal)
 	}
-	if _, _, _, err := parseNewArgs(nil); err == nil {
+	_, _, _, min, err := parseNewArgs([]string{"demo", "--minimal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !min {
+		t.Fatal("expected --minimal")
+	}
+	if _, _, _, _, err := parseNewArgs(nil); err == nil {
 		t.Fatal("expected usage error")
 	}
 }
@@ -81,6 +88,9 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if !strings.Contains(modText, "replace github.com/zatrano/packages =>") {
 		t.Fatalf("missing packages replace:\n%s", modText)
 	}
+	if !strings.Contains(modText, "replace github.com/zatrano/packages/database/driver/sqlite =>") {
+		t.Fatalf("missing sqlite driver replace:\n%s", modText)
+	}
 	envEx, err := os.ReadFile(filepath.Join(dest, ".env.example"))
 	if err != nil {
 		t.Fatal(err)
@@ -103,6 +113,43 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	out, err := build.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
+	}
+}
+
+func TestNewMinimalHasNoPackageDeps(t *testing.T) {
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(t.TempDir(), "lite")
+	cmd := &NewCommand{}
+	if err := cmd.Handle([]string{dest, "--module", "example.com/lite", "--replace", root, "--minimal"}); err != nil {
+		t.Fatal(err)
+	}
+	walk := exec.Command("go", "list", "-deps", "./cmd/app")
+	walk.Dir = dest
+	out, err := walk.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go list -deps: %v\n%s", err, out)
+	}
+	text := string(out)
+	for _, pkg := range []string{
+		"github.com/zatrano/packages/session",
+		"github.com/zatrano/packages/database",
+		"github.com/zatrano/packages/view",
+	} {
+		if strings.Contains(text, pkg) {
+			t.Fatalf("minimal app must not depend on %s\n%s", pkg, text)
+		}
+	}
+	if strings.Contains(text, "github.com/zatrano/packages/") {
+		t.Fatalf("minimal app has packages deps:\n%s", text)
+	}
+	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "lite.exe"), "./cmd/app")
+	build.Dir = dest
+	bout, err := build.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build: %v\n%s", err, bout)
 	}
 }
 

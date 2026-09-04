@@ -28,7 +28,7 @@ type NewCommand struct {
 func (c *NewCommand) Name() string        { return "new" }
 func (c *NewCommand) Description() string { return "Create a new ZATRANO application" }
 func (c *NewCommand) Handle(args []string) error {
-	name, module, replace, err := parseNewArgs(args)
+	name, module, replace, minimal, err := parseNewArgs(args)
 	if err != nil {
 		return err
 	}
@@ -49,8 +49,8 @@ func (c *NewCommand) Handle(args []string) error {
 	replaceLine := ""
 	if replace != "" {
 		replaceLine = "\nreplace github.com/zatrano/framework => " + replace + "\n"
-		if pkg := siblingPackagesDir(replace); pkg != "" {
-			replaceLine += "replace github.com/zatrano/packages => " + pkg + "\n"
+		if !minimal {
+			replaceLine += packagesReplaceLines(replace)
 		}
 	}
 	subs := map[string]string{
@@ -95,6 +95,11 @@ func (c *NewCommand) Handle(args []string) error {
 	if _, err := WriteAgentsMarkdown(dest); err != nil {
 		return err
 	}
+	if minimal {
+		if err := applyMinimalScaffold(dest, module, filepath.Base(name)); err != nil {
+			return err
+		}
+	}
 	if replace != "" {
 		tidy := exec.Command("go", "mod", "tidy")
 		tidy.Dir = dest
@@ -115,41 +120,43 @@ func (c *NewCommand) Handle(args []string) error {
 	return nil
 }
 
-func parseNewArgs(args []string) (dir, module, replace string, err error) {
+func parseNewArgs(args []string) (dir, module, replace string, minimal bool, err error) {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return "", "", "", fmt.Errorf("usage: zatrano new <name> [--module path] [--replace /path/to/framework]")
+		return "", "", "", false, fmt.Errorf("usage: zatrano new <name> [--module path] [--replace /path/to/framework] [--minimal]")
 	}
 	dir = strings.TrimSpace(args[0])
 	if dir == "" || strings.Contains(dir, "..") {
-		return "", "", "", fmt.Errorf("invalid project name")
+		return "", "", "", false, fmt.Errorf("invalid project name")
 	}
 	module = sanitizeModule(dir)
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--module":
 			if i+1 >= len(args) {
-				return "", "", "", fmt.Errorf("--module requires a path")
+				return "", "", "", false, fmt.Errorf("--module requires a path")
 			}
 			i++
 			module = strings.TrimSpace(args[i])
 		case "--replace":
 			if i+1 >= len(args) {
-				return "", "", "", fmt.Errorf("--replace requires a path")
+				return "", "", "", false, fmt.Errorf("--replace requires a path")
 			}
 			i++
 			abs, aerr := filepath.Abs(args[i])
 			if aerr != nil {
-				return "", "", "", aerr
+				return "", "", "", false, aerr
 			}
 			replace = filepath.ToSlash(abs)
+		case "--minimal":
+			minimal = true
 		default:
-			return "", "", "", fmt.Errorf("unknown flag %s", args[i])
+			return "", "", "", false, fmt.Errorf("unknown flag %s", args[i])
 		}
 	}
 	if module == "" {
-		return "", "", "", fmt.Errorf("empty module path")
+		return "", "", "", false, fmt.Errorf("empty module path")
 	}
-	return dir, module, replace, nil
+	return dir, module, replace, minimal, nil
 }
 
 func siblingPackagesDir(frameworkReplace string) string {
@@ -159,6 +166,153 @@ func siblingPackagesDir(frameworkReplace string) string {
 		return ""
 	}
 	return filepath.ToSlash(candidate)
+}
+
+func packagesReplaceLines(frameworkReplace string) string {
+	pkg := siblingPackagesDir(frameworkReplace)
+	if pkg == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("replace github.com/zatrano/packages => " + pkg + "\n")
+	for _, rel := range []string{"database/driver/sqlite", "mongo", "webauthn"} {
+		p := filepath.ToSlash(filepath.Join(filepath.FromSlash(pkg), filepath.FromSlash(rel)))
+		st, err := os.Stat(filepath.FromSlash(p))
+		if err != nil || !st.IsDir() {
+			continue
+		}
+		mod := "github.com/zatrano/packages/" + rel
+		b.WriteString("replace " + mod + " => " + p + "\n")
+	}
+	return b.String()
+}
+
+func applyMinimalScaffold(dest, module, appName string) error {
+	files := map[string]string{
+		filepath.Join("app", "providers", "app_service_provider.go"): `package providers
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/middleware/csrf"
+	"github.com/zatrano/framework/routing"
+)
+
+type AppServiceProvider struct{}
+
+func (p *AppServiceProvider) Register(app contracts.App) error { return nil }
+
+func (p *AppServiceProvider) Boot(app contracts.App) error {
+	if r := routing.From(app); r != nil {
+		r.Use(csrf.Except("/api"))
+	}
+	return nil
+}
+`,
+		filepath.Join("app", "providers", "providers.go"): `package providers
+
+import "github.com/zatrano/framework/contracts"
+
+func All() []contracts.Provider {
+	return []contracts.Provider{
+		&AppServiceProvider{},
+		&RouteServiceProvider{},
+	}
+}
+`,
+		filepath.Join("app", "http", "controllers", "web", "home_controller.go"): `package web
+
+import "github.com/zatrano/framework/http"
+
+type HomeController struct{}
+
+func (c *HomeController) Index(req *http.Request) *http.Response {
+	return http.HTML("<h1>` + appName + `</h1>")
+}
+`,
+		filepath.Join("app", "http", "controllers", "api", "home_controller.go"): `package api
+
+import "github.com/zatrano/framework/http"
+
+type HomeController struct{}
+
+func (c *HomeController) Index(req *http.Request) *http.Response {
+	return http.JSON(map[string]any{"name": "` + appName + `"})
+}
+`,
+		filepath.Join("app", "routes", "web", "web.go"): `package web
+
+import (
+	webctrl "` + module + `/app/http/controllers/web"
+
+	"github.com/zatrano/framework/routing"
+)
+
+func init() {
+	routing.RegisterWeb(registerWeb)
+}
+
+func registerWeb(router *routing.Router) {
+	if router == nil {
+		return
+	}
+	routing.Controller(router, &webctrl.HomeController{}, func(r routing.RouteRegistrar, c *webctrl.HomeController) {
+		r.Get("/", c.Index).As("home")
+	})
+}
+`,
+		filepath.Join("app", "routes", "web", "health.go"): `package web
+
+import (
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/routing"
+)
+
+func init() {
+	routing.RegisterWeb(registerHealth)
+}
+
+func registerHealth(router *routing.Router) {
+	if router == nil {
+		return
+	}
+	router.Get("/health", func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"status": "ok"})
+	}).As("health")
+}
+`,
+		filepath.Join("app", "database", "migrations", "migrations.go"): `package migrations
+
+func All() any { return nil }
+`,
+		filepath.Join("app", "database", "seeders", "database_seeder.go"): `package seeders
+
+func All() any { return nil }
+`,
+	}
+	for rel, body := range files {
+		path := filepath.Join(dest, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			return err
+		}
+	}
+	migDir := filepath.Join(dest, "app", "database", "migrations")
+	entries, err := os.ReadDir(migDir)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if name == "migrations.go" || e.IsDir() {
+			continue
+		}
+		if err := os.Remove(filepath.Join(migDir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func sanitizeModule(name string) string {

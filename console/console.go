@@ -39,6 +39,10 @@ func New(app *kernel.Application) *Application {
 		&KeyGenerateCommand{app: app},
 		&AboutCommand{app: app},
 	)
+	registerCacheCommands(console, app)
+	registerRequestCommands(console, app)
+	registerRuleCommands(console, app)
+	registerStorageCommands(console, app)
 	registerMakeProviderCommand(console, app)
 	registerServiceCommands(console, app)
 	registerExceptionCommands(console, app)

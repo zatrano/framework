@@ -252,7 +252,7 @@ ok, err := mgr.Attempt(req, map[string]string{
 router.Group("/account", routes, auth.Middleware(mgr))
 ```
 
-Scaffold: `go run ./cmd/zatrano make:auth` · `go run ./cmd/zatrano make:dashboard`  
+Scaffold: `go run ./cmd/app make:auth` · `go run ./cmd/app make:dashboard` (auth paketi blank-import edildikten sonra)  
 Docs: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold)
 
 ### `authorization`
