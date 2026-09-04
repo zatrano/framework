@@ -724,10 +724,10 @@ Used internally; call if you write custom file APIs:
 if !safepath.Under(root, candidate) { /* reject */ }
 ```
 
-### `layout`
+### `dirs`
 
 **For:** Resolve `app/views` vs `views/`, `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
-Not a consumer-facing service; CLI and addons import `kernel/layout` when they need a path.
+Not a consumer-facing service; CLI and addons import `kernel/dirs` when they need a path. HTML template layouts (`@extends`) live in the `view` package.
 
 ---
 

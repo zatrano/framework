@@ -20,6 +20,7 @@ All notable changes to ZATRANO are documented in this file.
 - Starter layout uses `app/views`, `app/localization`, and `app/database` (old `views/`, `lang/`, `database/` still load if present).
 - `make:*` scaffolds use the consumer `go.mod` module path. `package:enable` writes `bootstrap/addons.go` blank-imports and `go get github.com/zatrano/packages`.
 - Development VERSION line is `2.0.0-dev` (no GitHub Release until v2 is cut).
+- `kernel/layout` renamed to `kernel/dirs` (application path helpers). HTML template layouts stay in the `view` package.
 
 ## 1.6.6 - 2026-08-30
 

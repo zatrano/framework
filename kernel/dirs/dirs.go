@@ -1,4 +1,4 @@
-package layout
+package dirs
 
 import (
 	"os"
@@ -7,8 +7,8 @@ import (
 	"github.com/zatrano/framework/contracts"
 )
 
-// LayoutDir returns preferred if it exists as a directory, otherwise fallback.
-func LayoutDir(app contracts.App, preferred, fallback []string) string {
+// Dir returns preferred if it exists as a directory, otherwise fallback.
+func Dir(app contracts.App, preferred, fallback []string) string {
 	if app == nil {
 		return filepath.Join(fallback...)
 	}
@@ -19,8 +19,8 @@ func LayoutDir(app contracts.App, preferred, fallback []string) string {
 	return app.BasePath(fallback...)
 }
 
-// LayoutDirForCreate prefers an existing preferred or fallback directory; otherwise preferred (new layout).
-func LayoutDirForCreate(app contracts.App, preferred, fallback []string) string {
+// DirForCreate prefers an existing preferred or fallback directory; otherwise preferred (new app tree).
+func DirForCreate(app contracts.App, preferred, fallback []string) string {
 	if app == nil {
 		return filepath.Join(preferred...)
 	}
@@ -37,30 +37,30 @@ func LayoutDirForCreate(app contracts.App, preferred, fallback []string) string 
 
 // ViewsDir is app/views when present, otherwise views/.
 func ViewsDir(app contracts.App) string {
-	return LayoutDir(app, []string{"app", "views"}, []string{"views"})
+	return Dir(app, []string{"app", "views"}, []string{"views"})
 }
 
 // ViewsDirForCreate is the views root used when scaffolding files.
 func ViewsDirForCreate(app contracts.App) string {
-	return LayoutDirForCreate(app, []string{"app", "views"}, []string{"views"})
+	return DirForCreate(app, []string{"app", "views"}, []string{"views"})
 }
 
 // LocalizationDir is app/localization when present, otherwise lang/.
 func LocalizationDir(app contracts.App) string {
-	return LayoutDir(app, []string{"app", "localization"}, []string{"lang"})
+	return Dir(app, []string{"app", "localization"}, []string{"lang"})
 }
 
 // LocalizationDirForCreate is the locale root used when scaffolding files.
 func LocalizationDirForCreate(app contracts.App) string {
-	return LayoutDirForCreate(app, []string{"app", "localization"}, []string{"lang"})
+	return DirForCreate(app, []string{"app", "localization"}, []string{"lang"})
 }
 
 // DatabaseDir is app/database when present, otherwise database/.
 func DatabaseDir(app contracts.App) string {
-	return LayoutDir(app, []string{"app", "database"}, []string{"database"})
+	return Dir(app, []string{"app", "database"}, []string{"database"})
 }
 
 // DatabaseDirForCreate is the database root used when scaffolding files.
 func DatabaseDirForCreate(app contracts.App) string {
-	return LayoutDirForCreate(app, []string{"app", "database"}, []string{"database"})
+	return DirForCreate(app, []string{"app", "database"}, []string{"database"})
 }

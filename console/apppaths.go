@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/layout"
+	"github.com/zatrano/framework/kernel/dirs"
 )
 
 func consumerModule(app *kernel.Application) string {
@@ -27,22 +27,22 @@ func applyConsumerPlaceholders(app *kernel.Application, body string) string {
 }
 
 func viewsRoot(app *kernel.Application) string {
-	return layout.ViewsDirForCreate(app)
+	return dirs.ViewsDirForCreate(app)
 }
 
 func localizationRoot(app *kernel.Application) string {
-	return layout.LocalizationDirForCreate(app)
+	return dirs.LocalizationDirForCreate(app)
 }
 
 func databaseRoot(app *kernel.Application) string {
-	return layout.DatabaseDirForCreate(app)
+	return dirs.DatabaseDirForCreate(app)
 }
 
 func joinRoot(root string, parts ...string) string {
 	return filepath.Join(append([]string{root}, parts...)...)
 }
 
-// scaffoldDest maps starter layout prefixes (views/, lang/, database/) onto
+// scaffoldDest maps starter path prefixes (views/, lang/, database/) onto
 // app/views, app/localization, app/database when scaffolding files.
 func scaffoldDest(app *kernel.Application, parts []string) string {
 	if app == nil || len(parts) == 0 {

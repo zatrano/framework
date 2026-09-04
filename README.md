@@ -79,7 +79,7 @@ kernel/         Application + primitives
   config/ env/  Configuration and .env
   cookie/       Cookie jar
   support/      Strings, UUID, helpers
-  layout/       app/views vs views/ path helpers
+  dirs/         app/views vs views/ path helpers
 contracts/      Public interfaces (App, Provider, …)
 bootstrap/      App() and the addon registry
 console/        Framework CLI (new, make:*, package:*, describe)
