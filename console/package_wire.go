@@ -32,8 +32,8 @@ func wireEnabledAddons(app *kernel.Application, names []string) error {
 	needPackages := false
 	for _, name := range names {
 		imports = append(imports, addonImportPath(name))
-		info, ok := kernel.LookupPackage(name)
-		if !ok || info.Layer == kernel.LayerAddon {
+		info, ok := catalogLookup(name)
+		if !ok || info.Layer != kernel.LayerPrimitive {
 			needPackages = true
 		}
 	}

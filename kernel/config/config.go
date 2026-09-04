@@ -10,6 +10,7 @@ import (
 type Repository struct {
 	mu     sync.RWMutex
 	values map[string]any
+	frozen bool
 }
 
 // New creates an empty configuration repository.
@@ -17,10 +18,31 @@ func New() *Repository {
 	return &Repository{values: make(map[string]any)}
 }
 
+// Freeze makes the repository read-only. Load/Set after freeze panic.
+func (r *Repository) Freeze() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.frozen = true
+}
+
+// Frozen reports whether writes are rejected.
+func (r *Repository) Frozen() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.frozen
+}
+
+func (r *Repository) mustWritable() {
+	if r.frozen {
+		panic("config: repository is frozen after bootstrap")
+	}
+}
+
 // Set stores a configuration value using dot notation.
 func (r *Repository) Set(key string, value any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.mustWritable()
 	r.setNested(r.values, strings.Split(key, "."), value)
 }
 
@@ -124,6 +146,7 @@ func (r *Repository) All() map[string]any {
 func (r *Repository) Load(name string, values map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.mustWritable()
 	if name == "" {
 		for key, value := range values {
 			r.values[key] = value

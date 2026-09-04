@@ -11,12 +11,25 @@ All notable changes to ZATRANO are documented in this file.
 - No database is linked by default. SQLite is installed with `db:setup --drivers=sqlite` like MySQL and PostgreSQL. Apps boot without `DB_CONNECTION`. The framework tree no longer has a placeholder `database/` directory.
 - `App(WithDemo())`, `DemoAddons`, `APP_BOOT=demo`, and `package:preset demo` are removed. Enable addons explicitly with `EnabledAddons` or `App(WithAddons(...))`.
 - Duplicate addon libraries (`backup`, `cron`, `enums`, `export`, `factory`, `octane`, `openapi`, `pagination`, `testing`, `timing`, `totp`, `useragent`) are no longer top-level under `packages/`. Foundation usage is nested (`auth/totp`, `schedule/cron`, `orm/pagination`, …); CLI-only copies live in `github.com/zatrano/packages`. `db:backup` registers when the backup addon is blank-imported.
+- `contracts.App` no longer exposes package services (`RateLimiter`, `URL`, `Hash`, `Metrics`, `Health`, `Maintenance`). Resolve them with `From(app)` / `app.Make`. Kernel accessors remain on `*kernel.Application` for the CLI.
+- Package config schemas (`auth`, `database`, `session`, `notifications`) moved out of `kernel/config` into the addon `DefaultConfig()` functions. Kernel config is the generic repository plus `app` defaults.
+
+### Added
+
+- Factory container no longer holds its mutex while running factories (nested `Make` no longer deadlocks). Singletons use per-binding publish; alias chains and circular factories error instead of hanging.
+- Application bootstrap is idempotent and rejects `RegisterProviders` after boot. The router freezes at the end of bootstrap.
+- Addon registry topological sort via `Meta.Requires` (missing requires are skipped). Duplicate addon names panic at `init`.
+- Production panic recovery no longer writes panic values into the response body. `X-Request-ID` is propagated when valid. Incoming `traceparent` supplies the request id when no `X-Request-ID` is present.
+- After bootstrap the router compiles a per-method static map plus a segment trie for parameterized, optional, and catch-all routes (exact static paths win). Config repository is frozen (Load/Set panic).
+- Kernel `Catalog` lists primitive packages only. Foundation / intelligence / addon discovery lives in the CLI aggregator (`console`), so the kernel does not know names like `auth`, `billing`, or `agent`.
+- Addon lifecycle snapshot: `addons.NewPlan` (`imported` vs `enabled`). `Application.EnabledAddons` records the enable-set.
 
 ### Changed
 
 - README rewritten for v2 (`v2-dev`): two-module layout, `zatrano new`, no default database, no demo boot profile. Language name shown as Golang.
 - `contracts` no longer imports `packages/*`. `App`, `Provider`, and `Migrator` live in `contracts`. Addon providers take `contracts.App`.
-- Addon config defaults live with the addon (`DefaultConfig()`); framework `config/` keeps `app`, `auth`, `session`, `database`, `notifications`.
+- Addon config defaults live with the addon (`DefaultConfig()`); `kernel/config` is the generic repository plus `app` defaults.
+- Kernel catalog no longer enumerates packages-module names; `zatrano describe` / `package:list` / doctor use the CLI catalog.
 - Starter layout uses `app/views`, `app/localization`, and `app/database` (old `views/`, `lang/`, `database/` still load if present).
 - `make:*` scaffolds use the consumer `go.mod` module path. `package:enable` writes `bootstrap/addons.go` blank-imports and `go get github.com/zatrano/packages`.
 - Development VERSION line is `2.0.0-dev` (no GitHub Release until v2 is cut).

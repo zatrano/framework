@@ -23,6 +23,7 @@ func lookup[T any](app *Application, key string) T {
 }
 
 // RateLimiter returns the rate limiter when a package has registered one.
+// Prefer ratelimit.From(app) from application and addon code.
 func (app *Application) RateLimiter() contracts.RateLimiter {
 	return lookup[contracts.RateLimiter](app, "rateLimiter")
 }

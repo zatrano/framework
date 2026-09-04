@@ -116,7 +116,7 @@ func (h *Handler) Render(req *http.Request, err error) *http.Response {
 	if httpErr, ok := err.(*HTTPError); ok {
 		status = httpErr.Status
 		message = httpErr.Error()
-	} else {
+	} else if h.debug {
 		message = err.Error()
 	}
 	if renderer, ok := h.renderers[status]; ok {

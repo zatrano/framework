@@ -5,7 +5,7 @@ import (
 
 	"github.com/zatrano/framework/kernel/http"
 	"github.com/zatrano/framework/kernel/routing"
-	_ "github.com/zatrano/packages/health"
+	"github.com/zatrano/packages/health"
 )
 
 func init() {
@@ -21,10 +21,11 @@ func registerHealth(router *routing.Router) {
 	router.Get("/up", func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"status": "ok"})
 	}).As("up")
-	if app.Health() == nil {
+	svc := health.From(app)
+	if svc == nil {
 		return
 	}
-	if h, ok := app.Health().Handler().(routing.HandlerFunc); ok {
+	if h, ok := svc.Handler().(routing.HandlerFunc); ok {
 		router.Get("/health", h).As("health")
 		router.Get("/api/health", h).As("api.health")
 	}

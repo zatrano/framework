@@ -102,7 +102,7 @@ type CatalogLayerReport struct {
 	Packages []CatalogPackageReport `json:"packages"`
 }
 
-// CatalogPackageReport is one kernel.Catalog entry.
+// CatalogPackageReport is one catalog entry (kernel primitives plus CLI ecosystem).
 type CatalogPackageReport struct {
 	Name        string `json:"name"`
 	Kind        string `json:"kind"`
@@ -205,7 +205,7 @@ func assembleCatalog(layers []CatalogLayerReport) []CatalogLayerReport {
 	for i := range layers {
 		byName[kernel.Layer(layers[i].Name)] = i
 	}
-	for _, p := range kernel.Catalog {
+	for _, p := range catalogAll() {
 		idx, ok := byName[p.Layer]
 		if !ok {
 			layers = append(layers, CatalogLayerReport{

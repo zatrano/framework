@@ -27,6 +27,9 @@ func TestContractsDoNotImportFrameworkPackages(t *testing.T) {
 			if strings.Contains(imp, "github.com/zatrano/framework/packages/") {
 				t.Errorf("%s imports %s", path, imp)
 			}
+			if imp == "github.com/zatrano/packages" || strings.HasPrefix(imp, "github.com/zatrano/packages/") {
+				t.Errorf("%s imports packages module %s", path, imp)
+			}
 		}
 		return nil
 	})

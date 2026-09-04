@@ -12,7 +12,7 @@ type RateLimit struct {
 	Decay       time.Duration
 }
 
-// RateLimiter is returned by Application.RateLimiter().
+// RateLimiter is resolved from the container (ratelimit.From), not from App.
 type RateLimiter interface {
 	For(name string, limit RateLimit)
 }
@@ -22,7 +22,7 @@ type ContextStore interface {
 	Put(key string, value any)
 }
 
-// URLGenerator is the URL helper surface used via Application.URL().
+// URLGenerator is resolved from the container (url.From), not from App.
 type URLGenerator interface {
 	To(path string) string
 	Route(name string, params ...map[string]string) (string, error)
@@ -35,17 +35,17 @@ type Encrypter interface {
 	Decrypt(payload string) (string, error)
 }
 
-// Hasher is the password hashing surface used via Application.Hash().
+// Hasher is resolved from the container (hashing.From), not from App.
 type Hasher interface {
 	Make(value string) (string, error)
 }
 
-// Metrics is the observability surface used via Application.Metrics().
+// Metrics is resolved from the container (observability.From), not from App.
 type Metrics interface {
 	Snapshot() map[string]any
 }
 
-// Health is the health-check surface used via Application.Health().
+// Health is resolved from the container (health.From), not from App.
 type Health interface {
 	Custom(name string, check func(ctx context.Context) error)
 	Database(db *sql.DB)
@@ -61,7 +61,7 @@ type MaintenancePayload struct {
 	Time       string
 }
 
-// Maintenance is the maintenance-mode surface used via Application.Maintenance().
+// Maintenance is resolved from the container (maintenance.From), not from App.
 type Maintenance interface {
 	Enable(payload MaintenancePayload) error
 	Disable() error

@@ -40,3 +40,21 @@ func TestLoadIfAbsentSkipsExisting(t *testing.T) {
 		t.Fatal("missing namespace should load")
 	}
 }
+
+func TestRepositoryFreeze(t *testing.T) {
+	repo := config.New()
+	repo.Load("app", map[string]any{"name": "ZATRANO"})
+	repo.Freeze()
+	if !repo.Frozen() {
+		t.Fatal("expected frozen")
+	}
+	if repo.GetString("app.name") != "ZATRANO" {
+		t.Fatal("reads must still work")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected write panic")
+		}
+	}()
+	repo.Set("app.name", "nope")
+}

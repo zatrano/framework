@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/kernel/http"
@@ -18,9 +19,12 @@ func TestAbortIf(t *testing.T) {
 
 func TestRescue(t *testing.T) {
 	resp := http.Rescue(func() *http.Response {
-		panic("boom")
+		panic("secret")
 	})
 	if resp == nil || resp.StatusCode() != 500 {
 		t.Fatalf("unexpected %#v", resp)
+	}
+	if strings.Contains(string(resp.Content()), "secret") {
+		t.Fatalf("panic leaked: %s", resp.Content())
 	}
 }

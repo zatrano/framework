@@ -2,7 +2,9 @@ package contracts
 
 import stdhttp "net/http"
 
-// App is the stable application surface for providers, addons, and CLI helpers.
+// App is the stable kernel surface for providers, addons, and CLI helpers.
+// Package services (auth, database, queue, AI, …) resolve via their own From(app)
+// helpers — they are not methods on this interface.
 type App interface {
 	BasePath(parts ...string) string
 	Container() Container
@@ -11,14 +13,8 @@ type App interface {
 	Config() ConfigRepository
 	Router() Router
 	Logger() Logger
-	RateLimiter() RateLimiter
 	Context() ContextStore
-	URL() URLGenerator
 	Encrypter() Encrypter
-	Hash() Hasher
-	Metrics() Metrics
-	Health() Health
-	Maintenance() Maintenance
 	Exceptions() Exceptions
 	Reports() Reports
 	SetMigrations(items any)

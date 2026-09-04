@@ -2,12 +2,14 @@ package kernel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	stdhttp "net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,25 +32,37 @@ import (
 // Provider boots services into the application.
 type Provider = contracts.Provider
 
+type lifeState int
+
+const (
+	lifeCreated lifeState = iota
+	lifeBootstrapping
+	lifeBooted
+	lifeRunning
+	lifeStopped
+)
+
 // Application is the ZATRANO application kernel.
 // Foundation and addon services live in the container (see accessors / package From helpers).
 // Kernel fields below are set by BootKernelServices.
 type Application struct {
-	basePath    string
-	container   *container.Container
-	config      *config.Repository
-	router      *routing.Router
-	logger      *log.Logger
-	ctx         *appcontext.Store
-	encrypter   *encryption.Encrypter
-	exceptions  *exceptions.Handler
-	reports     *report.Manager
-	httpBridge  contracts.HTTPBridge
-	migrations  any
-	seeders     any
-	providers   []contracts.Provider
-	booted      bool
-	environment string
+	basePath      string
+	container     *container.Container
+	config        *config.Repository
+	router        *routing.Router
+	logger        *log.Logger
+	ctx           *appcontext.Store
+	encrypter     *encryption.Encrypter
+	exceptions    *exceptions.Handler
+	reports       *report.Manager
+	httpBridge    contracts.HTTPBridge
+	migrations    any
+	seeders       any
+	providers     []contracts.Provider
+	life          lifeState
+	lifeMu        sync.Mutex
+	environment   string
+	enabledAddons []string
 }
 
 // NewApplication creates a new application instance.
@@ -160,13 +174,69 @@ func (app *Application) IsDebug() bool {
 	return app.config.GetBool("app.debug", true)
 }
 
-// RegisterProviders registers service providers.
+// SetEnabledAddons records which imported addons this application will boot.
+// Call before Bootstrap. Names are informational (imported ≠ enabled ≠ booted).
+func (app *Application) SetEnabledAddons(names []string) {
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	if app.life != lifeCreated {
+		panic("application: cannot change enabled addons after bootstrap")
+	}
+	app.enabledAddons = append([]string(nil), names...)
+}
+
+// EnabledAddons returns the enable-set recorded at construction (may be empty).
+func (app *Application) EnabledAddons() []string {
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	return append([]string(nil), app.enabledAddons...)
+}
+
+// RegisterProviders registers service providers. Illegal after bootstrap has started.
 func (app *Application) RegisterProviders(providers ...Provider) {
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	if app.life != lifeCreated {
+		panic("application: cannot register providers after bootstrap")
+	}
 	app.providers = append(app.providers, providers...)
 }
 
+// Bootstrapped reports whether Bootstrap has completed.
+func (app *Application) Bootstrapped() bool {
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	return app.life == lifeBooted || app.life == lifeRunning || app.life == lifeStopped
+}
+
 // Bootstrap loads environment, config, and core services.
+// A second call is a no-op so providers, routes, and middleware are not registered twice.
 func (app *Application) Bootstrap() error {
+	app.lifeMu.Lock()
+	switch app.life {
+	case lifeBooted, lifeRunning, lifeStopped:
+		app.lifeMu.Unlock()
+		return nil
+	case lifeBootstrapping:
+		app.lifeMu.Unlock()
+		return errors.New("application: bootstrap already in progress")
+	}
+	app.life = lifeBootstrapping
+	app.lifeMu.Unlock()
+
+	if err := app.bootstrapLocked(); err != nil {
+		app.lifeMu.Lock()
+		app.life = lifeCreated
+		app.lifeMu.Unlock()
+		return err
+	}
+	app.lifeMu.Lock()
+	app.life = lifeBooted
+	app.lifeMu.Unlock()
+	return nil
+}
+
+func (app *Application) bootstrapLocked() error {
 	_ = env.Load(app.BasePath(".env"))
 
 	app.environment = env.Get("APP_ENV", "local")
@@ -245,12 +315,13 @@ func (app *Application) Bootstrap() error {
 		}
 	}
 
-	// Register named routes after boot.
+	// Register named routes after boot, then freeze the routing table.
 	for _, route := range app.router.Routes() {
 		app.router.RegisterName(route)
 	}
+	app.router.Freeze()
+	app.config.Freeze()
 
-	app.booted = true
 	app.logger.Infof("%s application bootstrapped (%s)", app.config.GetString("app.name"), app.environment)
 	return nil
 }
@@ -288,11 +359,14 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 
 // Run starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.
 func (app *Application) Run(addr string) error {
-	if !app.booted {
-		if err := app.Bootstrap(); err != nil {
-			return err
-		}
+	if err := app.Bootstrap(); err != nil {
+		return err
 	}
+	app.lifeMu.Lock()
+	if app.life == lifeBooted {
+		app.life = lifeRunning
+	}
+	app.lifeMu.Unlock()
 	if addr == "" {
 		port := strings.TrimSpace(env.Get("APP_PORT", "8080"))
 		if port == "" {
@@ -333,6 +407,9 @@ func (app *Application) Run(addr string) error {
 		if err := server.Shutdown(ctx); err != nil {
 			return err
 		}
+		app.lifeMu.Lock()
+		app.life = lifeStopped
+		app.lifeMu.Unlock()
 		app.logger.Infof("server stopped")
 		return nil
 	}

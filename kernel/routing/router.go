@@ -2,6 +2,7 @@ package routing
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -26,6 +27,11 @@ type Route struct {
 	namePrefix string
 }
 
+type methodTable struct {
+	static map[string]*Route
+	tree   *trieNode
+}
+
 // Router is the ZATRANO HTTP router.
 type Router struct {
 	routes          []*Route
@@ -35,6 +41,8 @@ type Router struct {
 	groupMiddleware []MiddlewareFunc
 	named           map[string]*Route
 	fallback        HandlerFunc
+	frozen          bool
+	byMethod        map[string]*methodTable
 }
 
 // New creates a new router.
@@ -45,13 +53,58 @@ func New() *Router {
 	}
 }
 
+func (r *Router) mutate() {
+	if r != nil && r.frozen {
+		panic("router: cannot modify routes after bootstrap")
+	}
+}
+
+// Freeze compiles the lookup table and makes the routing table immutable.
+// After freeze, exact static paths are preferred over parameterized routes.
+func (r *Router) Freeze() {
+	if r == nil {
+		return
+	}
+	r.compile()
+	r.frozen = true
+}
+
+func (r *Router) compile() {
+	tables := make(map[string]*methodTable)
+	for _, route := range r.routes {
+		t := tables[route.Method]
+		if t == nil {
+			t = &methodTable{static: make(map[string]*Route)}
+			tables[route.Method] = t
+		}
+		if len(route.paramNames) == 0 {
+			if _, exists := t.static[route.Path]; !exists {
+				t.static[route.Path] = route
+			}
+			continue
+		}
+		if t.tree == nil {
+			t.tree = newTrieNode()
+		}
+		t.tree.insert(parseRouteSegs(route.Path), route)
+	}
+	r.byMethod = tables
+}
+
+// Frozen reports whether the router has been frozen.
+func (r *Router) Frozen() bool {
+	return r != nil && r.frozen
+}
+
 // Use appends global middleware.
 func (r *Router) Use(middleware ...MiddlewareFunc) {
+	r.mutate()
 	r.middleware = append(r.middleware, middleware...)
 }
 
 // Group creates a route group with a shared prefix and middleware.
 func (r *Router) Group(prefix string, fn func(router *Router), middleware ...MiddlewareFunc) {
+	r.mutate()
 	previousPrefix := r.groupPrefix
 	previousMiddleware := r.groupMiddleware
 
@@ -65,6 +118,7 @@ func (r *Router) Group(prefix string, fn func(router *Router), middleware ...Mid
 
 // Name sets a route name prefix for routes registered inside fn.
 func (r *Router) Name(prefix string, fn func(router *Router)) {
+	r.mutate()
 	previous := r.groupName
 	r.groupName = previous + prefix
 	fn(r)
@@ -133,11 +187,13 @@ func (r *Router) Redirect(from, to string, status ...int) *Route {
 
 // Fallback sets a handler used when no route matches.
 func (r *Router) Fallback(handler HandlerFunc) {
+	r.mutate()
 	r.fallback = handler
 }
 
 // Add registers a route.
 func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
+	r.mutate()
 	fullPath := joinPath(r.groupPrefix, path)
 	paramNames, pattern := compilePath(fullPath)
 
@@ -168,6 +224,7 @@ func (route *Route) Through(middleware ...MiddlewareFunc) *Route {
 
 // RegisterName stores a named route on the router.
 func (r *Router) RegisterName(route *Route) {
+	r.mutate()
 	if route.Name != "" {
 		r.named[route.Name] = route
 	}
@@ -187,42 +244,71 @@ func (r *Router) Route(name string) (*Route, bool) {
 // Dispatch finds a matching route and executes it.
 func (r *Router) Dispatch(req *http.Request) *http.Response {
 	normalizeDispatchPath(req)
-
-	for _, route := range r.routes {
-		if route.Method != req.Method() {
-			continue
-		}
-
-		matches := route.pattern.FindStringSubmatch(req.Path())
-		if matches == nil {
-			continue
-		}
-
-		params := make(map[string]string, len(route.paramNames))
-		for i, name := range route.paramNames {
-			params[name] = matches[i+1]
-		}
-		req.SetRouteParams(params)
-		req.SetRouteName(route.Name)
-
-		handler := route.Handler
-		stack := append(append([]MiddlewareFunc{}, r.middleware...), route.Middleware...)
-		for i := len(stack) - 1; i >= 0; i-- {
-			handler = stack[i](handler)
-		}
-		return handler(req)
+	if route := r.match(req); route != nil {
+		return r.invoke(req, route)
 	}
-
 	if r.fallback != nil {
-		handler := r.fallback
-		stack := append([]MiddlewareFunc{}, r.middleware...)
-		for i := len(stack) - 1; i >= 0; i-- {
-			handler = stack[i](handler)
-		}
-		return handler(req)
+		return r.invokeHandler(req, r.fallback, r.middleware)
 	}
-
 	return http.Abort(404, "Not Found")
+}
+
+func (r *Router) match(req *http.Request) *Route {
+	path := req.Path()
+	method := req.Method()
+	if r.byMethod != nil {
+		if t := r.byMethod[method]; t != nil {
+			if route := t.static[path]; route != nil {
+				req.SetRouteParams(map[string]string{})
+				req.SetRouteName(route.Name)
+				return route
+			}
+			if t.tree != nil {
+				params := map[string]string{}
+				if route := t.tree.lookup(requestSegs(path), params); route != nil {
+					req.SetRouteParams(params)
+					req.SetRouteName(route.Name)
+					return route
+				}
+			}
+		}
+		return nil
+	}
+	for _, route := range r.routes {
+		if route.Method != method {
+			continue
+		}
+		if r.bind(req, route, path) {
+			return route
+		}
+	}
+	return nil
+}
+
+func (r *Router) bind(req *http.Request, route *Route, path string) bool {
+	matches := route.pattern.FindStringSubmatch(path)
+	if matches == nil {
+		return false
+	}
+	params := make(map[string]string, len(route.paramNames))
+	for i, name := range route.paramNames {
+		params[name] = matches[i+1]
+	}
+	req.SetRouteParams(params)
+	req.SetRouteName(route.Name)
+	return true
+}
+
+func (r *Router) invoke(req *http.Request, route *Route) *http.Response {
+	stack := append(append([]MiddlewareFunc{}, r.middleware...), route.Middleware...)
+	return r.invokeHandler(req, route.Handler, stack)
+}
+
+func (r *Router) invokeHandler(req *http.Request, handler HandlerFunc, stack []MiddlewareFunc) *http.Response {
+	for i := len(stack) - 1; i >= 0; i-- {
+		handler = stack[i](handler)
+	}
+	return handler(req)
 }
 
 // RedirectRoute redirects to a named route.
@@ -244,10 +330,10 @@ func (r *Router) URL(name string, params ...map[string]string) (string, error) {
 	path := route.Path
 	if len(params) > 0 {
 		for key, value := range params[0] {
-			path = strings.ReplaceAll(path, "{"+key+"}", value)
-			path = strings.ReplaceAll(path, "{"+key+"?}", value)
-			path = strings.ReplaceAll(path, "{*"+key+"}", value)
-			path = strings.ReplaceAll(path, "{"+key+"*}", value)
+			path = strings.ReplaceAll(path, "{*"+key+"}", escapePathValue(value, true))
+			path = strings.ReplaceAll(path, "{"+key+"*}", escapePathValue(value, true))
+			path = strings.ReplaceAll(path, "{"+key+"}", escapePathValue(value, false))
+			path = strings.ReplaceAll(path, "{"+key+"?}", escapePathValue(value, false))
 		}
 	}
 
@@ -259,6 +345,17 @@ func (r *Router) URL(name string, params ...map[string]string) (string, error) {
 		path = "/"
 	}
 	return path, nil
+}
+
+func escapePathValue(value string, catchAll bool) string {
+	if !catchAll {
+		return url.PathEscape(value)
+	}
+	parts := strings.Split(value, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }
 
 func joinPath(prefix, path string) string {

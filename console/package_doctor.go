@@ -154,7 +154,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		if name == "" {
 			continue
 		}
-		if info, ok := kernel.LookupPackage(name); ok && info.EffectiveKind() == kernel.KindLibrary {
+		if info, ok := catalogLookup(name); ok && info.EffectiveKind() == kernel.KindLibrary {
 			libs++
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
@@ -224,7 +224,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	// registered only when the application blank-imports them.
 	badRegistry := 0
 	for _, m := range addons.Available() {
-		info, ok := kernel.LookupPackage(m.Name)
+		info, ok := catalogLookup(m.Name)
 		if !ok || info.EffectiveKind() != kernel.KindService {
 			badRegistry++
 			out = append(out, doctorFinding{

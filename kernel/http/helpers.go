@@ -1,7 +1,5 @@
 package http
 
-import "fmt"
-
 // AbortIf returns an abort response when condition is true; otherwise nil.
 func AbortIf(condition bool, status int, message ...string) *Response {
 	if !condition {
@@ -19,7 +17,7 @@ func AbortUnless(condition bool, status int, message ...string) *Response {
 func Rescue(fn func() *Response) (resp *Response) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			resp = Abort(500, fmt.Sprintf("Server Error: %v", recovered))
+			resp = Abort(500, "Internal Server Error")
 		}
 	}()
 	return fn()

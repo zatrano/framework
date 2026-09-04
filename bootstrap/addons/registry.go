@@ -16,8 +16,12 @@ type Meta struct {
 	Description string
 	Heavy       bool
 	Factory     func() contracts.Provider
-	// Order is the boot sequence (lower first). Same-order names sort alphabetically.
+	// Order is a tie-breaker among independent addons (lower first).
+	// Real boot order is computed from Requires via topological sort.
 	Order int
+	// Requires lists addon names that must Register/Boot first when they are
+	// also present in the process registry. Missing names are skipped (opt-in).
+	Requires []string
 	// CLI, if set, is invoked from console.New when this addon is imported.
 	CLI func(app contracts.App) []CLICommand
 }
@@ -29,12 +33,16 @@ type CLICommand struct {
 	Handle      func(args []string) error
 }
 
+// registry is process-global: blank-imports register into this process, not
+// into a specific Application. Two Application values in one process share it.
+// WithAddons selects a subset for one app; it does not isolate the registry.
 var (
 	registryMu sync.RWMutex
 	registry   []Meta
 )
 
-// Register adds an addon factory. Duplicate names are ignored (first registration wins).
+// Register adds an addon factory. Duplicate names panic so init order cannot
+// silently discard a second package that reused a name.
 // Addon packages call this from init(); this package must not import those addons.
 func Register(m Meta) {
 	name := strings.ToLower(strings.TrimSpace(m.Name))
@@ -45,12 +53,15 @@ func Register(m Meta) {
 		m.Key = name
 	}
 	m.Name = name
+	for i, req := range m.Requires {
+		m.Requires[i] = strings.ToLower(strings.TrimSpace(req))
+	}
 
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	for _, existing := range registry {
 		if existing.Name == name {
-			return
+			panic("addons: duplicate registration: " + name)
 		}
 	}
 	registry = append(registry, m)
@@ -96,7 +107,7 @@ func Select(names ...string) ([]contracts.Provider, error) {
 		return nil, nil
 	}
 	seen := map[string]bool{}
-	out := make([]contracts.Provider, 0, len(names))
+	var selected []Meta
 	for _, name := range names {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name == "" || seen[name] {
@@ -107,22 +118,28 @@ func Select(names ...string) ([]contracts.Provider, error) {
 			return nil, fmt.Errorf("unknown addon package %q (run package:list)", name)
 		}
 		seen[name] = true
-		out = append(out, m.Factory())
+		selected = append(selected, m)
 	}
-	return out, nil
+	ordered, err := OrderMetas(selected)
+	if err != nil {
+		return nil, err
+	}
+	return providersOf(ordered), nil
 }
 
-// DefaultPackageProviders returns every registered addon provider in Order.
+// DefaultPackageProviders returns every registered addon provider in dependency order.
 func DefaultPackageProviders() []contracts.Provider {
 	avail := Available()
-	sort.SliceStable(avail, func(i, j int) bool {
-		if avail[i].Order != avail[j].Order {
-			return avail[i].Order < avail[j].Order
-		}
-		return avail[i].Name < avail[j].Name
-	})
-	out := make([]contracts.Provider, 0, len(avail))
-	for _, m := range avail {
+	ordered, err := OrderMetas(avail)
+	if err != nil {
+		panic(err)
+	}
+	return providersOf(ordered)
+}
+
+func providersOf(metas []Meta) []contracts.Provider {
+	out := make([]contracts.Provider, 0, len(metas))
+	for _, m := range metas {
 		if m.Factory == nil {
 			continue
 		}
@@ -134,4 +151,106 @@ func DefaultPackageProviders() []contracts.Provider {
 // AllNames is the ordered default enable-set for full demo apps.
 func AllNames() []string {
 	return Names()
+}
+
+// OrderMetas returns metas in boot order: Requires form a graph; missing
+// requirements (not in the input set) are ignored. Ties use Order then Name.
+func OrderMetas(metas []Meta) ([]Meta, error) {
+	byName := make(map[string]Meta, len(metas))
+	incoming := make(map[string]int, len(metas))
+	graph := make(map[string][]string, len(metas))
+	for _, m := range metas {
+		if _, ok := byName[m.Name]; ok {
+			return nil, fmt.Errorf("addons: duplicate name %q in order set", m.Name)
+		}
+		byName[m.Name] = m
+		incoming[m.Name] = 0
+	}
+	for _, m := range metas {
+		seenReq := map[string]bool{}
+		for _, req := range m.Requires {
+			if req == "" || req == m.Name || seenReq[req] {
+				continue
+			}
+			seenReq[req] = true
+			if _, ok := byName[req]; !ok {
+				continue
+			}
+			graph[req] = append(graph[req], m.Name)
+			incoming[m.Name]++
+		}
+	}
+	ready := make([]Meta, 0, len(metas))
+	for _, m := range metas {
+		if incoming[m.Name] == 0 {
+			ready = append(ready, m)
+		}
+	}
+	sortReady := func(items []Meta) {
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].Order != items[j].Order {
+				return items[i].Order < items[j].Order
+			}
+			return items[i].Name < items[j].Name
+		})
+	}
+	out := make([]Meta, 0, len(metas))
+	for len(ready) > 0 {
+		sortReady(ready)
+		next := ready[0]
+		ready = ready[1:]
+		out = append(out, next)
+		for _, dep := range graph[next.Name] {
+			incoming[dep]--
+			if incoming[dep] == 0 {
+				ready = append(ready, byName[dep])
+			}
+		}
+	}
+	if len(out) != len(metas) {
+		return nil, fmt.Errorf("addons: dependency cycle among %v", namesOf(metas))
+	}
+	return out, nil
+}
+
+func namesOf(metas []Meta) []string {
+	out := make([]string, len(metas))
+	for i, m := range metas {
+		out[i] = m.Name
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Plan is the package lifecycle snapshot for one process.
+//
+//	imported  = blank-import init() registry (process-global)
+//	enabled   = WithAddons subset, or every imported name when WithAddons is omitted
+//	booted    = after Application.Bootstrap (providers Register+Boot)
+type Plan struct {
+	Imported []string
+	Enabled  []string
+}
+
+// NewPlan builds a lifecycle snapshot. A nil enabled slice means "all imported".
+// An empty non-nil slice means kernel-only (WithAddons()).
+func NewPlan(enabled []string) Plan {
+	imported := Names()
+	p := Plan{Imported: imported}
+	if enabled == nil {
+		p.Enabled = append([]string(nil), imported...)
+		return p
+	}
+	p.Enabled = make([]string, 0, len(enabled))
+	seen := map[string]bool{}
+	for _, name := range enabled {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		p.Enabled = append(p.Enabled, name)
+	}
+	sort.Strings(p.Enabled)
+	return p
 }

@@ -42,7 +42,7 @@ func (c *PackageListCommand) Handle(args []string) error {
 	fmt.Fprintln(w, "PACKAGE\tKIND\tSTATUS\tHEAVY\tSTUBS\tDESCRIPTION")
 
 	if showLibs && !showAll {
-		for _, p := range kernel.LibraryCatalog() {
+		for _, p := range catalogLibraries() {
 			heavy := ""
 			if p.Heavy {
 				heavy = "yes"
@@ -70,13 +70,13 @@ func (c *PackageListCommand) Handle(args []string) error {
 			stub = "yes"
 		}
 		desc := m.Description
-		if info, ok := kernel.LookupPackage(m.Name); ok && info.Description != "" {
+		if info, ok := catalogLookup(m.Name); ok && info.Description != "" {
 			desc = info.Description
 		}
 		fmt.Fprintf(w, "%s\tservice\t%s\t%s\t%s\t%s\n", m.Name, status, heavy, stub, desc)
 	}
 	if showAll {
-		for _, p := range kernel.LibraryCatalog() {
+		for _, p := range catalogLibraries() {
 			heavy := ""
 			if p.Heavy {
 				heavy = "yes"
@@ -314,7 +314,7 @@ func hasFlag(args []string, flags ...string) bool {
 }
 
 func enablePackage(app *kernel.Application, name string) (bool, error) {
-	if info, ok := kernel.LookupPackage(name); ok && info.EffectiveKind() == kernel.KindLibrary {
+	if info, ok := catalogLookup(name); ok && info.EffectiveKind() == kernel.KindLibrary {
 		return false, fmt.Errorf("%q is a library package (import-only); no package:enable needed — see package:list --libraries", name)
 	}
 	if _, ok := addons.Lookup(name); !ok {

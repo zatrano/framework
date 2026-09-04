@@ -374,7 +374,7 @@ func checkProviders(root string) ([]Finding, error) {
 		})
 	}
 	addonNames := map[string]bool{}
-	for _, p := range kernel.PackagesByLayer(kernel.LayerAddon) {
+	for _, p := range catalogByLayer(kernel.LayerAddon) {
 		addonNames[p.Name] = true
 	}
 	err = walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {

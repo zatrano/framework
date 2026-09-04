@@ -60,6 +60,11 @@ func App(opts ...Option) *kernel.Application {
 	if err != nil {
 		panic(err)
 	}
+	if cfg.addonsSet {
+		app.SetEnabledAddons(cfg.addons)
+	} else {
+		app.SetEnabledAddons(addons.Names())
+	}
 	return app
 }
 

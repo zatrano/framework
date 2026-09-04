@@ -16,6 +16,8 @@ import (
 
 func doGet(t *testing.T, path string, acceptJSON bool) *stdhttp.Response {
 	t.Helper()
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key")
 	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
