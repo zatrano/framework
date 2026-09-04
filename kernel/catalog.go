@@ -27,9 +27,9 @@ const (
 )
 
 // PackageInfo describes one first-party package.
-// Primitive, foundation, and intelligence implementations live under this
-// module's packages/. LayerAddon names are discovery-only; their code lives in
-// github.com/zatrano/packages (this module must not require that module).
+// Primitive implementations live at this module root (http, routing, …).
+// Catalog names that are not in this module live in github.com/zatrano/packages
+// (this module must not require that module).
 type PackageInfo struct {
 	Name        string
 	Layer       Layer
@@ -50,8 +50,8 @@ func (p PackageInfo) EffectiveKind() Kind {
 }
 
 // Catalog is the source of truth for package layering.
-// Primitive kernel lives in thin kernel/; implementations live under packages/.
-// LayerAddon entries name packages in github.com/zatrano/packages, not this tree.
+// Primitive packages live at this module root. LayerFoundation, LayerIntelligence,
+// and LayerAddon names that are not in this tree live in github.com/zatrano/packages.
 var Catalog = []PackageInfo{
 	// Primitive — process must start; secure HTTP surface.
 	{Name: "container", Layer: LayerPrimitive, Description: "Service container"},
