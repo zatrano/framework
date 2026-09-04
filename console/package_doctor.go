@@ -10,7 +10,7 @@ import (
 	"github.com/zatrano/framework/bootstrap"
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/stubs"
-	"github.com/zatrano/framework/env"
+	"github.com/zatrano/framework/kernel/env"
 	"github.com/zatrano/framework/kernel"
 )
 

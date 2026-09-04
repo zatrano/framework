@@ -7,7 +7,7 @@ import (
 
 	"github.com/zatrano/packages/auth"
 	"github.com/zatrano/packages/flash"
-	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/kernel/http"
 	"github.com/zatrano/packages/localization"
 	"github.com/zatrano/packages/validation"
 )

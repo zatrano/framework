@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/env"
+	"github.com/zatrano/framework/kernel/env"
 )
 
 // ensureProductionSecrets refuses insecure defaults when APP_ENV=production.

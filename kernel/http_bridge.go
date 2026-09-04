@@ -4,8 +4,8 @@ import (
 	stdhttp "net/http"
 
 	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/http"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 // SetHTTPBridge registers session/view HTTP behavior (nil clears).

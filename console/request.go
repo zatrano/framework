@@ -34,7 +34,7 @@ func (c *MakeRequestCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package requests
 
 import (
-	. "github.com/zatrano/framework/http"
+	. "github.com/zatrano/framework/kernel/http"
 	"github.com/zatrano/packages/validation"
 )
 

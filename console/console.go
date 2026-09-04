@@ -220,7 +220,7 @@ func (c *MakeControllerCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package %s
 
-import . "github.com/zatrano/framework/http"
+import . "github.com/zatrano/framework/kernel/http"
 
 type %s struct{}
 
@@ -259,8 +259,8 @@ func (c *MakeMiddlewareCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package middleware
 
 import (
-	. "github.com/zatrano/framework/http"
-	. "github.com/zatrano/framework/routing"
+	. "github.com/zatrano/framework/kernel/http"
+	. "github.com/zatrano/framework/kernel/routing"
 )
 
 func %s(next HandlerFunc) HandlerFunc {

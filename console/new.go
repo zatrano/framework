@@ -193,8 +193,8 @@ func applyMinimalScaffold(dest, module, appName string) error {
 
 import (
 	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/middleware/csrf"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/middleware/csrf"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 type AppServiceProvider struct{}
@@ -221,7 +221,7 @@ func All() []contracts.Provider {
 `,
 		filepath.Join("app", "http", "controllers", "web", "home_controller.go"): `package web
 
-import "github.com/zatrano/framework/http"
+import "github.com/zatrano/framework/kernel/http"
 
 type HomeController struct{}
 
@@ -231,7 +231,7 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 `,
 		filepath.Join("app", "http", "controllers", "api", "home_controller.go"): `package api
 
-import "github.com/zatrano/framework/http"
+import "github.com/zatrano/framework/kernel/http"
 
 type HomeController struct{}
 
@@ -244,7 +244,7 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 import (
 	webctrl "` + module + `/app/http/controllers/web"
 
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 func init() {
@@ -263,8 +263,8 @@ func registerWeb(router *routing.Router) {
 		filepath.Join("app", "routes", "web", "health.go"): `package web
 
 import (
-	"github.com/zatrano/framework/http"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 func init() {

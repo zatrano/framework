@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zatrano/framework/env"
+	"github.com/zatrano/framework/kernel/env"
 	"github.com/zatrano/framework/kernel"
 )
 

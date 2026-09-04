@@ -27,7 +27,7 @@ const (
 )
 
 // PackageInfo describes one first-party package.
-// Primitive implementations live at this module root (http, routing, …).
+// Primitive implementations live under kernel/ (http, routing, …).
 // Catalog names that are not in this module live in github.com/zatrano/packages
 // (this module must not require that module).
 type PackageInfo struct {
@@ -50,7 +50,7 @@ func (p PackageInfo) EffectiveKind() Kind {
 }
 
 // Catalog is the source of truth for package layering.
-// Primitive packages live at this module root. LayerFoundation, LayerIntelligence,
+// Primitive packages live under kernel/. LayerFoundation, LayerIntelligence,
 // and LayerAddon names that are not in this tree live in github.com/zatrano/packages.
 var Catalog = []PackageInfo{
 	// Primitive — process must start; secure HTTP surface.

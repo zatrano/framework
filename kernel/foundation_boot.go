@@ -1,12 +1,12 @@
 package kernel
 
 import (
-	appcontext "github.com/zatrano/framework/context"
-	"github.com/zatrano/framework/encryption"
-	"github.com/zatrano/framework/env"
-	"github.com/zatrano/framework/exceptions"
-	"github.com/zatrano/framework/http"
-	"github.com/zatrano/framework/report"
+	appcontext "github.com/zatrano/framework/kernel/context"
+	"github.com/zatrano/framework/kernel/encryption"
+	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/kernel/exceptions"
+	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/report"
 )
 
 func (app *Application) BootKernelServices() error {

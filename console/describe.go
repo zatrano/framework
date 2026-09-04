@@ -167,7 +167,7 @@ func BuildDescribeDocument(scanRoot string) (*DescribeDocument, error) {
 		return nil, err
 	}
 	catalog := assembleCatalog(layers)
-	primitives, err := parseNamedFuncs(filepath.Join(root, "routing", "discovery.go"), []string{
+	primitives, err := parseNamedFuncs(filepath.Join(root, "kernel", "routing", "discovery.go"), []string{
 		"RegisterWeb", "RegisterAPI", "ApplyWeb", "ApplyAPI",
 	})
 	if err != nil {

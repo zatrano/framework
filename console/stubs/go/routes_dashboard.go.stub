@@ -6,8 +6,8 @@ import (
 	"github.com/zatrano/framework/api"
 	"github.com/zatrano/packages/auth"
 	"github.com/zatrano/packages/authorization"
-	"github.com/zatrano/framework/http"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 // RegisterDashboardWeb registers the management dashboard under /dashboard.

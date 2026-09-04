@@ -97,14 +97,14 @@ Docs: [Configuration](https://zatrano.com/docs/configuration)
 **Use:** Boot calls this; raw access:
 
 ```go
-import "github.com/zatrano/framework/env"
+import "github.com/zatrano/framework/kernel/env"
 v := env.Get("APP_KEY", "")
 ```
 
 ### `context`
 
 **For:** Request/app key-value context store used by the kernel.  
-**Use:** Prefer `req.Set` / `req.Get` on `packages/http` for request-scoped data.
+**Use:** Prefer `req.Set` / `req.Get` on `kernel/http` for request-scoped data.
 
 ### `http`
 
@@ -112,7 +112,7 @@ v := env.Get("APP_KEY", "")
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/http"
+import "github.com/zatrano/framework/kernel/http"
 
 func (c *HomeController) Index(req *http.Request) *http.Response {
     email := req.Input("email")
@@ -128,7 +128,7 @@ Docs: [Requests & Responses](https://zatrano.com/docs/requests)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/routing"
+import "github.com/zatrano/framework/kernel/routing"
 
 router.Get("/posts/{id}", c.Show).As("posts.show")
 path, _ := router.URL("posts.show", map[string]string{"id": "1"})
@@ -139,12 +139,12 @@ Docs: [Routing](https://zatrano.com/docs/routing)
 ### `middleware`
 
 **For:** Logger, Recover, CORS, SecurityHeaders, TrimStrings, Throttle, EncryptCookies, …  
-**CSRF:** `packages/middleware/csrf`  
+**CSRF:** `kernel/middleware/csrf`  
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/middleware"
-import "github.com/zatrano/framework/middleware/csrf"
+import "github.com/zatrano/framework/kernel/middleware"
+import "github.com/zatrano/framework/kernel/middleware/csrf"
 
 router.Use(middleware.Logger, middleware.Recover, csrf.Except("/api"))
 ```

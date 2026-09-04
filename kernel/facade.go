@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/http"
-	"github.com/zatrano/framework/report"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/report"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 type routerFacade struct{ inner *routing.Router }

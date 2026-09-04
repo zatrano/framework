@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/layout"
+	"github.com/zatrano/framework/kernel/layout"
 )
 
 func consumerModule(app *kernel.Application) string {

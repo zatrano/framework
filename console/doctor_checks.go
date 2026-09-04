@@ -159,11 +159,11 @@ func concreteImportAllowed(rel, importPath string) bool {
 func collectContractConcretes(fw string) (map[string]string, error) {
 	files := []string{
 		filepath.Join("kernel", "services.go"),
-		filepath.Join("config", "assert.go"),
-		filepath.Join("container", "assert.go"),
-		filepath.Join("context", "assert.go"),
-		filepath.Join("log", "assert.go"),
-		filepath.Join("encryption", "assert.go"),
+		filepath.Join("kernel", "config", "assert.go"),
+		filepath.Join("kernel", "container", "assert.go"),
+		filepath.Join("kernel", "context", "assert.go"),
+		filepath.Join("kernel", "log", "assert.go"),
+		filepath.Join("kernel", "encryption", "assert.go"),
 	}
 	out := map[string]string{}
 	for _, rel := range files {
@@ -175,8 +175,8 @@ func collectContractConcretes(fw string) (map[string]string, error) {
 			out[ip] = iface
 		}
 	}
-	if out["github.com/zatrano/framework/routing"] == "" {
-		out["github.com/zatrano/framework/routing"] = "Router"
+	if out["github.com/zatrano/framework/kernel/routing"] == "" {
+		out["github.com/zatrano/framework/kernel/routing"] = "Router"
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("console: no contract concrete bindings")
@@ -282,7 +282,7 @@ func checkAppLayout(root string) ([]Finding, error) {
 		{"application", "Legacy application/ trees are not the V2 consumer layout.", "Move code into app/ (http/controllers, services, providers) and delete application/."},
 		{"routes", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api}.", "Move route files into app/routes/web and app/routes/api with RegisterWeb/RegisterAPI."},
 		{"app/controllers", "Controllers belong under app/http/controllers, not app/controllers.", "Move files into app/http/controllers/{web,api}."},
-		{"app/config", "Application config is not an app/config tree; framework config lives in config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
+		{"app/config", "Application config is not an app/config tree; framework config lives in kernel/config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
 	}
 	for _, u := range unexpected {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(u.path))); err != nil {

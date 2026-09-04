@@ -14,7 +14,7 @@ type RouteSnapshot struct {
 
 // Router is the HTTP router surface used via Application.Router().
 // Handler and middleware values are untyped here so this package does not
-// import packages/http or packages/routing.
+// import kernel/http or kernel/routing.
 type Router interface {
 	Get(path string, handler any) Route
 	Post(path string, handler any) Route

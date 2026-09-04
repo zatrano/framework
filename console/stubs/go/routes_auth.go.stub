@@ -6,7 +6,7 @@ import (
 	apipkg "github.com/zatrano/framework/api"
 	"github.com/zatrano/packages/auth"
 	"github.com/zatrano/packages/ratelimit"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 // RegisterAuthWeb registers session authentication web routes under /auth.

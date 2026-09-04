@@ -55,7 +55,7 @@ func TestDoctorAllowsRoutePrimitives(t *testing.T) {
 	root := t.TempDir()
 	writeDoctorFile(t, root, filepath.Join("app", "routes", "web", "web.go"), `package web
 
-import "github.com/zatrano/framework/routing"
+import "github.com/zatrano/framework/kernel/routing"
 
 func init() {
 	routing.RegisterWeb(func(r *routing.Router) {
@@ -65,7 +65,7 @@ func init() {
 `)
 	writeDoctorFile(t, root, filepath.Join("app", "providers", "route_service_provider.go"), `package providers
 
-import "github.com/zatrano/framework/routing"
+import "github.com/zatrano/framework/kernel/routing"
 
 func Boot() {
 	routing.ApplyWeb(nil)
@@ -92,10 +92,10 @@ func TestDoctorParseContractConcretes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := got["github.com/zatrano/framework/routing"]; !ok {
+	if _, ok := got["github.com/zatrano/framework/kernel/routing"]; !ok {
 		t.Fatalf("routing missing: %v", got)
 	}
-	if _, ok := got["github.com/zatrano/framework/config"]; !ok {
+	if _, ok := got["github.com/zatrano/framework/kernel/config"]; !ok {
 		t.Fatalf("config missing: %v", got)
 	}
 }

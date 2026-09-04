@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/config"
+	"github.com/zatrano/framework/kernel/config"
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/kernel/routing"
 )
 
 func registerCacheCommands(console *Application, app *kernel.Application) {

@@ -39,8 +39,8 @@ func (c *MakeExceptionCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package exceptions
 
 import (
-	"github.com/zatrano/framework/exceptions"
-	. "github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/kernel/exceptions"
+	. "github.com/zatrano/framework/kernel/http"
 )
 
 // %s is a custom exception helper.

@@ -7,7 +7,7 @@ import (
 
 	"__MODULE__/app/models"
 	"github.com/zatrano/packages/flash"
-	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/kernel/http"
 	"github.com/zatrano/packages/orm"
 )
 
