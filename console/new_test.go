@@ -88,8 +88,15 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if !strings.Contains(modText, "replace github.com/zatrano/packages =>") {
 		t.Fatalf("missing packages replace:\n%s", modText)
 	}
-	if !strings.Contains(modText, "replace github.com/zatrano/packages/database/driver/sqlite =>") {
-		t.Fatalf("missing sqlite driver replace:\n%s", modText)
+	for _, rel := range []string{
+		"database/driver/sqlite",
+		"database/driver/mysql",
+		"database/driver/pgsql",
+	} {
+		want := "replace github.com/zatrano/packages/" + rel + " =>"
+		if !strings.Contains(modText, want) {
+			t.Fatalf("missing %s:\n%s", want, modText)
+		}
 	}
 	envEx, err := os.ReadFile(filepath.Join(dest, ".env.example"))
 	if err != nil {

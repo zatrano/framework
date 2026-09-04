@@ -159,6 +159,20 @@ func parseNewArgs(args []string) (dir, module, replace string, minimal bool, err
 	return dir, module, replace, minimal, nil
 }
 
+// nestedPackagesModules are separate Go modules under the packages checkout.
+// Consumer replace directives must list them; a parent-module replace does not cover them.
+var nestedPackagesModules = []string{
+	"database/driver/sqlite",
+	"database/driver/mysql",
+	"database/driver/pgsql",
+	"database/driver/mssql",
+	"database/driver/oracle",
+	"database/driver/mongo",
+	"mongo",
+	"webauthn",
+	"qr",
+}
+
 func siblingPackagesDir(frameworkReplace string) string {
 	candidate := filepath.Join(filepath.Dir(frameworkReplace), "packages")
 	st, err := os.Stat(candidate)
@@ -175,7 +189,7 @@ func packagesReplaceLines(frameworkReplace string) string {
 	}
 	var b strings.Builder
 	b.WriteString("replace github.com/zatrano/packages => " + pkg + "\n")
-	for _, rel := range []string{"database/driver/sqlite", "mongo", "webauthn"} {
+	for _, rel := range nestedPackagesModules {
 		p := filepath.ToSlash(filepath.Join(filepath.FromSlash(pkg), filepath.FromSlash(rel)))
 		st, err := os.Stat(filepath.FromSlash(p))
 		if err != nil || !st.IsDir() {

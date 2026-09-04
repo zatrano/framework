@@ -18,11 +18,29 @@ DEST="$(mktemp -d)/zsmoke"
 cd "$FRAMEWORK"
 go run ./cmd/zatrano new "$DEST" --module example.com/zsmoke --replace "$FRAMEWORK"
 
-{
-  echo ""
-  echo "require github.com/zatrano/packages v0.0.0"
-  echo "replace github.com/zatrano/packages => $PACKAGES"
-} >> "$DEST/go.mod"
+# Nested driver modules are not covered by replace github.com/zatrano/packages => ...
+# go mod edit overwrites duplicates if zatrano new already wrote the same replace.
+(
+  cd "$DEST"
+  go mod edit -require github.com/zatrano/packages@v0.0.0
+  go mod edit -replace "github.com/zatrano/packages=${PACKAGES}"
+  nested=(
+    database/driver/sqlite
+    database/driver/mysql
+    database/driver/pgsql
+    database/driver/mssql
+    database/driver/oracle
+    database/driver/mongo
+    mongo
+    webauthn
+    q
+  )
+  for rel in "${nested[@]}"; do
+    if [[ -f "${PACKAGES}/${rel}/go.mod" ]]; then
+      go mod edit -replace "github.com/zatrano/packages/${rel}=${PACKAGES}/${rel}"
+    fi
+  done
+)
 
 python3 - "$DEST/cmd/app/main.go" <<'PY'
 import pathlib, sys
