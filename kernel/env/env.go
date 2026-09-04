@@ -1,19 +1,52 @@
+// Package env is the kernel environment primitive: process lookup and a
+// small .env parser. Existing process variables always win over file values.
 package env
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
-// Load reads environment variables from the given .env files.
+// Load reads .env files and applies keys that are not already set in the
+// process environment. With no paths it loads ".env" in the current directory.
+// A missing file is an error; bootstrap callers ignore it.
 func Load(paths ...string) error {
 	if len(paths) == 0 {
 		paths = []string{".env"}
 	}
-	return godotenv.Load(paths...)
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		values, err := Parse(data)
+		if err != nil {
+			return fmt.Errorf("env: %s: %w", path, err)
+		}
+		apply(values)
+	}
+	return nil
+}
+
+func apply(values map[string]string) {
+	for key, value := range values {
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		_ = os.Setenv(key, value)
+	}
+}
+
+// Lookup reports whether key is set in the process environment.
+func Lookup(key string) (string, bool) {
+	return os.LookupEnv(key)
+}
+
+// Set writes a process environment variable.
+func Set(key, value string) error {
+	return os.Setenv(key, value)
 }
 
 // Get returns an environment variable with an optional default.

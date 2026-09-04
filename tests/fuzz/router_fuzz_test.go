@@ -3,6 +3,7 @@
 // CI runs each Fuzz* with -fuzztime=3m; locally you may use longer, e.g.:
 //
 //	go test ./tests/fuzz/ -run=^$ -fuzz=FuzzRouterPath -fuzztime=30m
+//	go test ./tests/fuzz/ -run=^$ -fuzz=FuzzDotenvParse -fuzztime=30m
 package fuzz_test
 
 import (

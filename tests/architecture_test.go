@@ -58,6 +58,56 @@ func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 	}
 }
 
+func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
+	root := moduleRoot(t)
+	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(mod), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "require ") && line != "require (" {
+			t.Errorf("go.mod has a third-party require: %s", line)
+		}
+	}
+
+	fset := token.NewFileSet()
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			name := filepath.Base(path)
+			if name == "vendor" || name == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if !strings.Contains(imp, ".") {
+				continue
+			}
+			if imp == "github.com/zatrano/framework" || strings.HasPrefix(imp, "github.com/zatrano/framework/") {
+				continue
+			}
+			t.Errorf("%s imports third-party %s", rel, imp)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestKernelCatalogIsPrimitiveOnly(t *testing.T) {
 	for _, p := range kernel.Catalog {
 		if p.Layer != kernel.LayerPrimitive {

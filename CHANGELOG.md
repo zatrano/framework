@@ -17,6 +17,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Added
 
+- Native `kernel/env` `.env` parser; `github.com/joho/godotenv` is removed. Process environment wins over file values. The framework module has zero third-party runtime dependencies.
 - Factory container no longer holds its mutex while running factories (nested `Make` no longer deadlocks). Singletons use per-binding publish; alias chains and circular factories error instead of hanging. Cross-goroutine singleton cycles return an error instead of deadlocking. After bootstrap, `Bind`/`Singleton`/`Instance`/`Alias` panic (`Make` still publishes lazy singletons).
 - Application bootstrap is idempotent and rejects `RegisterProviders` after boot. Bootstrap failure is terminal (`BootstrapFailed`); retrying the same instance is rejected. The router, config, and container registrations freeze at the end of bootstrap.
 - Addon registry topological sort via `Meta.Requires` (missing requires are errors) and `Meta.Optional` (skipped when absent). `Select`/`Resolve` expand the dependency closure from the process registry. Duplicate addon names panic at `init`.

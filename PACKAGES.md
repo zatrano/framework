@@ -92,8 +92,8 @@ Docs: [Configuration](https://zatrano.com/docs/configuration)
 
 ### `env`
 
-**For:** Load `.env` into the process.  
-**Use:** Boot calls this; raw access:
+**For:** Process environment and `.env` bootstrap. Existing OS variables win over file values.  
+**Use:** Boot calls `Load`; raw access:
 
 ```go
 import "github.com/zatrano/framework/kernel/env"
