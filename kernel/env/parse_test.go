@@ -99,6 +99,16 @@ MISSING=$ZATRANO_ENV_DOES_NOT_EXIST
 	}
 }
 
+func TestParseExpansionDoesNotExplode(t *testing.T) {
+	got, err := env.Parse([]byte("X=$X$X\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got["X"]) > 64<<10 {
+		t.Fatalf("expansion grew to %d bytes", len(got["X"]))
+	}
+}
+
 func TestParseMalformed(t *testing.T) {
 	if _, err := env.Parse([]byte("NOEQUALS\n")); err == nil {
 		t.Fatal("expected error")

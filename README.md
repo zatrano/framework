@@ -43,7 +43,7 @@
 
 ZATRANO is a Golang web framework with a **thin kernel**. This repository is the kernel: process boot, HTTP, routing, config, and the stable ABI. Everything else — session, auth, database, views, queues, AI — lives in [`github.com/zatrano/packages`](https://github.com/zatrano/packages) and is linked only when you import it.
 
-The kernel has **zero third-party runtime dependencies**. `.env` is parsed by `kernel/env`; process environment always wins over file values.
+The kernel has **zero third-party runtime dependencies**.
 
 Create applications with `zatrano new`. This repository is the framework, not a project skeleton.
 

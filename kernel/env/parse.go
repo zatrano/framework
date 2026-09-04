@@ -8,6 +8,8 @@ import (
 	"unicode"
 )
 
+const maxValueBytes = 64 << 10
+
 // Parse reads KEY=VALUE dotenv syntax into a map. It does not touch the
 // process environment. Process lookup is used only for ${VAR} expansion
 // when the name is not defined in the same file.
@@ -47,6 +49,9 @@ func Parse(data []byte) (map[string]string, error) {
 				continue
 			}
 			next := expand(out[k], out)
+			if len(next) > maxValueBytes {
+				next = next[:maxValueBytes]
+			}
 			if next != out[k] {
 				out[k] = next
 				changed = true
@@ -125,6 +130,9 @@ func readQuoted(lines []string, start int, firstRest string, quote byte, unescap
 			return "", start, err
 		}
 		if closed {
+			if b.Len() > maxValueBytes {
+				return "", start, fmt.Errorf("value too large")
+			}
 			if strings.TrimSpace(rest) != "" && !strings.HasPrefix(strings.TrimSpace(rest), "#") {
 				return "", start, fmt.Errorf("trailing characters after quoted value")
 			}
@@ -133,6 +141,9 @@ func readQuoted(lines []string, start int, firstRest string, quote byte, unescap
 		i++
 		if i >= len(lines) {
 			return "", start, fmt.Errorf("unterminated quote")
+		}
+		if b.Len() > maxValueBytes {
+			return "", start, fmt.Errorf("value too large")
 		}
 		b.WriteByte('\n')
 		line = lines[i]
@@ -174,6 +185,9 @@ func expand(s string, file map[string]string) string {
 	var b strings.Builder
 	i := 0
 	for i < len(s) {
+		if b.Len() >= maxValueBytes {
+			return b.String()[:maxValueBytes]
+		}
 		if s[i] != '$' {
 			b.WriteByte(s[i])
 			i++
@@ -187,7 +201,9 @@ func expand(s string, file map[string]string) string {
 				continue
 			}
 			name := s[i+2 : i+2+end]
-			b.WriteString(lookupExpand(name, file))
+			if !writeCapped(&b, lookupExpand(name, file)) {
+				return b.String()
+			}
 			i = i + 3 + end
 			continue
 		}
@@ -197,14 +213,32 @@ func expand(s string, file map[string]string) string {
 			for j < len(s) && isIdentPart(s[j]) {
 				j++
 			}
-			b.WriteString(lookupExpand(s[i+1:j], file))
+			if !writeCapped(&b, lookupExpand(s[i+1:j], file)) {
+				return b.String()
+			}
 			i = j
 			continue
 		}
 		b.WriteByte('$')
 		i++
 	}
+	if b.Len() > maxValueBytes {
+		return b.String()[:maxValueBytes]
+	}
 	return b.String()
+}
+
+func writeCapped(b *strings.Builder, s string) bool {
+	remain := maxValueBytes - b.Len()
+	if remain <= 0 {
+		return false
+	}
+	if len(s) > remain {
+		b.WriteString(s[:remain])
+		return false
+	}
+	b.WriteString(s)
+	return true
 }
 
 func lookupExpand(name string, file map[string]string) string {

@@ -49,7 +49,11 @@ jobs:
           go-version: '1.25.13'
           cache: true
 
-      - name: Check go.mod / go.sum
+      - name: Check go.mod
         run: |
           go mod tidy
-          git diff --exit-code go.mod go.sum
+          git diff --exit-code -- go.mod
+          if [ -e go.sum ]; then
+            echo "go.sum must not exist while the kernel has no module dependencies"
+            exit 1
+          fi

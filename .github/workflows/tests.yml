@@ -47,7 +47,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: true
-          cache-dependency-path: framework/go.sum
+          cache-dependency-path: framework/go.mod
 
       - name: Download modules
         run: go mod download
@@ -85,7 +85,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: true
-          cache-dependency-path: framework/go.sum
+          cache-dependency-path: framework/go.mod
 
       - name: Download modules
         working-directory: framework
@@ -116,7 +116,7 @@ jobs:
         with:
           go-version: '1.25.13'
           cache: true
-          cache-dependency-path: framework/go.sum
+          cache-dependency-path: framework/go.mod
 
       - name: Scaffold app, enable billing, hit health
         working-directory: framework
