@@ -13,165 +13,88 @@ on:
 permissions:
   contents: read
 
+env:
+  APP_KEY: ci-test-app-key-not-for-production-use
+  APP_ENV: testing
+  APP_DEBUG: 'true'
+
 jobs:
   linux_tests:
     runs-on: ubuntu-24.04
-
-    services:
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_DATABASE: zatrano
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: secret
-          POSTGRES_DB: zatrano
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d zatrano"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      mongo:
-        image: mongo:7
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7.0
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         go: ['1.25.13']
-
     name: Go ${{ matrix.go }}
-
+    defaults:
+      run:
+        working-directory: framework
     steps:
-      - name: Checkout code
+      - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: v2-dev
+          path: packages
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
           cache: true
-
-      - name: Copy environment file
-        run: cp .env.example .env
-
-      - name: Generate application key
-        run: go run ./cmd/zatrano key:generate
+          cache-dependency-path: framework/go.sum
 
       - name: Download modules
         run: go mod download
 
       - name: Unit tests
         run: go test ./...
-        env:
-          APP_ENV: testing
-          APP_DEBUG: 'true'
-          CACHE_STORE: file
-          QUEUE_CONNECTION: sync
-          SESSION_DRIVER: file
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6379
-          MONGO_URI: memory
-
-      - name: Link MySQL driver + live smoke
-        run: |
-          go run ./cmd/zatrano db:setup --drivers=sqlite,mysql --default=mysql --yes
-          go test ./packages/database -run TestLiveDriverSmoke -count=1
-          go run ./cmd/zatrano db:setup --drivers=sqlite --default=sqlite --yes
-        env:
-          ZATRANO_LIVE_DB: '1'
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: '3306'
-          DB_DATABASE: zatrano
-          DB_USERNAME: root
-          DB_PASSWORD: ''
-
-      - name: Link PostgreSQL driver + live smoke
-        run: |
-          go run ./cmd/zatrano db:setup --drivers=sqlite,pgsql --default=pgsql --yes
-          go test ./packages/database -run TestLiveDriverSmoke -count=1
-          go run ./cmd/zatrano db:setup --drivers=sqlite --default=sqlite --yes
-        env:
-          ZATRANO_LIVE_DB: '1'
-          DB_CONNECTION: pgsql
-          DB_HOST: 127.0.0.1
-          DB_PORT: '5432'
-          DB_DATABASE: zatrano
-          DB_USERNAME: postgres
-          DB_PASSWORD: secret
-          DB_SSLMODE: disable
 
   windows_tests:
     runs-on: windows-2022
-
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         go: ['1.25.13']
-
     name: Go ${{ matrix.go }} - Windows
-
+    defaults:
+      run:
+        working-directory: framework
     steps:
       - name: Set git to use LF
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - name: Checkout code
+      - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: v2-dev
+          path: packages
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
           cache: true
-
-      - name: Copy environment file
-        run: copy .env.example .env
-
-      - name: Generate application key
-        run: go run ./cmd/zatrano key:generate
+          cache-dependency-path: framework/go.sum
 
       - name: Download modules
         run: go mod download
 
       - name: Execute tests
         run: go test ./...
-        env:
-          APP_ENV: testing
-          APP_DEBUG: 'true'
-          CACHE_STORE: file
-          QUEUE_CONNECTION: sync
-          SESSION_DRIVER: file
-          MONGO_URI: memory
 
   starter_smoke:
     name: zatrano new smoke
@@ -179,22 +102,25 @@ jobs:
     steps:
       - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
 
       - name: Checkout packages
         uses: actions/checkout@v5
         with:
           repository: zatrano/packages
-          ref: dev
-          path: _packages
+          ref: v2-dev
+          path: packages
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.sum
 
       - name: Scaffold app, enable billing, hit health
+        working-directory: framework
         env:
-          APP_ENV: testing
-          APP_DEBUG: 'true'
+          PACKAGES_DIR: ${{ github.workspace }}/packages
         run: bash .github/scripts/starter-smoke.sh

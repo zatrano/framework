@@ -27,7 +27,6 @@ rules:
       use crypto/rand or configuration.
     paths:
       include:
-        - "/packages/session/**/*.go"
         - "/kernel/middleware/csrf/**/*.go"
     pattern-either:
       - pattern: password := "..."
@@ -43,7 +42,7 @@ rules:
       prefer bound parameters.
     paths:
       include:
-        - "/packages/**/*.go"
+        - "/database/**/*.go"
     pattern-either:
       - pattern: $B.WhereRaw(fmt.Sprintf(...), ...)
       - pattern: $B.OrderByRaw(fmt.Sprintf(...))

@@ -21,6 +21,7 @@ All notable changes to ZATRANO are documented in this file.
 - `make:*` scaffolds use the consumer `go.mod` module path. `package:enable` writes `bootstrap/addons.go` blank-imports and `go get github.com/zatrano/packages`.
 - Development VERSION line is `2.0.0-dev` (no GitHub Release until v2 is cut).
 - `kernel/layout` renamed to `kernel/dirs` (application path helpers). HTML template layouts stay in the `view` package.
+- CI on `v2-dev`: check out `zatrano/packages` as a sibling so `zatrano new --replace` tests can build; drop live SQL smoke from this repo (it lives in the packages module).
 
 ## 1.6.6 - 2026-08-30
 

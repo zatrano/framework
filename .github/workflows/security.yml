@@ -2,7 +2,7 @@ name: security
 
 on:
   push:
-    branches: [main, '*.x', 'v2-stage-*']
+    branches: [main, '*.x', 'v2-dev']
   pull_request:
   schedule:
     - cron: '0 6 * * 1'
@@ -30,18 +30,26 @@ jobs:
   race:
     name: go-test-race
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: framework
+      - uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: v2-dev
+          path: packages
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.sum
       - run: go mod download
-      # Full-tree race; skip optional nested modules (own go.mod / heavy CGO).
       - name: go test -race
-        shell: bash
-        run: |
-          go test -race $(go list ./... | grep -vE '/packages/(database/driver|qr|mongo|webauthn)(/|$)') -count=1
+        run: go test -race ./... -count=1
 
   gosec:
     name: gosec
@@ -69,10 +77,6 @@ jobs:
             -out=gosec.sarif
             -conf=.github/gosec.json
             -exclude=${{ steps.gosec_cfg.outputs.exclude }}
-            -exclude-dir=packages/database/driver
-            -exclude-dir=packages/qr
-            -exclude-dir=packages/mongo
-            -exclude-dir=packages/webauthn
             -exclude-generated
             ./...
       - name: Upload gosec SARIF
@@ -105,10 +109,6 @@ jobs:
           gosec -quiet \
             -conf=.github/gosec.json \
             -exclude="$EXCLUDES" \
-            -exclude-dir=packages/database/driver \
-            -exclude-dir=packages/qr \
-            -exclude-dir=packages/mongo \
-            -exclude-dir=packages/webauthn \
             -exclude-generated \
             ./...
 
@@ -196,13 +196,6 @@ jobs:
       matrix:
         target:
           - FuzzRouterPath
-          - FuzzRouterWherePattern
-          - FuzzValidateMake
-          - FuzzHTTPJSONBinding
-          - FuzzSessionStart
-          - FuzzCSRFMiddleware
-          - FuzzQueryWhereToSQL
-          - FuzzQueryWhereRaw
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6

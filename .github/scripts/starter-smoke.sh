@@ -2,15 +2,26 @@
 # Scaffold a consumer app, blank-import a packages addon, run tests (includes /health).
 set -euo pipefail
 
-ROOT="${GITHUB_WORKSPACE:-$(pwd)}"
-DEST="$(mktemp -d)/zsmoke"
+FRAMEWORK="$(cd "$(dirname "$0")/../.." && pwd)"
+PACKAGES="${PACKAGES_DIR:-}"
+if [[ -z "$PACKAGES" || ! -d "$PACKAGES" ]]; then
+  if [[ -d "$FRAMEWORK/../packages" ]]; then
+    PACKAGES="$(cd "$FRAMEWORK/../packages" && pwd)"
+  fi
+fi
+if [[ -z "$PACKAGES" || ! -d "$PACKAGES" ]]; then
+  echo "packages checkout not found (set PACKAGES_DIR or clone sibling packages/)"
+  exit 1
+fi
 
-go run ./cmd/zatrano new "$DEST" --module example.com/zsmoke --replace "$ROOT"
+DEST="$(mktemp -d)/zsmoke"
+cd "$FRAMEWORK"
+go run ./cmd/zatrano new "$DEST" --module example.com/zsmoke --replace "$FRAMEWORK"
 
 {
   echo ""
   echo "require github.com/zatrano/packages v0.0.0"
-  echo "replace github.com/zatrano/packages => $ROOT/_packages"
+  echo "replace github.com/zatrano/packages => $PACKAGES"
 } >> "$DEST/go.mod"
 
 python3 - "$DEST/cmd/app/main.go" <<'PY'
@@ -34,7 +45,6 @@ cp "$DEST/.env.example" "$DEST/.env"
 (cd "$DEST" && go run ./cmd/app key:generate)
 (cd "$DEST" && go test ./...)
 
-# HTTP smoke (same /health the feature test covers, plus a live listener).
 (cd "$DEST" && go run ./cmd/app serve --port 18080) &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT

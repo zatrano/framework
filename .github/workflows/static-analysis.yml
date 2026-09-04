@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - '*.x'
-      - 'v2-stage-*'
+      - 'v2-dev'
   pull_request:
 
 permissions:
