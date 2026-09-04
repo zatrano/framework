@@ -504,7 +504,7 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("//\tzatrano package:install billing\n")
 	b.WriteString("//\n")
 	b.WriteString("// Entrypoint: bootstrap.App() reads this list.\n")
-	b.WriteString("// Alternatives: App(Minimal()), App(WithPresetAPI()), App(WithPresetWeb()), App(Kernel()), App(WithAddons(...)).\n")
+	b.WriteString("// Alternatives: App(), App(WithPresetAPI()), App(WithPresetWeb()), App(WithAddons(...)).\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")
 	return b.String()
 }

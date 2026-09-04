@@ -20,9 +20,9 @@ func (r *Router) Snapshot() []RouteInfo {
 	out := make([]RouteInfo, 0, len(routes))
 	for _, route := range routes {
 		out = append(out, RouteInfo{
-			Method: route.Method,
-			Path:   route.Path,
-			Name:   route.Name,
+			Method: route.dispatchMethod(),
+			Path:   route.dispatchPath(),
+			Name:   route.dispatchName(),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {

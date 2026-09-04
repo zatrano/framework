@@ -25,6 +25,8 @@ type App interface {
 	IsDebug() bool
 	RegisterProviders(providers ...Provider)
 	Bootstrap() error
+	Start() error
+	Stop(ctx context.Context) error
 	ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request)
 	Run(addr string) error
 	SetHTTPBridge(bridge HTTPBridge)

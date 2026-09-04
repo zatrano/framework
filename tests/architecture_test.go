@@ -106,7 +106,8 @@ func TestContractsAppMethodFreeze(t *testing.T) {
 		"Config": true, "Router": true, "Logger": true, "Context": true,
 		"Encrypter": true, "Exceptions": true, "Reports": true,
 		"Environment": true, "IsProduction": true, "IsDebug": true,
-		"RegisterProviders": true, "Bootstrap": true, "ServeHTTP": true, "Run": true,
+		"RegisterProviders": true, "Bootstrap": true, "Start": true, "Stop": true,
+		"ServeHTTP": true, "Run": true,
 		"SetHTTPBridge": true, "HTTPBridge": true,
 	}
 	got := interfaceMethods(t, filepath.Join(moduleRoot(t), "contracts", "app.go"), "App")
@@ -197,6 +198,115 @@ func receiverMethods(t *testing.T, path, recv string) map[string]bool {
 			continue
 		}
 		out[fn.Name.Name] = true
+	}
+	return out
+}
+
+func TestContractsSurfacesStayFrozen(t *testing.T) {
+	root := filepath.Join(moduleRoot(t), "contracts")
+	want := map[string]map[string]bool{
+		"Router": {
+			"Get": true, "Post": true, "Use": true, "Group": true, "Name": true,
+			"Snapshot": true, "SaveCache": true,
+		},
+		"Route": {"As": true},
+		"Container": {
+			"Instance": true, "Make": true, "Bound": true,
+		},
+		"ConfigRepository": {
+			"Get": true, "GetString": true, "GetInt": true, "GetBool": true,
+			"All": true, "Load": true,
+		},
+		"HTTPBridge":        {"Middleware": true, "Finalize": true},
+		"Provider":          {"Register": true, "Boot": true},
+		"LifecycleProvider": {"Start": true, "Stop": true},
+	}
+	for name, allow := range want {
+		file := "app.go"
+		switch name {
+		case "Router", "Route":
+			file = "router.go"
+		case "Container":
+			file = "container.go"
+		case "ConfigRepository":
+			file = "config.go"
+		}
+		got := interfaceMethods(t, filepath.Join(root, file), name)
+		for method := range got {
+			if !allow[method] {
+				t.Errorf("contracts.%s grew %s — keep the ABI minimal", name, method)
+			}
+		}
+		for method := range allow {
+			if !got[method] {
+				t.Errorf("contracts.%s lost %s", name, method)
+			}
+		}
+	}
+}
+
+func TestRequestStructHasNoSessionField(t *testing.T) {
+	fields := structFields(t, filepath.Join(moduleRoot(t), "kernel", "http", "request.go"), "Request")
+	if fields["session"] {
+		t.Fatal("session must be a request attribute, not a Request field")
+	}
+}
+
+func TestKernelHTTPDoesNotImportSessionPackage(t *testing.T) {
+	dir := filepath.Join(moduleRoot(t), "kernel", "http")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.Contains(imp, "session") && strings.Contains(imp, "zatrano") {
+				t.Errorf("%s imports %s", filepath.Base(path), imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func structFields(t *testing.T, path, name string) map[string]bool {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]bool{}
+	for _, decl := range file.Decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			ts, ok := spec.(*ast.TypeSpec)
+			if !ok || ts.Name.Name != name {
+				continue
+			}
+			st, ok := ts.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range st.Fields.List {
+				for _, ident := range field.Names {
+					out[ident.Name] = true
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		t.Fatalf("no fields on %s in %s", name, path)
 	}
 	return out
 }

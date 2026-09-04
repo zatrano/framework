@@ -2,11 +2,10 @@
 
 How to choose and use first-party packages.
 
-This repository is the **framework**. `packages/` here is kernel, foundation, and intelligence code (`github.com/zatrano/framework/...`). It is not a copy of the addon repo.
+This repository is the **framework kernel** (`github.com/zatrano/framework`). Foundation, intelligence (AI/RAG/Agent), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
 
-- **Catalog source:** `kernel/catalog.go` (addon *names* are listed for discovery; addon *code* is not in this module)
-- **Kernel / foundation / intelligence:** this repository, under `packages/`
-- **Addon implementations:** [`github.com/zatrano/packages`](https://github.com/zatrano/packages) — `go get` + blank-import + `bootstrap.WithAddons` / `EnabledAddons`
+- **Catalog source:** `kernel/catalog.go` (addon *names* for discovery; addon *code* is not in this module)
+- **Addon implementations:** blank-import + `bootstrap.WithAddons` / `EnabledAddons`
 - **Website docs:** [zatrano.com/docs](https://zatrano.com/docs)
 - **CLI:** `go run ./cmd/zatrano package:list --all`
 
@@ -20,8 +19,8 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 | Layer | Meaning | How to enable |
 |-------|---------|----------------|
-| **Kernel** | Secure HTTP boot surface | Always on with the app |
-| **Foundation** | Typical web/API stack | `MinimalApp` / `App` / `APP_BOOT=app\|api\|web\|minimal` |
+| **Kernel** | Secure HTTP boot surface | Always on with `bootstrap.App()` |
+| **Foundation / Intelligence** | Web, auth, AI, RAG, agent, … | Blank-import + `EnabledAddons` / `App(WithAddons(...))` |
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
@@ -203,7 +202,7 @@ Docs: [Trusted Proxies](https://zatrano.com/docs/trusted-proxies)
 
 # Foundation
 
-Present on `MinimalApp` and richer boot profiles. Resolve with `From(app)`.
+Foundation services live in `github.com/zatrano/packages` and bind only when imported and enabled. Resolve with `From(app)`.
 
 ### `session`
 

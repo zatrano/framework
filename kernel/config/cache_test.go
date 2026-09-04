@@ -82,3 +82,44 @@ func TestAllDeepCopiesSlices(t *testing.T) {
 		t.Fatalf("All() must copy []string, got %#v", raw)
 	}
 }
+
+func TestAllAndGetDeepCopyNestedMapsInSlices(t *testing.T) {
+	repo := config.New()
+	repo.Load("db", map[string]any{
+		"connections": []map[string]any{
+			{"name": "mysql", "opts": map[string]any{"host": "127.0.0.1"}},
+		},
+	})
+	all := repo.All()
+	conns := all["db"].(map[string]any)["connections"].([]map[string]any)
+	conns[0]["name"] = "hacked"
+	conns[0]["opts"].(map[string]any)["host"] = "evil"
+	got := repo.Get("db.connections").([]map[string]any)
+	if got[0]["name"] != "mysql" {
+		t.Fatalf("nested map in slice aliased via All(), got %#v", got[0])
+	}
+	if got[0]["opts"].(map[string]any)["host"] != "127.0.0.1" {
+		t.Fatalf("nested map inside slice aliased, got %#v", got[0]["opts"])
+	}
+	got[0]["name"] = "via-get"
+	again := repo.Get("db.connections").([]map[string]any)
+	if again[0]["name"] != "mysql" {
+		t.Fatal("Get() must return a copy")
+	}
+}
+
+func TestLoadAndSetCopyIncomingValues(t *testing.T) {
+	src := map[string]any{"hosts": []string{"a"}}
+	repo := config.New()
+	repo.Load("app", src)
+	src["hosts"].([]string)[0] = "mutated"
+	if repo.Get("app.hosts").([]string)[0] != "a" {
+		t.Fatal("Load must copy the incoming map")
+	}
+	nested := []map[string]any{{"n": "keep"}}
+	repo.Set("app.list", nested)
+	nested[0]["n"] = "mutated"
+	if repo.Get("app.list").([]map[string]any)[0]["n"] != "keep" {
+		t.Fatal("Set must copy the incoming value")
+	}
+}

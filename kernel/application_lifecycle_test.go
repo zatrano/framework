@@ -151,11 +151,12 @@ func TestContainerFrozenAfterBootstrap(t *testing.T) {
 }
 
 type lifecycleProbe struct {
-	starts int
-	stops  int
-	order  *[]string
-	name   string
-	fail   error
+	starts   int
+	stops    int
+	order    *[]string
+	name     string
+	failOnce error
+	fail     error
 }
 
 func (p *lifecycleProbe) Register(app contracts.App) error { return nil }
@@ -165,6 +166,9 @@ func (p *lifecycleProbe) Start(app contracts.App) error {
 		*p.order = append(*p.order, "start:"+p.name)
 	}
 	p.starts++
+	if p.failOnce != nil && p.starts == 1 {
+		return p.failOnce
+	}
 	return p.fail
 }
 func (p *lifecycleProbe) Stop(ctx context.Context) error {
@@ -282,5 +286,92 @@ func TestLifecycleConcurrentStopOnce(t *testing.T) {
 	wg.Wait()
 	if p.stops != 1 {
 		t.Fatalf("concurrent Stop called worker %d times", p.stops)
+	}
+}
+
+func TestLifecycleConcurrentStartAndStop(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(p)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		_ = app.Start()
+	}()
+	go func() {
+		defer wg.Done()
+		_ = app.Stop(context.Background())
+	}()
+	wg.Wait()
+	if p.starts > 1 {
+		t.Fatalf("Start ran %d times", p.starts)
+	}
+	if p.stops > p.starts {
+		t.Fatalf("stops=%d starts=%d", p.stops, p.starts)
+	}
+}
+
+func TestLifecycleFailedStartThenRetry(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	ok := &lifecycleProbe{name: "ok"}
+	flaky := &lifecycleProbe{name: "flaky", failOnce: errors.New("first")}
+	app.RegisterProviders(ok, flaky)
+	if err := app.Start(); err == nil {
+		t.Fatal("expected first start to fail")
+	}
+	if ok.starts != 1 || ok.stops != 1 {
+		t.Fatalf("ok start=%d stop=%d", ok.starts, ok.stops)
+	}
+	if flaky.starts != 1 || flaky.stops != 0 {
+		t.Fatalf("flaky start=%d stop=%d", flaky.starts, flaky.stops)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if ok.stops != 1 {
+		t.Fatalf("Stop while Booted must not double-stop, stops=%d", ok.stops)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if ok.starts != 2 || flaky.starts != 2 {
+		t.Fatalf("retry starts ok=%d flaky=%d", ok.starts, flaky.starts)
+	}
+	if flaky.stops != 0 {
+		t.Fatalf("failed first start must not have been stopped, stops=%d", flaky.stops)
+	}
+}
+
+func TestLifecycleStartFailureConcurrentStop(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	a := &lifecycleProbe{name: "a"}
+	b := &lifecycleProbe{name: "b"}
+	c := &lifecycleProbe{name: "c", fail: errors.New("nope")}
+	app.RegisterProviders(a, b, c)
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		errCh <- app.Start()
+	}()
+	go func() {
+		defer wg.Done()
+		_ = app.Stop(context.Background())
+	}()
+	wg.Wait()
+	startErr := <-errCh
+	if startErr == nil {
+		t.Fatal("expected start failure")
+	}
+	if a.starts != 1 || b.starts != 1 || c.starts != 1 {
+		t.Fatalf("starts a=%d b=%d c=%d", a.starts, b.starts, c.starts)
+	}
+	if a.stops != 1 || b.stops != 1 || c.stops != 0 {
+		t.Fatalf("stops a=%d b=%d c=%d", a.stops, b.stops, c.stops)
 	}
 }

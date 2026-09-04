@@ -17,15 +17,20 @@ type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
 // Route represents a registered route.
 type Route struct {
-	Method     string
-	Path       string
-	Name       string
-	Handler    HandlerFunc
-	Middleware []MiddlewareFunc
-	paramNames []string
-	pattern    *regexp.Regexp
-	namePrefix string
-	router     *Router
+	Method        string
+	Path          string
+	Name          string
+	Handler       HandlerFunc
+	Middleware    []MiddlewareFunc
+	paramNames    []string
+	pattern       *regexp.Regexp
+	namePrefix    string
+	router        *Router
+	frozenName    string
+	frozenPath    string
+	frozenMethod  string
+	frozenHandler HandlerFunc
+	frozenMW      []MiddlewareFunc
 }
 
 type methodTable struct {
@@ -43,6 +48,8 @@ type Router struct {
 	named           map[string]*Route
 	fallback        HandlerFunc
 	frozen          bool
+	frozenGlobalMW  []MiddlewareFunc
+	frozenFallback  HandlerFunc
 	byMethod        map[string]*methodTable
 }
 
@@ -80,6 +87,18 @@ func (r *Router) Freeze() error {
 	}
 	r.byMethod = tables
 	r.named = named
+	r.frozenGlobalMW = append([]MiddlewareFunc{}, r.middleware...)
+	r.frozenFallback = r.fallback
+	for _, route := range r.routes {
+		if route == nil {
+			continue
+		}
+		route.frozenName = route.Name
+		route.frozenPath = route.Path
+		route.frozenMethod = route.Method
+		route.frozenHandler = route.Handler
+		route.frozenMW = append([]MiddlewareFunc{}, route.Middleware...)
+	}
 	r.frozen = true
 	return nil
 }
@@ -263,6 +282,46 @@ func (route *Route) Through(middleware ...MiddlewareFunc) *Route {
 	return route
 }
 
+func (route *Route) dispatchName() string {
+	if route == nil {
+		return ""
+	}
+	if route.router != nil && route.router.frozen {
+		return route.frozenName
+	}
+	return route.Name
+}
+
+func (route *Route) dispatchPath() string {
+	if route == nil {
+		return ""
+	}
+	if route.router != nil && route.router.frozen {
+		return route.frozenPath
+	}
+	return route.Path
+}
+
+func (route *Route) dispatchMethod() string {
+	if route == nil {
+		return ""
+	}
+	if route.router != nil && route.router.frozen {
+		return route.frozenMethod
+	}
+	return route.Method
+}
+
+func (route *Route) dispatchHandler() HandlerFunc {
+	if route == nil {
+		return nil
+	}
+	if route.router != nil && route.router.frozen {
+		return route.frozenHandler
+	}
+	return route.Handler
+}
+
 // RegisterName stores a named route on the router.
 func (r *Router) RegisterName(route *Route) {
 	r.mutate()
@@ -290,8 +349,16 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 	if route := r.match(req); route != nil {
 		return r.invoke(req, route)
 	}
-	if r.fallback != nil {
-		return r.invokeHandler(req, r.fallback, r.middleware)
+	fallback := r.fallback
+	if r.frozen {
+		fallback = r.frozenFallback
+	}
+	if fallback != nil {
+		mw := r.middleware
+		if r.frozen {
+			mw = r.frozenGlobalMW
+		}
+		return r.invokeHandler(req, fallback, mw)
 	}
 	return http.Abort(404, "Not Found")
 }
@@ -303,14 +370,14 @@ func (r *Router) match(req *http.Request) *Route {
 		if t := r.byMethod[method]; t != nil {
 			if route := t.static[path]; route != nil {
 				req.SetRouteParams(map[string]string{})
-				req.SetRouteName(route.Name)
+				req.SetRouteName(route.dispatchName())
 				return route
 			}
 			if t.tree != nil {
 				params := map[string]string{}
 				if route := t.tree.lookup(requestSegs(path), params); route != nil {
 					req.SetRouteParams(params)
-					req.SetRouteName(route.Name)
+					req.SetRouteName(route.dispatchName())
 					return route
 				}
 			}
@@ -338,13 +405,19 @@ func (r *Router) bind(req *http.Request, route *Route, path string) bool {
 		params[name] = matches[i+1]
 	}
 	req.SetRouteParams(params)
-	req.SetRouteName(route.Name)
+	req.SetRouteName(route.dispatchName())
 	return true
 }
 
 func (r *Router) invoke(req *http.Request, route *Route) *http.Response {
-	stack := append(append([]MiddlewareFunc{}, r.middleware...), route.Middleware...)
-	return r.invokeHandler(req, route.Handler, stack)
+	global := r.middleware
+	local := route.Middleware
+	if r.frozen {
+		global = r.frozenGlobalMW
+		local = route.frozenMW
+	}
+	stack := append(append([]MiddlewareFunc{}, global...), local...)
+	return r.invokeHandler(req, route.dispatchHandler(), stack)
 }
 
 func (r *Router) invokeHandler(req *http.Request, handler HandlerFunc, stack []MiddlewareFunc) *http.Response {
@@ -370,7 +443,7 @@ func (r *Router) URL(name string, params ...map[string]string) (string, error) {
 		return "", fmt.Errorf("route [%s] not defined", name)
 	}
 
-	path := route.Path
+	path := route.dispatchPath()
 	if len(params) > 0 {
 		for key, value := range params[0] {
 			path = strings.ReplaceAll(path, "{*"+key+"}", escapePathValue(value, true))

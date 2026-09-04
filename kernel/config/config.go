@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -43,7 +44,7 @@ func (r *Repository) Set(key string, value any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.mustWritable()
-	r.setNested(r.values, strings.Split(key, "."), value)
+	r.setNested(r.values, strings.Split(key, "."), deepCopyValue(value))
 }
 
 // Get retrieves a configuration value using dot notation.
@@ -69,7 +70,7 @@ func (r *Repository) Get(key string, fallback ...any) any {
 		}
 		current = next
 	}
-	return current
+	return deepCopyValue(current)
 }
 
 // GetString returns a string configuration value.
@@ -135,7 +136,8 @@ func (r *Repository) GetInt(key string, fallback ...int) int {
 	}
 }
 
-// All returns a copy of all configuration values.
+// All returns a recursive copy of maps and slices. Pointers and structs
+// inside config values are not cloned.
 func (r *Repository) All() map[string]any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -149,11 +151,11 @@ func (r *Repository) Load(name string, values map[string]any) {
 	r.mustWritable()
 	if name == "" {
 		for key, value := range values {
-			r.values[key] = value
+			r.values[key] = deepCopyValue(value)
 		}
 		return
 	}
-	r.values[name] = values
+	r.values[name] = deepCopyMap(values)
 }
 
 // Loader is the config surface LoadIfAbsent needs.
@@ -189,6 +191,9 @@ func (r *Repository) setNested(root map[string]any, segments []string, value any
 }
 
 func deepCopyMap(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
 	dst := make(map[string]any, len(src))
 	for key, value := range src {
 		dst[key] = deepCopyValue(value)
@@ -196,21 +201,54 @@ func deepCopyMap(src map[string]any) map[string]any {
 	return dst
 }
 
+// deepCopyValue recursively copies maps and slices. Pointers, structs, and
+// other reference types are returned as-is (framework config uses primitives
+// and nested maps/slices).
 func deepCopyValue(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		return deepCopyMap(v)
-	case []any:
-		out := make([]any, len(v))
-		for i, item := range v {
-			out[i] = deepCopyValue(item)
+	if value == nil {
+		return nil
+	}
+	if m, ok := value.(map[string]any); ok {
+		return deepCopyMap(m)
+	}
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Map:
+		if rv.IsNil() {
+			return value
 		}
-		return out
-	case []string:
-		return append([]string(nil), v...)
-	case []int:
-		return append([]int(nil), v...)
+		out := reflect.MakeMapWithSize(rv.Type(), rv.Len())
+		iter := rv.MapRange()
+		elem := rv.Type().Elem()
+		for iter.Next() {
+			copied := deepCopyValue(iter.Value().Interface())
+			var val reflect.Value
+			if copied == nil {
+				val = reflect.Zero(elem)
+			} else {
+				val = reflect.ValueOf(copied)
+			}
+			out.SetMapIndex(iter.Key(), val)
+		}
+		return out.Interface()
+	case reflect.Slice:
+		if rv.IsNil() {
+			return value
+		}
+		n := rv.Len()
+		out := reflect.MakeSlice(rv.Type(), n, n)
+		for i := 0; i < n; i++ {
+			copied := deepCopyValue(rv.Index(i).Interface())
+			if copied == nil {
+				continue
+			}
+			cv := reflect.ValueOf(copied)
+			if cv.IsValid() {
+				out.Index(i).Set(cv)
+			}
+		}
+		return out.Interface()
 	default:
-		return v
+		return value
 	}
 }

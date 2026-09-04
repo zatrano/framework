@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel/container"
 )
 
@@ -270,5 +271,18 @@ func TestBound(t *testing.T) {
 	c.Alias("x", "y")
 	if !c.Bound("x") || !c.Bound("y") {
 		t.Fatal("expected bound")
+	}
+}
+
+func TestContainerContractsMakeAndBound(t *testing.T) {
+	c := container.New()
+	var ct contracts.Container = c
+	ct.Instance("svc", "ok")
+	if !ct.Bound("svc") {
+		t.Fatal("expected Bound")
+	}
+	got, err := ct.Make("svc")
+	if err != nil || got != "ok" {
+		t.Fatalf("got=%#v err=%v", got, err)
 	}
 }

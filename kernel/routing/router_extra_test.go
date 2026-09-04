@@ -3,6 +3,7 @@ package routing_test
 import (
 	stdhttp "net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -304,4 +305,91 @@ func TestURLMissingRequiredParamErrors(t *testing.T) {
 	if got != "/users/9" {
 		t.Fatalf("got %q", got)
 	}
+}
+
+func TestFrozenRouterRejectsAllMutations(t *testing.T) {
+	r := routing.New()
+	h := func(req *http.Request) *http.Response { return http.Text("ok") }
+	route := r.Get("/users/{id}", h).As("users.show")
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	mustPanic(t, "As", func() { route.As("other") })
+	mustPanic(t, "Through", func() {
+		route.Through(func(next routing.HandlerFunc) routing.HandlerFunc { return next })
+	})
+	mustPanic(t, "Name", func() {
+		r.Name("x.", func(router *routing.Router) {})
+	})
+	mustPanic(t, "Get", func() {
+		r.Get("/late", h)
+	})
+	mustPanic(t, "Use", func() {
+		r.Use(func(next routing.HandlerFunc) routing.HandlerFunc { return next })
+	})
+	mustPanic(t, "Group", func() {
+		r.Group("/v2", func(router *routing.Router) {})
+	})
+	mustPanic(t, "Post", func() {
+		r.Post("/late", h)
+	})
+	mustPanic(t, "Fallback", func() {
+		r.Fallback(h)
+	})
+}
+
+func TestFrozenSnapshotAndCacheIgnoreLaterFieldWrites(t *testing.T) {
+	r := routing.New()
+	route := r.Get("/users/{id}", func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	}).As("users.show")
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	before := r.Snapshot()
+	path := filepath.Join(t.TempDir(), "routes.json")
+	if err := r.SaveCache(path); err != nil {
+		t.Fatal(err)
+	}
+	route.Name = "mutated"
+	route.Path = "/hacked"
+	route.Method = "DELETE"
+	route.Handler = func(req *http.Request) *http.Response {
+		return http.Text("hijacked")
+	}
+	after := r.Snapshot()
+	if after[0].Name != "users.show" || after[0].Path != "/users/{id}" || after[0].Method != "GET" {
+		t.Fatalf("snapshot mutated: %#v", after)
+	}
+	if before[0] != after[0] {
+		t.Fatalf("snapshot changed: %#v vs %#v", before, after)
+	}
+	items, err := routing.LoadRouteCache(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items[0].Name != "users.show" || items[0].Path != "/users/{id}" {
+		t.Fatalf("cache=%#v", items)
+	}
+	req := http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/1", nil))
+	resp := r.Dispatch(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("status=%d", resp.StatusCode())
+	}
+	if req.RouteName() != "users.show" {
+		t.Fatalf("dispatch used mutated name %q", req.RouteName())
+	}
+	if strings.TrimSpace(string(resp.Content())) != "ok" {
+		t.Fatalf("dispatch used mutated handler, body=%q", resp.Content())
+	}
+}
+
+func mustPanic(t *testing.T, name string, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("expected panic for %s", name)
+		}
+	}()
+	fn()
 }

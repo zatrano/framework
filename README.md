@@ -80,12 +80,14 @@ kernel/         Application + primitives
   cookie/       Cookie jar
   support/      Strings, UUID, helpers
   dirs/         app/views vs views/ path helpers
-contracts/      Public interfaces (App, Provider, …)
+contracts/      Public ABI (App, Provider, Router, …)
 bootstrap/      App() and the addon registry
 console/        Framework CLI (new, make:*, package:*, describe)
 cmd/zatrano/    CLI entrypoint
 tests/          Integration fixtures
 ```
+
+`contracts` does not import `kernel/*` or `github.com/zatrano/packages`. Router and HTTPBridge handlers stay untyped (`any`) so this package never imports `kernel/http`. Typed APIs sit next to the implementation — for example `routing.From(app)`.
 
 Import kernel types from under `kernel/`:
 

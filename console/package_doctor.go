@@ -135,7 +135,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		out = append(out, doctorFinding{
 			Level:   "WARN",
 			Code:    "enabled.empty",
-			Message: "EnabledAddons is empty — App() has no service addons (use package:preset/init or App(Minimal()))",
+			Message: "EnabledAddons is empty — App() has no service addons (use package:preset/init or App(WithAddons(...)))",
 		})
 	} else {
 		out = append(out, doctorFinding{

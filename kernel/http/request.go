@@ -243,6 +243,9 @@ func (r *Request) RouteParams() map[string]string {
 
 // Set sets a request attribute.
 func (r *Request) Set(key string, value any) {
+	if r == nil {
+		return
+	}
 	if r.attrs == nil {
 		r.attrs = make(map[string]any)
 	}
@@ -251,6 +254,9 @@ func (r *Request) Set(key string, value any) {
 
 // Get returns a request attribute.
 func (r *Request) Get(key string) any {
+	if r == nil || r.attrs == nil {
+		return nil
+	}
 	return r.attrs[key]
 }
 
@@ -258,6 +264,9 @@ const sessionAttrKey = "session"
 
 // SetSession attaches a session store as a request attribute.
 func (r *Request) SetSession(store SessionStore) {
+	if r == nil {
+		return
+	}
 	r.Set(sessionAttrKey, store)
 }
 

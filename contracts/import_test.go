@@ -30,6 +30,9 @@ func TestContractsDoNotImportFrameworkPackages(t *testing.T) {
 			if imp == "github.com/zatrano/packages" || strings.HasPrefix(imp, "github.com/zatrano/packages/") {
 				t.Errorf("%s imports packages module %s", path, imp)
 			}
+			if strings.HasPrefix(imp, "github.com/zatrano/framework/kernel") {
+				t.Errorf("%s imports kernel (%s); contracts must stay dependency-neutral", path, imp)
+			}
 		}
 		return nil
 	})

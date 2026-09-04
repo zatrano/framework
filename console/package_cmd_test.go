@@ -60,6 +60,11 @@ func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, text)
 		}
 	}
+	for _, stale := range []string{"Kernel()", "Minimal()", "MinimalApp"} {
+		if strings.Contains(text, stale) {
+			t.Fatalf("enabled.go still mentions removed boot API %q:\n%s", stale, text)
+		}
+	}
 }
 
 func TestPublishPackagesQuietOnlyStubbed(t *testing.T) {

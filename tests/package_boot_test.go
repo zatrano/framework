@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"testing"
 
 	"github.com/zatrano/framework/bootstrap"
@@ -46,5 +47,20 @@ func TestWithAddonsEmptyIsKernel(t *testing.T) {
 	app := bootstrap.App(bootstrap.WithAddons())
 	if app == nil {
 		t.Fatal("expected app")
+	}
+}
+
+func TestKernelStartStopThenStartRejected(t *testing.T) {
+	t.Setenv("DB_CONNECTION", "")
+	t.Setenv("DB_CONNECTIONS", "")
+	app := bootstrap.App()
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Start(); err == nil {
+		t.Fatal("stopped applications must not restart")
 	}
 }
