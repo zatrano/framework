@@ -121,6 +121,12 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
+	testCmd := exec.Command("go", "test", "./tests")
+	testCmd.Dir = dest
+	testOut, err := testCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
+	}
 }
 
 func TestNewMinimalHasNoPackageDeps(t *testing.T) {

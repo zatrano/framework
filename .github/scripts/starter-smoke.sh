@@ -50,12 +50,7 @@ old_imp = '\t"github.com/zatrano/framework/bootstrap"\n'
 new_imp = '\t_ "github.com/zatrano/packages/billing"\n\n\t"github.com/zatrano/framework/bootstrap"\n'
 if old_imp not in text:
     raise SystemExit("import block not found")
-text = text.replace(old_imp, new_imp, 1)
-old_app = "bootstrap.App(bootstrap.WithProviders(providers.All()...))"
-new_app = 'bootstrap.App(bootstrap.WithAddons("billing"), bootstrap.WithProviders(providers.All()...))'
-if old_app not in text:
-    raise SystemExit("App() call not found")
-p.write_text(text.replace(old_app, new_app, 1), encoding="utf-8")
+p.write_text(text.replace(old_imp, new_imp, 1), encoding="utf-8")
 PY
 
 cp "$DEST/.env.example" "$DEST/.env"

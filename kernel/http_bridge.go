@@ -8,7 +8,7 @@ import (
 	"github.com/zatrano/framework/kernel/routing"
 )
 
-// SetHTTPBridge registers session/view HTTP behavior (nil clears).
+// SetHTTPBridge registers view/session HTTP finalize behavior (nil clears).
 func (app *Application) SetHTTPBridge(bridge contracts.HTTPBridge) {
 	app.httpBridge = bridge
 }

@@ -36,7 +36,7 @@ type App interface {
 	HTTPBridge() HTTPBridge
 }
 
-// HTTPBridge is installed by session (and similar) at boot.
+// HTTPBridge is installed by view (render) and session (cookies, flash) at boot.
 // Middleware entries are routing.MiddlewareFunc values.
 // Finalize req is *framework/http.Request and resp is *framework/http.Response.
 type HTTPBridge interface {

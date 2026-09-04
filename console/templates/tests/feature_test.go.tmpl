@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"__MODULE__/app/providers"
+	_ "__MODULE__/bootstrap"
 
 	"github.com/zatrano/framework/bootstrap"
 )
@@ -53,7 +54,8 @@ func TestWelcomeUsesLayout(t *testing.T) {
 		t.Fatalf("status %d", resp.StatusCode)
 	}
 	raw, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(raw), "__APP_NAME__") {
-		t.Fatalf("expected brand in welcome page")
+	body := string(raw)
+	if !strings.Contains(body, "__APP_NAME__") {
+		t.Fatalf("expected brand in welcome page, got %s", body)
 	}
 }
