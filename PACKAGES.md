@@ -2,7 +2,7 @@
 
 How to choose and use first-party packages.
 
-This repository is the **framework**. `packages/` here is kernel, foundation, and intelligence code (`github.com/zatrano/framework/packages/...`). It is not a copy of the addon repo.
+This repository is the **framework**. `packages/` here is kernel, foundation, and intelligence code (`github.com/zatrano/framework/...`). It is not a copy of the addon repo.
 
 - **Catalog source:** `kernel/catalog.go` (addon *names* are listed for discovery; addon *code* is not in this module)
 - **Kernel / foundation / intelligence:** this repository, under `packages/`
@@ -97,7 +97,7 @@ Docs: [Configuration](https://zatrano.com/docs/configuration)
 **Use:** Boot calls this; raw access:
 
 ```go
-import "github.com/zatrano/framework/packages/env"
+import "github.com/zatrano/framework/env"
 v := env.Get("APP_KEY", "")
 ```
 
@@ -112,7 +112,7 @@ v := env.Get("APP_KEY", "")
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/packages/http"
+import "github.com/zatrano/framework/http"
 
 func (c *HomeController) Index(req *http.Request) *http.Response {
     email := req.Input("email")
@@ -128,7 +128,7 @@ Docs: [Requests & Responses](https://zatrano.com/docs/requests)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/packages/routing"
+import "github.com/zatrano/framework/routing"
 
 router.Get("/posts/{id}", c.Show).As("posts.show")
 path, _ := router.URL("posts.show", map[string]string{"id": "1"})
@@ -143,8 +143,8 @@ Docs: [Routing](https://zatrano.com/docs/routing)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/packages/middleware"
-import "github.com/zatrano/framework/packages/middleware/csrf"
+import "github.com/zatrano/framework/middleware"
+import "github.com/zatrano/framework/middleware/csrf"
 
 router.Use(middleware.Logger, middleware.Recover, csrf.Except("/api"))
 ```

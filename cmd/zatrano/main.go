@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/bootstrap"
+	"github.com/zatrano/framework/console"
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/packages/console"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 
 func bootForCLI(args []string) *kernel.Application {
 	if cliUsesCoreBoot(args) {
-		return bootstrap.App(bootstrap.Kernel())
+		return bootstrap.App()
 	}
 	return bootstrap.FromEnv("app")
 }

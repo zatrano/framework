@@ -1,0 +1,27 @@
+package middleware
+
+import (
+	"github.com/zatrano/packages/apitoken"
+	"github.com/zatrano/packages/auth"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/routing"
+)
+
+// Authenticate is a legacy alias — prefer AuthenticateToken or AuthenticateSession.
+func Authenticate(next routing.HandlerFunc) routing.HandlerFunc {
+	return func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{
+			"message": "Unauthenticated. Use AuthenticateToken(apitoken.From(app)) or AuthenticateSession(auth.From(app)).",
+		}).Status(401)
+	}
+}
+
+// AuthenticateToken authenticates via personal access tokens.
+func AuthenticateToken(manager *apitoken.Manager, abilities ...string) routing.MiddlewareFunc {
+	return manager.Middleware(abilities...)
+}
+
+// AuthenticateSession ensures a session-authenticated user is present.
+func AuthenticateSession(manager *auth.Manager, guards ...string) routing.MiddlewareFunc {
+	return auth.Middleware(manager, guards...)
+}

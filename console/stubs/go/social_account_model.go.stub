@@ -1,0 +1,30 @@
+package models
+
+import "github.com/zatrano/packages/orm"
+
+// SocialAccount links a third-party OAuth identity to a user.
+//
+// Avatar is an optional provider snapshot only. Do not use it for profile UI,
+// APIs, or mail — always read models.User.Avatar (Persist/SyncUser copies the
+// provider picture onto the user record).
+type SocialAccount struct {
+	orm.Model
+	UserID      int64   `db:"user_id" json:"user_id"`
+	Provider    string  `db:"provider" json:"provider"`
+	ProviderID  string  `db:"provider_id" json:"provider_id"`
+	ProviderUID string  `db:"provider_uid" json:"provider_uid"`
+	Name        *string `db:"name" json:"name,omitempty"`
+	Email       *string `db:"email" json:"email,omitempty"`
+	Avatar      *string `db:"avatar" json:"avatar,omitempty"` // provider snapshot; not for display
+	AccessToken *string `db:"access_token" json:"-"`
+}
+
+// TableName returns the social_accounts table name.
+func (m *SocialAccount) TableName() string {
+	return "social_accounts"
+}
+
+// ProviderUIDFor builds the unique provider key used for lookups.
+func ProviderUIDFor(provider, providerID string) string {
+	return provider + ":" + providerID
+}

@@ -1,0 +1,84 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"strconv"
+	"strings"
+
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/flash"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/orm"
+)
+
+const pathDashboardRBAC = "/dashboard/rbac"
+
+// DashboardRBACController serves the role Ã— permission matrix.
+type DashboardRBACController struct {
+	App contracts.App
+}
+
+func (c *DashboardRBACController) Matrix(req *http.Request) *http.Response {
+	roles, err := orm.Query[models.Role]().OrderBy("id").Get()
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
+	}
+	permissions, err := orm.Query[models.Permission]().OrderBy("id").Get()
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
+	}
+	if len(permissions) == 0 {
+		defaults := []models.Permission{
+			{Name: "Users view", Slug: "users.view"},
+			{Name: "Users update", Slug: "users.update"},
+			{Name: "Settings manage", Slug: "settings.manage"},
+			{Name: "Notifications send", Slug: "notifications.send"},
+		}
+		for i := range defaults {
+			_ = orm.Save(&defaults[i])
+		}
+		permissions, _ = orm.Query[models.Permission]().OrderBy("id").Get()
+	}
+
+	links, _ := orm.Query[models.PermissionRole]().Get()
+	matrix := map[int64]map[int64]bool{}
+	for _, role := range roles {
+		matrix[role.ID] = map[int64]bool{}
+	}
+	for _, link := range links {
+		if matrix[link.RoleID] == nil {
+			matrix[link.RoleID] = map[int64]bool{}
+		}
+		matrix[link.RoleID][link.PermissionID] = true
+	}
+
+	return http.View("dashboard/rbac/matrix", map[string]any{
+		"title":       dashboardLang(c.App, "dashboard.nav_rbac"),
+		"roles":       roles,
+		"permissions": permissions,
+		"matrix":      matrix,
+		"user":        dashboardCurrentUser(req, c.App),
+	})
+}
+
+func (c *DashboardRBACController) Save(req *http.Request) *http.Response {
+	_, _ = orm.Query[models.PermissionRole]().Delete()
+
+	for key, value := range req.All() {
+		if value != "1" || !strings.HasPrefix(key, "grant_") {
+			continue
+		}
+		parts := strings.Split(strings.TrimPrefix(key, "grant_"), "_")
+		if len(parts) != 2 {
+			continue
+		}
+		roleID, err1 := strconv.ParseInt(parts[0], 10, 64)
+		permID, err2 := strconv.ParseInt(parts[1], 10, 64)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		link := &models.PermissionRole{RoleID: roleID, PermissionID: permID}
+		_ = orm.Save(link)
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardRBAC)
+}

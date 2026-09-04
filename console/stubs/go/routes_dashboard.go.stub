@@ -1,0 +1,131 @@
+package routes
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/http/controllers/web"
+	"github.com/zatrano/framework/api"
+	"github.com/zatrano/packages/auth"
+	"github.com/zatrano/packages/authorization"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/routing"
+)
+
+// RegisterDashboardWeb registers the management dashboard under /dashboard.
+// Requires make:auth (User + auth middleware) and DashboardServiceProvider gates.
+func RegisterDashboardWeb(app contracts.App) {
+	router := routing.From(app)
+	dash := &web.DashboardController{App: app}
+	// @module users
+	users := &web.DashboardUsersController{App: app}
+	// @endmodule users
+	// @module notifications
+	notifs := &web.DashboardNotificationsController{App: app}
+	// @endmodule notifications
+	// @module roles
+	roles := &web.DashboardRolesController{App: app}
+	// @endmodule roles
+	// @module rbac
+	rbac := &web.DashboardRBACController{App: app}
+	// @endmodule rbac
+	// @module settings
+	settings := &web.DashboardSettingsController{App: app}
+	// @endmodule settings
+	// @module analytics
+	analytics := &web.DashboardAnalyticsController{App: app}
+	// @endmodule analytics
+
+	gate := authorization.From(app)
+	current := func(req *http.Request) any { return auth.From(app).User(req) }
+	protect := []routing.MiddlewareFunc{
+		auth.Middleware(auth.From(app)),
+		authorization.Middleware(gate, current, "dashboard.access"),
+	}
+
+	router.Group("/dashboard", func(r *routing.Router) {
+		r.Get("/", dash.Home).As("dashboard.home")
+
+		// @module users
+		r.Get("/users", users.Index).As("dashboard.users")
+		r.Get("/users/create", users.CreateForm).As("dashboard.users.create")
+		r.Post("/users", users.Store).As("dashboard.users.store")
+		r.Get("/users/{id}/edit", users.EditForm).As("dashboard.users.edit")
+		r.Post("/users/{id}", users.Update).As("dashboard.users.update")
+		r.Post("/users/{id}/delete", users.Delete).As("dashboard.users.delete")
+		// @module impersonate
+		r.Post("/users/{id}/impersonate", users.Impersonate).As("dashboard.users.impersonate")
+		r.Post("/impersonation/stop", users.StopImpersonation).As("dashboard.impersonation.stop")
+		// @endmodule impersonate
+		// @endmodule users
+
+		// @module notifications
+		r.Get("/notifications", notifs.Index).As("dashboard.notifications")
+		r.Get("/notifications/send", notifs.SendForm).As("dashboard.notifications.send")
+		r.Post("/notifications/send", notifs.Send).As("dashboard.notifications.send.store")
+		r.Get("/notifications/bulk", notifs.BulkForm).As("dashboard.notifications.bulk")
+		r.Post("/notifications/bulk", notifs.Bulk).As("dashboard.notifications.bulk.store")
+		r.Post("/notifications/read-all", notifs.MarkAllRead).As("dashboard.notifications.read_all")
+		r.Post("/notifications/{id}/read", notifs.MarkRead).As("dashboard.notifications.read")
+		// @endmodule notifications
+
+		// @module roles
+		r.Get("/roles", roles.Index).As("dashboard.roles")
+		r.Get("/roles/create", roles.CreateForm).As("dashboard.roles.create")
+		r.Post("/roles", roles.Store).As("dashboard.roles.store")
+		r.Get("/roles/{id}/edit", roles.EditForm).As("dashboard.roles.edit")
+		r.Post("/roles/{id}", roles.Update).As("dashboard.roles.update")
+		r.Post("/roles/{id}/delete", roles.Delete).As("dashboard.roles.delete")
+		// @endmodule roles
+
+		// @module rbac
+		r.Get("/rbac", rbac.Matrix).As("dashboard.rbac")
+		r.Post("/rbac", rbac.Save).As("dashboard.rbac.save")
+		// @endmodule rbac
+
+		// @module settings
+		r.Get("/settings", settings.Index).As("dashboard.settings")
+		r.Post("/settings", settings.Save).As("dashboard.settings.save")
+		// @endmodule settings
+
+		// @module analytics
+		r.Get("/analytics", analytics.Index).As("dashboard.analytics")
+		r.Get("/analytics/overview", analytics.OverviewAPI).As("dashboard.analytics.overview")
+		// @endmodule analytics
+	}, protect...)
+}
+
+// @module api
+// RegisterDashboardAPI registers versioned JSON routes under /api/v1.
+func RegisterDashboardAPI(app contracts.App) {
+	apiCtrl := &web.DashboardAPIController{App: app}
+	// @module analytics
+	analytics := &web.DashboardAnalyticsController{App: app}
+	// @endmodule analytics
+
+	gate := authorization.From(app)
+	current := func(req *http.Request) any { return auth.From(app).User(req) }
+	protect := []routing.MiddlewareFunc{
+		auth.Middleware(auth.From(app)),
+		authorization.Middleware(gate, current, "dashboard.access"),
+	}
+
+	api.Version(routing.From(app), "v1", func(r *routing.Router) {
+		// @module users
+		r.Get("/users", apiCtrl.UsersIndex).As("api.v1.users")
+		r.Get("/users/{id}", apiCtrl.UsersShow).As("api.v1.users.show")
+		// @endmodule users
+		// @module roles
+		r.Get("/roles", apiCtrl.RolesIndex).As("api.v1.roles")
+		// @endmodule roles
+		// @module settings
+		r.Get("/settings", apiCtrl.SettingsIndex).As("api.v1.settings")
+		// @endmodule settings
+		// @module notifications
+		r.Get("/notifications", apiCtrl.NotificationsIndex).As("api.v1.notifications")
+		// @endmodule notifications
+		// @module analytics
+		r.Get("/analytics/overview", analytics.OverviewAPI).As("api.v1.analytics.overview")
+		// @endmodule analytics
+	}, protect...)
+}
+
+// @endmodule api

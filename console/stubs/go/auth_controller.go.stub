@@ -1,0 +1,457 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"errors"
+	"fmt"
+
+	"github.com/zatrano/packages/auth"
+	"github.com/zatrano/packages/flash"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/localization"
+	"github.com/zatrano/packages/validation"
+)
+
+// AuthController handles all authentication screens and actions.
+type AuthController struct {
+	App contracts.App
+}
+
+func (c *AuthController) lang(key string, replace ...map[string]string) string {
+	if tr := localization.From(c.App); tr != nil {
+		return tr.Get(key, replace...)
+	}
+	return key
+}
+
+func (c *AuthController) authMsg(err error) string {
+	if err == nil {
+		return ""
+	}
+	return c.lang(err.Error())
+}
+
+func (c *AuthController) LoginForm(req *http.Request) *http.Response {
+	return http.View("auth/login", map[string]any{
+		"title": "Login",
+		"email": flash.OldValue(req, "email"),
+	})
+}
+
+func (c *AuthController) Login(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"email":    "required|email",
+		"password": "required|min:4",
+	})
+	if v.Fails() {
+		flash.Old(req, req.Only("email"))
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields"), "errors": v.Errors().Message()}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/login")
+	}
+	remember, _ := req.BooleanOK("remember")
+	ok, err := auth.From(c.App).Attempt(req, map[string]string{
+		"email": req.Input("email"), "password": req.Input("password"),
+	}, remember)
+	if err != nil {
+		if errors.Is(err, auth.ErrTwoFactorRequired) {
+			if req.WantsJSON() {
+				return http.JSON(map[string]any{"two_factor": true, "redirect": "/auth/two-factor-challenge"}).Status(423)
+			}
+			return http.Redirect("/auth/two-factor-challenge")
+		}
+		if errors.Is(err, auth.ErrLockout) {
+			if req.WantsJSON() {
+				return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(429)
+			}
+			return flash.WithError(req, c.lang("auth.lockout"), "/auth/login")
+		}
+		return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(500)
+	}
+	if !ok {
+		flash.Old(req, req.Only("email"))
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.invalid_credentials")}).Status(401)
+		}
+		return flash.WithError(req, c.lang("auth.invalid_credentials"), "/auth/login")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.welcome_back"), "redirect": auth.IntendedURL(req, "/")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.welcome_back"), auth.PullIntendedURL(req, "/"))
+}
+
+func (c *AuthController) Logout(req *http.Request) *http.Response {
+	_ = auth.From(c.App).Logout(req)
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.logged_out")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.logged_out"), "/auth/login")
+}
+
+func (c *AuthController) RegisterForm(req *http.Request) *http.Response {
+	return http.View("auth/register", map[string]any{
+		"title": "Register",
+		"name":  flash.OldValue(req, "name"),
+		"email": flash.OldValue(req, "email"),
+	})
+}
+
+func (c *AuthController) Register(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"name": "required|min:2", "email": "required|email",
+		"password": "required|min:6", "password_confirmation": "required",
+	})
+	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
+		flash.Old(req, req.Only("name", "email"))
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/register")
+	}
+	user, err := auth.From(c.App).Register(req, map[string]any{
+		"name": req.Input("name"), "email": req.Input("email"), "password": req.Input("password"),
+	})
+	if err != nil {
+		flash.Old(req, req.Only("name", "email"))
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/register")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.account_ready"), "id": user.AuthID()}).Status(201)
+	}
+	return flash.WithSuccess(req, c.lang("auth.account_ready"), "/")
+}
+
+func (c *AuthController) ProfileForm(req *http.Request) *http.Response {
+	user := auth.From(c.App).User(req)
+	name, email := "", auth.EmailForVerification(user)
+	if g, ok := user.(*auth.GenericUser); ok {
+		name = fmt.Sprint(g.Get("name"))
+		email = fmt.Sprint(g.Get("email"))
+	}
+	return http.View("auth/profile", map[string]any{"title": "Profile", "name": name, "email": email})
+}
+
+func (c *AuthController) UpdateProfile(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{"name": "required|min:2", "email": "required|email"})
+	if v.Fails() {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/profile")
+	}
+	if err := auth.From(c.App).UpdateProfile(req, req.Input("name"), req.Input("email")); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/profile")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.profile_updated")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.profile_updated"), "/auth/profile")
+}
+
+func (c *AuthController) ChangePasswordForm(req *http.Request) *http.Response {
+	return http.View("auth/change-password", map[string]any{"title": "Change password"})
+}
+
+func (c *AuthController) ChangePassword(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"current_password": "required", "password": "required|min:6", "password_confirmation": "required",
+	})
+	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.form_fields"), "/auth/password/change")
+	}
+	if err := auth.From(c.App).ChangePassword(req, req.Input("current_password"), req.Input("password")); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/password/change")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.password_updated")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.password_updated"), "/")
+}
+
+func (c *AuthController) TwoFactorForm(req *http.Request) *http.Response {
+	user := auth.From(c.App).User(req)
+	enabled := auth.From(c.App).HasTwoFactorEnabled(user)
+	var setupSecret, setupURL string
+	var setupCodes, recoveryCodes []string
+	if sess := req.Session(); sess != nil {
+		if raw := sess.Get("auth.two_factor_setup"); raw != nil {
+			if m, ok := raw.(map[string]any); ok {
+				setupSecret = fmt.Sprint(m["secret"])
+				setupURL = fmt.Sprint(m["url"])
+				if codes, ok := m["recovery_codes"].([]string); ok {
+					setupCodes = codes
+				}
+			}
+		}
+		if raw := sess.Pull("auth.two_factor_recovery_codes"); raw != nil {
+			if codes, ok := raw.([]string); ok {
+				recoveryCodes = codes
+			}
+		}
+	}
+	return http.View("auth/two-factor", map[string]any{
+		"title": "Two-factor authentication", "enabled": enabled,
+		"setup_secret": setupSecret, "setup_url": setupURL, "setup_codes": setupCodes,
+		"recovery_codes": recoveryCodes, "pending_setup": setupSecret != "" && !enabled,
+	})
+}
+
+func (c *AuthController) EnableTwoFactor(req *http.Request) *http.Response {
+	secret, url, codes, err := auth.From(c.App).EnableTwoFactor(auth.From(c.App).User(req))
+	if err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
+	}
+	if sess := req.Session(); sess != nil {
+		sess.Put("auth.two_factor_setup", map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"secret": secret, "url": url, "recovery_codes": codes})
+	}
+	return flash.WithSuccess(req, c.lang("auth.two_factor_confirm_hint"), "/auth/user/two-factor")
+}
+
+func (c *AuthController) ConfirmTwoFactor(req *http.Request) *http.Response {
+	if err := auth.From(c.App).ConfirmTwoFactor(auth.From(c.App).User(req), req.Input("code")); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
+	}
+	if sess := req.Session(); sess != nil {
+		sess.Forget("auth.two_factor_setup")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"ok": true})
+	}
+	return flash.WithSuccess(req, c.lang("auth.two_factor_enabled"), "/auth/user/two-factor")
+}
+
+func (c *AuthController) DisableTwoFactor(req *http.Request) *http.Response {
+	if err := auth.From(c.App).DisableTwoFactor(auth.From(c.App).User(req), auth.NormalizePasswordField(req)); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"ok": true})
+	}
+	return flash.WithSuccess(req, c.lang("auth.two_factor_disabled"), "/auth/user/two-factor")
+}
+
+func (c *AuthController) RegenerateRecoveryCodes(req *http.Request) *http.Response {
+	codes, err := auth.From(c.App).ReplaceRecoveryCodes(auth.From(c.App).User(req))
+	if err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/user/two-factor")
+	}
+	if sess := req.Session(); sess != nil {
+		sess.Flash("auth.two_factor_recovery_codes", codes)
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"recovery_codes": codes})
+	}
+	return flash.WithSuccess(req, c.lang("auth.recovery_regenerated"), "/auth/user/two-factor")
+}
+
+func (c *AuthController) LogoutOtherDevicesForm(req *http.Request) *http.Response {
+	return http.View("auth/logout-other-devices", map[string]any{"title": "Logout other devices"})
+}
+
+func (c *AuthController) LogoutOtherDevices(req *http.Request) *http.Response {
+	if err := auth.From(c.App).LogoutOtherDevices(req, auth.NormalizePasswordField(req)); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(422)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/user/logout-other-devices")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"ok": true})
+	}
+	return flash.WithSuccess(req, c.lang("auth.other_devices_logged_out"), "/auth/user/logout-other-devices")
+}
+
+func (c *AuthController) ForgotForm(req *http.Request) *http.Response {
+	return http.View("auth/forgot-password", map[string]any{
+		"title": "Forgot password",
+		"email": flash.OldValue(req, "email"),
+	})
+}
+
+func (c *AuthController) Forgot(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{"email": "required|email"})
+	if v.Fails() {
+		flash.Old(req, req.Only("email"))
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.provide_email"), "/auth/forgot-password")
+	}
+	email := req.Input("email")
+	resetURL := c.App.URL().To("/auth/reset-password")
+	if err := auth.Passwords(c.App).SendResetLink(email, resetURL); err != nil {
+		if errors.Is(err, auth.ErrResetThrottled) {
+			if req.WantsJSON() {
+				return http.JSON(map[string]any{"message": c.lang("auth.reset_throttled")}).Status(429)
+			}
+			return flash.WithError(req, c.lang("auth.reset_throttled"), "/auth/forgot-password")
+		}
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.reset_link_if_exists")})
+		}
+		return flash.WithSuccess(req, c.lang("auth.reset_link_if_exists"), "/auth/forgot-password")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.reset_link_if_exists")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.reset_link_if_exists"), "/auth/forgot-password")
+}
+
+func (c *AuthController) ResetForm(req *http.Request) *http.Response {
+	return http.View("auth/reset-password", map[string]any{
+		"title": "Reset password",
+		"email": req.Query("email"),
+		"token": req.Query("token"),
+	})
+}
+
+func (c *AuthController) Reset(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"email": "required|email", "token": "required",
+		"password": "required|min:6", "password_confirmation": "required",
+	})
+	if v.Fails() || req.Input("password") != req.Input("password_confirmation") {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.form_fields")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.invalid_reset_payload"), "/auth/reset-password")
+	}
+	if err := auth.Passwords(c.App).Reset(req.Input("email"), req.Input("token"), req.Input("password")); err != nil {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(400)
+		}
+		return flash.WithError(req, c.authMsg(err), "/auth/reset-password")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.password_reset")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.password_reset"), "/auth/login")
+}
+
+func (c *AuthController) Notice(req *http.Request) *http.Response {
+	user := auth.From(c.App).User(req)
+	return http.View("auth/verify-email", map[string]any{
+		"title":    "Verify email",
+		"verified": auth.HasVerifiedEmail(user),
+		"email":    auth.EmailForVerification(user),
+	})
+}
+
+func (c *AuthController) Send(req *http.Request) *http.Response {
+	user := auth.From(c.App).User(req)
+	if user == nil {
+		return http.JSON(map[string]any{"message": c.lang("auth.unauthenticated")}).Status(401)
+	}
+	if auth.HasVerifiedEmail(user) {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.already_verified")})
+		}
+		return http.Redirect("/")
+	}
+	if err := auth.From(c.App).SendEmailVerification(user); err != nil {
+		return http.JSON(map[string]any{"message": err.Error()}).Status(500)
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.verify_email_sent")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.verify_email_sent"), "/auth/email/verify")
+}
+
+func (c *AuthController) Verify(req *http.Request) *http.Response {
+	raw := req.Path()
+	if q := req.Raw().URL.RawQuery; q != "" {
+		raw += "?" + q
+	}
+	if !c.App.URL().HasValidSignature(raw) {
+		return http.JSON(map[string]any{"message": "Invalid signature"}).Status(403)
+	}
+	id := req.Route("id")
+	hash := req.Query("hash")
+	provider := auth.From(c.App).Guard().Provider()
+	user, err := provider.RetrieveByID(id)
+	if err != nil || user == nil {
+		return http.JSON(map[string]any{"message": "User not found"}).Status(404)
+	}
+	if hash != auth.EmailHash(auth.EmailForVerification(user)) {
+		return http.JSON(map[string]any{"message": "Invalid email hash"}).Status(403)
+	}
+	if err := auth.From(c.App).MarkEmailAsVerified(req, user); err != nil {
+		return http.JSON(map[string]any{"message": c.authMsg(err)}).Status(500)
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"message": c.lang("auth.email_verified")})
+	}
+	return flash.WithSuccess(req, c.lang("auth.email_verified"), "/")
+}
+
+func (c *AuthController) ConfirmPasswordForm(req *http.Request) *http.Response {
+	return http.View("auth/confirm-password", map[string]any{"title": "Confirm Password"})
+}
+
+func (c *AuthController) ConfirmPassword(req *http.Request) *http.Response {
+	if !auth.From(c.App).ConfirmPassword(req, auth.NormalizePasswordField(req)) {
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.invalid_password")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.invalid_password"), "/auth/confirm-password")
+	}
+	auth.MarkPasswordConfirmed(req)
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"confirmed": true})
+	}
+	return auth.RedirectIntended(req, "/")
+}
+
+func (c *AuthController) TwoFactorChallengeForm(req *http.Request) *http.Response {
+	return http.View("auth/two-factor-challenge", map[string]any{"title": "Two-Factor Challenge"})
+}
+
+func (c *AuthController) TwoFactorChallenge(req *http.Request) *http.Response {
+	rememberDevice, _ := req.BooleanOK("remember_device")
+	ok, err := auth.From(c.App).ChallengeTwoFactor(req, req.Input("code"), rememberDevice)
+	if err != nil || !ok {
+		if errors.Is(err, auth.ErrLockout) {
+			if req.WantsJSON() {
+				return http.JSON(map[string]any{"message": c.lang("auth.lockout")}).Status(429)
+			}
+			return flash.WithError(req, c.lang("auth.lockout"), "/auth/two-factor-challenge")
+		}
+		if req.WantsJSON() {
+			return http.JSON(map[string]any{"message": c.lang("auth.invalid_code")}).Status(422)
+		}
+		return flash.WithError(req, c.lang("auth.invalid_code"), "/auth/two-factor-challenge")
+	}
+	if req.WantsJSON() {
+		return http.JSON(map[string]any{"authenticated": true})
+	}
+	return auth.RedirectIntended(req, "/")
+}

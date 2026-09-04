@@ -5,48 +5,34 @@ import (
 	"os"
 	"strings"
 
+	"github.com/zatrano/framework/env"
 	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/packages/env"
 )
 
 // BootProfiles lists valid APP_BOOT values.
 func BootProfiles() []string {
-	return []string{"app", "api", "web", "minimal", "core", "kernel"}
+	return []string{"app"}
 }
 
 // ResolveProfile normalizes an APP_BOOT value.
+// Former api/web/minimal/core/kernel names still resolve; App() is always kernel
+// plus whatever the process blank-imported.
 func ResolveProfile(name string) (string, error) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	switch name {
-	case "", "app", "default":
+	case "", "app", "default", "api", "web", "minimal", "core", "kernel":
 		return "app", nil
-	case "api", "web", "minimal", "core":
-		return name, nil
-	case "kernel":
-		return "core", nil
 	default:
-		return "", fmt.Errorf("unknown APP_BOOT %q (want: %s)", name, strings.Join(BootProfiles(), "|"))
+		return "", fmt.Errorf("unknown APP_BOOT %q (want: app)", name)
 	}
 }
 
 // Profile returns an application for the given boot profile name.
 func Profile(name string) (*kernel.Application, error) {
-	resolved, err := ResolveProfile(name)
-	if err != nil {
+	if _, err := ResolveProfile(name); err != nil {
 		return nil, err
 	}
-	switch resolved {
-	case "api":
-		return App(WithPresetAPI()), nil
-	case "web":
-		return App(WithPresetWeb()), nil
-	case "minimal":
-		return App(Minimal()), nil
-	case "core":
-		return App(Kernel()), nil
-	default:
-		return App(), nil
-	}
+	return App(), nil
 }
 
 // MustProfile is Profile and panics on unknown names.
@@ -59,7 +45,6 @@ func MustProfile(name string) *kernel.Application {
 }
 
 // FromEnv selects a boot profile from APP_BOOT (after loading .env).
-// defaultProfile is used when APP_BOOT is unset (defaults to "app").
 func FromEnv(defaultProfile ...string) *kernel.Application {
 	loadDotEnv()
 	def := "app"

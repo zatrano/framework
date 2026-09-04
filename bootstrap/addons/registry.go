@@ -16,6 +16,8 @@ type Meta struct {
 	Description string
 	Heavy       bool
 	Factory     func() contracts.Provider
+	// Order is the boot sequence (lower first). Same-order names sort alphabetically.
+	Order int
 	// CLI, if set, is invoked from console.New when this addon is imported.
 	CLI func(app contracts.App) []CLICommand
 }
@@ -36,7 +38,7 @@ var (
 // Addon packages call this from init(); this package must not import those addons.
 func Register(m Meta) {
 	name := strings.ToLower(strings.TrimSpace(m.Name))
-	if name == "" || m.Factory == nil {
+	if name == "" {
 		return
 	}
 	if m.Key == "" {
@@ -110,11 +112,20 @@ func Select(names ...string) ([]contracts.Provider, error) {
 	return out, nil
 }
 
-// DefaultPackageProviders returns every registered addon provider (demo/full stack).
+// DefaultPackageProviders returns every registered addon provider in Order.
 func DefaultPackageProviders() []contracts.Provider {
 	avail := Available()
+	sort.SliceStable(avail, func(i, j int) bool {
+		if avail[i].Order != avail[j].Order {
+			return avail[i].Order < avail[j].Order
+		}
+		return avail[i].Name < avail[j].Name
+	})
 	out := make([]contracts.Provider, 0, len(avail))
 	for _, m := range avail {
+		if m.Factory == nil {
+			continue
+		}
 		out = append(out, m.Factory())
 	}
 	return out

@@ -1,21 +1,13 @@
 package bootstrap
 
-// Lean production presets for App() / package:preset.
-// Addon names here must be blank-imported by the consumer (github.com/zatrano/packages).
-// This framework repo only ships the intelligence service `ai`.
-
-// PresetAPI is a lean JSON/API-oriented addon set (no heavy modules).
+// PresetAPI / PresetWeb remain as empty name lists for CLI discovery.
 var PresetAPI = []string{}
-
-// PresetWeb is a lean public-web addon set (SEO/security basics, no heavy modules).
 var PresetWeb = []string{}
 
-// PresetNames lists known preset identifiers for CLI discovery.
 func PresetNames() []string {
 	return []string{"api", "web"}
 }
 
-// Preset returns a named addon list (api|web).
 func Preset(name string) ([]string, bool) {
 	switch name {
 	case "api":
@@ -26,3 +18,9 @@ func Preset(name string) ([]string, bool) {
 		return nil, false
 	}
 }
+
+// WithPresetAPI is App() plus any names in PresetAPI that are blank-imported.
+func WithPresetAPI() Option { return WithAddons(PresetAPI...) }
+
+// WithPresetWeb is App() plus any names in PresetWeb that are blank-imported.
+func WithPresetWeb() Option { return WithAddons(PresetWeb...) }

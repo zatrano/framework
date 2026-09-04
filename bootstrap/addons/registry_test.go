@@ -21,18 +21,8 @@ func TestSelectEmpty(t *testing.T) {
 	}
 }
 
-func TestSelectKnown(t *testing.T) {
-	got, err := addons.Select("ai", "ai")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 provider, got %d", len(got))
-	}
-}
-
-func TestRegistryCoversInTreeServices(t *testing.T) {
-	if len(addons.Available()) < 1 {
-		t.Fatalf("registry too small: %d", len(addons.Available()))
+func TestFrameworkRegistryEmpty(t *testing.T) {
+	if len(addons.Available()) != 0 {
+		t.Fatalf("framework binary must not register packages, got %v", addons.Names())
 	}
 }

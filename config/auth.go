@@ -1,6 +1,6 @@
 package config
 
-import "github.com/zatrano/framework/packages/env"
+import "github.com/zatrano/framework/env"
 
 // Auth returns authentication guard and provider defaults.
 func Auth() map[string]any {

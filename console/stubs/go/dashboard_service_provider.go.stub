@@ -1,0 +1,36 @@
+package providers
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/authorization"
+	"github.com/zatrano/packages/view"
+)
+
+// DashboardServiceProvider registers dashboard gates and view composers.
+type DashboardServiceProvider struct{}
+
+func (p *DashboardServiceProvider) Register(app contracts.App) error {
+	return nil
+}
+
+func (p *DashboardServiceProvider) Boot(app contracts.App) error {
+	if gate := authorization.From(app); gate != nil {
+		gate.Define("dashboard.access", func(user authorization.Authenticatable, _ ...any) bool {
+			u, ok := user.(*models.User)
+			return ok && u != nil && u.IsAdmin
+		})
+	}
+
+	if v := view.From(app); v != nil {
+		v.Composer("dashboard.*", func(_ string, data map[string]any) {
+			data["app_shell"] = "dashboard"
+		})
+		v.Composer("layouts.dashboard", func(_ string, data map[string]any) {
+			if _, ok := data["locale"]; !ok {
+				data["locale"] = "en"
+			}
+		})
+	}
+	return nil
+}

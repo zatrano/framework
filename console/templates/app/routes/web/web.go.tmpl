@@ -1,0 +1,42 @@
+package web
+
+import (
+	"strings"
+
+	webctrl "__MODULE__/app/http/controllers/web"
+	approutes "__MODULE__/app/routes"
+
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/localization"
+	"github.com/zatrano/framework/routing"
+)
+
+func init() {
+	routing.RegisterWeb(registerWeb)
+}
+
+func registerWeb(router *routing.Router) {
+	app := approutes.Current()
+	if app == nil || router == nil {
+		return
+	}
+
+	routing.Controller(router, &webctrl.HomeController{}, func(r routing.RouteRegistrar, c *webctrl.HomeController) {
+		r.Get("/", c.Index).As("home")
+	})
+
+	router.Post("/locale", func(req *http.Request) *http.Response {
+		locale := strings.TrimSpace(strings.ToLower(req.Input("locale")))
+		langPath := app.BasePath("app", "localization")
+		if localization.Published(langPath) && localization.HasLocale(langPath, locale) {
+			if sess := req.Session(); sess != nil {
+				sess.Put("locale", locale)
+			}
+			if localization.From(app) != nil {
+				localization.From(app).SetLocale(locale)
+				_ = localization.From(app).Load(locale)
+			}
+		}
+		return http.Redirect("/")
+	}).As("locale")
+}

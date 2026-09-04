@@ -1,0 +1,78 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/notification"
+	"github.com/zatrano/packages/orm"
+)
+
+// DashboardAPIController exposes versioned JSON endpoints under /api/v1.
+type DashboardAPIController struct {
+	App contracts.App
+}
+
+// @module users
+func (c *DashboardAPIController) UsersIndex(req *http.Request) *http.Response {
+	users, err := orm.Query[models.User]().OrderByDesc("id").Limit(100).Get()
+	if err != nil {
+		return http.JSON(map[string]any{"message": err.Error()}).Status(500)
+	}
+	return http.JSON(map[string]any{"data": users})
+}
+
+func (c *DashboardAPIController) UsersShow(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return http.JSON(map[string]any{"message": "not found"}).Status(404)
+	}
+	user, err := orm.Find[models.User](id)
+	if err != nil || user == nil {
+		return http.JSON(map[string]any{"message": "not found"}).Status(404)
+	}
+	return http.JSON(map[string]any{"data": user})
+}
+
+// @endmodule users
+
+// @module roles
+func (c *DashboardAPIController) RolesIndex(req *http.Request) *http.Response {
+	roles, err := orm.Query[models.Role]().OrderBy("id").Get()
+	if err != nil {
+		return http.JSON(map[string]any{"message": err.Error()}).Status(500)
+	}
+	return http.JSON(map[string]any{"data": roles})
+}
+
+// @endmodule roles
+
+// @module settings
+func (c *DashboardAPIController) SettingsIndex(req *http.Request) *http.Response {
+	settings, err := orm.Query[models.Setting]().OrderBy("key").Get()
+	if err != nil {
+		return http.JSON(map[string]any{"message": err.Error()}).Status(500)
+	}
+	return http.JSON(map[string]any{"data": settings})
+}
+
+// @endmodule settings
+
+// @module notifications
+func (c *DashboardAPIController) NotificationsIndex(req *http.Request) *http.Response {
+	u := dashboardCurrentUser(req, c.App)
+	if u == nil {
+		return http.JSON(map[string]any{"message": "Unauthenticated."}).Status(401)
+	}
+	store := notification.From(c.App).Store()
+	if store == nil {
+		return http.JSON(map[string]any{"data": []any{}})
+	}
+	items, err := store.ListFor(dashboardUserIDString(u), 100)
+	if err != nil {
+		return http.JSON(map[string]any{"message": err.Error()}).Status(500)
+	}
+	return http.JSON(map[string]any{"data": items})
+}
+
+// @endmodule notifications

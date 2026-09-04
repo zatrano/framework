@@ -3,8 +3,8 @@ package kernel
 import (
 	stdhttp "net/http"
 
-	"github.com/zatrano/framework/packages/http"
-	"github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/routing"
 )
 
 // HTTPBridge is installed by foundation (session/view/locale) without those

@@ -1,6 +1,6 @@
 package config
 
-import "github.com/zatrano/framework/packages/env"
+import "github.com/zatrano/framework/env"
 
 // Session returns session configuration.
 func Session() map[string]any {

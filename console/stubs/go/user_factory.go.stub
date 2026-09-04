@@ -1,0 +1,29 @@
+package factories
+
+import (
+	"fmt"
+	"time"
+
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/factory"
+	"github.com/zatrano/packages/hashing"
+)
+
+func init() {
+	factory.For[models.User](func() map[string]any {
+		password, _ := hashing.Hash(factory.FakePassword())
+		n := factory.Sequence("users")
+		return map[string]any{
+			"name":     factory.FakeName(),
+			"email":    fmt.Sprintf("user%d@example.test", n),
+			"password": password,
+		}
+	})
+	factory.RegisterState[models.User]("verified", func() map[string]any {
+		now := time.Now().UTC()
+		return map[string]any{
+			"email_verified_at": now,
+			"name":              "Verified " + factory.FakeName(),
+		}
+	})
+}

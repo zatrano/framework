@@ -1,8 +1,4 @@
 package bootstrap
 
-// Side-effect imports so remaining in-tree service packages register themselves.
-// Addon packages live in github.com/zatrano/packages and must be blank-imported
-// by the consumer application.
-import (
-	_ "github.com/zatrano/framework/packages/ai"
-)
+// Packages register themselves via blank-import in the consumer module.
+// This framework binary does not import github.com/zatrano/packages.

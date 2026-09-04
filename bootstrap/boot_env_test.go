@@ -13,11 +13,11 @@ func TestResolveProfile(t *testing.T) {
 		"":        "app",
 		"APP":     "app",
 		"default": "app",
-		"api":     "api",
-		"web":     "web",
-		"minimal": "minimal",
-		"core":    "core",
-		"kernel":  "core",
+		"api":     "app",
+		"web":     "app",
+		"minimal": "app",
+		"core":    "app",
+		"kernel":  "app",
 	}
 	for in, want := range cases {
 		got, err := bootstrap.ResolveProfile(in)

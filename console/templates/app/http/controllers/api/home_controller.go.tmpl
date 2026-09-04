@@ -1,0 +1,17 @@
+package api
+
+import (
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/version"
+)
+
+// HomeController serves API root information.
+type HomeController struct{}
+
+// Index returns application name and framework version.
+func (c *HomeController) Index(req *http.Request) *http.Response {
+	return http.JSON(map[string]any{
+		"name":    "__APP_NAME__",
+		"version": version.Get(),
+	})
+}

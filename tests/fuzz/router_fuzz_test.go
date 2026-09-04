@@ -9,8 +9,8 @@ import (
 	stdhttp "net/http"
 	"testing"
 
-	"github.com/zatrano/framework/packages/http"
-	"github.com/zatrano/framework/packages/routing"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/routing"
 )
 
 // FuzzRouterPath exercises route compilation and dispatch on arbitrary paths.

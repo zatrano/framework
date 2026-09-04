@@ -1,0 +1,24 @@
+package providers
+
+import (
+	approutes "__MODULE__/app/routes"
+	_ "__MODULE__/app/routes/api"
+	_ "__MODULE__/app/routes/web"
+
+	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/routing"
+)
+
+// RouteServiceProvider registers application routes.
+type RouteServiceProvider struct{}
+
+func (p *RouteServiceProvider) Register(app contracts.App) error {
+	return nil
+}
+
+func (p *RouteServiceProvider) Boot(app contracts.App) error {
+	approutes.Use(app)
+	routing.ApplyWeb(routing.From(app))
+	routing.ApplyAPI(routing.From(app))
+	return nil
+}

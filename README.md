@@ -57,7 +57,7 @@ ZATRANO is an opinionated Golang web framework: routing, views, validation, ORM,
 | Piece | Module / location | Role |
 | ----- | ----------------- | ---- |
 | **Kernel** | `kernel/` | `Application`, container, catalog, secure HTTP hooks |
-| **Implementations** | `packages/` | Kernel, foundation, and intelligence (`github.com/zatrano/framework/packages/...`) |
+| **Implementations** | `packages/` | Kernel, foundation, and intelligence (`github.com/zatrano/framework/...`) |
 | **Foundation boot** | `bootstrap/foundation` | Wires DB, auth, session, cache, queue, views, notifications |
 | **Intelligence** | `packages/ai`, `rag`, `agent` | First-party AI layer (stays in this module) |
 | **Your app** | `zatrano new` | Routes, views, providers, `cmd/app` |
@@ -214,7 +214,7 @@ Guide: [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.co
 ```golang
 import (
     "github.com/zatrano/framework/bootstrap"
-    "github.com/zatrano/framework/packages/auth"
+    "github.com/zatrano/packages/auth"
 )
 
 func main() {

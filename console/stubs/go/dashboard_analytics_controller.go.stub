@@ -1,0 +1,58 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/notification"
+	"github.com/zatrano/packages/orm"
+)
+
+// DashboardAnalyticsController serves live analytics pages and JSON.
+type DashboardAnalyticsController struct {
+	App contracts.App
+}
+
+func (c *DashboardAnalyticsController) Index(req *http.Request) *http.Response {
+	data := c.overviewFor(req)
+	return http.View("dashboard/analytics/index", map[string]any{
+		"title":          dashboardLang(c.App, "dashboard.nav_analytics"),
+		"user":           dashboardCurrentUser(req, c.App),
+		"users_count":    data["users"],
+		"roles_count":    data["roles"],
+		"settings_count": data["settings"],
+		"unread_count":   data["unread"],
+	})
+}
+
+func (c *DashboardAnalyticsController) OverviewAPI(req *http.Request) *http.Response {
+	return http.JSON(c.overviewFor(req))
+}
+
+func (c *DashboardAnalyticsController) overviewFor(req *http.Request) map[string]any {
+	usersCount, _ := orm.Query[models.User]().Count()
+	rolesCount := int64(0)
+	settingsCount := int64(0)
+	// @module roles
+	rolesCount, _ = orm.Query[models.Role]().Count()
+	// @endmodule roles
+	// @module settings
+	settingsCount, _ = orm.Query[models.Setting]().Count()
+	// @endmodule settings
+	unreadCount := 0
+	// @module notifications
+	if u := dashboardCurrentUser(req, c.App); u != nil {
+		if store := notification.From(c.App).Store(); store != nil {
+			if items, err := store.UnreadFor(dashboardUserIDString(u), 200); err == nil {
+				unreadCount = len(items)
+			}
+		}
+	}
+	// @endmodule notifications
+	return map[string]any{
+		"users":    usersCount,
+		"roles":    rolesCount,
+		"settings": settingsCount,
+		"unread":   unreadCount,
+	}
+}

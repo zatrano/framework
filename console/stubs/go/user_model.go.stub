@@ -1,0 +1,142 @@
+package models
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/zatrano/packages/orm"
+)
+
+// User is the authenticatable application user.
+type User struct {
+	orm.Model
+	Name                   string     `db:"name" json:"name"`
+	Email                  string     `db:"email" json:"email"`
+	IsAdmin                bool       `db:"is_admin" json:"is_admin"`
+	Password               string     `db:"password" json:"-"`
+	Avatar                 string     `db:"avatar" json:"avatar,omitempty"` // canonical profile photo (incl. from social Persist)
+	RememberToken          *string    `db:"remember_token" json:"-"`
+	EmailVerifiedAt        *time.Time `db:"email_verified_at" json:"email_verified_at,omitempty"`
+	TwoFactorSecret        *string    `db:"two_factor_secret" json:"-"`
+	TwoFactorRecoveryCodes *string    `db:"two_factor_recovery_codes" json:"-"`
+	TwoFactorConfirmedAt   *time.Time `db:"two_factor_confirmed_at" json:"-"`
+	StripeCustomerID       *string    `db:"stripe_customer_id" json:"stripe_customer_id,omitempty"`
+}
+
+// HasVerifiedEmail reports whether the user verified their email.
+func (m *User) HasVerifiedEmail() bool {
+	return m.EmailVerifiedAt != nil && !m.EmailVerifiedAt.IsZero()
+}
+
+// GetEmailForVerification returns the email for verification links.
+func (m *User) GetEmailForVerification() string {
+	return m.Email
+}
+
+// GetEmailForPasswordReset returns the email used for password resets.
+func (m *User) GetEmailForPasswordReset() string {
+	return m.Email
+}
+
+// MarkEmailAsVerified sets email_verified_at to now.
+func (m *User) MarkEmailAsVerified() {
+	now := time.Now().UTC()
+	m.EmailVerifiedAt = &now
+}
+
+// TableName returns the users table name.
+func (m *User) TableName() string {
+	return "users"
+}
+
+// AuthID implements auth.Authenticatable.
+func (m *User) AuthID() any {
+	if m == nil {
+		return nil
+	}
+	return m.ID
+}
+
+// AuthPassword implements auth.Authenticatable.
+func (m *User) AuthPassword() string {
+	if m == nil {
+		return ""
+	}
+	return m.Password
+}
+
+// GetTwoFactorSecret returns the configured two-factor secret.
+func (m *User) GetTwoFactorSecret() string {
+	if m == nil || m.TwoFactorSecret == nil {
+		return ""
+	}
+	return *m.TwoFactorSecret
+}
+
+// GetTwoFactorRecoveryCodes returns the serialized recovery codes.
+func (m *User) GetTwoFactorRecoveryCodes() string {
+	if m == nil || m.TwoFactorRecoveryCodes == nil {
+		return ""
+	}
+	return *m.TwoFactorRecoveryCodes
+}
+
+// GetTwoFactorConfirmedAt returns when two-factor authentication was confirmed.
+func (m *User) GetTwoFactorConfirmedAt() *time.Time {
+	if m == nil {
+		return nil
+	}
+	return m.TwoFactorConfirmedAt
+}
+
+// BillingEmail implements billing.Billable.
+func (m *User) BillingEmail() string {
+	if m == nil {
+		return ""
+	}
+	return m.Email
+}
+
+// BillingName implements billing.Billable.
+func (m *User) BillingName() string {
+	if m == nil {
+		return ""
+	}
+	return m.Name
+}
+
+// GatewayCustomerID implements billing.Billable.
+func (m *User) GatewayCustomerID() string {
+	if m == nil || m.StripeCustomerID == nil {
+		return ""
+	}
+	return *m.StripeCustomerID
+}
+
+// SetGatewayCustomerID implements billing.Billable.
+func (m *User) SetGatewayCustomerID(id string) error {
+	if m == nil {
+		return fmt.Errorf("user is nil")
+	}
+	m.StripeCustomerID = &id
+	return nil
+}
+
+// RouteNotificationFor returns the route for a notification channel.
+func (m *User) RouteNotificationFor(channel string) string {
+	switch channel {
+	case "mail":
+		return m.Email
+	case "broadcast":
+		return fmt.Sprintf("users.%d", m.ID)
+	case "push":
+		return fmt.Sprintf("device:user:%d", m.ID)
+	default:
+		return ""
+	}
+}
+
+// NotificationID returns the notifiable identifier.
+func (m *User) NotificationID() any {
+	return m.ID
+}

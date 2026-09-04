@@ -9,7 +9,7 @@ import (
 func TestFrameworkAppBootsWithoutConsumerRoutes(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App(bootstrap.Minimal())
+	app := bootstrap.App()
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

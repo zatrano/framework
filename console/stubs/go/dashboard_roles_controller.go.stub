@@ -1,0 +1,102 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/flash"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/orm"
+	"github.com/zatrano/packages/validation"
+)
+
+const pathDashboardRoles = "/dashboard/roles"
+
+// DashboardRolesController manages roles.
+type DashboardRolesController struct {
+	App contracts.App
+}
+
+func (c *DashboardRolesController) Index(req *http.Request) *http.Response {
+	roles, err := orm.Query[models.Role]().OrderBy("id").Get()
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
+	}
+	return http.View("dashboard/roles/index", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.nav_roles"),
+		"roles": roles,
+		"user":  dashboardCurrentUser(req, c.App),
+	})
+}
+
+func (c *DashboardRolesController) CreateForm(req *http.Request) *http.Response {
+	return http.View("dashboard/roles/create", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.new_role"),
+		"user":  dashboardCurrentUser(req, c.App),
+		"name":  flash.OldValue(req, "name"),
+		"slug":  flash.OldValue(req, "slug"),
+	})
+}
+
+func (c *DashboardRolesController) Store(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"name": "required",
+		"slug": "required",
+	})
+	if v.Fails() {
+		flash.Old(req, req.Only("name", "slug"))
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), pathDashboardRoles+"/create")
+	}
+	role := &models.Role{Name: req.Input("name"), Slug: req.Input("slug")}
+	if err := orm.Save(role); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardRoles+"/create")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardRoles)
+}
+
+func (c *DashboardRolesController) EditForm(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	item, err := orm.Find[models.Role](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	return http.View("dashboard/roles/edit", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.edit"),
+		"item":  item,
+		"user":  dashboardCurrentUser(req, c.App),
+	})
+}
+
+func (c *DashboardRolesController) Update(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	item, err := orm.Find[models.Role](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	item.Name = req.Input("name")
+	item.Slug = req.Input("slug")
+	if err := orm.Save(item); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardRoles+"/"+req.Route("id")+"/edit")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardRoles)
+}
+
+func (c *DashboardRolesController) Delete(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	item, err := orm.Find[models.Role](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardRoles)
+	}
+	if _, err := orm.DeleteModel(item); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardRoles)
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.deleted"), pathDashboardRoles)
+}

@@ -3,8 +3,7 @@ package config
 import (
 	"strings"
 
-	"github.com/zatrano/framework/packages/database"
-	"github.com/zatrano/framework/packages/env"
+	"github.com/zatrano/framework/env"
 )
 
 // Database returns database configuration.
@@ -18,7 +17,7 @@ import (
 // Per-connection overrides: DB_<NAME>_HOST, DB_<NAME>_PORT, … (e.g. DB_MYSQL_HOST, DB_PGSQL_DATABASE)
 // Mongo: DB_MONGO_URI / MONGO_URI, DB_MONGO_DATABASE
 func Database() map[string]any {
-	defaultName := database.NormalizeDriverName(env.Get("DB_CONNECTION"))
+	defaultName := normalizeDriverName(env.Get("DB_CONNECTION"))
 	enabled := parseEnabledConnections(env.Get("DB_CONNECTIONS", ""), defaultName)
 
 	connections := map[string]any{}
@@ -47,7 +46,7 @@ func parseEnabledConnections(raw, defaultName string) []string {
 	out := make([]string, 0, len(parts))
 	seen := map[string]bool{}
 	for _, p := range parts {
-		n := database.NormalizeDriverName(p)
+		n := normalizeDriverName(p)
 		if n == "" || seen[n] {
 			continue
 		}
@@ -138,6 +137,25 @@ func connectionConfig(name, defaultName string) map[string]any {
 			"username": firstNonEmpty(env.Get(prefix+"USERNAME"), env.Get("DB_USERNAME", "")),
 			"password": pass,
 		}
+	}
+}
+
+func normalizeDriverName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "sqlite", "sqlite3":
+		return "sqlite"
+	case "mysql":
+		return "mysql"
+	case "pgsql", "postgres", "postgresql":
+		return "pgsql"
+	case "mssql", "sqlserver":
+		return "mssql"
+	case "oracle", "ora":
+		return "oracle"
+	case "mongo", "mongodb":
+		return "mongo"
+	default:
+		return strings.ToLower(strings.TrimSpace(name))
 	}
 }
 

@@ -1,0 +1,68 @@
+package middleware
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/zatrano/framework/http"
+)
+
+const sessionImpersonatorID = "impersonator_id"
+
+// IsImpersonating reports whether the session is acting as another user.
+func IsImpersonating(req *http.Request) bool {
+	return ImpersonatorID(req) > 0
+}
+
+// ImpersonatorID returns the real admin user id when impersonating, else 0.
+func ImpersonatorID(req *http.Request) int64 {
+	if req == nil {
+		return 0
+	}
+	sess := req.Session()
+	if sess == nil {
+		return 0
+	}
+	raw := sess.Get(sessionImpersonatorID)
+	if raw == nil {
+		return 0
+	}
+	switch v := raw.(type) {
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case float64:
+		return int64(v)
+	case string:
+		n, _ := strconv.ParseInt(v, 10, 64)
+		return n
+	default:
+		n, _ := strconv.ParseInt(fmt.Sprint(v), 10, 64)
+		return n
+	}
+}
+
+// BeginImpersonation stores the admin id so the session can be restored later.
+func BeginImpersonation(req *http.Request, adminID int64) {
+	if req == nil || adminID <= 0 {
+		return
+	}
+	if sess := req.Session(); sess != nil {
+		sess.Put(sessionImpersonatorID, adminID)
+	}
+}
+
+// EndImpersonation clears the impersonation marker and returns the admin id.
+func EndImpersonation(req *http.Request) int64 {
+	if req == nil {
+		return 0
+	}
+	sess := req.Session()
+	if sess == nil {
+		return 0
+	}
+	id := ImpersonatorID(req)
+	sess.Forget(sessionImpersonatorID)
+	return id
+}

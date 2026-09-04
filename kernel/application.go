@@ -11,26 +11,20 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zatrano/framework/config"
+	"github.com/zatrano/framework/container"
+	appcontext "github.com/zatrano/framework/context"
 	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/packages/config"
-	"github.com/zatrano/framework/packages/container"
-	appcontext "github.com/zatrano/framework/packages/context"
-	"github.com/zatrano/framework/packages/encryption"
-	"github.com/zatrano/framework/packages/env"
-	"github.com/zatrano/framework/packages/exceptions"
-	"github.com/zatrano/framework/packages/hashing"
-	"github.com/zatrano/framework/packages/health"
-	"github.com/zatrano/framework/packages/http"
-	"github.com/zatrano/framework/packages/log"
-	"github.com/zatrano/framework/packages/maintenance"
-	"github.com/zatrano/framework/packages/middleware"
-	"github.com/zatrano/framework/packages/observability"
-	"github.com/zatrano/framework/packages/ratelimit"
-	"github.com/zatrano/framework/packages/report"
-	"github.com/zatrano/framework/packages/routing"
-	"github.com/zatrano/framework/packages/safepath"
-	"github.com/zatrano/framework/packages/trustedproxy"
-	urlgen "github.com/zatrano/framework/packages/url"
+	"github.com/zatrano/framework/encryption"
+	"github.com/zatrano/framework/env"
+	"github.com/zatrano/framework/exceptions"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/framework/log"
+	"github.com/zatrano/framework/middleware"
+	"github.com/zatrano/framework/report"
+	"github.com/zatrano/framework/routing"
+	"github.com/zatrano/framework/safepath"
+	"github.com/zatrano/framework/trustedproxy"
 )
 
 // Provider boots services into the application.
@@ -45,14 +39,8 @@ type Application struct {
 	config      *config.Repository
 	router      *routing.Router
 	logger      *log.Logger
-	rateLimiter *ratelimit.Limiter
 	ctx         *appcontext.Store
-	urls        *urlgen.Generator
 	encrypter   *encryption.Encrypter
-	hasher      *hashing.Manager
-	metrics     *observability.Metrics
-	health      *health.Manager
-	maintenance *maintenance.Manager
 	exceptions  *exceptions.Handler
 	reports     *report.Manager
 	httpBridge  HTTPBridge
@@ -227,13 +215,6 @@ func (app *Application) Bootstrap() error {
 		middleware.RequestID,
 		middleware.SecurityHeaders,
 	)
-	if app.metrics != nil {
-		app.router.Use(observability.Timing(app.metrics, func(format string, args ...any) {
-			if app.logger != nil {
-				app.logger.Infof(format, args...)
-			}
-		}))
-	}
 	if bridge := app.HTTPBridge(); bridge != nil {
 		for _, mw := range bridge.Middleware() {
 			app.router.Use(mw)
@@ -249,8 +230,11 @@ func (app *Application) Bootstrap() error {
 	if o := middlewareFrom(app, "octane"); o != nil {
 		app.router.Use(o)
 	}
-	if app.maintenance != nil {
-		app.router.Use(app.maintenance.Middleware())
+	if o := middlewareFrom(app, "maintenance"); o != nil {
+		app.router.Use(o)
+	}
+	if o := middlewareFrom(app, "metrics-timing"); o != nil {
+		app.router.Use(o)
 	}
 	if o := middlewareFrom(app, "inspector"); o != nil {
 		app.router.Use(o)

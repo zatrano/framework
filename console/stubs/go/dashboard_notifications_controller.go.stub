@@ -1,0 +1,143 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/flash"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/notification"
+	"github.com/zatrano/packages/orm"
+	"github.com/zatrano/packages/validation"
+)
+
+const pathDashboardNotifications = "/dashboard/notifications"
+
+// DashboardNotificationsController manages inbox and outbound notifications.
+type DashboardNotificationsController struct {
+	App contracts.App
+}
+
+func (c *DashboardNotificationsController) Index(req *http.Request) *http.Response {
+	u := dashboardCurrentUser(req, c.App)
+	if u == nil {
+		return http.Redirect("/auth/login")
+	}
+	store := notification.From(c.App).Store()
+	var items []notification.Record
+	if store != nil {
+		items, _ = store.ListFor(dashboardUserIDString(u), 100)
+	}
+	return http.View("dashboard/notifications/index", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.nav_notifications"),
+		"items": items,
+		"user":  u,
+	})
+}
+
+func (c *DashboardNotificationsController) MarkRead(req *http.Request) *http.Response {
+	u := dashboardCurrentUser(req, c.App)
+	if u == nil {
+		return http.Redirect("/auth/login")
+	}
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardNotifications)
+	}
+	if store := notification.From(c.App).Store(); store != nil {
+		_ = store.MarkAsRead(id, dashboardUserIDString(u))
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardNotifications)
+}
+
+func (c *DashboardNotificationsController) MarkAllRead(req *http.Request) *http.Response {
+	u := dashboardCurrentUser(req, c.App)
+	if u == nil {
+		return http.Redirect("/auth/login")
+	}
+	if store := notification.From(c.App).Store(); store != nil {
+		_ = store.MarkAllRead(dashboardUserIDString(u))
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardNotifications)
+}
+
+func (c *DashboardNotificationsController) SendForm(req *http.Request) *http.Response {
+	return http.View("dashboard/notifications/send", map[string]any{
+		"title":       dashboardLang(c.App, "dashboard.send"),
+		"user":        dashboardCurrentUser(req, c.App),
+		"user_id":     flash.OldValue(req, "user_id"),
+		"title_field": flash.OldValue(req, "title"),
+		"body":        flash.OldValue(req, "body"),
+	})
+}
+
+func (c *DashboardNotificationsController) Send(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"user_id": "required",
+		"title":   "required",
+		"body":    "required",
+	})
+	if v.Fails() {
+		flash.Old(req, req.Only("user_id", "title", "body"))
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), pathDashboardNotifications+"/send")
+	}
+	uid := strings.TrimSpace(req.Input("user_id"))
+	id, _ := strconv.ParseInt(uid, 10, 64)
+	target, err := orm.Find[models.User](id)
+	if err != nil || target == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardNotifications+"/send")
+	}
+	msg := notification.Message{
+		Subject:  req.Input("title"),
+		Body:     req.Input("body"),
+		Channels: []string{"database"},
+		Data:     map[string]any{"title": req.Input("title")},
+	}
+	if err := notification.From(c.App).SendNow(target, msg); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardNotifications+"/send")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardNotifications)
+}
+
+func (c *DashboardNotificationsController) BulkForm(req *http.Request) *http.Response {
+	return http.View("dashboard/notifications/bulk", map[string]any{
+		"title":       dashboardLang(c.App, "dashboard.bulk_send"),
+		"user":        dashboardCurrentUser(req, c.App),
+		"title_field": flash.OldValue(req, "title"),
+		"body":        flash.OldValue(req, "body"),
+	})
+}
+
+func (c *DashboardNotificationsController) Bulk(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"title": "required",
+		"body":  "required",
+	})
+	if v.Fails() {
+		flash.Old(req, req.Only("title", "body"))
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), pathDashboardNotifications+"/bulk")
+	}
+	users, err := orm.Query[models.User]().Limit(500).Get()
+	if err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardNotifications+"/bulk")
+	}
+	msg := notification.Message{
+		Subject:  req.Input("title"),
+		Body:     req.Input("body"),
+		Channels: []string{"database"},
+		Data:     map[string]any{"title": req.Input("title")},
+	}
+	recipients := make([]notification.Recipient, 0, len(users))
+	for _, u := range users {
+		recipients = append(recipients, notification.Recipient{
+			ID:    fmt.Sprintf("%d", u.ID),
+			Email: u.Email,
+			Name:  u.Name,
+		})
+	}
+	_ = notification.From(c.App).SendMany(recipients, msg)
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardNotifications)
+}

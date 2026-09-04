@@ -1,0 +1,48 @@
+package models
+
+import "github.com/zatrano/packages/orm"
+
+// Role is a named access role.
+type Role struct {
+	orm.Model
+	Name string `db:"name" json:"name"`
+	Slug string `db:"slug" json:"slug"`
+}
+
+func (m *Role) TableName() string { return "roles" }
+
+// Permission is a named ability slug.
+type Permission struct {
+	orm.Model
+	Name string `db:"name" json:"name"`
+	Slug string `db:"slug" json:"slug"`
+}
+
+func (m *Permission) TableName() string { return "permissions" }
+
+// RoleUser links users to roles.
+type RoleUser struct {
+	orm.Model
+	UserID int64 `db:"user_id" json:"user_id"`
+	RoleID int64 `db:"role_id" json:"role_id"`
+}
+
+func (m *RoleUser) TableName() string { return "role_user" }
+
+// PermissionRole links permissions to roles (RBAC matrix).
+type PermissionRole struct {
+	orm.Model
+	PermissionID int64 `db:"permission_id" json:"permission_id"`
+	RoleID       int64 `db:"role_id" json:"role_id"`
+}
+
+func (m *PermissionRole) TableName() string { return "permission_role" }
+
+// Setting is a key/value application setting.
+type Setting struct {
+	orm.Model
+	Key   string `db:"key" json:"key"`
+	Value string `db:"value" json:"value"`
+}
+
+func (m *Setting) TableName() string { return "settings" }

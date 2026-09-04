@@ -1,0 +1,29 @@
+package migrations
+
+import "github.com/zatrano/packages/database/schema"
+
+// CreateSocialAccountsTable stores OAuth provider identities linked to users.
+type CreateSocialAccountsTable struct{}
+
+func (m *CreateSocialAccountsTable) Name() string {
+	return "create_social_accounts_table"
+}
+
+func (m *CreateSocialAccountsTable) Up(s *schema.Builder) error {
+	return s.Create("social_accounts", func(table *schema.Blueprint) {
+		table.ID()
+		table.ForeignID("user_id")
+		table.String("provider")
+		table.String("provider_id")
+		table.String("provider_uid").Unique()
+		table.String("name").Nullable()
+		table.String("email").Nullable()
+		table.String("avatar").Nullable()
+		table.Text("access_token").Nullable()
+		table.Timestamps()
+	})
+}
+
+func (m *CreateSocialAccountsTable) Down(s *schema.Builder) error {
+	return s.DropIfExists("social_accounts")
+}

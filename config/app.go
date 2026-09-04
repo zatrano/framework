@@ -1,6 +1,6 @@
 package config
 
-import "github.com/zatrano/framework/packages/env"
+import "github.com/zatrano/framework/env"
 
 // App returns application configuration.
 func App() map[string]any {

@@ -1,0 +1,23 @@
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"__MODULE__/app/console"
+	"__MODULE__/app/providers"
+	_ "__MODULE__/bootstrap"
+
+	"github.com/zatrano/framework/bootstrap"
+	fwconsole "github.com/zatrano/framework/console"
+)
+
+func main() {
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	cli := fwconsole.New(app)
+	console.Register(cli, app)
+	if err := cli.Run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}

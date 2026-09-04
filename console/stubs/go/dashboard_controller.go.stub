@@ -1,0 +1,48 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"__MODULE__/app/models"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/notification"
+	"github.com/zatrano/packages/orm"
+)
+
+// DashboardController serves the dashboard home.
+type DashboardController struct {
+	App contracts.App
+}
+
+// Home shows summary cards for enabled modules.
+func (c *DashboardController) Home(req *http.Request) *http.Response {
+	usersCount := int64(0)
+	rolesCount := int64(0)
+	unreadCount := 0
+	// @module users
+	if n, err := orm.Query[models.User]().Count(); err == nil {
+		usersCount = n
+	}
+	// @endmodule users
+	// @module roles
+	if n, err := orm.Query[models.Role]().Count(); err == nil {
+		rolesCount = n
+	}
+	// @endmodule roles
+	// @module notifications
+	if u := dashboardCurrentUser(req, c.App); u != nil {
+		if store := notification.From(c.App).Store(); store != nil {
+			if items, err := store.UnreadFor(dashboardUserIDString(u), 200); err == nil {
+				unreadCount = len(items)
+			}
+		}
+	}
+	// @endmodule notifications
+
+	return http.View("dashboard/home", map[string]any{
+		"title":        dashboardLang(c.App, "dashboard.nav_home"),
+		"user":         dashboardCurrentUser(req, c.App),
+		"users_count":  usersCount,
+		"roles_count":  rolesCount,
+		"unread_count": unreadCount,
+	})
+}

@@ -1,0 +1,100 @@
+package migrations
+
+import "github.com/zatrano/packages/database/schema"
+
+// AddDashboardIsAdminToUsers adds is_admin for dashboard access.
+type AddDashboardIsAdminToUsers struct{}
+
+func (m *AddDashboardIsAdminToUsers) Name() string {
+	return "add_dashboard_is_admin_to_users"
+}
+
+func (m *AddDashboardIsAdminToUsers) Up(s *schema.Builder) error {
+	return s.Table("users", func(table *schema.Blueprint) {
+		table.Boolean("is_admin").Default(false)
+	})
+}
+
+func (m *AddDashboardIsAdminToUsers) Down(s *schema.Builder) error {
+	return s.Table("users", func(table *schema.Blueprint) {
+		table.DropColumn("is_admin")
+	})
+}
+
+// CreateDashboardRolesTables creates roles and role_user.
+type CreateDashboardRolesTables struct{}
+
+func (m *CreateDashboardRolesTables) Name() string {
+	return "create_dashboard_roles_tables"
+}
+
+func (m *CreateDashboardRolesTables) Up(s *schema.Builder) error {
+	if err := s.Create("roles", func(table *schema.Blueprint) {
+		table.ID()
+		table.String("name")
+		table.String("slug").Unique()
+		table.Timestamps()
+	}); err != nil {
+		return err
+	}
+	return s.Create("role_user", func(table *schema.Blueprint) {
+		table.ID()
+		table.BigInteger("user_id")
+		table.BigInteger("role_id")
+		table.Timestamps()
+	})
+}
+
+func (m *CreateDashboardRolesTables) Down(s *schema.Builder) error {
+	_ = s.DropIfExists("role_user")
+	return s.DropIfExists("roles")
+}
+
+// CreateDashboardRBACTables creates permissions and permission_role.
+type CreateDashboardRBACTables struct{}
+
+func (m *CreateDashboardRBACTables) Name() string {
+	return "create_dashboard_rbac_tables"
+}
+
+func (m *CreateDashboardRBACTables) Up(s *schema.Builder) error {
+	if err := s.Create("permissions", func(table *schema.Blueprint) {
+		table.ID()
+		table.String("name")
+		table.String("slug").Unique()
+		table.Timestamps()
+	}); err != nil {
+		return err
+	}
+	return s.Create("permission_role", func(table *schema.Blueprint) {
+		table.ID()
+		table.BigInteger("permission_id")
+		table.BigInteger("role_id")
+		table.Timestamps()
+	})
+}
+
+func (m *CreateDashboardRBACTables) Down(s *schema.Builder) error {
+	_ = s.DropIfExists("permission_role")
+	return s.DropIfExists("permissions")
+}
+
+// CreateDashboardSettingsTable creates key/value settings.
+type CreateDashboardSettingsTable struct{}
+
+func (m *CreateDashboardSettingsTable) Name() string {
+	return "create_dashboard_settings_table"
+}
+
+func (m *CreateDashboardSettingsTable) Up(s *schema.Builder) error {
+	return s.Create("settings", func(table *schema.Blueprint) {
+		table.ID()
+		table.String("key").Unique()
+		table.Text("value").Nullable()
+		table.Timestamps()
+	})
+}
+
+func (m *CreateDashboardSettingsTable) Down(s *schema.Builder) error {
+	return s.DropIfExists("settings")
+}

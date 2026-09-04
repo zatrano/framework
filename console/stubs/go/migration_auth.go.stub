@@ -1,0 +1,75 @@
+package migrations
+
+import "github.com/zatrano/packages/database/schema"
+
+// CreateUsersTable creates the users table with full auth columns.
+type CreateUsersTable struct{}
+
+func (m *CreateUsersTable) Name() string {
+	return "create_users_table"
+}
+
+func (m *CreateUsersTable) Up(s *schema.Builder) error {
+	return s.Create("users", func(table *schema.Blueprint) {
+		table.ID()
+		table.String("name")
+		table.String("email").Unique()
+		table.Boolean("is_admin").Default(false)
+		table.String("password")
+		table.String("avatar").Nullable()
+		table.Timestamp("email_verified_at").Nullable()
+		table.String("remember_token", 100).Nullable()
+		table.Text("two_factor_secret").Nullable()
+		table.Text("two_factor_recovery_codes").Nullable()
+		table.Timestamp("two_factor_confirmed_at").Nullable()
+		table.String("stripe_customer_id").Nullable()
+		table.Timestamps()
+	})
+}
+
+func (m *CreateUsersTable) Down(s *schema.Builder) error {
+	return s.DropIfExists("users")
+}
+
+// CreatePasswordResetTokensTable creates password_reset_tokens.
+type CreatePasswordResetTokensTable struct{}
+
+func (m *CreatePasswordResetTokensTable) Name() string {
+	return "create_password_reset_tokens_table"
+}
+
+func (m *CreatePasswordResetTokensTable) Up(s *schema.Builder) error {
+	return s.Create("password_reset_tokens", func(table *schema.Blueprint) {
+		table.String("email")
+		table.String("token")
+		table.Timestamp("created_at").Nullable()
+	})
+}
+
+func (m *CreatePasswordResetTokensTable) Down(s *schema.Builder) error {
+	return s.DropIfExists("password_reset_tokens")
+}
+
+// CreatePersonalAccessTokensTable creates personal_access_tokens.
+type CreatePersonalAccessTokensTable struct{}
+
+func (m *CreatePersonalAccessTokensTable) Name() string {
+	return "create_personal_access_tokens_table"
+}
+
+func (m *CreatePersonalAccessTokensTable) Up(s *schema.Builder) error {
+	return s.Create("personal_access_tokens", func(table *schema.Blueprint) {
+		table.ID()
+		table.BigInteger("tokenable_id")
+		table.String("name")
+		table.String("token", 64).Unique()
+		table.Text("abilities").Nullable()
+		table.Timestamp("last_used_at").Nullable()
+		table.Timestamp("expires_at").Nullable()
+		table.Timestamps()
+	})
+}
+
+func (m *CreatePersonalAccessTokensTable) Down(s *schema.Builder) error {
+	return s.DropIfExists("personal_access_tokens")
+}

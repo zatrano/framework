@@ -1,18 +1,30 @@
 package kernel
 
 import (
+	"os"
+	"strings"
+
 	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/packages/version"
 )
 
 var _ contracts.App = (*Application)(nil)
 
-// RateLimiter returns the rate limiter.
-func (app *Application) RateLimiter() contracts.RateLimiter {
-	if app == nil || app.rateLimiter == nil {
-		return nil
+func lookup[T any](app *Application, key string) T {
+	var zero T
+	if app == nil {
+		return zero
 	}
-	return &rateLimiterFacade{inner: app.rateLimiter}
+	raw, err := app.Make(key)
+	if err != nil || raw == nil {
+		return zero
+	}
+	v, _ := raw.(T)
+	return v
+}
+
+// RateLimiter returns the rate limiter when a package has registered one.
+func (app *Application) RateLimiter() contracts.RateLimiter {
+	return lookup[contracts.RateLimiter](app, "rateLimiter")
 }
 
 // Context returns the application context store.
@@ -23,12 +35,9 @@ func (app *Application) Context() contracts.ContextStore {
 	return app.ctx
 }
 
-// URL returns the URL generator.
+// URL returns the URL generator when a package has registered one.
 func (app *Application) URL() contracts.URLGenerator {
-	if app == nil || app.urls == nil {
-		return nil
-	}
-	return app.urls
+	return lookup[contracts.URLGenerator](app, "url")
 }
 
 // Encrypter returns the encryption service.
@@ -39,41 +48,36 @@ func (app *Application) Encrypter() contracts.Encrypter {
 	return app.encrypter
 }
 
-// Hash returns the hashing manager.
+// Hash returns the hashing manager when a package has registered one.
 func (app *Application) Hash() contracts.Hasher {
-	if app == nil || app.hasher == nil {
-		return nil
-	}
-	return app.hasher
+	return lookup[contracts.Hasher](app, "hash")
 }
 
-// Metrics returns the observability metrics collector.
+// Metrics returns the observability metrics collector when registered.
 func (app *Application) Metrics() contracts.Metrics {
-	if app == nil || app.metrics == nil {
-		return nil
-	}
-	return app.metrics
+	return lookup[contracts.Metrics](app, "metrics")
 }
 
-// Health returns the health check manager.
+// Health returns the health check manager when registered.
 func (app *Application) Health() contracts.Health {
-	if app == nil || app.health == nil {
-		return nil
-	}
-	return &healthFacade{inner: app.health}
+	return lookup[contracts.Health](app, "health")
 }
 
-// Version returns the application/framework version.
+// Version returns the application/framework version from VERSION.
 func (app *Application) Version() string {
-	return version.Get()
+	if app == nil {
+		return ""
+	}
+	raw, err := os.ReadFile(app.BasePath("VERSION"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
 }
 
-// Maintenance returns the maintenance mode manager.
+// Maintenance returns the maintenance mode manager when registered.
 func (app *Application) Maintenance() contracts.Maintenance {
-	if app == nil || app.maintenance == nil {
-		return nil
-	}
-	return &maintenanceFacade{inner: app.maintenance}
+	return lookup[contracts.Maintenance](app, "maintenance")
 }
 
 // Exceptions returns the exception handler.

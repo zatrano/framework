@@ -1,0 +1,183 @@
+package web
+
+import (
+	"github.com/zatrano/framework/contracts"
+	"strings"
+
+	"__MODULE__/app/http/middleware"
+	"__MODULE__/app/models"
+	"github.com/zatrano/packages/auth"
+	"github.com/zatrano/packages/flash"
+	"github.com/zatrano/packages/hashing"
+	"github.com/zatrano/framework/http"
+	"github.com/zatrano/packages/orm"
+	"github.com/zatrano/packages/validation"
+)
+
+const pathDashboardUsers = "/dashboard/users"
+
+// DashboardUsersController manages users in the dashboard.
+type DashboardUsersController struct {
+	App contracts.App
+}
+
+func (c *DashboardUsersController) Index(req *http.Request) *http.Response {
+	q := strings.TrimSpace(req.Query("q"))
+	query := orm.Query[models.User]()
+	if q != "" {
+		like := "%" + q + "%"
+		query = query.WhereAny([]string{"name", "email"}, "LIKE", like)
+	}
+	users, err := query.OrderByDesc("id").Limit(100).Get()
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), "/dashboard")
+	}
+	return http.View("dashboard/users/index", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.nav_users"),
+		"users": users,
+		"user":  dashboardCurrentUser(req, c.App),
+		"q":     q,
+	})
+}
+
+func (c *DashboardUsersController) CreateForm(req *http.Request) *http.Response {
+	return http.View("dashboard/users/create", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.new_user"),
+		"user":  dashboardCurrentUser(req, c.App),
+		"name":  flash.OldValue(req, "name"),
+		"email": flash.OldValue(req, "email"),
+	})
+}
+
+func (c *DashboardUsersController) Store(req *http.Request) *http.Response {
+	v := validation.Make(req.All(), map[string]string{
+		"name":     "required|min:2",
+		"email":    "required|email",
+		"password": "required|min:8",
+	})
+	if v.Fails() {
+		flash.Old(req, req.Only("name", "email"))
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), pathDashboardUsers+"/create")
+	}
+	hash, err := hashing.Hash(req.Input("password"))
+	if err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardUsers+"/create")
+	}
+	admin, _ := req.BooleanOK("is_admin")
+	u := &models.User{
+		Name:     req.Input("name"),
+		Email:    req.Input("email"),
+		Password: hash,
+		IsAdmin:  admin,
+	}
+	if err := orm.Save(u); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardUsers+"/create")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.created"), pathDashboardUsers)
+}
+
+func (c *DashboardUsersController) EditForm(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	item, err := orm.Find[models.User](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	return http.View("dashboard/users/edit", map[string]any{
+		"title": dashboardLang(c.App, "dashboard.edit"),
+		"item":  item,
+		"user":  dashboardCurrentUser(req, c.App),
+	})
+}
+
+func (c *DashboardUsersController) Update(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	item, err := orm.Find[models.User](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	v := validation.Make(req.All(), map[string]string{
+		"name":  "required|min:2",
+		"email": "required|email",
+	})
+	if v.Fails() {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.load_failed"), pathDashboardUsers+"/"+req.Route("id")+"/edit")
+	}
+	item.Name = req.Input("name")
+	item.Email = req.Input("email")
+	admin, _ := req.BooleanOK("is_admin")
+	item.IsAdmin = admin
+	if pwd := req.Input("password"); pwd != "" {
+		hash, err := hashing.Hash(pwd)
+		if err != nil {
+			return flash.WithError(req, err.Error(), pathDashboardUsers+"/"+req.Route("id")+"/edit")
+		}
+		item.Password = hash
+	}
+	if err := orm.Save(item); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardUsers+"/"+req.Route("id")+"/edit")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), pathDashboardUsers)
+}
+
+func (c *DashboardUsersController) Delete(req *http.Request) *http.Response {
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	item, err := orm.Find[models.User](id)
+	if err != nil || item == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	if _, err := orm.DeleteModel(item); err != nil {
+		return flash.WithError(req, err.Error(), pathDashboardUsers)
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.deleted"), pathDashboardUsers)
+}
+
+// @module impersonate
+func (c *DashboardUsersController) Impersonate(req *http.Request) *http.Response {
+	admin := dashboardCurrentUser(req, c.App)
+	if admin == nil || !admin.IsAdmin {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.unauthorized"), pathDashboardUsers)
+	}
+	if middleware.IsImpersonating(req) {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.unauthorized"), pathDashboardUsers)
+	}
+	id, err := dashboardParseID(req, "id")
+	if err != nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	target, err := orm.Find[models.User](id)
+	if err != nil || target == nil || target.IsAdmin {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), pathDashboardUsers)
+	}
+	middleware.BeginImpersonation(req, admin.ID)
+	if err := auth.From(c.App).Login(req, target); err != nil {
+		middleware.EndImpersonation(req)
+		return flash.WithError(req, err.Error(), pathDashboardUsers)
+	}
+	return http.Redirect("/")
+}
+
+func (c *DashboardUsersController) StopImpersonation(req *http.Request) *http.Response {
+	adminID := middleware.EndImpersonation(req)
+	if adminID <= 0 {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.unauthorized"), "/dashboard")
+	}
+	admin, err := orm.Find[models.User](adminID)
+	if err != nil || admin == nil {
+		return flash.WithError(req, dashboardLang(c.App, "dashboard.not_found"), "/auth/login")
+	}
+	if err := auth.From(c.App).Login(req, admin); err != nil {
+		return flash.WithError(req, err.Error(), "/auth/login")
+	}
+	return flash.WithSuccess(req, dashboardLang(c.App, "dashboard.saved"), "/dashboard")
+}
+
+// @endmodule impersonate

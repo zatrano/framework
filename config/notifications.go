@@ -1,6 +1,6 @@
 package config
 
-import "github.com/zatrano/framework/packages/env"
+import "github.com/zatrano/framework/env"
 
 // Notifications returns notification configuration.
 func Notifications() map[string]any {
