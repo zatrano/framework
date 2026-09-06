@@ -16,8 +16,13 @@ type SecurityHeaderConfig struct {
 	ContentTypeOptions string
 	ReferrerPolicy     string
 	PermissionsPolicy  string
-	HSTS               string // e.g. "max-age=31536000; includeSubDomains"
+	HSTS               string // explicit value; sent only when the request is HTTPS
+	// EnableHSTSOnHTTPS emits max-age-only HSTS when the request is HTTPS
+	// (TLS or trusted forwarded proto). includeSubDomains/preload are not defaulted.
+	EnableHSTSOnHTTPS bool
 }
+
+const defaultHSTS = "max-age=31536000"
 
 // SecurityHeadersWith adds configured security headers to every response.
 func SecurityHeadersWith(cfg SecurityHeaderConfig) routing.MiddlewareFunc {
@@ -44,8 +49,14 @@ func SecurityHeadersWith(cfg SecurityHeaderConfig) routing.MiddlewareFunc {
 			resp.Header("X-Content-Type-Options", cfg.ContentTypeOptions)
 			resp.Header("Referrer-Policy", cfg.ReferrerPolicy)
 			resp.Header("Permissions-Policy", cfg.PermissionsPolicy)
-			if cfg.HSTS != "" {
-				resp.Header("Strict-Transport-Security", cfg.HSTS)
+			if req != nil && req.Secure() {
+				hsts := cfg.HSTS
+				if hsts == "" && cfg.EnableHSTSOnHTTPS {
+					hsts = defaultHSTS
+				}
+				if hsts != "" {
+					resp.Header("Strict-Transport-Security", hsts)
+				}
 			}
 			return resp
 		}

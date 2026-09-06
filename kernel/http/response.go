@@ -18,6 +18,8 @@ type Response struct {
 	content     []byte
 	contentType string
 	filePath    string
+	fileHTTPReq *stdhttp.Request
+	publicFile  bool
 	redirectURL string
 	viewName    string
 	viewData    map[string]any
@@ -43,6 +45,9 @@ func (r *Response) Header(key, value string) *Response {
 
 // WithCookie adds a cookie to the response.
 func (r *Response) WithCookie(cookie *stdhttp.Cookie) *Response {
+	if r == nil {
+		return nil
+	}
 	r.cookies = append(r.cookies, cookie)
 	return r
 }
@@ -180,6 +185,15 @@ func (r *Response) Headers() stdhttp.Header {
 // Cookies returns response cookies.
 func (r *Response) Cookies() []*stdhttp.Cookie {
 	return r.cookies
+}
+
+// ReplaceCookies replaces the queued response cookies.
+func (r *Response) ReplaceCookies(cookies []*stdhttp.Cookie) *Response {
+	if r == nil {
+		return nil
+	}
+	r.cookies = cookies
+	return r
 }
 
 // ContentType returns the content type.
@@ -335,12 +349,24 @@ func View(name string, data ...map[string]any) *Response {
 	}
 }
 
-// File creates a file response.
+// File creates a file download response.
 func File(path string) *Response {
 	return &Response{
 		status:   stdhttp.StatusOK,
 		filePath: path,
 		headers:  make(stdhttp.Header),
+	}
+}
+
+// PublicFile serves a filesystem file inline (no attachment disposition).
+// raw is the original net/http request so HEAD/Range are preserved.
+func PublicFile(path string, raw *stdhttp.Request) *Response {
+	return &Response{
+		status:      stdhttp.StatusOK,
+		filePath:    path,
+		fileHTTPReq: raw,
+		publicFile:  true,
+		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -403,19 +429,23 @@ func (r *Response) WriteTo(w stdhttp.ResponseWriter) error {
 			stdhttp.Error(w, "cannot serve directory", stdhttp.StatusBadRequest)
 			return fmt.Errorf("cannot serve directory: %s", r.filePath)
 		}
-		if w.Header().Get("Content-Disposition") == "" {
+		if !r.publicFile && w.Header().Get("Content-Disposition") == "" {
 			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(r.filePath))
 		}
-		fileReq, err := stdhttp.NewRequest(stdhttp.MethodGet, "/"+filepath.Base(r.filePath), nil)
-		if err != nil {
-			raw, readErr := os.ReadFile(r.filePath)
-			if readErr != nil {
-				stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
-				return readErr
+		fileReq := r.fileHTTPReq
+		if fileReq == nil {
+			var err error
+			fileReq, err = stdhttp.NewRequest(stdhttp.MethodGet, "/"+filepath.Base(r.filePath), nil)
+			if err != nil {
+				raw, readErr := os.ReadFile(r.filePath)
+				if readErr != nil {
+					stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
+					return readErr
+				}
+				w.WriteHeader(r.StatusCode())
+				_, writeErr := w.Write(raw)
+				return writeErr
 			}
-			w.WriteHeader(r.StatusCode())
-			_, writeErr := w.Write(raw)
-			return writeErr
 		}
 		stdhttp.ServeFile(w, fileReq, r.filePath)
 		return nil

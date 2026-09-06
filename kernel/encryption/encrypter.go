@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+// LocalDevKey is a 32-byte placeholder for non-production boots when APP_KEY
+// is unset. Production refuses it.
+const LocalDevKey = "zatrano-dev-key-do-not-use-prod!"
+
 // Encrypter encrypts and decrypts string payloads.
 type Encrypter struct {
 	key []byte
@@ -120,21 +124,24 @@ func parseKey(appKey string) ([]byte, error) {
 	if appKey == "" {
 		return nil, errors.New("APP_KEY is empty")
 	}
+	var key []byte
 	if strings.HasPrefix(appKey, "base64:") {
 		decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(appKey, "base64:"))
 		if err != nil {
-			return normalizeKey([]byte(strings.TrimPrefix(appKey, "base64:"))), nil
+			return nil, errors.New("APP_KEY base64 decode failed")
 		}
-		return normalizeKey(decoded), nil
+		key = decoded
+	} else if decoded, err := hex.DecodeString(appKey); err == nil && aesKeyLen(len(decoded)) {
+		key = decoded
+	} else {
+		key = []byte(appKey)
 	}
-	if decoded, err := hex.DecodeString(appKey); err == nil && len(decoded) >= 16 {
-		return normalizeKey(decoded), nil
+	if !aesKeyLen(len(key)) {
+		return nil, errors.New("APP_KEY must be 16, 24, or 32 bytes")
 	}
-	return normalizeKey([]byte(appKey)), nil
+	return key, nil
 }
 
-func normalizeKey(key []byte) []byte {
-	out := make([]byte, 32)
-	copy(out, key)
-	return out
+func aesKeyLen(n int) bool {
+	return n == 16 || n == 24 || n == 32
 }

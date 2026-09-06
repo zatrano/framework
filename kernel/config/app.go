@@ -15,7 +15,7 @@ func App() map[string]any {
 		"fallback": env.Get("APP_FALLBACK_LOCALE", "en"),
 		"cors": map[string]any{
 			"enabled":           env.GetBool("CORS_ENABLED", true),
-			"allowed_origins":   env.Get("CORS_ALLOWED_ORIGINS", "*"),
+			"allowed_origins":   env.Get("CORS_ALLOWED_ORIGINS", ""),
 			"allowed_methods":   env.Get("CORS_ALLOWED_METHODS", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
 			"allowed_headers":   env.Get("CORS_ALLOWED_HEADERS", "Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key"),
 			"allow_credentials": env.GetBool("CORS_ALLOW_CREDENTIALS", false),

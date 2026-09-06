@@ -8,7 +8,6 @@ package container
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 )
 
@@ -25,6 +24,8 @@ type sharedSlot struct {
 	val       any
 	err       error
 	waitingOn string
+	aborted   bool
+	closed    bool
 }
 
 // Container is the ZATRANO factory-based service container.
@@ -41,6 +42,7 @@ type Container struct {
 	frozen    bool
 	root      *Container
 	stack     []string
+	path      []string
 }
 
 // New creates an empty service container.
@@ -63,8 +65,8 @@ func (c *Container) core() *Container {
 	return c
 }
 
-func (c *Container) view(stack []string) *Container {
-	return &Container{root: c.core(), stack: stack}
+func (c *Container) view(stack, path []string) *Container {
+	return &Container{root: c.core(), stack: stack, path: path}
 }
 
 // Bind registers a non-shared binding.
@@ -158,37 +160,37 @@ func (c *Container) Bound(abstract string) bool {
 // Make resolves a binding from the container.
 func (c *Container) Make(abstract string) (any, error) {
 	if c == nil {
-		return nil, fmt.Errorf("container: nil container")
+		return nil, &ResolutionError{Kind: KindNilContainer, Target: abstract, Path: clonePath([]string{abstract})}
 	}
-	stack := c.stack
-	return c.core().resolve(stack, abstract)
+	return c.core().resolve(c.stack, c.path, abstract)
 }
 
-func (c *Container) resolve(stack []string, abstract string) (any, error) {
+func (c *Container) resolve(stack, path []string, abstract string) (any, error) {
 	c.mu.Lock()
-	resolved, err := c.resolveAlias(abstract)
+	requested := abstract
+	hops, resolved, err := c.resolveAliasChain(abstract)
 	if err != nil {
 		c.mu.Unlock()
-		return nil, err
+		return nil, annotate(err, requested, appendPath(path, hops...))
 	}
-	abstract = resolved
+	provenance := appendPath(path, hops...)
 
-	if instance, ok := c.instances[abstract]; ok {
+	if instance, ok := c.instances[resolved]; ok {
 		c.mu.Unlock()
 		return instance, nil
 	}
 
-	binding, ok := c.bindings[abstract]
+	binding, ok := c.bindings[resolved]
 	if !ok {
 		c.mu.Unlock()
-		return nil, fmt.Errorf("container: no binding for %q", abstract)
+		return nil, &ResolutionError{Kind: KindUnbound, Target: requested, Path: provenance}
 	}
 
-	if err := cycleIn(stack, abstract); err != nil {
+	if cycleIn(stack, resolved) {
 		c.mu.Unlock()
-		return nil, err
+		return nil, &ResolutionError{Kind: KindCircular, Target: requested, Path: provenance}
 	}
-	next := appendStack(stack, abstract)
+	next := appendStack(stack, resolved)
 	parent := ""
 	if len(stack) > 0 {
 		parent = stack[len(stack)-1]
@@ -197,46 +199,82 @@ func (c *Container) resolve(stack []string, abstract string) (any, error) {
 	if !binding.Shared {
 		concrete := binding.Concrete
 		c.mu.Unlock()
-		return c.build(c.view(next), concrete)
+		val, buildErr := c.build(c.view(next, provenance), concrete)
+		return val, annotate(buildErr, requested, provenance)
 	}
 
-	if slot, ok := c.slots[abstract]; ok {
-		if err := c.markWaitingLocked(parent, abstract); err != nil {
+	if slot, ok := c.slots[resolved]; ok {
+		if err := c.markWaitingLocked(parent, resolved); err != nil {
 			c.mu.Unlock()
-			return nil, err
+			return nil, &ResolutionError{
+				Kind:   KindCircular,
+				Target: requested,
+				Path:   mergePath(provenance, []string{parent, resolved}),
+			}
 		}
 		c.mu.Unlock()
 		<-slot.ready
 		c.mu.Lock()
 		c.clearWaitingLocked(parent)
+		aborted := slot.aborted
 		val, slotErr := slot.val, slot.err
 		c.mu.Unlock()
-		return val, slotErr
+		if aborted {
+			return c.resolve(stack, path, requested)
+		}
+		return val, annotate(slotErr, requested, provenance)
 	}
 
 	slot := &sharedSlot{ready: make(chan struct{})}
-	c.slots[abstract] = slot
-	if err := c.markWaitingLocked(parent, abstract); err != nil {
-		delete(c.slots, abstract)
+	c.slots[resolved] = slot
+	if err := c.markWaitingLocked(parent, resolved); err != nil {
+		delete(c.slots, resolved)
 		c.mu.Unlock()
-		return nil, err
+		return nil, &ResolutionError{
+			Kind:   KindCircular,
+			Target: requested,
+			Path:   mergePath(provenance, []string{parent, resolved}),
+		}
 	}
 	concrete := binding.Concrete
 	c.mu.Unlock()
 
-	val, buildErr := c.build(c.view(next), concrete)
+	published := false
+	defer func() {
+		if published {
+			return
+		}
+		c.mu.Lock()
+		c.clearWaitingLocked(parent)
+		slot.aborted = true
+		delete(c.slots, resolved)
+		c.closeSlotLocked(slot)
+		c.mu.Unlock()
+	}()
+
+	val, buildErr := c.build(c.view(next, provenance), concrete)
+	buildErr = annotate(buildErr, requested, provenance)
 
 	c.mu.Lock()
 	c.clearWaitingLocked(parent)
 	slot.val, slot.err = val, buildErr
 	if buildErr == nil {
-		c.instances[abstract] = val
+		c.instances[resolved] = val
 	} else {
-		delete(c.slots, abstract)
+		delete(c.slots, resolved)
 	}
-	close(slot.ready)
+	c.closeSlotLocked(slot)
+	published = true
 	c.mu.Unlock()
 	return val, buildErr
+}
+
+func (c *Container) closeSlotLocked(slot *sharedSlot) {
+	if slot == nil || slot.closed {
+		return
+	}
+	slot.closed = true
+	close(slot.ready)
 }
 
 // MustMake resolves a binding or panics.
@@ -248,14 +286,13 @@ func (c *Container) MustMake(abstract string) any {
 	return resolved
 }
 
-func cycleIn(stack []string, abstract string) error {
+func cycleIn(stack []string, abstract string) bool {
 	for _, prev := range stack {
 		if prev == abstract {
-			cycle := appendStack(stack, abstract)
-			return fmt.Errorf("container: circular dependency: %s", strings.Join(cycle, " -> "))
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 func appendStack(stack []string, abstract string) []string {
@@ -266,17 +303,29 @@ func appendStack(stack []string, abstract string) []string {
 }
 
 func (c *Container) resolveAlias(abstract string) (string, error) {
-	seen := map[string]struct{}{}
+	_, resolved, err := c.resolveAliasChain(abstract)
+	return resolved, err
+}
+
+func (c *Container) resolveAliasChain(abstract string) (chain []string, resolved string, err error) {
+	chain = []string{abstract}
+	seen := map[string]struct{}{abstract: {}}
+	cur := abstract
 	for {
-		if _, ok := seen[abstract]; ok {
-			return "", fmt.Errorf("container: alias cycle involving %q", abstract)
-		}
-		target, ok := c.aliases[abstract]
+		target, ok := c.aliases[cur]
 		if !ok {
-			return abstract, nil
+			return chain, cur, nil
 		}
-		seen[abstract] = struct{}{}
-		abstract = target
+		chain = append(chain, target)
+		if _, dup := seen[target]; dup {
+			return chain, "", &ResolutionError{
+				Kind:   KindAliasCycle,
+				Target: abstract,
+				Path:   clonePath(chain),
+			}
+		}
+		seen[target] = struct{}{}
+		cur = target
 	}
 }
 
@@ -342,23 +391,38 @@ func (c *Container) buildReflect(concrete any) (any, error) {
 	}
 	rt := rv.Type()
 	if rt.NumIn() != 0 {
-		return nil, fmt.Errorf("container: factory %s must have no parameters (use func(*container.Container) any)", rt)
+		return nil, &ResolutionError{
+			Kind:  KindInvalidFactory,
+			Cause: fmt.Errorf("factory %s must have no parameters (use func(*container.Container) any)", rt),
+		}
 	}
 	if rt.NumOut() < 1 || rt.NumOut() > 2 {
-		return nil, fmt.Errorf("container: factory %s must return T or (T, error)", rt)
+		return nil, &ResolutionError{
+			Kind:  KindInvalidFactory,
+			Cause: fmt.Errorf("factory %s must return T or (T, error)", rt),
+		}
 	}
 	if rt.NumOut() == 2 && !rt.Out(1).Implements(errorType) {
-		return nil, fmt.Errorf("container: factory %s second return value must be error", rt)
+		return nil, &ResolutionError{
+			Kind:  KindInvalidFactory,
+			Cause: fmt.Errorf("factory %s second return value must be error", rt),
+		}
 	}
 	results := rv.Call(nil)
 	if rt.NumOut() == 2 && !results[1].IsNil() {
 		if err, ok := results[1].Interface().(error); ok {
 			return nil, err
 		}
-		return nil, fmt.Errorf("container: factory %s returned non-error second value", rt)
+		return nil, &ResolutionError{
+			Kind:  KindInvalidFactory,
+			Cause: fmt.Errorf("factory %s returned non-error second value", rt),
+		}
 	}
 	if !results[0].IsValid() {
-		return nil, fmt.Errorf("container: factory returned no value")
+		return nil, &ResolutionError{
+			Kind:  KindInvalidFactory,
+			Cause: fmt.Errorf("factory returned no value"),
+		}
 	}
 	if results[0].Kind() == reflect.Ptr || results[0].Kind() == reflect.Interface ||
 		results[0].Kind() == reflect.Slice || results[0].Kind() == reflect.Map ||

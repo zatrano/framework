@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zatrano/framework/kernel/cookie"
 	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/kernel/middleware"
 	"github.com/zatrano/framework/kernel/middleware/csrf"
 )
 
@@ -191,6 +193,71 @@ func TestCSRFNoOriginTokenOnly(t *testing.T) {
 	}
 }
 
+func xsrfCookie(t *testing.T, resp *http.Response) *stdhttp.Cookie {
+	t.Helper()
+	for _, c := range resp.Cookies() {
+		if c != nil && c.Name == "XSRF-TOKEN" {
+			return c
+		}
+	}
+	t.Fatal("missing XSRF-TOKEN")
+	return nil
+}
+
+func TestXSRFCookieSecureInProduction(t *testing.T) {
+	cookie.SetProductionPolicy(true)
+	t.Cleanup(func() { cookie.SetProductionPolicy(false) })
+	t.Setenv("COOKIE_SECURE", "")
+	t.Setenv("SESSION_SECURE", "")
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, _ := newCSRFRequest(stdhttp.MethodGet, "http://app.example/form")
+	resp := handler(req)
+	c := xsrfCookie(t, resp)
+	if !c.Secure {
+		t.Fatal("production XSRF-TOKEN must be Secure")
+	}
+	if c.HttpOnly {
+		t.Fatal("XSRF-TOKEN HttpOnly must stay false")
+	}
+	if c.SameSite != stdhttp.SameSiteLaxMode {
+		t.Fatalf("SameSite=%v", c.SameSite)
+	}
+}
+
+func TestXSRFCookieSecureOnHTTPSInDevelopment(t *testing.T) {
+	cookie.SetProductionPolicy(false)
+	t.Setenv("COOKIE_SECURE", "")
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, _ := newCSRFRequest(stdhttp.MethodGet, "https://app.example/form")
+	resp := handler(req)
+	c := xsrfCookie(t, resp)
+	if !c.Secure {
+		t.Fatal("HTTPS development XSRF-TOKEN must be Secure")
+	}
+	if c.HttpOnly {
+		t.Fatal("XSRF-TOKEN HttpOnly must stay false")
+	}
+}
+
+func TestXSRFCookieNotForcedSecureOnHTTPInDevelopment(t *testing.T) {
+	cookie.SetProductionPolicy(false)
+	t.Setenv("COOKIE_SECURE", "")
+	t.Setenv("SESSION_SECURE", "")
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, _ := newCSRFRequest(stdhttp.MethodGet, "http://app.example/form")
+	resp := handler(req)
+	c := xsrfCookie(t, resp)
+	if c.Secure {
+		t.Fatal("HTTP development XSRF-TOKEN must not force Secure")
+	}
+}
+
 func hasResponseCookie(resp *http.Response, name string) bool {
 	for _, c := range resp.Cookies() {
 		if c != nil && c.Name == name {
@@ -244,3 +311,89 @@ func TestCSRFSkipAnonymousSeedWithSessionCookie(t *testing.T) {
 		t.Fatal("expected _csrf_token seeded in session")
 	}
 }
+
+func exceptAPI() func(*http.Request) *http.Response {
+	return csrf.Except("/api")(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+}
+
+func postExcept(t *testing.T, target string) *http.Response {
+	t.Helper()
+	req, _ := newCSRFRequest(stdhttp.MethodPost, target)
+	_ = seedToken(req)
+	req.Raw().Header.Set("Origin", "https://app.example")
+	return exceptAPI()(req)
+}
+
+func TestCSRFExceptAPIBoundary(t *testing.T) {
+	allowed := []string{
+		"https://app.example/api",
+		"https://app.example/api/",
+		"https://app.example/api/users",
+		"https://app.example/api/users/1",
+		"https://app.example/api?x=1",
+	}
+	for _, target := range allowed {
+		resp := postExcept(t, target)
+		if resp.StatusCode() != 200 {
+			t.Fatalf("%s: status=%d want except 200", target, resp.StatusCode())
+		}
+	}
+
+	blocked := []string{
+		"https://app.example/apitoken",
+		"https://app.example/api-v2",
+		"https://app.example/api2",
+		"https://app.example/api/../secret",
+		"https://app.example/other/api",
+	}
+	for _, target := range blocked {
+		resp := postExcept(t, target)
+		if resp.StatusCode() != 403 {
+			t.Fatalf("%s: status=%d want CSRF 403", target, resp.StatusCode())
+		}
+	}
+}
+
+func TestCSRFExceptEncodedApitoken(t *testing.T) {
+	resp := postExcept(t, "https://app.example/api%74oken")
+	if resp.StatusCode() != 403 {
+		t.Fatalf("encoded /apitoken must not be excepted: status=%d", resp.StatusCode())
+	}
+}
+
+func TestCSRFExceptDoesNotUseQueryAsPath(t *testing.T) {
+	resp := postExcept(t, "https://app.example/form?path=/api")
+	if resp.StatusCode() != 403 {
+		t.Fatalf("query must not except: status=%d", resp.StatusCode())
+	}
+}
+
+func TestCSRFSeesMethodOverrideDELETE(t *testing.T) {
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
+	_ = seedToken(req)
+	req.Raw().Header.Set("Origin", "https://app.example")
+	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
+	middleware.ApplyMethodOverride(req)
+	resp := handler(req)
+	if resp.StatusCode() != 403 {
+		t.Fatalf("overridden DELETE must require CSRF: status=%d", resp.StatusCode())
+	}
+}
+
+func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
+	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api/users")
+	_ = seedToken(req)
+	req.Raw().Header.Set("Origin", "https://app.example")
+	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
+	middleware.ApplyMethodOverride(req)
+	resp := exceptAPI()(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("API except must still bypass overridden DELETE: status=%d", resp.StatusCode())
+	}
+}
+

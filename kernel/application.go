@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	stdlog "log"
 	stdhttp "net/http"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"github.com/zatrano/framework/kernel/config"
 	"github.com/zatrano/framework/kernel/container"
 	appcontext "github.com/zatrano/framework/kernel/context"
+	"github.com/zatrano/framework/kernel/cookie"
 	"github.com/zatrano/framework/kernel/encryption"
 	"github.com/zatrano/framework/kernel/env"
 	"github.com/zatrano/framework/kernel/exceptions"
@@ -201,7 +203,15 @@ func (app *Application) BootstrapFailed() bool {
 
 // Bootstrap loads environment, config, and core services.
 // A second call is a no-op so providers, routes, and middleware are not registered twice.
+// Bootstrap, Start, and Stop share one lock so concurrent Boot/Start cannot observe a
+// half-open boot (C-005): the later call waits, then no-ops or continues from Booted.
 func (app *Application) Bootstrap() error {
+	app.transitionMu.Lock()
+	defer app.transitionMu.Unlock()
+	return app.bootstrapSerial()
+}
+
+func (app *Application) bootstrapSerial() error {
 	app.lifeMu.Lock()
 	switch app.life {
 	case lifeBooted, lifeStarting, lifeRunning, lifeStopping, lifeStopped:
@@ -232,7 +242,7 @@ func (app *Application) Bootstrap() error {
 func (app *Application) bootstrapLocked() error {
 	_ = env.Load(app.BasePath(".env"))
 
-	app.environment = env.Get("APP_ENV", "local")
+	app.environment = env.NormalizeAppEnv(env.Get("APP_ENV", "local"))
 
 	configCache := app.BasePath("storage", "framework", "cache", "config.json")
 	if env.GetBool("APP_CONFIG_CACHE", true) && config.CacheExists(configCache) {
@@ -251,8 +261,12 @@ func (app *Application) bootstrapLocked() error {
 		})
 	}
 	if app.environment == "" {
-		app.environment = app.config.GetString("app.env", "local")
+		app.environment = env.NormalizeAppEnv(app.config.GetString("app.env", "local"))
 	}
+	if app.environment == "" {
+		app.environment = "local"
+	}
+	cookie.SetProductionPolicy(app.IsProduction())
 
 	if err := ensureProductionSecrets(app); err != nil {
 		return err
@@ -272,19 +286,27 @@ func (app *Application) bootstrapLocked() error {
 		}
 	}
 
+	proxyMW, err := trustedproxy.FromEnv(app.IsProduction())
+	if err != nil {
+		return err
+	}
 	app.router.Use(
-		trustedproxy.FromEnv(),
+		proxyMW,
 		app.exceptionMiddleware(),
 		middleware.RequestID,
-		middleware.SecurityHeaders,
+		middleware.SecurityHeadersWith(middleware.SecurityHeaderConfig{
+			EnableHSTSOnHTTPS: app.IsProduction(),
+		}),
 	)
-	applyHTTPBridgeMiddleware(app)
+	if err := applyHTTPBridgeMiddleware(app); err != nil {
+		return err
+	}
 	app.router.Use(
 		middleware.TrimStrings(),
 		middleware.ConvertEmptyStringsToNull("password", "password_confirmation", "current_password"),
 	)
 	if env.GetBool("CORS_ENABLED", true) {
-		app.router.Use(middleware.CORSFromEnv())
+		app.router.Use(middleware.CORSFromEnv(app.Environment()))
 	}
 	if o := middlewareFrom(app, "octane"); o != nil {
 		app.router.Use(o)
@@ -324,14 +346,14 @@ func (app *Application) bootstrapLocked() error {
 
 // Start launches optional LifecycleProvider.Start hooks. Bootstrap runs first.
 // A second call while running is a no-op. Stopped applications cannot restart.
-// Concurrent Start/Stop calls are serialized. If a provider's Start returns an
-// error, that provider must clean up any work it already launched; the kernel
-// only stops providers that returned nil from Start.
+// Concurrent Bootstrap/Start/Stop calls are serialized. If a provider's Start
+// returns an error, that provider must clean up any work it already launched;
+// the kernel only stops providers that returned nil from Start.
 func (app *Application) Start() error {
 	app.transitionMu.Lock()
 	defer app.transitionMu.Unlock()
 
-	if err := app.Bootstrap(); err != nil {
+	if err := app.bootstrapSerial(); err != nil {
 		return err
 	}
 
@@ -418,36 +440,80 @@ func (app *Application) stopLifecycle(ctx context.Context, started []contracts.L
 
 // ServeHTTP implements net/stdhttp.Handler.
 func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	cw := http.TrackCommit(w)
+	defer app.recoverServeHTTP(cw)
+
 	if r != nil && r.Body != nil {
-		r.Body = stdhttp.MaxBytesReader(w, r.Body, http.MaxRequestBytes())
+		r.Body = stdhttp.MaxBytesReader(cw, r.Body, http.MaxRequestBytes())
 	}
 	req := http.NewRequest(r)
 	middleware.ApplyMethodOverride(req)
 
-	// Static files from public/ (never escape the public directory)
-	if r.URL.Path != "/" {
-		publicRoot := app.BasePath("public")
-		publicPath, err := safepath.Resolve(publicRoot, r.URL.Path)
-		if err == nil {
-			if info, err := os.Stat(publicPath); err == nil && !info.IsDir() {
-				stdhttp.ServeFile(w, r, publicPath)
-				return
-			}
-		}
+	var resp *http.Response
+	if file := app.publicFile(req); file != nil {
+		resp = app.router.Through(req, func(*http.Request) *http.Response { return file })
+	} else {
+		resp = app.router.Dispatch(req)
 	}
-
-	resp := app.router.Dispatch(req)
 	if resp == nil {
 		resp = http.Abort(204)
 	}
-	resp = finalizeHTTPBridge(app, w, req, resp)
+	resp = finalizeHTTPBridge(app, cw, req, resp)
+	if resp == nil {
+		resp = http.Abort(204)
+	}
 
 	for _, c := range req.Cookies().Apply() {
 		resp.WithCookie(c)
 	}
 	req.Cookies().Clear()
 
-	_ = resp.WriteTo(w)
+	_ = resp.WriteTo(cw)
+}
+
+func (app *Application) recoverServeHTTP(w *http.CommitWriter) {
+	recovered := recover()
+	if recovered == nil {
+		return
+	}
+	if app != nil && app.logger != nil {
+		app.logger.Errorf("http: panic recovered: %v", recovered)
+	} else {
+		stdlog.Printf("http: panic recovered: %v", recovered)
+	}
+	if w == nil || w.Committed() {
+		return
+	}
+	defer func() { _ = recover() }()
+	_ = http.Abort(stdhttp.StatusInternalServerError, "Internal Server Error").WriteTo(w)
+}
+
+func (app *Application) publicFile(req *http.Request) *http.Response {
+	if req == nil || req.Raw() == nil {
+		return nil
+	}
+	switch req.Method() {
+	case stdhttp.MethodGet, stdhttp.MethodHead:
+	default:
+		return nil
+	}
+	path := req.Path()
+	if path == "/" {
+		return nil
+	}
+	publicPath, err := safepath.Resolve(app.BasePath("public"), path)
+	if err != nil {
+		return nil
+	}
+	publicPath, err = safepath.EvalUnder(app.BasePath("public"), publicPath)
+	if err != nil {
+		return nil
+	}
+	info, err := os.Stat(publicPath)
+	if err != nil || info.IsDir() {
+		return nil
+	}
+	return http.PublicFile(publicPath, req.Raw())
 }
 
 // Run starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.

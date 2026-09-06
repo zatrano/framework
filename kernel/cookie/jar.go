@@ -3,6 +3,7 @@ package cookie
 import (
 	stdhttp "net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zatrano/framework/kernel/env"
@@ -43,7 +44,7 @@ func (j *Jar) Queue(name, value string, minutes int) *Jar {
 		Value:    value,
 		Minutes:  minutes,
 		Path:     "/",
-		Secure:   defaultSecure(),
+		Secure:   SecureByDefault(),
 		HTTPOnly: true,
 		SameSite: stdhttp.SameSiteLaxMode,
 	})
@@ -56,7 +57,7 @@ func (j *Jar) Forever(name, value string) *Jar {
 }
 
 // ForeverSecure queues a long-lived cookie with Secure set when secure is true
-// or when COOKIE_SECURE / SESSION_SECURE env defaults apply.
+// or when production / COOKIE_SECURE / SESSION_SECURE defaults apply.
 func (j *Jar) ForeverSecure(name, value string, secure bool) *Jar {
 	j.removeForget(name)
 	j.queued = append(j.queued, &QueuedCookie{
@@ -64,7 +65,7 @@ func (j *Jar) ForeverSecure(name, value string, secure bool) *Jar {
 		Value:    value,
 		Minutes:  60 * 24 * 365 * 5,
 		Path:     "/",
-		Secure:   secure || defaultSecure(),
+		Secure:   secure || SecureByDefault(),
 		HTTPOnly: true,
 		SameSite: stdhttp.SameSiteLaxMode,
 	})
@@ -85,7 +86,7 @@ func Make(name, value string, minutes int) *stdhttp.Cookie {
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   defaultSecure(),
+		Secure:   SecureByDefault(),
 		SameSite: stdhttp.SameSiteLaxMode,
 	}
 	if minutes > 0 {
@@ -98,11 +99,39 @@ func Make(name, value string, minutes int) *stdhttp.Cookie {
 	return cookie
 }
 
+// SecureByDefault reports whether framework cookie helpers should set Secure.
+// Production is the bootstrapped application policy (SetProductionPolicy),
+// not a live APP_ENV parse. COOKIE_SECURE / SESSION_SECURE still force
+// Secure in any environment. Explicit cookies (QueueRaw, Response.Cookie,
+// WithCookieOptions) are not implied by this.
+func SecureByDefault() bool {
+	if defaultSecure() {
+		return true
+	}
+	prodMu.RLock()
+	on := prodOn
+	prodMu.RUnlock()
+	return on
+}
+
 func defaultSecure() bool {
 	if strings.EqualFold(strings.TrimSpace(env.Get("COOKIE_SECURE", "")), "true") {
 		return true
 	}
 	return strings.EqualFold(strings.TrimSpace(env.Get("SESSION_SECURE", "")), "true")
+}
+
+var (
+	prodMu sync.RWMutex
+	prodOn bool
+)
+
+// SetProductionPolicy records the bootstrapped IsProduction value for
+// framework cookie helpers. Call once during Bootstrap.
+func SetProductionPolicy(on bool) {
+	prodMu.Lock()
+	prodOn = on
+	prodMu.Unlock()
 }
 
 // ForeverCookie builds a long-lived cookie.

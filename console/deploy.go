@@ -33,7 +33,7 @@ func (c *DeployCheckCommand) Handle(args []string) error {
 	if key == "" {
 		issues = append(issues, "APP_KEY is empty (run key:generate)")
 	}
-	if c.app.Config().GetString("app.env", "local") == "production" && c.app.IsDebug() {
+	if c.app.IsProduction() && c.app.IsDebug() {
 		issues = append(issues, "APP_DEBUG should be false in production")
 	}
 	for _, dir := range []string{

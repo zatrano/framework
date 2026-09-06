@@ -121,14 +121,22 @@ func TestConcurrentCircularSingletons(t *testing.T) {
 		t.Fatal("expected circular dependency error")
 	}
 	joined := ""
-	if errA != nil {
-		joined += errA.Error()
-	}
-	if errB != nil {
-		joined += errB.Error()
+	sawCircular := false
+	for _, err := range []error{errA, errB} {
+		if err == nil {
+			continue
+		}
+		joined += err.Error()
+		var re *container.ResolutionError
+		if errors.As(err, &re) && re.Kind == container.KindCircular {
+			sawCircular = true
+		}
 	}
 	if !strings.Contains(joined, "circular") {
 		t.Fatalf("errA=%v errB=%v", errA, errB)
+	}
+	if !sawCircular {
+		t.Fatalf("expected KindCircular, errA=%v errB=%v", errA, errB)
 	}
 }
 
@@ -165,6 +173,13 @@ func TestTransientCircularDependency(t *testing.T) {
 	if !strings.Contains(err.Error(), "circular") {
 		t.Fatalf("err=%v", err)
 	}
+	var re *container.ResolutionError
+	if !errors.As(err, &re) || re.Kind != container.KindCircular {
+		t.Fatalf("kind: %v", err)
+	}
+	if re.Kind == container.KindResolveFailed {
+		t.Fatal("cycle must not be resolve_failed")
+	}
 }
 
 func TestCircularDependency(t *testing.T) {
@@ -181,6 +196,13 @@ func TestCircularDependency(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "circular") {
 		t.Fatalf("err=%v", err)
+	}
+	var re *container.ResolutionError
+	if !errors.As(err, &re) || re.Kind != container.KindCircular {
+		t.Fatalf("kind: %v", err)
+	}
+	if re.Kind == container.KindResolveFailed {
+		t.Fatal("cycle must not be resolve_failed")
 	}
 }
 
@@ -218,10 +240,19 @@ func TestInvalidFactorySignatures(t *testing.T) {
 
 func TestTypedFactoryError(t *testing.T) {
 	c := container.New()
-	c.Bind("fail", func() (string, error) { return "", errors.New("nope") })
+	cause := errors.New("nope")
+	c.Bind("fail", func() (string, error) { return "", cause })
 	_, err := c.Make("fail")
-	if err == nil || err.Error() != "nope" {
-		t.Fatalf("err=%v", err)
+	// Error() text is not API; unwrap is.
+	if !errors.Is(err, cause) {
+		t.Fatalf("errors.Is: err=%v", err)
+	}
+	var re *container.ResolutionError
+	if !errors.As(err, &re) {
+		t.Fatalf("expected ResolutionError, err=%v", err)
+	}
+	if re.Kind != container.KindResolveFailed || re.Target != "fail" {
+		t.Fatalf("kind=%s target=%q", re.Kind, re.Target)
 	}
 	c.Bind("ok", func() (string, error) { return "yes", nil })
 	got, err := c.Make("ok")
@@ -284,5 +315,108 @@ func TestContainerContractsMakeAndBound(t *testing.T) {
 	got, err := ct.Make("svc")
 	if err != nil || got != "ok" {
 		t.Fatalf("got=%#v err=%v", got, err)
+	}
+}
+
+func TestSingletonPanicAllowsRetry(t *testing.T) {
+	c := container.New()
+	var calls atomic.Int32
+	c.Singleton("svc", func() any {
+		if calls.Add(1) == 1 {
+			panic("boom")
+		}
+		return "ok"
+	})
+
+	panicked := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		_, _ = c.Make("svc")
+	}()
+	if !panicked {
+		t.Fatal("factory panic must propagate")
+	}
+
+	done := make(chan struct{})
+	var got any
+	var err error
+	go func() {
+		got, err = c.Make("svc")
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Make after singleton panic deadlocked")
+	}
+	if err != nil || got != "ok" {
+		t.Fatalf("got=%#v err=%v", got, err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("calls=%d", calls.Load())
+	}
+}
+
+func TestSingletonPanicUnblocksWaiters(t *testing.T) {
+	c := container.New()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var builds atomic.Int32
+	c.Singleton("svc", func() any {
+		if builds.Add(1) == 1 {
+			close(started)
+			<-release
+			panic("boom")
+		}
+		return "ok"
+	})
+
+	panicCh := make(chan any, 1)
+	go func() {
+		defer func() { panicCh <- recover() }()
+		_, _ = c.Make("svc")
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("builder never started")
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := c.Make("svc")
+			if err != nil || got != "ok" {
+				t.Errorf("got=%#v err=%v", got, err)
+			}
+		}()
+	}
+	time.Sleep(30 * time.Millisecond)
+	close(release)
+
+	select {
+	case rec := <-panicCh:
+		if rec == nil {
+			t.Fatal("builder panic was swallowed")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("builder did not panic")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("waiters deadlocked after singleton panic")
 	}
 }

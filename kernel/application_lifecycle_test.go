@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel"
@@ -373,5 +374,178 @@ func TestLifecycleStartFailureConcurrentStop(t *testing.T) {
 	}
 	if a.stops != 1 || b.stops != 1 || c.stops != 0 {
 		t.Fatalf("stops a=%d b=%d c=%d", a.stops, b.stops, c.stops)
+	}
+}
+
+// gateProvider blocks in Register so tests can overlap Bootstrap and Start.
+type gateProvider struct {
+	entered   chan struct{}
+	release   chan struct{}
+	enterOnce sync.Once
+	registers int
+	boots     int
+}
+
+func (p *gateProvider) Register(app contracts.App) error {
+	p.registers++
+	p.enterOnce.Do(func() {
+		if p.entered != nil {
+			close(p.entered)
+		}
+	})
+	if p.release != nil {
+		<-p.release
+	}
+	return nil
+}
+
+func (p *gateProvider) Boot(app contracts.App) error {
+	p.boots++
+	return nil
+}
+
+func TestLifecycleConcurrentBootstrapAndStart(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	gate := &gateProvider{entered: entered, release: release}
+	worker := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(gate, worker)
+
+	bootErr := make(chan error, 1)
+	go func() { bootErr <- app.Bootstrap() }()
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Bootstrap never entered Register")
+	}
+
+	startErr := make(chan error, 1)
+	go func() { startErr <- app.Start() }()
+
+	select {
+	case err := <-startErr:
+		t.Fatalf("Start must wait for in-progress Bootstrap, got %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case err := <-bootErr:
+		if err != nil {
+			t.Fatalf("Bootstrap: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Bootstrap hung")
+	}
+	select {
+	case err := <-startErr:
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start hung")
+	}
+
+	if gate.registers != 1 || gate.boots != 1 {
+		t.Fatalf("register=%d boot=%d", gate.registers, gate.boots)
+	}
+	if worker.starts != 1 {
+		t.Fatalf("starts=%d", worker.starts)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLifecycleConcurrentStartThenBootstrap(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	gate := &gateProvider{entered: entered, release: release}
+	app.RegisterProviders(gate)
+
+	startErr := make(chan error, 1)
+	go func() { startErr <- app.Start() }()
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start never entered Register")
+	}
+
+	bootErr := make(chan error, 1)
+	go func() { bootErr <- app.Bootstrap() }()
+
+	select {
+	case err := <-bootErr:
+		t.Fatalf("Bootstrap must wait for in-progress Start, got %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case err := <-startErr:
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start hung")
+	}
+	select {
+	case err := <-bootErr:
+		if err != nil {
+			t.Fatalf("Bootstrap: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Bootstrap hung")
+	}
+	if gate.registers != 1 || gate.boots != 1 {
+		t.Fatalf("register=%d boot=%d", gate.registers, gate.boots)
+	}
+}
+
+func TestLifecycleConcurrentBootstrapOnce(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	gate := &gateProvider{entered: entered, release: release}
+	app.RegisterProviders(gate)
+
+	first := make(chan error, 1)
+	go func() { first <- app.Bootstrap() }()
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first Bootstrap never entered Register")
+	}
+
+	second := make(chan error, 1)
+	go func() { second <- app.Bootstrap() }()
+
+	select {
+	case err := <-second:
+		t.Fatalf("second Bootstrap must wait, got %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+
+	for _, ch := range []chan error{first, second} {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("Bootstrap: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("Bootstrap hung")
+		}
+	}
+	if gate.registers != 1 || gate.boots != 1 {
+		t.Fatalf("register=%d boot=%d", gate.registers, gate.boots)
 	}
 }

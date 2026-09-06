@@ -98,24 +98,30 @@ func asHandler(handler any) routing.HandlerFunc {
 func asMiddlewareList(items []any) []routing.MiddlewareFunc {
 	out := make([]routing.MiddlewareFunc, 0, len(items))
 	for _, item := range items {
-		if mw := asMiddleware(item); mw != nil {
-			out = append(out, mw)
-		}
+		out = append(out, asMiddleware(item))
 	}
 	return out
 }
 
 func asMiddleware(item any) routing.MiddlewareFunc {
+	mw, err := middlewareOf(item)
+	if err != nil {
+		panic("router: " + err.Error())
+	}
+	return mw
+}
+
+func middlewareOf(item any) (routing.MiddlewareFunc, error) {
 	if item == nil {
-		return nil
+		return nil, fmt.Errorf("nil middleware")
 	}
 	switch m := item.(type) {
 	case routing.MiddlewareFunc:
-		return m
+		return m, nil
 	case func(routing.HandlerFunc) routing.HandlerFunc:
-		return m
+		return m, nil
 	default:
-		return nil
+		return nil, fmt.Errorf("unsupported middleware %T", item)
 	}
 }
 

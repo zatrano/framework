@@ -31,7 +31,7 @@ func (app *Application) BootKernelServices() error {
 	app.ctx = appcontext.New()
 	app.container.Instance("context", app.ctx)
 
-	encrypter, err := encryption.New(app.config.GetString("app.key", env.Get("APP_KEY", "zatrano-dev-key")))
+	encrypter, err := encryption.New(app.appKey())
 	if err != nil {
 		return err
 	}

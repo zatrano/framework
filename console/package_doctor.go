@@ -11,6 +11,7 @@ import (
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/bootstrap/stubs"
 	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/kernel/encryption"
 	"github.com/zatrano/framework/kernel/env"
 )
 
@@ -242,10 +243,19 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		})
 	}
 
-	envName := strings.ToLower(strings.TrimSpace(env.Get("APP_ENV", "local")))
+	envName := env.NormalizeAppEnv(env.Get("APP_ENV", "local"))
+	if envName == "" {
+		envName = "local"
+	}
 	key := strings.TrimSpace(env.Get("APP_KEY", ""))
 	if envName == "production" {
-		if key == "" || key == "zatrano-dev-key" || len(key) < 16 {
+		if key == "" || key == "zatrano-dev-key" || key == encryption.LocalDevKey || key == "password" {
+			out = append(out, doctorFinding{
+				Level:   "ERROR",
+				Code:    "secrets.app_key",
+				Message: "production APP_KEY is missing or too weak",
+			})
+		} else if _, err := encryption.New(key); err != nil {
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
 				Code:    "secrets.app_key",

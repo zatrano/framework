@@ -25,3 +25,12 @@ func TestGetNonEmptyFallsBackOnBlank(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestNormalizeAppEnv(t *testing.T) {
+	if got := env.NormalizeAppEnv(" PRODUCTION "); got != "production" {
+		t.Fatalf("got %q", got)
+	}
+	if got := env.NormalizeAppEnv("Staging"); got != "staging" {
+		t.Fatalf("got %q", got)
+	}
+}

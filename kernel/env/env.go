@@ -60,6 +60,12 @@ func Get(key string, fallback ...string) string {
 	return ""
 }
 
+// NormalizeAppEnv trims and lowercases an application environment name.
+// Bootstrap stores this once; security policy must not re-parse APP_ENV.
+func NormalizeAppEnv(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
 // GetNonEmpty is like Get but treats blank/whitespace values as unset (uses fallback).
 // Prefer this for credentials where `.env` may contain `DB_USERNAME=`.
 func GetNonEmpty(key string, fallback ...string) string {

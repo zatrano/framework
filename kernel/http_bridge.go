@@ -1,11 +1,11 @@
 package kernel
 
 import (
+	"fmt"
 	stdhttp "net/http"
 
 	"github.com/zatrano/framework/contracts"
 	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
 )
 
 // SetHTTPBridge registers view/session HTTP finalize behavior (nil clears).
@@ -18,16 +18,19 @@ func (app *Application) HTTPBridge() contracts.HTTPBridge {
 	return app.httpBridge
 }
 
-func applyHTTPBridgeMiddleware(app *Application) {
+func applyHTTPBridgeMiddleware(app *Application) error {
 	bridge := app.HTTPBridge()
 	if bridge == nil {
-		return
+		return nil
 	}
-	for _, mw := range bridge.Middleware() {
-		if fn, ok := mw.(routing.MiddlewareFunc); ok {
-			app.router.Use(fn)
+	for i, mw := range bridge.Middleware() {
+		fn, err := middlewareOf(mw)
+		if err != nil {
+			return fmt.Errorf("http bridge: middleware[%d]: %w", i, err)
 		}
+		app.router.Use(fn)
 	}
+	return nil
 }
 
 func finalizeHTTPBridge(app *Application, w stdhttp.ResponseWriter, req *http.Request, resp *http.Response) *http.Response {

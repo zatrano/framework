@@ -12,6 +12,8 @@ import (
 const encryptedPrefix = "ZATRANO:"
 
 // EncryptCookies encrypts selected response cookies and decrypts matching request cookies.
+// Encrypt failure drops that cookie (plaintext is never sent). Decrypt failure
+// leaves the ciphertext on the request. Pass nil encrypter for a no-op.
 func EncryptCookies(encrypter *encryption.Encrypter, names ...string) routing.MiddlewareFunc {
 	wanted := map[string]bool{}
 	for _, name := range names {
@@ -29,14 +31,17 @@ func EncryptCookies(encrypter *encryption.Encrypter, names ...string) routing.Mi
 			if resp == nil || encrypter == nil {
 				return resp
 			}
+			kept := make([]*stdhttp.Cookie, 0, len(resp.Cookies()))
 			for _, cookie := range resp.Cookies() {
 				if cookie == nil {
 					continue
 				}
 				if len(wanted) > 0 && !wanted[cookie.Name] {
+					kept = append(kept, cookie)
 					continue
 				}
 				if strings.HasPrefix(cookie.Value, encryptedPrefix) {
+					kept = append(kept, cookie)
 					continue
 				}
 				cipher, err := encrypter.Encrypt(cookie.Value)
@@ -44,8 +49,9 @@ func EncryptCookies(encrypter *encryption.Encrypter, names ...string) routing.Mi
 					continue
 				}
 				cookie.Value = encryptedPrefix + cipher
+				kept = append(kept, cookie)
 			}
-			return resp
+			return resp.ReplaceCookies(kept)
 		}
 	}
 }

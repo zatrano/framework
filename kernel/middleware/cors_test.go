@@ -37,7 +37,6 @@ func TestCORSWithOrigin(t *testing.T) {
 }
 
 func TestCORSWildcard(t *testing.T) {
-	t.Setenv("APP_ENV", "local")
 	handler := middleware.CORS(func(req *http.Request) *http.Response {
 		return http.NoContent()
 	})
@@ -49,7 +48,6 @@ func TestCORSWildcard(t *testing.T) {
 }
 
 func TestCORSCredentialsNotWithWildcard(t *testing.T) {
-	t.Setenv("APP_ENV", "local")
 	mw := middleware.CORSWith(middleware.CORSConfig{
 		AllowOrigins:     []string{"*"},
 		AllowCredentials: true,
@@ -69,7 +67,6 @@ func TestCORSCredentialsNotWithWildcard(t *testing.T) {
 }
 
 func TestCORSWildcardCredentials(t *testing.T) {
-	t.Setenv("APP_ENV", "local")
 	mw := middleware.CORSWith(middleware.CORSConfig{
 		AllowOrigins:     []string{"https://app.example"},
 		AllowCredentials: true,
@@ -96,12 +93,8 @@ func TestCORSWildcardCredentials(t *testing.T) {
 }
 
 func TestCORSProductionNoWildcardDefault(t *testing.T) {
-	t.Setenv("APP_ENV", "production")
-	cfg := middleware.DefaultCORSConfig()
-	if len(cfg.AllowOrigins) != 0 {
-		t.Fatalf("production default origins=%v want empty", cfg.AllowOrigins)
-	}
-	mw := middleware.CORSWith(middleware.CORSConfig{AllowOrigins: []string{"*"}})
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	mw := middleware.CORSFromEnv("production")
 	handler := mw(func(req *http.Request) *http.Response {
 		return http.NoContent()
 	})
@@ -110,6 +103,45 @@ func TestCORSProductionNoWildcardDefault(t *testing.T) {
 	resp := handler(http.NewRequest(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("production must not allow wildcard CORS")
+	}
+
+	mw = middleware.CORSWith(middleware.CORSConfig{AllowOrigins: []string{"*"}, Production: true})
+	handler = mw(func(req *http.Request) *http.Response {
+		return http.NoContent()
+	})
+	resp = handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("production must sanitize explicit wildcard")
+	}
+}
+
+func TestCORSFromEnvStagingNoImplicitWildcard(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	mw := middleware.CORSFromEnv("staging")
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.NoContent()
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "https://app.example")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") == "*" {
+		t.Fatal("staging must not default CORS to *")
+	}
+}
+
+func TestCORSFromEnvUsesSnapshotNotProcessEnv(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	mw := middleware.CORSFromEnv("production")
+	t.Setenv("APP_ENV", "development")
+	handler := mw(func(req *http.Request) *http.Response {
+		return http.NoContent()
+	})
+	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	r.Header.Set("Origin", "https://evil.example")
+	resp := handler(http.NewRequest(r))
+	if resp.Headers().Get("Access-Control-Allow-Origin") == "*" {
+		t.Fatal("CORS production snapshot must ignore later APP_ENV")
 	}
 }
 

@@ -17,30 +17,46 @@ type CORSConfig struct {
 	ExposeHeaders    string
 	AllowCredentials bool
 	MaxAge           int
+	// Production strips wildcard origins. Set from the application
+	// environment snapshot, not a live APP_ENV parse.
+	Production bool
 }
 
-// DefaultCORSConfig returns CORS defaults.
-// Local/dev: permissive `*`. Production: no wildcard — set CORS_ALLOWED_ORIGINS explicitly.
-func DefaultCORSConfig() CORSConfig {
-	origins := []string{"*"}
-	if isProductionEnv() {
-		origins = nil
+func implicitCORSWildcard(environment string) bool {
+	switch env.NormalizeAppEnv(environment) {
+	case "local", "development", "dev", "test", "testing":
+		return true
+	default:
+		return false
+	}
+}
+
+func corsDefaults(production, allowWildcard bool) CORSConfig {
+	origins := []string(nil)
+	if allowWildcard && !production {
+		origins = []string{"*"}
 	}
 	return CORSConfig{
 		AllowOrigins: origins,
 		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 		AllowHeaders: "Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key",
 		MaxAge:       600,
+		Production:   production,
 	}
 }
 
-func isProductionEnv() bool {
-	return strings.EqualFold(strings.TrimSpace(env.Get("APP_ENV", "local")), "production")
+// DefaultCORSConfig returns development CORS defaults (permissive `*`).
+// Kernel HTTP uses CORSFromEnv with the bootstrapped environment snapshot.
+func DefaultCORSConfig() CORSConfig {
+	return corsDefaults(false, true)
 }
 
-// CORSFromEnv builds CORS middleware from environment variables.
-func CORSFromEnv() routing.MiddlewareFunc {
-	cfg := DefaultCORSConfig()
+// CORSFromEnv builds CORS middleware from environment variables and the
+// bootstrapped application environment (not a live APP_ENV parse).
+func CORSFromEnv(environment string) routing.MiddlewareFunc {
+	environment = env.NormalizeAppEnv(environment)
+	production := environment == "production"
+	cfg := corsDefaults(production, implicitCORSWildcard(environment))
 	if raw := env.Get("CORS_ALLOWED_ORIGINS"); raw != "" {
 		parts := strings.Split(raw, ",")
 		origins := make([]string, 0, len(parts))
@@ -69,6 +85,7 @@ func CORSFromEnv() routing.MiddlewareFunc {
 			cfg.MaxAge = n
 		}
 	}
+	cfg.Production = production
 	return CORSWith(cfg)
 }
 
@@ -135,7 +152,7 @@ func sanitizeCORSConfig(cfg CORSConfig) CORSConfig {
 		explicit = append(explicit, o)
 	}
 	switch {
-	case cfg.AllowCredentials || isProductionEnv():
+	case cfg.AllowCredentials || cfg.Production:
 		cfg.AllowOrigins = explicit
 	case hasWildcard:
 		cfg.AllowOrigins = []string{"*"}

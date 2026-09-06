@@ -6,9 +6,11 @@ import (
 	"encoding/hex"
 	stdhttp "net/http"
 	"net/url"
+	"path"
 	"strings"
 	"sync"
 
+	"github.com/zatrano/framework/kernel/cookie"
 	"github.com/zatrano/framework/kernel/http"
 	"github.com/zatrano/framework/kernel/routing"
 )
@@ -70,10 +72,8 @@ func Middleware(next routing.HandlerFunc) routing.HandlerFunc {
 func Except(prefixes ...string) routing.MiddlewareFunc {
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
-			for _, prefix := range prefixes {
-				if strings.HasPrefix(req.Path(), prefix) {
-					return next(req)
-				}
+			if exceptedPath(req, prefixes) {
+				return next(req)
 			}
 
 			// Public cacheable GETs: no token mint, no XSRF-TOKEN cookie when anonymous.
@@ -121,9 +121,9 @@ func withXSRFCookie(resp *http.Response, token string, req *http.Request) *http.
 		return resp
 	}
 	resp.Header("X-CSRF-TOKEN", token)
-	secure := false
-	if req != nil {
-		secure = req.Secure()
+	secure := cookie.SecureByDefault()
+	if req != nil && req.Secure() {
+		secure = true
 	}
 	return resp.WithCookie(&stdhttp.Cookie{
 		Name:     "XSRF-TOKEN",
@@ -161,6 +161,46 @@ func tokensMatch(expected, provided string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(provided)) == 1
+}
+
+func exceptedPath(req *http.Request, prefixes []string) bool {
+	requestPath := "/"
+	if req != nil {
+		if cleaned := canonicalExceptPath(req.Path()); cleaned != "" {
+			requestPath = cleaned
+		}
+	}
+	for _, prefix := range prefixes {
+		prefix = canonicalExceptPath(prefix)
+		if prefix == "" {
+			continue
+		}
+		if requestPath == prefix {
+			return true
+		}
+		if prefix != "/" && strings.HasPrefix(requestPath, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func canonicalExceptPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	cleaned := path.Clean(p)
+	if cleaned == "." {
+		return "/"
+	}
+	if !strings.HasPrefix(cleaned, "/") {
+		cleaned = "/" + cleaned
+	}
+	return cleaned
 }
 
 func isReading(method string) bool {

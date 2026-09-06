@@ -420,6 +420,18 @@ func (r *Router) invoke(req *http.Request, route *Route) *http.Response {
 	return r.invokeHandler(req, route.dispatchHandler(), stack)
 }
 
+// Through runs handler through global middleware without route matching.
+func (r *Router) Through(req *http.Request, handler HandlerFunc) *http.Response {
+	if r == nil {
+		return handler(req)
+	}
+	mw := r.middleware
+	if r.frozen {
+		mw = r.frozenGlobalMW
+	}
+	return r.invokeHandler(req, handler, mw)
+}
+
 func (r *Router) invokeHandler(req *http.Request, handler HandlerFunc, stack []MiddlewareFunc) *http.Response {
 	for i := len(stack) - 1; i >= 0; i-- {
 		handler = stack[i](handler)

@@ -129,7 +129,8 @@ func newRequestID() string {
 	return hex.EncodeToString(b[:])
 }
 
-// CORS adds CORS headers (wildcard in non-production; set CORS_ALLOWED_ORIGINS in production).
+// CORS adds CORS headers (development default is wildcard; production/staging
+// must pass explicit origins via CORSFromEnv / CORS_ALLOWED_ORIGINS).
 func CORS(next routing.HandlerFunc) routing.HandlerFunc {
 	return CORSWith(DefaultCORSConfig())(next)
 }
