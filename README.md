@@ -7,10 +7,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zatrano/framework/actions/workflows/tests.yml"><img src="https://github.com/zatrano/framework/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/coding-style.yml"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg" alt="Coding Style"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://github.com/zatrano/framework/actions/workflows/security.yml/badge.svg" alt="Security"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/tests.yml"><img src="https://github.com/zatrano/framework/actions/workflows/tests.yml/badge.svg?branch=main" alt="Tests"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg?branch=main" alt="Static Analysis"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/coding-style.yml"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg?branch=main" alt="Coding Style"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://github.com/zatrano/framework/actions/workflows/security.yml/badge.svg?branch=main" alt="Security"></a>
 </p>
 
 <p align="center">
@@ -217,9 +217,12 @@ myapp/
 │   ├── routes/
 │   ├── providers/
 │   ├── views/
+│   ├── localization/
 │   ├── database/
 │   └── …
 ├── bootstrap/
+│   ├── addons.go      # blank-imports (process registry)
+│   └── enabled.go     # enablement manifest
 ├── cmd/
 │   └── app/
 ├── public/
@@ -228,17 +231,17 @@ myapp/
 └── go.mod
 ```
 
-The exact generated structure depends on the selected application capabilities.
+Default `zatrano new` is not kernel-only: it enables `assets`, `health`, `localization`, and `view`, and the generated templates import those packages. `--minimal` drops the package ecosystem.
 
 ## Quick start
 
 Requires **Golang 1.25+**.
 
-```bash
-git clone https://github.com/zatrano/framework.git
-cd framework
+Create an application from the published modules:
 
-go run ./cmd/zatrano new myapp --replace .
+```bash
+go install github.com/zatrano/framework/v2/cmd/zatrano@v2.0.1
+zatrano new myapp
 cd myapp
 
 cp .env.example .env
@@ -246,35 +249,70 @@ go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
 
-Open [http://localhost:8080](http://localhost:8080).
+Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP_PORT` (8080).
 
-Use the modules directly:
+Use the modules in an existing `go.mod`:
 
 ```bash
 go get github.com/zatrano/framework/v2@v2.0.1
 go get github.com/zatrano/packages@main
 ```
 
+Do not use `@v2.0.0`: that tag predates the `/v2` module path, and `proxy.golang.org` still rejects it.
+
+To generate against this checkout, clone **framework** and **packages** as siblings (CI does the same), then pass the **absolute** framework path to `--replace`. `.` is wrong when the app is a subdirectory: Go resolves replace paths relative to the new module.
+
+```bash
+git clone https://github.com/zatrano/framework.git
+git clone https://github.com/zatrano/packages.git
+cd framework
+
+go run ./cmd/zatrano new myapp --replace "$PWD"
+cd myapp
+cp .env.example .env
+go run ./cmd/app key:generate
+go run ./cmd/app serve
+```
+
 Kernel-only scaffold (no package ecosystem):
 
 ```bash
-go run ./cmd/zatrano new lite --minimal --replace .
+go run ./cmd/zatrano new lite --minimal --replace "$PWD"
 ```
+
+`zatrano new` does not accept `..` in the project name. Put the app next to this clone with an absolute destination, or create it as a subdirectory as above.
 
 ## Enabling packages
 
-Service packages register providers with the platform. An application enables them through blank imports:
+`bootstrap.App()` boots the intersection of the enablement list and imported packages (see `bootstrap/app.go`):
+
+1. `App(WithAddons(names...))` → names ∩ imported
+2. else consumer `RegisterEnablement` (`bootstrap/enabled.go`) → Enabled ∩ imported
+3. else no manifest (legacy) → all imported
+
+A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there does not boot. `auth.From(app)` is nil unless `auth` is both imported and enabled.
+
+Prefer the CLI, which writes both sides:
+
+```bash
+go run ./cmd/app package:enable auth
+```
+
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages` when needed, and merges env keys into `.env.example`. Then rebuild/restart.
+
+Manual equivalent:
 
 ```go
 import (
     _ "github.com/zatrano/packages/session"
     _ "github.com/zatrano/packages/auth"
     _ "github.com/zatrano/packages/database"
-    _ "github.com/zatrano/packages/view"
 )
 ```
 
-`bootstrap.App()` starts the kernel, then every package this process blank-imported. Resolve services with typed `From(app)` helpers — they are not methods on `App`:
+…and add those names to `EnabledAddons` in `bootstrap/enabled.go`.
+
+Resolve services with typed `From(app)` helpers — they are not methods on `App`:
 
 ```go
 authService := auth.From(app)
@@ -308,27 +346,23 @@ Catalog: **[PACKAGES.md](PACKAGES.md)**. The package ecosystem is maintained sep
 
 ## HTTP
 
-The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives:
+The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives.
+
+Generated web home (`app/http/controllers/web`) renders a view:
 
 ```go
-package web
-
-import "github.com/zatrano/framework/v2/kernel/http"
-
-type HomeController struct{}
-
 func (c *HomeController) Index(req *http.Request) *http.Response {
-    return http.JSON(map[string]any{
-        "ok": true,
-    })
+    return http.View("welcome", map[string]any{})
 }
 ```
 
-Routes are defined in the generated application:
+JSON is the same `*http.Response` type (API home and `/up` use it):
 
 ```go
-r.Get("/", controller.Index)
+return http.JSON(map[string]any{"ok": true})
 ```
+
+Routes are registered in the generated application (`r.Get("/", c.Index).As("home")`).
 
 Kernel middleware provides the HTTP security and infrastructure layer, including CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static-file resolution.
 
@@ -421,18 +455,28 @@ After bootstrap, the configuration repository is frozen.
 
 ## CLI
 
-This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app`.
+This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app` (`go run ./cmd/app …`).
+
+Always on the kernel CLI:
 
 ```bash
 zatrano new
 zatrano serve
-zatrano make:*
+zatrano doctor
+zatrano describe
+zatrano key:generate
 zatrano package:list
 zatrano package:enable
+zatrano package:disable
 zatrano package:doctor
-zatrano db:setup
-zatrano describe
+zatrano make:controller
+zatrano make:middleware
+zatrano make:request
+zatrano make:rule
+zatrano make:test
 ```
+
+`db:setup`, `migrate`, `queue:work`, `make:auth`, and similar commands register only when their package is imported. They are not part of a kernel-only CLI.
 
 ## Repository structure
 
@@ -453,6 +497,7 @@ kernel/            Application + primitives
   report/          Reporting
   safepath/        Safe path resolution
   trustedproxy/    Trusted proxy handling
+  dirs/            Application path helpers
   support/         Support utilities
 contracts/         Public dependency-neutral ABI
 bootstrap/         Application boot and package registry

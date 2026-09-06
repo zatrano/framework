@@ -483,15 +483,13 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("// falls back to all imported addons.\n")
 	b.WriteString("//\n")
 	b.WriteString("// Quick start:\n")
-	b.WriteString("//\tzatrano package:preset api          // lean API set\n")
-	b.WriteString("//\tzatrano package:preset web          // lean web set\n")
-	b.WriteString("//\tzatrano package:preset web --merge  // union with current\n")
 	b.WriteString("//\tzatrano package:list\n")
 	b.WriteString("//\tzatrano package:enable mongo\n")
 	b.WriteString("//\tzatrano package:install billing\n")
+	b.WriteString("//\tzatrano package:disable mongo\n")
 	b.WriteString("//\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")
-	b.WriteString("// Alternatives: App(), App(WithPresetAPI()), App(WithPresetWeb()), App(WithAddons(...)).\n")
+	b.WriteString("// Alternatives: App(), App(WithAddons(...)). WithAddons overrides this manifest.\n")
 	return b.String()
 }
 

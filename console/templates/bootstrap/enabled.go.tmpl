@@ -11,12 +11,10 @@ import (
 // falls back to all imported addons.
 //
 // Quick start:
-//	zatrano package:preset api          // lean API set
-//	zatrano package:preset web          // lean web set
-//	zatrano package:preset web --merge  // union with current
 //	zatrano package:list
 //	zatrano package:enable mongo
 //	zatrano package:install billing
+//	zatrano package:disable mongo
 var EnabledAddons = []string{
 	"assets",
 	"health",

@@ -44,7 +44,7 @@ func TestPresetNamesCoverAPIWeb(t *testing.T) {
 	}
 }
 
-func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
+func TestWriteEnabledAddonsPreamble(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "enabled.go")
 	if err := writeEnabledAddons(path, []string{"features", "hashid"}); err != nil {
@@ -55,7 +55,7 @@ func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, want := range []string{"package:preset api", "WithPresetAPI()", "features", "hashid", "RegisterEnablement", "fwbootstrap"} {
+	for _, want := range []string{"package:enable mongo", "WithAddons", "features", "hashid", "RegisterEnablement", "fwbootstrap"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, text)
 		}
