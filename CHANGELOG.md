@@ -2,9 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 2.0.1 - 2026-09-06
+
+First GOPROXY-valid `/v2` module version. `v2.0.0` was tagged before `go.mod` declared `module github.com/zatrano/framework/v2`; `proxy.golang.org` cached that as invalid. Install with `go get github.com/zatrano/framework/v2@v2.0.1`.
+
 ## 2.0.0 - 2026-09-06
 
-v2 is the default line on `main`. Product version is `2.0.0`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@v2.0.0`.
+v2 is the default line on `main`. The Go module path is `github.com/zatrano/framework/v2`. Use `@v2.0.1` (not `@v2.0.0`) so the public module proxy accepts the version.
 
 ### Breaking
 

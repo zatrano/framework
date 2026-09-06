@@ -39,7 +39,7 @@ func (c *NewCommand) Handle(args []string) error {
 	if _, err := os.Stat(dest); err == nil {
 		return fmt.Errorf("directory already exists: %s", dest)
 	}
-	ver := "2.0.0"
+	ver := "2.0.1"
 	if c.app != nil {
 		if v := c.app.Version(); v != "" {
 			ver = v
@@ -358,7 +358,7 @@ func frameworkGoModVersion(product string) string {
 	v := strings.TrimSpace(product)
 	v = strings.TrimPrefix(v, "v")
 	if v == "" || strings.Contains(v, "-") {
-		return "v2.0.0"
+		return "v2.0.1"
 	}
 	if strings.HasPrefix(v, "2.") || v == "2" {
 		return "v" + v
