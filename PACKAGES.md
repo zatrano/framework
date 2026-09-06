@@ -32,6 +32,8 @@ go run ./cmd/zatrano package:doctor
 go run ./cmd/zatrano package:list --all
 ```
 
+`package:enable` / `package:install` / `package:preset` merge that package's `packages/<name>/.env.example` into the app `.env.example` (existing keys are left alone). The kernel `.env.example` stays HTTP/boot keys only.
+
 Resolve services with `From(app)` helpers — do not expect `app.Auth()` / `app.Mail()` on the kernel.
 
 ```go

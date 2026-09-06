@@ -27,6 +27,11 @@ type Meta struct {
 	Optional []string
 	// CLI, if set, is invoked from console.New when this addon is imported.
 	CLI func(app contracts.App) []CLICommand
+	// EnvExample is an optional dotenv snippet. package:enable merges it into
+	// the consumer .env.example (and .env when that file exists). Prefer a
+	// packages/<name>/.env.example file; this field is a fallback when the
+	// CLI process already imported the addon and the file is not on disk.
+	EnvExample string
 }
 
 // CLICommand is an addon-provided console command.

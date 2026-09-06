@@ -8,9 +8,6 @@ services:
     environment:
       APP_ENV: local
       APP_URL: http://localhost:8080
-      QUEUE_CONNECTION: sync
-      CACHE_STORE: file
-      MAIL_MAILER: log
     volumes:
       - ./storage:/app/storage
       - ./database:/app/database

@@ -108,14 +108,15 @@ func (c *PackageEnableCommand) Handle(args []string) error {
 	}
 	if !added {
 		fmt.Printf("Package %s is already enabled.\n", name)
-		return nil
-	}
-	fmt.Printf("Enabled package %s in bootstrap/enabled.go\n", name)
-	if err := wireEnabledAddon(c.app, name); err != nil {
-		fmt.Printf("Note: %v\n", err)
 	} else {
-		fmt.Println("Wrote blank-import in bootstrap/addons.go (and go get github.com/zatrano/packages when needed).")
+		fmt.Printf("Enabled package %s in bootstrap/enabled.go\n", name)
+		if err := wireEnabledAddon(c.app, name); err != nil {
+			fmt.Printf("Note: %v\n", err)
+		} else {
+			fmt.Println("Wrote blank-import in bootstrap/addons.go (and go get github.com/zatrano/packages when needed).")
+		}
 	}
+	_ = applyPackageEnvList(c.app, []string{name})
 	fmt.Println("Restart the app (or rebuild) to load the provider.")
 	return nil
 }
@@ -187,6 +188,7 @@ func (c *PackageInstallCommand) Handle(args []string) error {
 	if err := publishPackage(c.app, name, force); err != nil {
 		return err
 	}
+	_ = applyPackageEnvList(c.app, []string{name})
 	fmt.Println("Restart the app (or rebuild) to load the provider.")
 	return nil
 }
@@ -251,6 +253,7 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 			fmt.Printf("Config stubs: published=%d skipped=%d\n", published, skipped)
 		}
 	}
+	_ = applyPackageEnvList(c.app, final)
 	fmt.Println("Next: rebuild/restart, then `zatrano package:status`.")
 	fmt.Println("Tip: production entrypoint → bootstrap.App() (consumer manifest, or DefaultMetas if none).")
 	return nil

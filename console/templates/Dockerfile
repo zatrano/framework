@@ -26,8 +26,6 @@ RUN mkdir -p /app/storage/framework/sessions \
  && chown -R app:app /app
 USER app
 ENV APP_ENV=production \
-    APP_URL=http://localhost:8080 \
-    DB_CONNECTION=sqlite \
-    DB_DATABASE=database/database.sqlite
+    APP_URL=http://localhost:8080
 EXPOSE 8080
 CMD ["/app/app", "serve", "--port", "8080"]

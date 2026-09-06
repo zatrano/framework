@@ -114,10 +114,20 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, line := range strings.Split(string(envEx), "\n") {
+	envText := string(envEx)
+	for _, line := range strings.Split(envText, "\n") {
 		trim := strings.TrimSpace(line)
 		if strings.HasPrefix(trim, "DB_CONNECTION=") && !strings.HasPrefix(trim, "#") {
 			t.Fatalf("new apps must not set DB_CONNECTION by default:\n%s", envEx)
+		}
+	}
+	for _, key := range []string{
+		"SESSION_DRIVER=", "CACHE_STORE=", "QUEUE_CONNECTION=", "REDIS_HOST=",
+		"MAIL_MAILER=", "STRIPE_", "AI_DRIVER=", "MONGO_URI=", "OAUTH_",
+		"GOOGLE_CLIENT_", "WEBAUTHN_", "LOG_CHANNEL=",
+	} {
+		if strings.Contains(envText, key) {
+			t.Fatalf("generated .env.example must be kernel-only, found %q:\n%s", key, envEx)
 		}
 	}
 	agents, err := os.ReadFile(filepath.Join(dest, "AGENTS.md"))

@@ -141,4 +141,13 @@ func TestParseExampleFile(t *testing.T) {
 	if _, ok := got["APP_KEY"]; !ok {
 		t.Fatal("empty APP_KEY must still be present")
 	}
+	for _, key := range []string{
+		"SESSION_DRIVER", "CACHE_STORE", "QUEUE_CONNECTION", "REDIS_HOST",
+		"MAIL_MAILER", "STRIPE_SECRET_KEY", "AI_DRIVER", "MONGO_URI",
+		"LOG_CHANNEL", "DB_CONNECTION",
+	} {
+		if _, ok := got[key]; ok {
+			t.Fatalf("framework .env.example must be kernel-only, found %s", key)
+		}
+	}
 }
