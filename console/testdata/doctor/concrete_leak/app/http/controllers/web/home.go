@@ -1,6 +1,6 @@
 package web
 
-import "github.com/zatrano/framework/kernel/config"
+import "github.com/zatrano/framework/v2/kernel/config"
 
 func leak() *config.Repository {
 	return nil

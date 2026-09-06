@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel/container"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel/container"
 )
 
 func TestMakeNestedFactoryDoesNotDeadlock(t *testing.T) {

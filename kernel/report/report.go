@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	zhttp "github.com/zatrano/framework/kernel/http"
+	zhttp "github.com/zatrano/framework/v2/kernel/http"
 )
 
 // Event is a captured exception report.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func TestMakeCommandGeneratesContractsApp(t *testing.T) {
@@ -26,7 +26,7 @@ func TestMakeCommandGeneratesContractsApp(t *testing.T) {
 	if !strings.Contains(text, "App contracts.App") {
 		t.Fatalf("make:command must store contracts.App:\n%s", text)
 	}
-	if strings.Contains(text, "*kernel.Application") || strings.Contains(text, `"github.com/zatrano/framework/kernel"`) {
+	if strings.Contains(text, "*kernel.Application") || strings.Contains(text, `"github.com/zatrano/framework/v2/kernel"`) {
 		t.Fatalf("make:command must not leak *kernel.Application:\n%s", text)
 	}
 

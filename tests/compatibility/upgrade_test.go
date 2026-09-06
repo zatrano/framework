@@ -151,7 +151,7 @@ func packagesDir(frameworkRoot string) string {
 
 func pinModuleReplaces(t *testing.T, appDir, framework, packages string) {
 	t.Helper()
-	modEdit(t, appDir, "-replace", "github.com/zatrano/framework="+framework)
+	modEdit(t, appDir, "-replace", "github.com/zatrano/framework/v2="+framework)
 	modEdit(t, appDir, "-replace", "github.com/zatrano/packages="+packages)
 	for _, rel := range nestedPackagesModules {
 		p := filepath.Join(packages, filepath.FromSlash(rel))
@@ -173,7 +173,7 @@ func modEdit(t *testing.T, appDir string, args ...string) {
 
 func assertConsumesFramework(t *testing.T, appDir, framework string) {
 	t.Helper()
-	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/zatrano/framework")
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/zatrano/framework/v2")
 	cmd.Dir = appDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

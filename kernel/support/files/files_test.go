@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/files"
+	"github.com/zatrano/framework/v2/kernel/support/files"
 )
 
 func TestWriteAtomic(t *testing.T) {

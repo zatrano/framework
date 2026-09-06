@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func addonImportPath(name string) string {
@@ -136,14 +136,14 @@ func ensurePackagesModule(root string) error {
 		return nil
 	}
 	mod, err := modulePath(root)
-	if err != nil || mod == "github.com/zatrano/framework" {
+	if err != nil || mod == "github.com/zatrano/framework/v2" {
 		return nil
 	}
-	cmd := exec.Command("go", "get", "github.com/zatrano/packages@dev")
+	cmd := exec.Command("go", "get", "github.com/zatrano/packages@main")
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go get github.com/zatrano/packages@dev failed: %w\n%s\nNext: go get github.com/zatrano/packages@dev", err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("go get github.com/zatrano/packages@main failed: %w\n%s\nNext: go get github.com/zatrano/packages@main", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }

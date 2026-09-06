@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/bootstrap"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 const exceptionPathSecret = "hunter2-exception-path-secret"

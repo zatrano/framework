@@ -3,7 +3,7 @@ package console
 import (
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func consumerModule(app *kernel.Application) string {
@@ -11,7 +11,7 @@ func consumerModule(app *kernel.Application) string {
 		return "your/module"
 	}
 	mod, err := modulePath(app.BasePath())
-	if err != nil || strings.TrimSpace(mod) == "" || mod == "github.com/zatrano/framework" {
+	if err != nil || strings.TrimSpace(mod) == "" || mod == "github.com/zatrano/framework/v2" {
 		return "your/module"
 	}
 	return mod

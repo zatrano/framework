@@ -1,8 +1,8 @@
 package kernel
 
 import (
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // Resolve loads a typed service from the container.

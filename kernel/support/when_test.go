@@ -3,7 +3,7 @@ package support_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support"
+	"github.com/zatrano/framework/v2/kernel/support"
 )
 
 func TestWhenUnlessTap(t *testing.T) {

@@ -3,7 +3,7 @@ package console
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func TestDatabaseCommandsAbsentWithoutImport(t *testing.T) {

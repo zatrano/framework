@@ -9,10 +9,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/bootstrap/stubs"
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/bootstrap/stubs"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerPackageCommands(console *Application, app *kernel.Application) {
@@ -474,7 +474,7 @@ func defaultEnabledAddonsPreamble() string {
 	var b strings.Builder
 	b.WriteString("package bootstrap\n\n")
 	b.WriteString("import (\n")
-	b.WriteString("\tfwbootstrap \"github.com/zatrano/framework/bootstrap\"\n")
+	b.WriteString("\tfwbootstrap \"github.com/zatrano/framework/v2/bootstrap\"\n")
 	b.WriteString(")\n\n")
 	b.WriteString("// EnabledAddons is this application's enablement manifest.\n")
 	b.WriteString("//\n")

@@ -1,6 +1,6 @@
 package providers
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/v2/kernel"
 
 type BrokenProvider struct{}
 

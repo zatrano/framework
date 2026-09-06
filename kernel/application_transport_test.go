@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/http"
 )
 
 func bootProductionApp(t *testing.T) *kernel.Application {

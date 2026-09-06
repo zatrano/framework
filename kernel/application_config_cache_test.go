@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/config"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/config"
 )
 
 func configCacheFile(dir string) string {

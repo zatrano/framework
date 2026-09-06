@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap/addons"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
 )
 
 func TestOrderMetasRequiresBeforeDependents(t *testing.T) {

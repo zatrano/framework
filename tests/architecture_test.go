@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func moduleRoot(t *testing.T) string {
@@ -46,11 +46,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 			break
 		}
 	}
-	if path != "github.com/zatrano/framework" {
+	if path != "github.com/zatrano/framework/v2" {
 		t.Fatalf("module path=%q", path)
-	}
-	if strings.HasSuffix(path, "/v2") {
-		t.Fatal("module path must not end with /v2 until a dedicated migration")
 	}
 
 	app := kernel.NewApplication(root)
@@ -132,7 +129,7 @@ func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
 			if !strings.Contains(imp, ".") {
 				continue
 			}
-			if imp == "github.com/zatrano/framework" || strings.HasPrefix(imp, "github.com/zatrano/framework/") {
+			if imp == "github.com/zatrano/framework/v2" || strings.HasPrefix(imp, "github.com/zatrano/framework/v2/") {
 				continue
 			}
 			t.Errorf("%s imports third-party %s", rel, imp)

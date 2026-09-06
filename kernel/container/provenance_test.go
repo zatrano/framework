@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/kernel/container"
+	"github.com/zatrano/framework/v2/kernel/container"
 )
 
 func resolutionErr(t *testing.T, err error) *container.ResolutionError {

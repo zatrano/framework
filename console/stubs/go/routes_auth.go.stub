@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 	"__MODULE__/app/http/controllers/web"
-	apipkg "github.com/zatrano/framework/api"
+	apipkg "github.com/zatrano/framework/v2/api"
 	"github.com/zatrano/packages/auth"
 	"github.com/zatrano/packages/ratelimit"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // RegisterAuthWeb registers session authentication web routes under /auth.

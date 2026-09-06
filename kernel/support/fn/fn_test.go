@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/kernel/support/fn"
+	"github.com/zatrano/framework/v2/kernel/support/fn"
 )
 
 func TestDebounce(t *testing.T) {

@@ -23,7 +23,7 @@ func frameworkModuleRoot() (string, error) {
 	dir := filepath.Dir(file)
 	for i := 0; i < 12; i++ {
 		b, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-		if err == nil && bytes.Contains(b, []byte("module github.com/zatrano/framework")) {
+		if err == nil && bytes.Contains(b, []byte("module github.com/zatrano/framework/v2")) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/kernel/support/date"
+	"github.com/zatrano/framework/v2/kernel/support/date"
 )
 
 func TestPretendAndWeekHelpers(t *testing.T) {

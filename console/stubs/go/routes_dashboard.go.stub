@@ -1,13 +1,13 @@
 package routes
 
 import (
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 	"__MODULE__/app/http/controllers/web"
-	"github.com/zatrano/framework/api"
+	"github.com/zatrano/framework/v2/api"
 	"github.com/zatrano/packages/auth"
 	"github.com/zatrano/packages/authorization"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // RegisterDashboardWeb registers the management dashboard under /dashboard.

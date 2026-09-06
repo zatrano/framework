@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 )
 
 // Meta describes a first-party addon package for discovery and CLI.

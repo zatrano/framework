@@ -3,8 +3,8 @@ package middleware
 import (
 	"strings"
 
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // TrimStrings trims whitespace from request inputs, skipping excepted keys.

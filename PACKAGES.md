@@ -2,7 +2,7 @@
 
 How to choose and use first-party packages.
 
-This repository is the **framework kernel** (`github.com/zatrano/framework`). Foundation, intelligence (AI/RAG/Agent), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
+This repository is the **framework kernel** (`github.com/zatrano/framework/v2`). Foundation, intelligence (AI/RAG/Agent), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
 
 - **Catalog source:** `kernel/catalog.go` (addon *names* for discovery; addon *code* is not in this module)
 - **Addon implementations:** blank-import + `bootstrap.WithAddons` / `EnabledAddons`
@@ -98,7 +98,7 @@ Docs: [Configuration](https://zatrano.com/docs/configuration)
 **Use:** Boot calls `Load`; raw access:
 
 ```go
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 v := env.Get("APP_KEY", "")
 ```
 
@@ -113,7 +113,7 @@ v := env.Get("APP_KEY", "")
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/kernel/http"
+import "github.com/zatrano/framework/v2/kernel/http"
 
 func (c *HomeController) Index(req *http.Request) *http.Response {
     email := req.Input("email")
@@ -141,7 +141,7 @@ Docs: [Helpers](https://zatrano.com/docs/helpers)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/kernel/routing"
+import "github.com/zatrano/framework/v2/kernel/routing"
 
 router.Get("/posts/{id}", c.Show).As("posts.show")
 path, _ := router.URL("posts.show", map[string]string{"id": "1"})
@@ -156,8 +156,8 @@ Docs: [Routing](https://zatrano.com/docs/routing)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/kernel/middleware"
-import "github.com/zatrano/framework/kernel/middleware/csrf"
+import "github.com/zatrano/framework/v2/kernel/middleware"
+import "github.com/zatrano/framework/v2/kernel/middleware/csrf"
 
 router.Use(middleware.Logger, middleware.Recover, csrf.Except("/api"))
 ```

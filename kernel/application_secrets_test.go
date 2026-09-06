@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/encryption"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/encryption"
 )
 
 func TestProductionRejectsPasswordAPP_KEY(t *testing.T) {

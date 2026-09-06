@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/encryption"
+	"github.com/zatrano/framework/v2/kernel/encryption"
 )
 
 func TestPasswordIsNotPaddedToAESKey(t *testing.T) {

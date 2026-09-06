@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/zatrano/packages/apitoken"
 	"github.com/zatrano/packages/auth"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // Authenticate is a legacy alias — prefer AuthenticateToken or AuthenticateSession.

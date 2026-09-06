@@ -5,9 +5,9 @@ import (
 	stdhttp "net/http"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/middleware"
-	"github.com/zatrano/framework/kernel/trustedproxy"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/middleware"
+	"github.com/zatrano/framework/v2/kernel/trustedproxy"
 )
 
 func TestResolveIgnoresForwardedWhenUntrusted(t *testing.T) {

@@ -1,10 +1,10 @@
 package web
 
 import (
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 	"__MODULE__/app/models"
 	"github.com/zatrano/packages/flash"
-	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/http"
 	"github.com/zatrano/packages/orm"
 	"github.com/zatrano/packages/validation"
 )

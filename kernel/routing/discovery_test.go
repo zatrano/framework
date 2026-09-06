@@ -3,7 +3,7 @@ package routing
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/http"
 )
 
 func dummyOK(req *http.Request) *http.Response {

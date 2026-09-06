@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/cookie"
-	"github.com/zatrano/framework/kernel/encryption"
+	"github.com/zatrano/framework/v2/kernel/cookie"
+	"github.com/zatrano/framework/v2/kernel/encryption"
 )
 
 func TestQueueEncryptedReturnsEncryptError(t *testing.T) {

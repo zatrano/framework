@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 type packageEnvLookup struct {

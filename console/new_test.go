@@ -94,7 +94,7 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 		t.Fatalf("placeholders left in go.mod:\n%s", modText)
 	}
 	assertGeneratedFrameworkRequire(t, modText)
-	if !strings.Contains(modText, "replace github.com/zatrano/framework =>") {
+	if !strings.Contains(modText, "replace github.com/zatrano/framework/v2 =>") {
 		t.Fatalf("missing framework replace:\n%s", modText)
 	}
 	if !strings.Contains(modText, "replace github.com/zatrano/packages =>") {
@@ -206,14 +206,11 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 }
 
 func TestFrameworkGoModVersion(t *testing.T) {
-	if got := frameworkGoModVersion("2.0.0"); got != "v0.0.0" {
+	if got := frameworkGoModVersion("2.0.0"); got != "v2.0.0" {
 		t.Fatalf("2.0.0: got %q", got)
 	}
-	if got := frameworkGoModVersion("2.0.0-dev"); got != "v0.0.0" {
+	if got := frameworkGoModVersion("2.0.0-dev"); got != "v2.0.0" {
 		t.Fatalf("2.0.0-dev: got %q", got)
-	}
-	if got := frameworkGoModVersion("2.0.0"); got != "v0.0.0" {
-		t.Fatalf("2.0.0: got %q", got)
 	}
 	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
 		t.Fatalf("1.6.6: got %q", got)
@@ -222,11 +219,8 @@ func TestFrameworkGoModVersion(t *testing.T) {
 
 func assertGeneratedFrameworkRequire(t *testing.T, modText string) {
 	t.Helper()
-	if !strings.Contains(modText, "github.com/zatrano/framework v0.0.0") {
-		t.Fatalf("generated require must be v0.0.0:\n%s", modText)
-	}
-	if strings.Contains(modText, "github.com/zatrano/framework v2") {
-		t.Fatalf("generated go.mod must not require v2.*:\n%s", modText)
+	if !strings.Contains(modText, "github.com/zatrano/framework/v2 v2.0.0") {
+		t.Fatalf("generated require must be v2.0.0:\n%s", modText)
 	}
 }
 
@@ -244,7 +238,7 @@ func assertGeneratedConsoleRegisterABI(t *testing.T, dest string) {
 	if strings.Contains(text, "*kernel.Application") {
 		t.Fatalf("generated Register must not leak *kernel.Application:\n%s", text)
 	}
-	if strings.Contains(text, `"github.com/zatrano/framework/kernel"`) {
+	if strings.Contains(text, `"github.com/zatrano/framework/v2/kernel"`) {
 		t.Fatalf("generated kernel.go must not import kernel:\n%s", text)
 	}
 }

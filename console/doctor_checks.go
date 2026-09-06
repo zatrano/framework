@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 var doctorRouteCalls = map[string]bool{
@@ -175,8 +175,8 @@ func collectContractConcretes(fw string) (map[string]string, error) {
 			out[ip] = iface
 		}
 	}
-	if out["github.com/zatrano/framework/kernel/routing"] == "" {
-		out["github.com/zatrano/framework/kernel/routing"] = "Router"
+	if out["github.com/zatrano/framework/v2/kernel/routing"] == "" {
+		out["github.com/zatrano/framework/v2/kernel/routing"] = "Router"
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("console: no contract concrete bindings")
@@ -245,7 +245,7 @@ func parseContractConcretes(fw, path string) (map[string]string, error) {
 				if err != nil {
 					continue
 				}
-				ip = "github.com/zatrano/framework/" + filepath.ToSlash(rel)
+				ip = "github.com/zatrano/framework/v2/" + filepath.ToSlash(rel)
 			}
 			if ip == "" || ifaceName == "" {
 				continue

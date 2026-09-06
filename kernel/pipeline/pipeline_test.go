@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/pipeline"
+	"github.com/zatrano/framework/v2/kernel/pipeline"
 )
 
 func TestPipelineThrough(t *testing.T) {

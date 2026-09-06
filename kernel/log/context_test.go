@@ -3,7 +3,7 @@ package log_test
 import (
 	"testing"
 
-	zlog "github.com/zatrano/framework/kernel/log"
+	zlog "github.com/zatrano/framework/v2/kernel/log"
 )
 
 func TestLoggerContext(t *testing.T) {

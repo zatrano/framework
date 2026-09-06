@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/env"
-	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/http"
 )
 
 func corsOrigin(rec *httptest.ResponseRecorder) string {

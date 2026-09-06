@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerExceptionCommands(console *Application, app *kernel.Application) {
@@ -39,8 +39,8 @@ func (c *MakeExceptionCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package exceptions
 
 import (
-	"github.com/zatrano/framework/kernel/exceptions"
-	. "github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/exceptions"
+	. "github.com/zatrano/framework/v2/kernel/http"
 )
 
 // %s is a custom exception helper.

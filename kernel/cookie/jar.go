@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/env"
 )
 
 // QueuedCookie is a cookie waiting to be attached to a response.

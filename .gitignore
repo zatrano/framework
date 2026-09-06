@@ -47,3 +47,6 @@ storage/framework/schedule/*
 !storage/framework/schedule/.gitkeep
 # Local Stage A/B/C notes — keep on disk, do not publish
 /docs/
+# v1 in-tree leftovers — the kernel module has neither of these
+/core/
+/packages/

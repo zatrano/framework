@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerRequestCommands(console *Application, app *kernel.Application) {
@@ -34,7 +34,7 @@ func (c *MakeRequestCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package requests
 
 import (
-	. "github.com/zatrano/framework/kernel/http"
+	. "github.com/zatrano/framework/v2/kernel/http"
 	"github.com/zatrano/packages/validation"
 )
 

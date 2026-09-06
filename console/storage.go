@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerStorageCommands(console *Application, app *kernel.Application) {
@@ -73,7 +73,7 @@ func (c *MakeTestCommand) Handle(args []string) error {
 import (
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap"
 	testkit "github.com/zatrano/packages/testing"
 )
 

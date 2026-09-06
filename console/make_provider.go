@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerMakeProviderCommand(console *Application, app *kernel.Application) {
@@ -35,7 +35,7 @@ func (c *MakeProviderCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package providers
 
-import "github.com/zatrano/framework/contracts"
+import "github.com/zatrano/framework/v2/contracts"
 
 // %s registers application services.
 type %s struct{}

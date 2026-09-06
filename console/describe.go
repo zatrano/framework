@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerDescribeCommand(console *Application, app *kernel.Application) {

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 func snapshotHasPath(app *kernel.Application, path string) bool {

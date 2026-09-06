@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 // CacheControl sets Cache-Control (and optional Expires) on successful responses.

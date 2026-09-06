@@ -3,7 +3,7 @@ package fuzz_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/env"
 )
 
 func FuzzDotenvParse(f *testing.F) {

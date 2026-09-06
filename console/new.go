@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 //go:embed all:templates
@@ -48,7 +48,7 @@ func (c *NewCommand) Handle(args []string) error {
 	fwVer := frameworkGoModVersion(ver)
 	replaceLine := ""
 	if replace != "" {
-		replaceLine = "\nreplace github.com/zatrano/framework => " + replace + "\n"
+		replaceLine = "\nreplace github.com/zatrano/framework/v2 => " + replace + "\n"
 		if !minimal {
 			replaceLine += packagesReplaceLines(replace)
 		}
@@ -206,9 +206,9 @@ func applyMinimalScaffold(dest, module, appName string) error {
 		filepath.Join("app", "providers", "app_service_provider.go"): `package providers
 
 import (
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel/middleware/csrf"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel/middleware/csrf"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 type AppServiceProvider struct{}
@@ -224,7 +224,7 @@ func (p *AppServiceProvider) Boot(app contracts.App) error {
 `,
 		filepath.Join("app", "providers", "providers.go"): `package providers
 
-import "github.com/zatrano/framework/contracts"
+import "github.com/zatrano/framework/v2/contracts"
 
 func All() []contracts.Provider {
 	return []contracts.Provider{
@@ -235,7 +235,7 @@ func All() []contracts.Provider {
 `,
 		filepath.Join("app", "http", "controllers", "web", "home_controller.go"): `package web
 
-import "github.com/zatrano/framework/kernel/http"
+import "github.com/zatrano/framework/v2/kernel/http"
 
 type HomeController struct{}
 
@@ -245,7 +245,7 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 `,
 		filepath.Join("app", "http", "controllers", "api", "home_controller.go"): `package api
 
-import "github.com/zatrano/framework/kernel/http"
+import "github.com/zatrano/framework/v2/kernel/http"
 
 type HomeController struct{}
 
@@ -258,7 +258,7 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 import (
 	webctrl "` + module + `/app/http/controllers/web"
 
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 func init() {
@@ -277,8 +277,8 @@ func registerWeb(router *routing.Router) {
 		filepath.Join("app", "routes", "web", "health.go"): `package web
 
 import (
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 func init() {
@@ -352,16 +352,16 @@ func sanitizeModule(name string) string {
 	return out
 }
 
-// frameworkGoModVersion maps the product VERSION onto a go.mod require that is
-// valid for module path github.com/zatrano/framework (major v0/v1 until /v2).
+// frameworkGoModVersion maps the product VERSION onto a go.mod require for
+// module path github.com/zatrano/framework/v2.
 func frameworkGoModVersion(product string) string {
 	v := strings.TrimSpace(product)
 	v = strings.TrimPrefix(v, "v")
-	if v == "" {
-		return "v0.0.0"
+	if v == "" || strings.Contains(v, "-") {
+		return "v2.0.0"
 	}
-	if strings.HasPrefix(v, "2.") || strings.HasPrefix(v, "2-") || v == "2" {
-		return "v0.0.0"
+	if strings.HasPrefix(v, "2.") || v == "2" {
+		return "v" + v
 	}
 	return "v" + v
 }

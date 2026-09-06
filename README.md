@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
+  <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
@@ -81,7 +81,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`.
+This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`.
 
 ## Architecture
 
@@ -119,8 +119,8 @@ Typed developer APIs live next to their implementations:
 
 ```go
 import (
-    "github.com/zatrano/framework/kernel/http"
-    "github.com/zatrano/framework/kernel/routing"
+    "github.com/zatrano/framework/v2/kernel/http"
+    "github.com/zatrano/framework/v2/kernel/routing"
 )
 
 r := routing.From(app)
@@ -182,7 +182,7 @@ A minimal application does not pay for capabilities it does not use.
 
 | Module | Role |
 | --- | --- |
-| [`github.com/zatrano/framework`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
+| [`github.com/zatrano/framework/v2`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
 | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Optional application services and libraries |
 
 The packages module depends on this module. This module does not import `github.com/zatrano/packages`.
@@ -190,7 +190,7 @@ The packages module depends on this module. This module does not import `github.
 ```text
 Application
     │
-    ├── github.com/zatrano/framework
+    ├── github.com/zatrano/framework/v2
     │
     └── selected packages
              │
@@ -251,7 +251,7 @@ Open [http://localhost:8080](http://localhost:8080).
 Use the modules directly:
 
 ```bash
-go get github.com/zatrano/framework@main
+go get github.com/zatrano/framework/v2@v2.0.0
 go get github.com/zatrano/packages@main
 ```
 
@@ -313,7 +313,7 @@ The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP
 ```go
 package web
 
-import "github.com/zatrano/framework/kernel/http"
+import "github.com/zatrano/framework/v2/kernel/http"
 
 type HomeController struct{}
 
@@ -507,7 +507,7 @@ Framework contracts / kernel
 
 **v2.0.0** is the current line on **`main`**. Version: `2.0.0` ([`VERSION`](VERSION)).
 
-The v2 line is two independently maintained modules: `github.com/zatrano/framework` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
+The v2 line is two independently maintained modules: `github.com/zatrano/framework/v2` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
 ZATRANO Platform
@@ -524,7 +524,7 @@ ZATRANO Platform
 | `v2.0.0` (`main`) | Current two-module application platform |
 | `v1.x` | Previous tagged ZATRANO line |
 
-ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path remains `github.com/zatrano/framework` (no `/v2` suffix). Generated apps use `v0.0.0` plus a `replace` until that path change.
+ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@v2.0.0`.
 
 ## Documentation
 
@@ -543,6 +543,6 @@ Issues and pull requests are welcome. Keep changes focused, preserve architectur
 [MIT](LICENSE) · Copyright (c) 2026 Serhan KARAKOÇ
 
 - [zatrano.com](https://zatrano.com/docs)
-- [github.com/zatrano/framework](https://github.com/zatrano/framework)
+- [github.com/zatrano/framework/v2](https://github.com/zatrano/framework)
 - [github.com/zatrano/packages](https://github.com/zatrano/packages)
 - [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)

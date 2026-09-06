@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerUtilityCommands(console *Application, app *kernel.Application) {

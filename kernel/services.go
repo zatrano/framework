@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 )
 
 var _ contracts.App = (*Application)(nil)

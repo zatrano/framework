@@ -24,13 +24,13 @@ func TestContractsDoNotImportFrameworkPackages(t *testing.T) {
 		}
 		for _, spec := range file.Imports {
 			imp := strings.Trim(spec.Path.Value, `"`)
-			if strings.Contains(imp, "github.com/zatrano/framework/packages/") {
+			if strings.Contains(imp, "github.com/zatrano/framework/v2/packages/") {
 				t.Errorf("%s imports %s", path, imp)
 			}
 			if imp == "github.com/zatrano/packages" || strings.HasPrefix(imp, "github.com/zatrano/packages/") {
 				t.Errorf("%s imports packages module %s", path, imp)
 			}
-			if strings.HasPrefix(imp, "github.com/zatrano/framework/kernel") {
+			if strings.HasPrefix(imp, "github.com/zatrano/framework/v2/kernel") {
 				t.Errorf("%s imports kernel (%s); contracts must stay dependency-neutral", path, imp)
 			}
 		}

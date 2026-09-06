@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 )
 
 // AuthServiceProvider registers authorization gates and policies.

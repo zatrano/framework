@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/encryption"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/middleware"
+	"github.com/zatrano/framework/v2/kernel/encryption"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/middleware"
 )
 
 type nthFailRand struct {

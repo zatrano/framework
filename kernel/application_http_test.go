@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func bootPublicApp(t *testing.T) *kernel.Application {

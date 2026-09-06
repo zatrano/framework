@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 // Application is the console kernel.
@@ -220,7 +220,7 @@ func (c *MakeControllerCommand) Handle(args []string) error {
 	}
 	content := fmt.Sprintf(`package %s
 
-import . "github.com/zatrano/framework/kernel/http"
+import . "github.com/zatrano/framework/v2/kernel/http"
 
 type %s struct{}
 
@@ -259,8 +259,8 @@ func (c *MakeMiddlewareCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package middleware
 
 import (
-	. "github.com/zatrano/framework/kernel/http"
-	. "github.com/zatrano/framework/kernel/routing"
+	. "github.com/zatrano/framework/v2/kernel/http"
+	. "github.com/zatrano/framework/v2/kernel/routing"
 )
 
 func %s(next HandlerFunc) HandlerFunc {

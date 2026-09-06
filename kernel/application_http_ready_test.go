@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel"
-	zhttp "github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel"
+	zhttp "github.com/zatrano/framework/v2/kernel/http"
 )
 
 func assertHTTPUnavailable(t *testing.T, rec *httptest.ResponseRecorder) {

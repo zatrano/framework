@@ -3,7 +3,7 @@ package money_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/money"
+	"github.com/zatrano/framework/v2/kernel/support/money"
 )
 
 func TestMoney(t *testing.T) {

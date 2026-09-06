@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/env"
 )
 
 func TestLoadDoesNotOverrideProcessEnv(t *testing.T) {

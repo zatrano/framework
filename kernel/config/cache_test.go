@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/config"
+	"github.com/zatrano/framework/v2/kernel/config"
 )
 
 func TestConfigCacheRoundTrip(t *testing.T) {

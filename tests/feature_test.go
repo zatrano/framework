@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap"
 )
 
 func TestFrameworkAppBootsWithoutConsumerRoutes(t *testing.T) {

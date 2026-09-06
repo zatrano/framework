@@ -3,7 +3,7 @@ package str_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/str"
+	"github.com/zatrano/framework/v2/kernel/support/str"
 )
 
 func TestSlugAndSnake(t *testing.T) {

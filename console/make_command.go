@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func registerMakeCommand(console *Application, app *kernel.Application) {
@@ -42,7 +42,7 @@ func (c *MakeCommandCommand) Handle(args []string) error {
 import (
 	"fmt"
 
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 )
 
 // %s is an application console command.
@@ -71,8 +71,8 @@ func (c *%s) Handle(args []string) error {
 
 import (
 	"%s/app/console/commands"
-	"github.com/zatrano/framework/contracts"
-	coreconsole "github.com/zatrano/framework/console"
+	"github.com/zatrano/framework/v2/contracts"
+	coreconsole "github.com/zatrano/framework/v2/console"
 )
 
 // Register registers application console commands.

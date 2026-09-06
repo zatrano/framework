@@ -4,7 +4,7 @@ import (
 	stdhttp "net/http"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/cookie"
+	"github.com/zatrano/framework/v2/kernel/cookie"
 )
 
 func TestQueueSecureInProduction(t *testing.T) {

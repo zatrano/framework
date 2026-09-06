@@ -12,7 +12,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/zatrano/framework/kernel/support/uuid"
+	"github.com/zatrano/framework/v2/kernel/support/uuid"
 )
 
 // Of wraps a string for fluent operations.

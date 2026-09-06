@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/env"
 )
 
 func TestParseCommentsQuotesExportEmpty(t *testing.T) {

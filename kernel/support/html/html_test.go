@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/html"
+	"github.com/zatrano/framework/v2/kernel/support/html"
 )
 
 func TestSanitize(t *testing.T) {

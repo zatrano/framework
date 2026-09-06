@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/bootstrap/addons"
+	"github.com/zatrano/framework/v2/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
 )
 
 func TestResolveProfile(t *testing.T) {

@@ -4,7 +4,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ## 2.0.0 - 2026-09-06
 
-v2 is the default line on `main`. Product version is `2.0.0`. The Go module path remains `github.com/zatrano/framework` (no `/v2` suffix); generated apps require `v0.0.0` with a `replace`, or `go get github.com/zatrano/framework@main`.
+v2 is the default line on `main`. Product version is `2.0.0`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@v2.0.0`.
 
 ### Breaking
 

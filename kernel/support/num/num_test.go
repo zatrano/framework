@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/num"
+	"github.com/zatrano/framework/v2/kernel/support/num"
 )
 
 func TestNumHelpers(t *testing.T) {

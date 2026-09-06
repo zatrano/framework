@@ -3,8 +3,8 @@ package addons_test
 import (
 	"testing"
 
-	_ "github.com/zatrano/framework/bootstrap"
-	"github.com/zatrano/framework/bootstrap/addons"
+	_ "github.com/zatrano/framework/v2/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
 )
 
 func TestFrameworkBinaryRegistersNoPackages(t *testing.T) {

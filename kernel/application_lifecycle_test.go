@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel"
-	"github.com/zatrano/framework/kernel/config"
-	"github.com/zatrano/framework/kernel/container"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/config"
+	"github.com/zatrano/framework/v2/kernel/container"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 type countingProvider struct {

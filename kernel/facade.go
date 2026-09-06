@@ -3,10 +3,10 @@ package kernel
 import (
 	"fmt"
 
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/report"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/report"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 type routerFacade struct{ inner *routing.Router }

@@ -3,7 +3,7 @@ package routing
 import (
 	"strings"
 
-	"github.com/zatrano/framework/kernel/support/str"
+	"github.com/zatrano/framework/v2/kernel/support/str"
 )
 
 // Resource holds optional REST resource handlers.

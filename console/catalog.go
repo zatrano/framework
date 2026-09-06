@@ -1,6 +1,6 @@
 package console
 
-import "github.com/zatrano/framework/kernel"
+import "github.com/zatrano/framework/v2/kernel"
 
 // ecosystemCatalog is the CLI aggregation of packages-module names.
 // The kernel catalog stays primitive-only; this list is how package:list,

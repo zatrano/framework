@@ -3,7 +3,7 @@ package http
 import (
 	"strings"
 
-	"github.com/zatrano/framework/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/env"
 )
 
 // DefaultMaxBodyBytes is the JSON/raw body cap unless MAX_BODY_BYTES is set.

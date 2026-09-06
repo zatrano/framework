@@ -3,7 +3,7 @@ package useragent_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/http/useragent"
+	"github.com/zatrano/framework/v2/kernel/http/useragent"
 )
 
 func TestParseUserAgent(t *testing.T) {

@@ -4,7 +4,7 @@ package stubs
 var Files = map[string]string{
 	"oauth.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // OAuth returns OAuth2 server configuration defaults.
 func OAuth() map[string]any {
@@ -15,7 +15,7 @@ func OAuth() map[string]any {
 `,
 	"mongo.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // Mongo returns MongoDB configuration defaults.
 func Mongo() map[string]any {
@@ -26,7 +26,7 @@ func Mongo() map[string]any {
 `,
 	"webauthn.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // WebAuthn returns WebAuthn/passkey configuration defaults.
 func WebAuthn() map[string]any {
@@ -39,7 +39,7 @@ func WebAuthn() map[string]any {
 `,
 	"billing.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // Billing returns billing configuration defaults.
 func Billing() map[string]any {
@@ -54,7 +54,7 @@ func Billing() map[string]any {
 `,
 	"ai.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // AI returns AI manager configuration (named providers + profiles + flat legacy keys).
 func AI() map[string]any {
@@ -74,7 +74,7 @@ func AI() map[string]any {
 `,
 	"social.go": `package config
 
-import "github.com/zatrano/framework/kernel/env"
+import "github.com/zatrano/framework/v2/kernel/env"
 
 // Social returns social login configuration defaults.
 func Social() map[string]any {

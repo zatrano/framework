@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zatrano/framework/kernel/env"
-	"github.com/zatrano/framework/kernel/safepath"
+	"github.com/zatrano/framework/v2/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/safepath"
 )
 
 const defaultMaxUpload = 32 << 20 // 32 MiB

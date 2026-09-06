@@ -3,9 +3,9 @@ package bootstrap
 import (
 	"testing"
 
-	"github.com/zatrano/framework/bootstrap/addons"
-	"github.com/zatrano/framework/contracts"
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 type g005Provider struct{ key string }

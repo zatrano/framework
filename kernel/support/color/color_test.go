@@ -3,7 +3,7 @@ package color_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/color"
+	"github.com/zatrano/framework/v2/kernel/support/color"
 )
 
 func TestColorHelpers(t *testing.T) {

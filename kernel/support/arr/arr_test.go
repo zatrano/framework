@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/arr"
+	"github.com/zatrano/framework/v2/kernel/support/arr"
 )
 
 func TestArrHelpers(t *testing.T) {

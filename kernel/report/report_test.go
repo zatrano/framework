@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/kernel/report"
+	"github.com/zatrano/framework/v2/kernel/report"
 )
 
 func TestReportCapture(t *testing.T) {

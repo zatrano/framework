@@ -5,7 +5,7 @@
 // for HandlerFunc and MiddlewareFunc.
 package routing
 
-import "github.com/zatrano/framework/contracts"
+import "github.com/zatrano/framework/v2/contracts"
 
 // From returns the typed router. Prefer this over App.Router() when registering
 // HandlerFunc or MiddlewareFunc values.

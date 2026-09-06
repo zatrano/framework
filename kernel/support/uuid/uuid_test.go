@@ -3,7 +3,7 @@ package uuid_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/uuid"
+	"github.com/zatrano/framework/v2/kernel/support/uuid"
 )
 
 func TestUUID(t *testing.T) {

@@ -1,9 +1,9 @@
 package web
 
 import (
-	"github.com/zatrano/framework/contracts"
+	"github.com/zatrano/framework/v2/contracts"
 	"__MODULE__/app/models"
-	"github.com/zatrano/framework/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/http"
 	"github.com/zatrano/packages/notification"
 	"github.com/zatrano/packages/orm"
 )

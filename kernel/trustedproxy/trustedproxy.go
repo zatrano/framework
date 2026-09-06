@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/kernel/env"
-	"github.com/zatrano/framework/kernel/http"
-	"github.com/zatrano/framework/kernel/routing"
+	"github.com/zatrano/framework/v2/kernel/env"
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
 const clientIPKey = "_client_ip"

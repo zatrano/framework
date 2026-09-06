@@ -1,7 +1,7 @@
 package cookie
 
 import (
-	"github.com/zatrano/framework/kernel/encryption"
+	"github.com/zatrano/framework/v2/kernel/encryption"
 )
 
 // QueueEncrypted queues an encrypted cookie value.

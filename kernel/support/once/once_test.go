@@ -3,7 +3,7 @@ package once_test
 import (
 	"testing"
 
-	"github.com/zatrano/framework/kernel/support/once"
+	"github.com/zatrano/framework/v2/kernel/support/once"
 )
 
 func TestValueAndMemo(t *testing.T) {
