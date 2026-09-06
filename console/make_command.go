@@ -42,12 +42,12 @@ func (c *MakeCommandCommand) Handle(args []string) error {
 import (
 	"fmt"
 
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 )
 
 // %s is an application console command.
 type %s struct {
-	App *kernel.Application
+	App contracts.App
 }
 
 func (c *%s) Name() string        { return "%s" }
@@ -71,12 +71,12 @@ func (c *%s) Handle(args []string) error {
 
 import (
 	"%s/app/console/commands"
-	"github.com/zatrano/framework/kernel"
+	"github.com/zatrano/framework/contracts"
 	coreconsole "github.com/zatrano/framework/console"
 )
 
 // Register registers application console commands.
-func Register(cli *coreconsole.Application, app *kernel.Application) {
+func Register(cli *coreconsole.Application, app contracts.App) {
 	cli.Register(
 		&commands.%s{App: app},
 	)

@@ -71,6 +71,7 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "bootstrap", "addons.go")); err != nil {
 		t.Fatalf("expected bootstrap/addons.go: %v", err)
 	}
+	assertGeneratedConsoleRegisterABI(t, dest)
 	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
 	if err != nil {
 		t.Fatalf("expected bootstrap/enabled.go: %v", err)
@@ -155,6 +156,7 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertGeneratedFrameworkRequire(t, string(modBytes))
+	assertGeneratedConsoleRegisterABI(t, dest)
 	walk := exec.Command("go", "list", "-deps", "./cmd/app")
 	walk.Dir = dest
 	out, err := walk.CombinedOutput()
@@ -212,6 +214,25 @@ func assertGeneratedFrameworkRequire(t *testing.T, modText string) {
 	}
 	if strings.Contains(modText, "github.com/zatrano/framework v2") {
 		t.Fatalf("generated go.mod must not require v2.*:\n%s", modText)
+	}
+}
+
+func assertGeneratedConsoleRegisterABI(t *testing.T, dest string) {
+	t.Helper()
+	kernelPath := filepath.Join(dest, "app", "console", "kernel.go")
+	body, err := os.ReadFile(kernelPath)
+	if err != nil {
+		t.Fatalf("expected %s: %v", kernelPath, err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "func Register(cli *coreconsole.Application, app contracts.App)") {
+		t.Fatalf("generated Register must take contracts.App:\n%s", text)
+	}
+	if strings.Contains(text, "*kernel.Application") {
+		t.Fatalf("generated Register must not leak *kernel.Application:\n%s", text)
+	}
+	if strings.Contains(text, `"github.com/zatrano/framework/kernel"`) {
+		t.Fatalf("generated kernel.go must not import kernel:\n%s", text)
 	}
 }
 

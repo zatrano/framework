@@ -257,26 +257,33 @@ func (app *Application) bootstrapSerial() error {
 	return nil
 }
 
+func (app *Application) loadEnvAppConfig() {
+	app.config.Load("app", map[string]any{
+		"name":     env.Get("APP_NAME", "ZATRANO"),
+		"env":      app.environment,
+		"debug":    env.GetBool("APP_DEBUG", true),
+		"url":      env.Get("APP_URL", "http://localhost:8080"),
+		"key":      env.Get("APP_KEY"),
+		"locale":   env.Get("APP_LOCALE", "en"),
+		"fallback": env.Get("APP_FALLBACK_LOCALE", "en"),
+	})
+}
+
 func (app *Application) bootstrapLocked() error {
 	_ = env.Load(app.BasePath(".env"))
 
 	app.environment = env.NormalizeAppEnv(env.Get("APP_ENV", "local"))
 
 	configCache := app.BasePath("storage", "framework", "cache", "config.json")
+	loadedCache := false
 	if env.GetBool("APP_CONFIG_CACHE", true) && config.CacheExists(configCache) {
 		if cached, err := config.LoadCache(configCache); err == nil {
 			app.config.MergeCached(cached)
+			loadedCache = true
 		}
-	} else {
-		app.config.Load("app", map[string]any{
-			"name":     env.Get("APP_NAME", "ZATRANO"),
-			"env":      app.environment,
-			"debug":    env.GetBool("APP_DEBUG", true),
-			"url":      env.Get("APP_URL", "http://localhost:8080"),
-			"key":      env.Get("APP_KEY"),
-			"locale":   env.Get("APP_LOCALE", "en"),
-			"fallback": env.Get("APP_FALLBACK_LOCALE", "en"),
-		})
+	}
+	if !loadedCache {
+		app.loadEnvAppConfig()
 	}
 	if app.environment == "" {
 		app.environment = env.NormalizeAppEnv(app.config.GetString("app.env", "local"))
