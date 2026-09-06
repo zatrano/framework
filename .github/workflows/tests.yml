@@ -14,7 +14,8 @@ permissions:
   contents: read
 
 env:
-  APP_KEY: ci-test-app-key-not-for-production-use
+  # 32-byte AES key (process env wins over .env; shorter/longer values fail Bootstrap).
+  APP_KEY: zatrano-ci-test-key-not-prod!!!!
   APP_ENV: testing
   APP_DEBUG: 'true'
 

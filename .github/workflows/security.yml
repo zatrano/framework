@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 env:
-  # Boot/package tests refuse an empty APP_KEY.
-  APP_KEY: ci-test-app-key-not-for-production-use
+  # Boot/package tests refuse an empty APP_KEY. Must be 16, 24, or 32 bytes for AES-GCM.
+  APP_KEY: zatrano-ci-test-key-not-prod!!!!
 
 jobs:
   vet:

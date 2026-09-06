@@ -396,4 +396,3 @@ func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
 		t.Fatalf("API except must still bypass overridden DELETE: status=%d", resp.StatusCode())
 	}
 }
-

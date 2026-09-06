@@ -71,7 +71,7 @@ func TestHTTPBridgeCreatedSetCapturedTogether(t *testing.T) {
 type registerBridgeProvider struct{ tag string }
 
 func (p registerBridgeProvider) Register(app contracts.App) error {
-	app.SetHTTPBridge(taggedBridge{tag: p.tag})
+	app.SetHTTPBridge(taggedBridge(p))
 	return nil
 }
 func (p registerBridgeProvider) Boot(app contracts.App) error { return nil }
