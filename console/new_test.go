@@ -206,6 +206,9 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 }
 
 func TestFrameworkGoModVersion(t *testing.T) {
+	if got := frameworkGoModVersion("2.0.0"); got != "v0.0.0" {
+		t.Fatalf("2.0.0: got %q", got)
+	}
 	if got := frameworkGoModVersion("2.0.0-dev"); got != "v0.0.0" {
 		t.Fatalf("2.0.0-dev: got %q", got)
 	}

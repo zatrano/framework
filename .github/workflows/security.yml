@@ -2,7 +2,7 @@ name: security
 
 on:
   push:
-    branches: [main, '*.x', 'v2-dev']
+    branches: [main, '*.x']
   pull_request:
   schedule:
     - cron: '0 6 * * 1'
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: zatrano/packages
-          ref: v2-dev
+          ref: main
           path: packages
       - uses: actions/setup-go@v6
         with:

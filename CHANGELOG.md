@@ -2,7 +2,9 @@
 
 All notable changes to ZATRANO are documented in this file.
 
-## Unreleased
+## 2.0.0 - 2026-09-06
+
+v2 is the default line on `main`. Product version is `2.0.0`. The Go module path remains `github.com/zatrano/framework` (no `/v2` suffix); generated apps require `v0.0.0` with a `replace`, or `go get github.com/zatrano/framework@main`.
 
 ### Breaking
 
@@ -32,15 +34,15 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Changed
 
-- README rewritten for v2 (`v2-dev`): two-module layout, `zatrano new`, no default database, no demo boot profile. Language name shown as Golang.
+- README rewritten for v2: two-module layout, `zatrano new`, no default database, no demo boot profile. Language name shown as Golang.
 - `contracts` no longer imports `packages/*`. `App`, `Provider`, and `Migrator` live in `contracts`. Addon providers take `contracts.App`.
 - Addon config defaults live with the addon (`DefaultConfig()`); `kernel/config` is the generic repository plus `app` defaults.
 - Kernel catalog no longer enumerates packages-module names; `zatrano describe` / `package:list` / doctor use the CLI catalog.
 - Starter layout uses `app/views`, `app/localization`, and `app/database` (old `views/`, `lang/`, `database/` still load if present).
 - `make:*` scaffolds use the consumer `go.mod` module path. `package:enable` writes `bootstrap/addons.go` blank-imports and `go get github.com/zatrano/packages`.
-- Development VERSION line is `2.0.0-dev` (no GitHub Release until v2 is cut).
+- Product VERSION is `2.0.0` on `main`.
 - `kernel/layout` renamed to `kernel/dirs` (application path helpers). HTML template layouts stay in the `view` package.
-- CI on `v2-dev`: check out `zatrano/packages` as a sibling so `zatrano new --replace` tests can build; drop live SQL smoke from this repo (it lives in the packages module).
+- CI checks out `zatrano/packages` as a sibling so `zatrano new --replace` tests can build; live SQL smoke lives in the packages module.
 
 ## 1.6.6 - 2026-08-30
 

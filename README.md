@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.0--dev-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -235,7 +235,7 @@ The exact generated structure depends on the selected application capabilities.
 Requires **Golang 1.25+**.
 
 ```bash
-git clone -b v2-dev https://github.com/zatrano/framework.git
+git clone https://github.com/zatrano/framework.git
 cd framework
 
 go run ./cmd/zatrano new myapp --replace .
@@ -251,8 +251,8 @@ Open [http://localhost:8080](http://localhost:8080).
 Use the modules directly:
 
 ```bash
-go get github.com/zatrano/framework@v2-dev
-go get github.com/zatrano/packages@v2-dev
+go get github.com/zatrano/framework@main
+go get github.com/zatrano/packages@main
 ```
 
 Kernel-only scaffold (no package ecosystem):
@@ -505,7 +505,7 @@ Framework contracts / kernel
 
 ## v2
 
-v2 is currently under development on **`v2-dev`**. Version: `2.0.0-dev` ([`VERSION`](VERSION)).
+**v2.0.0** is the current line on **`main`**. Version: `2.0.0` ([`VERSION`](VERSION)).
 
 The v2 line is two independently maintained modules: `github.com/zatrano/framework` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
 
@@ -521,10 +521,10 @@ ZATRANO Platform
 
 | Line | Meaning |
 | --- | --- |
-| `v2-dev` | Current two-module application platform |
+| `v2.0.0` (`main`) | Current two-module application platform |
 | `v1.x` | Previous tagged ZATRANO line |
 
-ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`.
+ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path remains `github.com/zatrano/framework` (no `/v2` suffix). Generated apps use `v0.0.0` plus a `replace` until that path change.
 
 ## Documentation
 
