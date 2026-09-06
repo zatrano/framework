@@ -100,7 +100,15 @@ func TestEvalUnderAllowsInside(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !Under(root, got) {
-		t.Fatalf("not under root: %s", got)
+	// EvalUnder's invariant is Under(resolvedRoot, resolved), not Under(lexical
+	// t.TempDir(), resolved). On Windows, TEMP is often an 8.3 path
+	// (C:\Users\RUNNER~1\...) while EvalSymlinks returns the long name
+	// (C:\Users\runneradmin\...); Rel then looks like an escape.
+	resolvedRoot, err := resolveFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !Under(resolvedRoot, got) {
+		t.Fatalf("not under resolved root %s: %s", resolvedRoot, got)
 	}
 }
