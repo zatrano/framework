@@ -326,6 +326,9 @@ func All() any { return nil }
 			return err
 		}
 	}
+	if err := writeEnabledAddons(filepath.Join(dest, "bootstrap", "enabled.go"), nil); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -50,6 +50,13 @@ func TestWithAddonsEmptyIsKernel(t *testing.T) {
 	}
 }
 
+func TestWithAddonsUnknownIsKernel(t *testing.T) {
+	app := bootstrap.App(bootstrap.WithAddons("definitely-not-imported"))
+	if app == nil {
+		t.Fatal("unknown WithAddons names must be skipped, not panic")
+	}
+}
+
 func TestKernelStartStopThenStartRejected(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")

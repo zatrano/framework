@@ -55,7 +55,7 @@ func TestWriteEnabledAddonsMentionsPresets(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, want := range []string{"package:preset api", "WithPresetAPI()", "features", "hashid"} {
+	for _, want := range []string{"package:preset api", "WithPresetAPI()", "features", "hashid", "RegisterEnablement", "fwbootstrap"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, text)
 		}
@@ -96,8 +96,8 @@ func TestPackageDoctorEmptyEnabled(t *testing.T) {
 	for _, f := range findings {
 		codes[f.Code] = f.Level
 	}
-	if codes["enabled.empty"] != "WARN" {
-		t.Fatalf("expected enabled.empty WARN, got %#v", codes)
+	if codes["enabled.nomanifest"] != "WARN" {
+		t.Fatalf("expected enabled.nomanifest WARN, got %#v", codes)
 	}
 	if codes["catalog.providers"] != "OK" {
 		t.Fatalf("expected catalog.providers OK, got %#v", codes)
@@ -109,17 +109,17 @@ func TestPackageDoctorEmptyEnabled(t *testing.T) {
 		}
 	}
 	if errors != 0 {
-		t.Fatalf("empty EnabledAddons should not ERROR, got %d: %#v", errors, findings)
+		t.Fatalf("empty enablement manifest should not ERROR, got %d: %#v", errors, findings)
 	}
 }
 
 func TestPackageDoctorFlagsLibrary(t *testing.T) {
-	// Simulate a bad EnabledAddons value without rewriting repo file.
-	prev := append([]string{}, bootstrap.EnabledAddons...)
-	bootstrap.EnabledAddons = []string{"collection", "features"}
-	defer func() { bootstrap.EnabledAddons = prev }()
+	dir := t.TempDir()
+	app := kernel.NewApplication(dir)
+	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), []string{"collection", "features"}); err != nil {
+		t.Fatal(err)
+	}
 
-	app := kernel.NewApplication(t.TempDir())
 	findings := runPackageDoctor(app)
 	found := false
 	for _, f := range findings {
@@ -129,5 +129,84 @@ func TestPackageDoctorFlagsLibrary(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected enabled.library ERROR, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorIgnoresFrameworkEnabledAddons(t *testing.T) {
+	prev := append([]string{}, bootstrap.EnabledAddons...)
+	bootstrap.EnabledAddons = []string{"collection", "features"}
+	defer func() { bootstrap.EnabledAddons = prev }()
+
+	app := kernel.NewApplication(t.TempDir())
+	findings := runPackageDoctor(app)
+	for _, f := range findings {
+		if f.Code == "enabled.library" {
+			t.Fatalf("doctor must not read framework bootstrap.EnabledAddons, got %#v", findings)
+		}
+	}
+	codes := map[string]string{}
+	for _, f := range findings {
+		codes[f.Code] = f.Level
+	}
+	if codes["enabled.nomanifest"] != "WARN" {
+		t.Fatalf("expected enabled.nomanifest WARN, got %#v", codes)
+	}
+}
+
+func TestEnableDisableReadsConsumerManifest(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	added, err := enablePackage(app, "features")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected features to be added")
+	}
+	names, ok := consumerManifest(app)
+	if !ok || len(names) != 1 || names[0] != "features" {
+		t.Fatalf("manifest after enable: ok=%v names=%#v", ok, names)
+	}
+	added, err = enablePackage(app, "features")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added {
+		t.Fatal("second enable should be a no-op")
+	}
+	removed, err := disablePackage(app, "features")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !removed {
+		t.Fatal("expected disable to remove features")
+	}
+	names, ok = consumerManifest(app)
+	if !ok || len(names) != 0 {
+		t.Fatalf("manifest after disable: ok=%v names=%#v", ok, names)
+	}
+	body, err := os.ReadFile(consumerEnabledPath(app))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "RegisterEnablement") {
+		t.Fatalf("disable rewrite lost init registration:\n%s", body)
+	}
+}
+
+func TestPackageDoctorEmptyManifestFile(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), nil); err != nil {
+		t.Fatal(err)
+	}
+	findings := runPackageDoctor(app)
+	codes := map[string]string{}
+	for _, f := range findings {
+		codes[f.Code] = f.Level
+	}
+	if codes["enabled.empty"] != "WARN" {
+		t.Fatalf("expected enabled.empty WARN, got %#v", codes)
+	}
+	if codes["enabled.nomanifest"] != "" {
+		t.Fatalf("empty file is a registered manifest, not missing: %#v", codes)
 	}
 }

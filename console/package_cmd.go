@@ -37,7 +37,7 @@ func (c *PackageListCommand) Description() string {
 func (c *PackageListCommand) Handle(args []string) error {
 	showAll := hasFlag(args, "--all", "-a")
 	showLibs := hasFlag(args, "--libraries", "--libs")
-	enabled := enabledSet()
+	enabled := enabledSet(c.app)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "PACKAGE\tKIND\tSTATUS\tHEAVY\tSTUBS\tDESCRIPTION")
 
@@ -219,7 +219,8 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 	if merge {
 		seen := map[string]bool{}
 		final = nil
-		for _, n := range append(append([]string{}, bootstrap.EnabledAddons...), list...) {
+		current, _ := consumerManifest(c.app)
+		for _, n := range append(append([]string{}, current...), list...) {
 			n = strings.ToLower(strings.TrimSpace(n))
 			if n == "" || seen[n] {
 				continue
@@ -251,7 +252,7 @@ func (c *PackagePresetCommand) Handle(args []string) error {
 		}
 	}
 	fmt.Println("Next: rebuild/restart, then `zatrano package:status`.")
-	fmt.Println("Tip: production entrypoint → bootstrap.App() (reads EnabledAddons).")
+	fmt.Println("Tip: production entrypoint → bootstrap.App() (consumer manifest, or DefaultMetas if none).")
 	return nil
 }
 
@@ -265,7 +266,8 @@ func (c *PackageStatusCommand) Handle(args []string) error {
 	if err := c.app.Bootstrap(); err != nil {
 		return err
 	}
-	enabled := enabledSet()
+	_, hasManifest := consumerManifest(c.app)
+	enabled := enabledSet(c.app)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "PACKAGE\tENABLED\tBOUND\tKEY")
 	boundExtra := false
@@ -286,16 +288,41 @@ func (c *PackageStatusCommand) Handle(args []string) error {
 	if err := w.Flush(); err != nil {
 		return err
 	}
-	if boundExtra {
-		fmt.Println("Note: BOUND without ENABLED means this process used App(WithAddons(...)) (or a custom Boot), not App()+EnabledAddons.")
+	if !hasManifest {
+		fmt.Println("Note: no consumer enablement manifest; App() uses DefaultMetas (all imported addons).")
+	} else if boundExtra {
+		fmt.Println("Note: BOUND without ENABLED means App(WithAddons(...)) override or a custom Boot.")
 	}
 	return nil
 }
 
-func enabledSet() map[string]bool {
+func consumerEnabledPath(app *kernel.Application) string {
+	if app == nil {
+		return filepath.Join("bootstrap", "enabled.go")
+	}
+	return app.BasePath("bootstrap", "enabled.go")
+}
+
+func consumerManifest(app *kernel.Application) (names []string, ok bool) {
+	body, err := os.ReadFile(consumerEnabledPath(app))
+	if err != nil {
+		return nil, false
+	}
+	return parseEnabledAddons(string(body)), true
+}
+
+func enabledSet(app *kernel.Application) map[string]bool {
 	out := map[string]bool{}
-	for _, name := range bootstrap.EnabledAddons {
-		out[strings.ToLower(name)] = true
+	if names, ok := consumerManifest(app); ok {
+		for _, name := range names {
+			out[strings.ToLower(name)] = true
+		}
+		return out
+	}
+	if app != nil {
+		for _, name := range app.EnabledAddons() {
+			out[strings.ToLower(name)] = true
+		}
 	}
 	return out
 }
@@ -314,73 +341,49 @@ func hasFlag(args []string, flags ...string) bool {
 }
 
 func enablePackage(app *kernel.Application, name string) (bool, error) {
-	if info, ok := catalogLookup(name); ok && info.EffectiveKind() == kernel.KindLibrary {
+	info, inCatalog := catalogLookup(name)
+	if inCatalog && info.EffectiveKind() == kernel.KindLibrary {
 		return false, fmt.Errorf("%q is a library package (import-only); no package:enable needed — see package:list --libraries", name)
 	}
-	if _, ok := addons.Lookup(name); !ok {
+	if inCatalog && info.Layer == kernel.LayerPrimitive {
+		return false, fmt.Errorf("%q is a kernel primitive, not an addon", name)
+	}
+	if _, imported := addons.Lookup(name); !imported && (!inCatalog || info.EffectiveKind() != kernel.KindService) {
 		return false, fmt.Errorf("unknown package %q (see package:list)", name)
 	}
-	list := append([]string{}, bootstrap.EnabledAddons...)
+	list, _ := consumerManifest(app)
 	for _, n := range list {
 		if strings.EqualFold(n, name) {
 			return false, nil
 		}
 	}
-	path := app.BasePath("bootstrap", "enabled.go")
-	if inserted, err := insertEnabledAddonName(path, name); err != nil {
-		return false, err
-	} else if inserted {
-		return true, nil
-	}
 	list = append(list, name)
 	sort.Strings(list)
-	if err := writeEnabledAddons(path, list); err != nil {
+	if err := writeEnabledAddons(consumerEnabledPath(app), list); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// insertEnabledAddonName surgically appends a package name into an existing EnabledAddons slice.
-func insertEnabledAddonName(path, name string) (bool, error) {
-	body, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	src := string(body)
-	idx := strings.Index(src, "var EnabledAddons")
-	if idx < 0 {
-		return false, nil
-	}
-	closeIdx := findEnabledAddonsClose(src, idx)
-	if closeIdx <= idx {
-		return false, nil
-	}
-	block := src[idx : closeIdx+1]
-	if strings.Contains(block, `"`+name+`"`) {
-		return false, nil
-	}
-	out := src[:closeIdx] + "\t\"" + name + "\",\n" + src[closeIdx:]
-	return true, os.WriteFile(path, []byte(out), 0o644)
-}
-
 func disablePackage(app *kernel.Application, name string) (bool, error) {
-	list := make([]string, 0, len(bootstrap.EnabledAddons))
+	list, ok := consumerManifest(app)
+	if !ok {
+		return false, nil
+	}
+	next := make([]string, 0, len(list))
 	found := false
-	for _, n := range bootstrap.EnabledAddons {
+	for _, n := range list {
 		if strings.EqualFold(n, name) {
 			found = true
 			continue
 		}
-		list = append(list, n)
+		next = append(next, n)
 	}
 	if !found {
 		return false, nil
 	}
-	sort.Strings(list)
-	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), list); err != nil {
+	sort.Strings(next)
+	if err := writeEnabledAddons(consumerEnabledPath(app), next); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -448,41 +451,15 @@ func publishStubFiles(app *kernel.Application, files []string, force, verbose bo
 }
 
 func writeEnabledAddons(path string, names []string) error {
-	preamble := defaultEnabledAddonsPreamble()
-	if existing, err := os.ReadFile(path); err == nil {
-		src := string(existing)
-		if idx := strings.Index(src, "var EnabledAddons"); idx >= 0 {
-			preamble = src[:idx]
-			if preamble != "" && !strings.HasSuffix(preamble, "\n") {
-				preamble += "\n"
-			}
-			// Prefer surgical rewrite of the slice only when a clear closing brace exists.
-			if closeIdx := findEnabledAddonsClose(src, idx); closeIdx > idx {
-				var b strings.Builder
-				b.WriteString(preamble)
-				b.WriteString("var EnabledAddons = []string{\n")
-				for _, name := range names {
-					b.WriteString("\t\"" + name + "\",\n")
-				}
-				b.WriteString("}")
-				tail := src[closeIdx+1:]
-				if !strings.HasPrefix(tail, "\n") && tail != "" {
-					b.WriteString("\n")
-				}
-				b.WriteString(tail)
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					return err
-				}
-				return os.WriteFile(path, []byte(b.String()), 0o644)
-			}
-		}
-	}
 	var b strings.Builder
-	b.WriteString(preamble)
+	b.WriteString(defaultEnabledAddonsPreamble())
 	b.WriteString("var EnabledAddons = []string{\n")
 	for _, name := range names {
 		b.WriteString("\t\"" + name + "\",\n")
 	}
+	b.WriteString("}\n\n")
+	b.WriteString("func init() {\n")
+	b.WriteString("\tfwbootstrap.RegisterEnablement(EnabledAddons)\n")
 	b.WriteString("}\n")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -493,7 +470,14 @@ func writeEnabledAddons(path string, names []string) error {
 func defaultEnabledAddonsPreamble() string {
 	var b strings.Builder
 	b.WriteString("package bootstrap\n\n")
-	b.WriteString("// EnabledAddons lists first-party addon packages registered by App().\n")
+	b.WriteString("import (\n")
+	b.WriteString("\tfwbootstrap \"github.com/zatrano/framework/bootstrap\"\n")
+	b.WriteString(")\n\n")
+	b.WriteString("// EnabledAddons is this application's enablement manifest.\n")
+	b.WriteString("//\n")
+	b.WriteString("// init() registers the list; App() boots Enabled ∩ Imported.\n")
+	b.WriteString("// WithAddons is an explicit override. Missing this file (legacy apps)\n")
+	b.WriteString("// falls back to all imported addons.\n")
 	b.WriteString("//\n")
 	b.WriteString("// Quick start:\n")
 	b.WriteString("//\tzatrano package:preset api          // lean API set\n")
@@ -503,31 +487,9 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("//\tzatrano package:enable mongo\n")
 	b.WriteString("//\tzatrano package:install billing\n")
 	b.WriteString("//\n")
-	b.WriteString("// Entrypoint: bootstrap.App() reads this list.\n")
-	b.WriteString("// Alternatives: App(), App(WithPresetAPI()), App(WithPresetWeb()), App(WithAddons(...)).\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")
+	b.WriteString("// Alternatives: App(), App(WithPresetAPI()), App(WithPresetWeb()), App(WithAddons(...)).\n")
 	return b.String()
-}
-
-func findEnabledAddonsClose(src string, varIdx int) int {
-	rest := src[varIdx:]
-	open := strings.Index(rest, "{")
-	if open < 0 {
-		return -1
-	}
-	depth := 0
-	for i := open; i < len(rest); i++ {
-		switch rest[i] {
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return varIdx + i
-			}
-		}
-	}
-	return -1
 }
 
 func parseEnabledAddons(src string) []string {

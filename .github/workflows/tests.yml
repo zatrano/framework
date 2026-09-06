@@ -34,6 +34,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           path: framework
+          fetch-depth: 2
 
       - name: Checkout packages
         uses: actions/checkout@v5
@@ -72,6 +73,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           path: framework
+          fetch-depth: 2
 
       - name: Checkout packages
         uses: actions/checkout@v5

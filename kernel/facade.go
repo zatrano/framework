@@ -80,18 +80,30 @@ func (f *routeFacade) As(name string) contracts.Route {
 }
 
 func asHandler(handler any) routing.HandlerFunc {
+	h, err := handlerOf(handler)
+	if err != nil {
+		panic("router: " + err.Error())
+	}
+	return h
+}
+
+func handlerOf(handler any) (routing.HandlerFunc, error) {
 	if handler == nil {
-		return nil
+		return nil, fmt.Errorf("nil handler")
 	}
 	switch h := handler.(type) {
 	case routing.HandlerFunc:
-		return h
-	case func(*http.Request) *http.Response:
-		return h
-	default:
-		return func(*http.Request) *http.Response {
-			return http.JSON(map[string]any{"message": fmt.Sprintf("unsupported handler %T", handler)}).Status(500)
+		if h == nil {
+			return nil, fmt.Errorf("nil handler")
 		}
+		return h, nil
+	case func(*http.Request) *http.Response:
+		if h == nil {
+			return nil, fmt.Errorf("nil handler")
+		}
+		return h, nil
+	default:
+		return nil, fmt.Errorf("unsupported handler %T", handler)
 	}
 }
 

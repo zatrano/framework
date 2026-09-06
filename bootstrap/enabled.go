@@ -1,8 +1,9 @@
 package bootstrap
 
-// EnabledAddons is unused by App(); packages activate by blank-import.
-// Kept so generated apps that still assign the list continue to compile.
+// EnabledAddons is unused by App() and by the CLI. Packages become available
+// by import (init registry); enablement is the consumer manifest registered
+// via RegisterEnablement, or DefaultMetas() when no manifest is present.
 //
-// Lifecycle: imported (init registry) → enabled (WithAddons / all imported) →
-// registered → booted (Application.Bootstrap).
+// Kept so generated apps that still assign this identifier in comments or
+// copy-paste continue to compile. Do not read it for enablement decisions.
 var EnabledAddons = []string{}

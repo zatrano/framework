@@ -71,6 +71,16 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "bootstrap", "addons.go")); err != nil {
 		t.Fatalf("expected bootstrap/addons.go: %v", err)
 	}
+	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
+	if err != nil {
+		t.Fatalf("expected bootstrap/enabled.go: %v", err)
+	}
+	enabledText := string(enabledBody)
+	for _, want := range []string{"RegisterEnablement", `"assets"`, `"health"`, `"localization"`, `"view"`} {
+		if !strings.Contains(enabledText, want) {
+			t.Fatalf("enabled.go missing %q:\n%s", want, enabledText)
+		}
+	}
 	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
@@ -82,6 +92,7 @@ func TestNewScaffoldsBuildableApp(t *testing.T) {
 	if strings.Contains(modText, "__FRAMEWORK_VERSION__") || strings.Contains(modText, "__REPLACE_LINE__") {
 		t.Fatalf("placeholders left in go.mod:\n%s", modText)
 	}
+	assertGeneratedFrameworkRequire(t, modText)
 	if !strings.Contains(modText, "replace github.com/zatrano/framework =>") {
 		t.Fatalf("missing framework replace:\n%s", modText)
 	}
@@ -139,6 +150,11 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 	if err := cmd.Handle([]string{dest, "--module", "example.com/lite", "--replace", root, "--minimal"}); err != nil {
 		t.Fatal(err)
 	}
+	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertGeneratedFrameworkRequire(t, string(modBytes))
 	walk := exec.Command("go", "list", "-deps", "./cmd/app")
 	walk.Dir = dest
 	out, err := walk.CombinedOutput()
@@ -158,6 +174,17 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 	if strings.Contains(text, "github.com/zatrano/packages/") {
 		t.Fatalf("minimal app has packages deps:\n%s", text)
 	}
+	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
+	if err != nil {
+		t.Fatalf("expected bootstrap/enabled.go: %v", err)
+	}
+	enabledText := string(enabledBody)
+	if !strings.Contains(enabledText, "RegisterEnablement") {
+		t.Fatalf("minimal enabled.go must register the manifest:\n%s", enabledText)
+	}
+	if strings.Contains(enabledText, `"health"`) || strings.Contains(enabledText, `"view"`) {
+		t.Fatalf("minimal enabled.go must be empty:\n%s", enabledText)
+	}
 	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "lite.exe"), "./cmd/app")
 	build.Dir = dest
 	bout, err := build.CombinedOutput()
@@ -168,10 +195,23 @@ func TestNewMinimalHasNoPackageDeps(t *testing.T) {
 
 func TestFrameworkGoModVersion(t *testing.T) {
 	if got := frameworkGoModVersion("2.0.0-dev"); got != "v0.0.0" {
-		t.Fatalf("got %q", got)
+		t.Fatalf("2.0.0-dev: got %q", got)
+	}
+	if got := frameworkGoModVersion("2.0.0"); got != "v0.0.0" {
+		t.Fatalf("2.0.0: got %q", got)
 	}
 	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
-		t.Fatalf("got %q", got)
+		t.Fatalf("1.6.6: got %q", got)
+	}
+}
+
+func assertGeneratedFrameworkRequire(t *testing.T, modText string) {
+	t.Helper()
+	if !strings.Contains(modText, "github.com/zatrano/framework v0.0.0") {
+		t.Fatalf("generated require must be v0.0.0:\n%s", modText)
+	}
+	if strings.Contains(modText, "github.com/zatrano/framework v2") {
+		t.Fatalf("generated go.mod must not require v2.*:\n%s", modText)
 	}
 }
 

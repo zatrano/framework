@@ -69,6 +69,14 @@ func Register(m Meta) {
 	registry = append(registry, m)
 }
 
+// ClearRegistry removes every registered addon. Tests use this to isolate
+// enablement fixtures; production code must not call it.
+func ClearRegistry() {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registry = nil
+}
+
 // Available returns addon metadata sorted by name.
 func Available() []Meta {
 	registryMu.RLock()

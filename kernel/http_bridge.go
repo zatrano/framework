@@ -9,17 +9,46 @@ import (
 )
 
 // SetHTTPBridge registers view/session HTTP finalize behavior (nil clears).
+// Illegal after applyHTTPBridgeMiddleware captures the bridge during Bootstrap.
 func (app *Application) SetHTTPBridge(bridge contracts.HTTPBridge) {
+	if app == nil {
+		return
+	}
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	if app.httpBridgeFrozen {
+		panic("application: cannot change HTTP bridge after bootstrap")
+	}
 	app.httpBridge = bridge
 }
 
 // HTTPBridge returns the installed HTTP bridge, if any.
 func (app *Application) HTTPBridge() contracts.HTTPBridge {
+	if app == nil {
+		return nil
+	}
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	if app.httpBridgeFrozen {
+		return app.httpBridgeCaptured
+	}
 	return app.httpBridge
 }
 
 func applyHTTPBridgeMiddleware(app *Application) error {
-	bridge := app.HTTPBridge()
+	if app == nil {
+		return nil
+	}
+	app.lifeMu.Lock()
+	if app.httpBridgeFrozen {
+		app.lifeMu.Unlock()
+		return nil
+	}
+	bridge := app.httpBridge
+	app.httpBridgeCaptured = bridge
+	app.httpBridgeFrozen = true
+	app.lifeMu.Unlock()
+
 	if bridge == nil {
 		return nil
 	}
@@ -34,7 +63,10 @@ func applyHTTPBridgeMiddleware(app *Application) error {
 }
 
 func finalizeHTTPBridge(app *Application, w stdhttp.ResponseWriter, req *http.Request, resp *http.Response) *http.Response {
-	bridge := app.HTTPBridge()
+	if app == nil {
+		return resp
+	}
+	bridge := app.httpBridgeCaptured
 	if bridge == nil {
 		return resp
 	}

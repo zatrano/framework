@@ -51,22 +51,24 @@ const (
 // Foundation and addon services live in the container (see accessors / package From helpers).
 // Kernel fields below are set by BootKernelServices.
 type Application struct {
-	basePath      string
-	container     *container.Container
-	config        *config.Repository
-	router        *routing.Router
-	logger        *log.Logger
-	ctx           *appcontext.Store
-	encrypter     *encryption.Encrypter
-	exceptions    *exceptions.Handler
-	reports       *report.Manager
-	httpBridge    contracts.HTTPBridge
-	providers     []contracts.Provider
-	life          lifeState
-	lifeMu        sync.Mutex
-	transitionMu  sync.Mutex
-	environment   string
-	enabledAddons []string
+	basePath           string
+	container          *container.Container
+	config             *config.Repository
+	router             *routing.Router
+	logger             *log.Logger
+	ctx                *appcontext.Store
+	encrypter          *encryption.Encrypter
+	exceptions         *exceptions.Handler
+	reports            *report.Manager
+	httpBridge         contracts.HTTPBridge
+	httpBridgeCaptured contracts.HTTPBridge
+	httpBridgeFrozen   bool
+	providers          []contracts.Provider
+	life               lifeState
+	lifeMu             sync.Mutex
+	transitionMu       sync.Mutex
+	environment        string
+	enabledAddons      []string
 }
 
 // NewApplication creates a new application instance.
@@ -191,6 +193,22 @@ func (app *Application) Bootstrapped() bool {
 	app.lifeMu.Lock()
 	defer app.lifeMu.Unlock()
 	return app.life == lifeBooted || app.life == lifeStarting || app.life == lifeRunning || app.life == lifeStopping || app.life == lifeStopped
+}
+
+// httpReady reports whether the HTTP pipeline is usable. This is a Booted
+// capability, not a Running one: Start launches process lifecycle providers.
+func (app *Application) httpReady() bool {
+	if app == nil {
+		return false
+	}
+	app.lifeMu.Lock()
+	defer app.lifeMu.Unlock()
+	switch app.life {
+	case lifeBooted, lifeStarting, lifeRunning, lifeStopping, lifeStopped:
+		return true
+	default:
+		return false
+	}
 }
 
 // BootstrapFailed reports whether Bootstrap returned an error. Failed
@@ -443,6 +461,11 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 	cw := http.TrackCommit(w)
 	defer app.recoverServeHTTP(cw)
 
+	if !app.httpReady() {
+		_ = http.Abort(stdhttp.StatusServiceUnavailable).WriteTo(cw)
+		return
+	}
+
 	if r != nil && r.Body != nil {
 		r.Body = stdhttp.MaxBytesReader(cw, r.Body, http.MaxRequestBytes())
 	}
@@ -459,6 +482,9 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 		resp = http.Abort(204)
 	}
 	resp = finalizeHTTPBridge(app, cw, req, resp)
+	if cw.Committed() {
+		return
+	}
 	if resp == nil {
 		resp = http.Abort(204)
 	}

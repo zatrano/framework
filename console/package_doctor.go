@@ -68,8 +68,9 @@ func (c *PackageInitCommand) Handle(args []string) error {
 	if preset != "api" && preset != "web" {
 		return fmt.Errorf("usage: package:init <api|web> [--force] [--merge]")
 	}
-	if len(bootstrap.EnabledAddons) > 0 && !hasFlag(args, "--force", "-f", "--merge", "-m") {
-		return fmt.Errorf("EnabledAddons is not empty (%d packages); pass --force to replace or --merge to union", len(bootstrap.EnabledAddons))
+	current, hasManifest := consumerManifest(c.app)
+	if hasManifest && len(current) > 0 && !hasFlag(args, "--force", "-f", "--merge", "-m") {
+		return fmt.Errorf("enablement manifest is not empty (%d packages); pass --force to replace or --merge to union", len(current))
 	}
 
 	list, ok := bootstrap.Preset(preset)
@@ -82,7 +83,7 @@ func (c *PackageInitCommand) Handle(args []string) error {
 	if merge {
 		seen := map[string]bool{}
 		final = nil
-		for _, n := range append(append([]string{}, bootstrap.EnabledAddons...), list...) {
+		for _, n := range append(append([]string{}, current...), list...) {
 			n = strings.ToLower(strings.TrimSpace(n))
 			if n == "" || seen[n] {
 				continue
@@ -131,22 +132,29 @@ func (c *PackageInitCommand) Handle(args []string) error {
 func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	var out []doctorFinding
 
-	enabled := append([]string{}, bootstrap.EnabledAddons...)
-	if len(enabled) == 0 {
+	enabled, hasManifest := consumerManifest(app)
+	if !hasManifest {
+		out = append(out, doctorFinding{
+			Level:   "WARN",
+			Code:    "enabled.nomanifest",
+			Message: "no enablement manifest; App() uses DefaultMetas (all imported addons)",
+		})
+	} else if len(enabled) == 0 {
 		out = append(out, doctorFinding{
 			Level:   "WARN",
 			Code:    "enabled.empty",
-			Message: "EnabledAddons is empty — App() has no service addons (use package:preset/init or App(WithAddons(...)))",
+			Message: "enablement manifest is empty — kernel-only unless App(WithAddons(...))",
 		})
 	} else {
 		out = append(out, doctorFinding{
 			Level:   "OK",
 			Code:    "enabled.count",
-			Message: fmt.Sprintf("%d package(s) in EnabledAddons", len(enabled)),
+			Message: fmt.Sprintf("%d package(s) in enablement manifest", len(enabled)),
 		})
 	}
 
 	unknown := 0
+	notImported := 0
 	heavy := 0
 	libs := 0
 	missingStub := 0
@@ -166,6 +174,15 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		}
 		meta, ok := addons.Lookup(name)
 		if !ok {
+			if info, catalogOK := catalogLookup(name); catalogOK && info.EffectiveKind() == kernel.KindService {
+				notImported++
+				out = append(out, doctorFinding{
+					Level:   "WARN",
+					Code:    "enabled.not_imported",
+					Message: fmt.Sprintf("%q is enabled but not imported (will not boot)", name),
+				})
+				continue
+			}
 			unknown++
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
@@ -198,7 +215,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 			}
 		}
 	}
-	if unknown == 0 && libs == 0 && len(enabled) > 0 {
+	if unknown == 0 && libs == 0 && notImported == 0 && len(enabled) > 0 {
 		out = append(out, doctorFinding{
 			Level:   "OK",
 			Code:    "enabled.registry",

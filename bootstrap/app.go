@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/zatrano/framework/bootstrap/addons"
 	"github.com/zatrano/framework/contracts"
@@ -24,7 +25,9 @@ func WithProviders(providers ...kernel.Provider) Option {
 	}
 }
 
-// WithAddons selects a subset of blank-imported packages (does not merge EnabledAddons).
+// WithAddons selects an explicit subset of blank-imported packages.
+// Names are intersected with the process registry (unknown names are skipped).
+// This overrides a registered consumer manifest; it does not merge with it.
 func WithAddons(names ...string) Option {
 	return func(o *appOptions) {
 		o.addonsSet = true
@@ -33,9 +36,15 @@ func WithAddons(names ...string) Option {
 }
 
 // App creates the application.
-// With no options it boots the kernel plus every package the process blank-imported
-// (self-registered). It loads no session/database/view/auth unless those packages
-// are imported.
+//
+// Enablement:
+//   - WithAddons(names) → names ∩ Imported (explicit override)
+//   - consumer RegisterEnablement → Enabled ∩ Imported
+//   - no manifest → DefaultMetas() (all imported; legacy / G-001)
+//
+// init() only fills the addon registry and may register a manifest. It never
+// decides enablement by itself. App() does not read the framework EnabledAddons
+// variable.
 func App(opts ...Option) *kernel.Application {
 	cfg := appOptions{}
 	for _, opt := range opts {
@@ -45,33 +54,17 @@ func App(opts ...Option) *kernel.Application {
 	}
 	var extra []contracts.Provider
 	var enabled []string
-	if cfg.addonsSet {
-		metas, err := addons.Resolve(cfg.addons...)
-		if err != nil {
-			panic(err)
-		}
-		extra = make([]contracts.Provider, 0, len(metas))
-		for _, m := range metas {
-			if m.Factory == nil {
-				continue
-			}
-			extra = append(extra, m.Factory())
-		}
-		enabled = make([]string, 0, len(metas))
-		for _, m := range metas {
-			enabled = append(enabled, m.Name)
-		}
-	} else {
-		metas := addons.DefaultMetas()
-		extra = make([]contracts.Provider, 0, len(metas))
-		enabled = make([]string, 0, len(metas))
-		for _, m := range metas {
-			enabled = append(enabled, m.Name)
-			if m.Factory == nil {
-				continue
-			}
-			extra = append(extra, m.Factory())
-		}
+	var err error
+	switch {
+	case cfg.addonsSet:
+		extra, enabled, err = providersForNames(cfg.addons)
+	case enablementRegistered():
+		extra, enabled, err = providersForNames(enablementNames())
+	default:
+		extra, enabled = providersFromMetas(addons.DefaultMetas())
+	}
+	if err != nil {
+		panic(err)
 	}
 	providers := []kernel.Provider{&KernelServiceProvider{}}
 	providers = append(providers, extra...)
@@ -82,6 +75,46 @@ func App(opts ...Option) *kernel.Application {
 	}
 	app.SetEnabledAddons(enabled)
 	return app
+}
+
+func providersForNames(names []string) ([]contracts.Provider, []string, error) {
+	metas, err := addons.Resolve(intersectImported(names)...)
+	if err != nil {
+		return nil, nil, err
+	}
+	extra, enabled := providersFromMetas(metas)
+	return extra, enabled, nil
+}
+
+func intersectImported(names []string) []string {
+	imported := map[string]bool{}
+	for _, n := range addons.Names() {
+		imported[n] = true
+	}
+	out := make([]string, 0, len(names))
+	seen := map[string]bool{}
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" || seen[name] || !imported[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
+}
+
+func providersFromMetas(metas []addons.Meta) ([]contracts.Provider, []string) {
+	extra := make([]contracts.Provider, 0, len(metas))
+	enabled := make([]string, 0, len(metas))
+	for _, m := range metas {
+		enabled = append(enabled, m.Name)
+		if m.Factory == nil {
+			continue
+		}
+		extra = append(extra, m.Factory())
+	}
+	return extra, enabled
 }
 
 // Boot assembles an application from providers.

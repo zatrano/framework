@@ -54,9 +54,17 @@ func (p *recoverFixture) Boot(app contracts.App) error { return nil }
 
 func bootRecoverApp(t *testing.T) *kernel.Application {
 	t.Helper()
+	return bootRecoverAppWithBridge(t, nil)
+}
+
+func bootRecoverAppWithBridge(t *testing.T, bridge contracts.HTTPBridge) *kernel.Application {
+	t.Helper()
 	app := kernel.NewApplication(t.TempDir())
 	t.Cleanup(func() { closeAppLog(t, app) })
 	app.RegisterProviders(&recoverFixture{})
+	if bridge != nil {
+		app.SetHTTPBridge(bridge)
+	}
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
@@ -123,8 +131,7 @@ func (panicBridge) Finalize(w stdhttp.ResponseWriter, req any, resp any) any {
 }
 
 func TestTHR05FinalizePanic(t *testing.T) {
-	app := bootRecoverApp(t)
-	app.SetHTTPBridge(panicBridge{})
+	app := bootRecoverAppWithBridge(t, panicBridge{})
 	rec := serveRecover(t, app, httptest.NewRequest(stdhttp.MethodGet, "/ok", nil))
 	assertRecovered500(t, rec, "finalize boom")
 }
@@ -139,8 +146,7 @@ func (commitThenPanicBridge) Finalize(w stdhttp.ResponseWriter, req any, resp an
 }
 
 func TestTHR05FinalizePanicAfterCommitKeepsStatus(t *testing.T) {
-	app := bootRecoverApp(t)
-	app.SetHTTPBridge(commitThenPanicBridge{})
+	app := bootRecoverAppWithBridge(t, commitThenPanicBridge{})
 	rec := serveRecover(t, app, httptest.NewRequest(stdhttp.MethodGet, "/ok", nil))
 	if rec.Code != stdhttp.StatusOK {
 		t.Fatalf("committed status rewritten: %d", rec.Code)

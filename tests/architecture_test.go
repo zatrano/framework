@@ -23,6 +23,42 @@ func moduleRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
 }
 
+func TestProductAndModuleIdentity(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "VERSION"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := strings.TrimSpace(string(raw))
+	if version != "2.0.0-dev" {
+		t.Fatalf("VERSION=%q want 2.0.0-dev", version)
+	}
+
+	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := ""
+	for _, line := range strings.Split(string(mod), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			path = strings.TrimSpace(strings.TrimPrefix(line, "module "))
+			break
+		}
+	}
+	if path != "github.com/zatrano/framework" {
+		t.Fatalf("module path=%q", path)
+	}
+	if strings.HasSuffix(path, "/v2") {
+		t.Fatal("module path must not end with /v2 until a dedicated migration")
+	}
+
+	app := kernel.NewApplication(root)
+	if got := app.Version(); got != version {
+		t.Fatalf("Version()=%q want %q", got, version)
+	}
+}
+
 func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
