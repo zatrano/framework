@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.18" {
-		t.Fatalf("VERSION=%q want 2.0.18", version)
+	if version != "2.0.19" {
+		t.Fatalf("VERSION=%q want 2.0.19", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -301,7 +301,9 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 		}
 		text := string(src)
 		if strings.Contains(text, "type ApplyResult ") || strings.Contains(text, "type ApplyResult\t") {
-			t.Errorf("%s invents ApplyResult — not authorized", base)
+			if base != "apply.go" {
+				t.Errorf("%s invents ApplyResult — partial-apply report lives in apply.go", base)
+			}
 		}
 		file, parseErr := parser.ParseFile(fset, path, nil, 0)
 		if parseErr != nil {
@@ -313,6 +315,17 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			}
 			if base == "lock_test.go" && (strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec")) {
 				t.Errorf("%s must prove serialization with a fake Runner — not real go get", base)
+			}
+			if base == "partial_test.go" {
+				if !strings.Contains(text, "ExecuteTargets(") {
+					t.Error("partial_test.go must exercise ExecuteTargets")
+				}
+				if !strings.Contains(text, "Inspect(") {
+					t.Error("partial_test.go must compare ApplyResult with Inspect mutation state")
+				}
+				if strings.Contains(text, "func Rollback") || strings.Contains(text, "go mod tidy") {
+					t.Error("partial apply must not implement rollback or tidy")
+				}
 			}
 			if base == "execute_test.go" {
 				if !strings.Contains(text, "Execute(") {
@@ -386,8 +399,10 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				continue
 			}
 			switch fn.Name.Name {
-			case "Apply", "Install", "Tidy", "Download", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
+			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
 				t.Errorf("%s defines %s — mutation / resolution stay out of this gate", base, fn.Name.Name)
+			case "AllAcquired":
+				t.Errorf("%s defines AllAcquired — partial apply must not claim all targets acquired", base)
 			}
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
@@ -413,6 +428,18 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	if !strings.Contains(text, "func Execute(") {
 		t.Error("apply.go must export Execute as the acquisition go get entry")
 	}
+	if !strings.Contains(text, "func ExecuteTargets(") {
+		t.Error("apply.go must export ExecuteTargets as the partial-apply entry")
+	}
+	if !strings.Contains(text, "type ApplyResult ") {
+		t.Error("apply.go must report partial apply as ApplyResult")
+	}
+	if !strings.Contains(text, "StatusUnattempted") || !strings.Contains(text, "StatusFailed") || !strings.Contains(text, "StatusSuccess") {
+		t.Error("ApplyResult must distinguish success, failed, and unattempted")
+	}
+	if strings.Contains(text, "func Apply(") {
+		t.Error("do not add a general Apply API; ExecuteTargets is the partial-apply gate")
+	}
 	if !strings.Contains(text, "ExecRunner{}") {
 		t.Error("Execute must bind ExecRunner; do not scatter exec.Command")
 	}
@@ -437,6 +464,9 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "execute_test.go")); err != nil {
 		t.Fatal("missing execute_test.go — go get execution tests belong there, not in apply_test.go")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "partial_test.go")); err != nil {
+		t.Fatal("missing partial_test.go — partial-apply mutation vs report tests belong there")
 	}
 }
 

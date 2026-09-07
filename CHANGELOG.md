@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.19 - 2026-09-07
+
+Phase 8 partial apply: `ExecuteTargets` reports successful, failed, and unattempted targets (fail-fast). Earlier successes are not rolled back. No tidy, `func Apply`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.18 - 2026-09-07
 
 Phase 8 per-root mutation lock: same module root cannot run two `Execute` mutations at once; other roots proceed independently. `Inspect` is not locked. No tidy, `ApplyResult`, partial apply, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.

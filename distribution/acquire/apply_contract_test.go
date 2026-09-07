@@ -132,6 +132,8 @@ func TestApplySpecDefinesPartialApplyVisibility(t *testing.T) {
 	requireSpecContains(t, spec, "A success, B success, C failure, D unattempted")
 	requireSpecContains(t, spec, "Successful, failed, and unattempted targets MUST be observable")
 	requireSpecContains(t, spec, "MUST NOT claim “all targets acquired”")
+	requireSpecContains(t, spec, "`ApplyResult` is that report.")
+	requireSpecContains(t, spec, "Partial apply MUST NOT roll back earlier successful mutations.")
 }
 
 func TestApplySpecSeparatesRollbackFromRecovery(t *testing.T) {

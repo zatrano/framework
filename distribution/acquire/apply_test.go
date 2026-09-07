@@ -2,6 +2,7 @@ package acquire
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/zatrano/framework/v2/distribution/registry"
 )
+
+var errMutation = errors.New("mutation failed")
 
 type fakeRunner struct {
 	calls    []Invocation
@@ -237,5 +240,138 @@ func TestInvokeDoesNotBuildAShellString(t *testing.T) {
 	}
 	if len(got.Args) != 2 {
 		t.Fatalf("want argv {get, arg}, got %q", got.Args)
+	}
+}
+
+type scriptedRunner struct {
+	calls   []Invocation
+	failArg string
+	stderr  string
+	err     error
+}
+
+func (s *scriptedRunner) Run(_ context.Context, inv Invocation) (InvocationResult, error) {
+	s.calls = append(s.calls, inv)
+	res := InvocationResult{Invocation: inv}
+	if len(inv.Args) > 1 && inv.Args[1] == s.failArg {
+		res.ExitCode = 1
+		res.Stderr = s.stderr
+		return res, s.err
+	}
+	return res, nil
+}
+
+func TestExecuteTargetsReportsPartialFailFast(t *testing.T) {
+	a, b, c, d := "example.com/a@v1.0.0", "example.com/b@v1.0.0", "example.com/c@v1.0.0", "example.com/d@v1.0.0"
+	fake := &scriptedRunner{failArg: c, stderr: "go get: module not found", err: errMutation}
+	got, err := executeTargets(context.Background(), fake, Request{Root: t.TempDir()}, []string{a, b, c, d})
+	if err == nil {
+		t.Fatal("first failure must not be reported as success")
+	}
+	if err != errMutation {
+		t.Fatalf("must preserve the mutation error, got %v", err)
+	}
+	if strings.Join(got.Successful(), ",") != a+","+b {
+		t.Fatalf("successful=%q", got.Successful())
+	}
+	if strings.Join(got.Failed(), ",") != c {
+		t.Fatalf("failed=%q", got.Failed())
+	}
+	if strings.Join(got.Unattempted(), ",") != d {
+		t.Fatalf("unattempted=%q", got.Unattempted())
+	}
+	if len(got.Reports) != 4 {
+		t.Fatalf("reports=%d — success/failed/unattempted must not collapse", len(got.Reports))
+	}
+	if got.Reports[0].Status != StatusSuccess || got.Reports[1].Status != StatusSuccess {
+		t.Fatalf("A/B %#v", got.Reports[:2])
+	}
+	if got.Reports[2].Status != StatusFailed || got.Reports[2].Err == nil {
+		t.Fatalf("C %#v", got.Reports[2])
+	}
+	if got.Reports[3].Status != StatusUnattempted || got.Reports[3].Err != nil {
+		t.Fatalf("D %#v", got.Reports[3])
+	}
+	if len(fake.calls) != 3 {
+		t.Fatalf("fail-fast must not start D: calls=%d", len(fake.calls))
+	}
+	if fake.calls[2].Args[1] != c {
+		t.Fatalf("last attempted=%q", fake.calls[2].Args)
+	}
+}
+
+func TestExecuteTargetsDoesNotStartAfterFailure(t *testing.T) {
+	fake := &scriptedRunner{failArg: "example.com/c@v1.0.0", err: errMutation}
+	_, err := executeTargets(context.Background(), fake, Request{Root: t.TempDir()}, []string{
+		"example.com/a@v1.0.0",
+		"example.com/c@v1.0.0",
+		"example.com/d@v1.0.0",
+	})
+	if err == nil {
+		t.Fatal("expected failure")
+	}
+	for _, call := range fake.calls {
+		if len(call.Args) > 1 && call.Args[1] == "example.com/d@v1.0.0" {
+			t.Fatal("new acquisition started after the first failure")
+		}
+	}
+}
+
+func TestExecuteTargetsDoesNotRollBackSuccesses(t *testing.T) {
+	a, c := "example.com/a@v1.0.0", "example.com/c@v1.0.0"
+	fake := &scriptedRunner{failArg: c, err: errMutation}
+	got, err := executeTargets(context.Background(), fake, Request{Root: t.TempDir()}, []string{a, c})
+	if err == nil {
+		t.Fatal("expected failure")
+	}
+	if len(got.Successful()) != 1 || got.Successful()[0] != a {
+		t.Fatalf("successful=%q", got.Successful())
+	}
+	for _, call := range fake.calls {
+		joined := strings.Join(call.Args, " ")
+		if strings.Contains(joined, "tidy") || strings.Contains(call.Path, "rollback") {
+			t.Fatalf("rollback/tidy invocation: %#v", call)
+		}
+	}
+	if len(fake.calls) != 2 {
+		t.Fatalf("must not issue extra undo gets: calls=%d", len(fake.calls))
+	}
+}
+
+func TestExecuteTargetsRejectsLatestWithoutStartingLaterTargets(t *testing.T) {
+	fake := &scriptedRunner{}
+	got, err := executeTargets(context.Background(), fake, Request{Root: t.TempDir()}, []string{
+		"example.com/a@v1.0.0",
+		"example.com/b@latest",
+		"example.com/d@v1.0.0",
+	})
+	if err == nil {
+		t.Fatal("latest must fail")
+	}
+	if strings.Join(got.Successful(), ",") != "example.com/a@v1.0.0" {
+		t.Fatalf("successful=%q", got.Successful())
+	}
+	if strings.Join(got.Failed(), ",") != "example.com/b@latest" {
+		t.Fatalf("failed=%q", got.Failed())
+	}
+	if strings.Join(got.Unattempted(), ",") != "example.com/d@v1.0.0" {
+		t.Fatalf("unattempted=%q", got.Unattempted())
+	}
+	if len(fake.calls) != 1 {
+		t.Fatalf("later targets must not run: %+v", fake.calls)
+	}
+}
+
+func TestExecuteTargetsEmptyIsNotAllAcquired(t *testing.T) {
+	fake := &scriptedRunner{}
+	got, err := executeTargets(context.Background(), fake, Request{Root: t.TempDir()}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Successful()) != 0 || len(got.Failed()) != 0 || len(got.Unattempted()) != 0 {
+		t.Fatalf("empty sequence must not claim targets: %#v", got)
+	}
+	if len(fake.calls) != 0 {
+		t.Fatal("empty sequence must not invoke go get")
 	}
 }

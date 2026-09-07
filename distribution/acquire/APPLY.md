@@ -4,7 +4,7 @@
 Previous phases: 1–7 frozen  
 Phase 7 boundary: `GoGetArg`  
 This phase: Apply contract only  
-**Implementation:** not authorized
+**Implementation:** steps 1–6 authorized. Rollback (step 7) is not authorized
 
 ```
 Resolve → FromResult → Plan → Targets → GoGetArg
@@ -81,7 +81,7 @@ Phase 7 already rejects two pins for one module. If a conflict reaches Apply, it
 
 ## 10. Atomicity
 
-Planning (`Plan` → `Targets` → `GoGetArg`) is pure. Mutation (`GoGetArg` → Go tooling → go.mod/go.sum) is not. A failed mutation MUST NOT be reported as a successful acquisition. The result must make the mutation outcome explicit. A public `ApplyResult` type is implementation work and MUST NOT be invented until implementation is authorized.
+Planning (`Plan` → `Targets` → `GoGetArg`) is pure. Mutation (`GoGetArg` → Go tooling → go.mod/go.sum) is not. A failed mutation MUST NOT be reported as a successful acquisition. The result must make the mutation outcome explicit. A public `ApplyResult` reports successful, failed, and unattempted targets. It MUST NOT mean transactional rollback or “all targets acquired”.
 
 ## 11. go.mod failure
 
@@ -101,7 +101,7 @@ At most one Apply may mutate a given application's go.mod / go.sum at a time. Co
 
 ## 15. Partial apply
 
-Multiple targets can yield A success, B success, C failure, D unattempted. Apply MUST NOT claim “all targets acquired”. Successful, failed, and unattempted targets MUST be observable if the implementation applies incrementally. Exact result shape is implementation work.
+Multiple targets can yield A success, B success, C failure, D unattempted. Apply MUST NOT claim “all targets acquired”. Successful, failed, and unattempted targets MUST be observable if the implementation applies incrementally. `ApplyResult` is that report. Partial apply MUST NOT roll back earlier successful mutations. Rollback is a later gate.
 
 ## 16. Rollback
 
@@ -183,7 +183,7 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Current gate:** step 5 is authorized (`Execute` serializes mutation per module root). `Inspect` is not locked. Steps 6–8 remain not authorized: no partial-apply reporting, no rollback.
+**Current gate:** step 6 is authorized (`ExecuteTargets` / `ApplyResult`: successful, failed, unattempted; fail-fast; no rollback). `Execute` still serializes per module root. `Inspect` is not locked. Steps 7–8 remain not authorized: no rollback, no integration suite.
 
 ## 29. Completion
 
