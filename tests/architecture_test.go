@@ -255,17 +255,121 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 		"Enabled ∩ Imported",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("APPLY.md missing %q — Phase 8 is SPEC only", want)
+			t.Errorf("APPLY.md missing %q — remaining Apply gates stay SPEC-locked", want)
 		}
+	}
+	allowed := map[string]bool{
+		"apply.go": true, "process.go": true, "exec_runner.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
 		base := strings.ToLower(filepath.Base(path))
-		if base == "apply.go" || (strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, "_test.go")) {
-			t.Errorf("%s — Apply implementation is not authorized", filepath.Base(path))
+		if strings.HasSuffix(base, "_test.go") || allowed[base] {
+			return nil
 		}
+		if strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go") {
+			t.Errorf("%s — go get / inspection / rollback are not authorized yet", filepath.Base(path))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPhase8ProcessInvocationBoundary(t *testing.T) {
+	root := moduleRoot(t)
+	dir := filepath.Join(root, "distribution", "acquire")
+	for _, name := range []string{"apply.go", "process.go", "exec_runner.go"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("missing invocation file %s", name)
+		}
+	}
+	allowApplyImport := map[string]bool{"context": true, "fmt": true, "strings": true}
+	allowProcessImport := map[string]bool{"context": true}
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		base := filepath.Base(path)
+		src, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		text := string(src)
+		if strings.Contains(text, "type ApplyResult ") || strings.Contains(text, "type ApplyResult\t") {
+			t.Errorf("%s invents ApplyResult — not authorized", base)
+		}
+		file, parseErr := parser.ParseFile(fset, path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		if strings.HasSuffix(base, "_test.go") {
+			if base == "apply_test.go" && (strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec")) {
+				t.Errorf("%s must use a fake Runner — real process / go get is the next gate", base)
+			}
+			return nil
+		}
+		if base == "apply.go" {
+			for _, spec := range file.Imports {
+				imp := strings.Trim(spec.Path.Value, `"`)
+				if !allowApplyImport[imp] {
+					t.Errorf("apply.go imports %s — Invoke must not reach exec or the registry", imp)
+				}
+			}
+		}
+		if base == "process.go" {
+			for _, spec := range file.Imports {
+				imp := strings.Trim(spec.Path.Value, `"`)
+				if !allowProcessImport[imp] {
+					t.Errorf("process.go imports %s — boundary types stay process-free of exec", imp)
+				}
+			}
+		}
+		if base != "exec_runner.go" {
+			for _, spec := range file.Imports {
+				if strings.Trim(spec.Path.Value, `"`) == "os/exec" {
+					t.Errorf("%s imports os/exec — only exec_runner.go may invoke a process", base)
+				}
+			}
+			if strings.Contains(text, "exec.Command") {
+				t.Errorf("%s contains exec.Command — do not scatter process starts", base)
+			}
+		}
+		if base == "exec_runner.go" {
+			if !strings.Contains(text, "exec.CommandContext") {
+				t.Error("exec_runner.go must pass context via CommandContext")
+			}
+			if strings.Contains(text, "exec.Command(") {
+				t.Error("exec_runner.go must not use exec.Command without context")
+			}
+			if strings.Contains(text, "sh -c") || strings.Contains(text, "/bin/sh") {
+				t.Error("exec_runner.go must not interpolate a shell")
+			}
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name == nil {
+				continue
+			}
+			switch fn.Name.Name {
+			case "Apply", "Install", "Tidy", "Download", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
+				t.Errorf("%s defines %s — mutation / resolution stay out of this gate", base, fn.Name.Name)
+			}
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok || sel.Sel == nil {
+				return true
+			}
+			if sel.Sel.Name == "Resolve" || sel.Sel.Name == "Search" || sel.Sel.Name == "Lookup" {
+				t.Errorf("%s calls Index.%s — Invoke must not re-resolve", base, sel.Sel.Name)
+			}
+			return true
+		})
 		return nil
 	})
 	if err != nil {
@@ -299,7 +403,7 @@ func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
 }
 
 func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "distribution", "acquire")
+	path := filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go")
 	allowImport := map[string]bool{
 		"fmt": true, "strings": true, "sort": true,
 		"github.com/zatrano/framework/v2/distribution/registry": true,
@@ -307,59 +411,47 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 	bannedFn := map[string]bool{
 		"Apply": true, "Install": true, "Tidy": true, "Download": true,
 		"compareSemver": true, "latestCompatible": true, "MeetsFrameworkMin": true,
+		"Invoke": true,
 	}
 	fset := token.NewFileSet()
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		file, err := parser.ParseFile(fset, path, nil, 0)
-		if err != nil {
-			return err
-		}
-		base := filepath.Base(path)
-		for _, spec := range file.Imports {
-			imp := strings.Trim(spec.Path.Value, `"`)
-			if !allowImport[imp] {
-				t.Errorf("%s imports %s — Plan layer stays a pure translation", base, imp)
-			}
-		}
-		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Name == nil {
-				continue
-			}
-			if bannedFn[fn.Name.Name] {
-				t.Errorf("%s defines %s — Apply/resolution stay out of acquire", base, fn.Name.Name)
-			}
-		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			sel, ok := n.(*ast.SelectorExpr)
-			if !ok || sel.Sel == nil {
-				return true
-			}
-			if sel.Sel.Name == "Resolve" || sel.Sel.Name == "Search" || sel.Sel.Name == "Lookup" {
-				t.Errorf("%s calls Index.%s — FromResult must not re-resolve", base, sel.Sel.Name)
-			}
-			return true
-		})
-		src, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		text := string(src)
-		for _, ban := range []string{"os.WriteFile", "os.Create", "os.Mkdir", "exec.Command", "go mod tidy", "go mod edit"} {
-			if strings.Contains(text, ban) {
-				t.Errorf("%s contains %q — Apply is deferred", base, ban)
-			}
-		}
-		return nil
-	})
+	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, spec := range file.Imports {
+		imp := strings.Trim(spec.Path.Value, `"`)
+		if !allowImport[imp] {
+			t.Errorf("plan.go imports %s — Plan layer stays a pure translation", imp)
+		}
+	}
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name == nil {
+			continue
+		}
+		if bannedFn[fn.Name.Name] {
+			t.Errorf("plan.go defines %s — Apply/resolution stay out of Phase 7", fn.Name.Name)
+		}
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok || sel.Sel == nil {
+			return true
+		}
+		if sel.Sel.Name == "Resolve" || sel.Sel.Name == "Search" || sel.Sel.Name == "Lookup" {
+			t.Errorf("plan.go calls Index.%s — FromResult must not re-resolve", sel.Sel.Name)
+		}
+		return true
+	})
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	for _, ban := range []string{"os.WriteFile", "os.Create", "os.Mkdir", "exec.Command", "go mod tidy", "go mod edit"} {
+		if strings.Contains(text, ban) {
+			t.Errorf("plan.go contains %q — Phase 7 stays filesystem-free", ban)
+		}
 	}
 }
 

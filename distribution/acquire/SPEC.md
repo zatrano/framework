@@ -17,18 +17,21 @@ Registry Resolve
               ↓
           GoGetArg          ← Phase 7 ends (frozen)
               ✕
-         Apply / go get     ← Phase 8, not this package
+         Invoke / Runner    ← Phase 8 process boundary
+              ✕
+         go get / inspect   ← later Phase 8 gates
 ```
 
-Phases 1–7 are frozen. This package stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Phases 1–7 are frozen. Phase 7 stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
-This package does not run `go get`, write files, or blank-import.
+Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. Real `go get` as acquisition is not this gate.
 
 | Layer | Question | Owner |
 |-------|----------|--------|
 | Resolve | What should be acquired? | `registry` (frozen) |
 | Plan | Which `module@version`? | `FromResult` (frozen) |
 | GoGetArg | Which concrete argument to `go get`? | `Plan.GoGetArg` / `Targets` (frozen) |
+| Invoke | How is the process called? | `Invoke` / `Runner` |
 | Apply | How do we actually mutate the module? | Phase 8 — **not started** |
 
 `package:install` **≠** module acquisition. It stays enablement.
@@ -80,7 +83,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 entry
 
-Phase 8 is open as **SPEC only** — [`APPLY.md`](APPLY.md). Implementation is not authorized. The SPEC order (mutation, invocation, failures, concurrency, partial apply, rollback) is now that document; do not recode it here.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Step 2 (process invocation) is in this package. Later gates (`go get`, inspection, concurrency, partial apply, rollback) stay on that document; do not recode them here.
 
 ## Invariants (frozen)
 
@@ -96,11 +99,11 @@ Phase 8 is open as **SPEC only** — [`APPLY.md`](APPLY.md). Implementation is n
 | `FromResult` does not touch the filesystem | no `os` / `os/exec`; Apply is a later phase |
 | Plan is not enablement | field freeze; no Enabled / Imported / stubs |
 
-Architecture tests reject a second resolution implementation, Apply/`go get`, and enablement fields on `Plan`.
+Architecture tests reject a second resolution implementation, enablement fields on `Plan`, and `go get` / `os/exec` in `plan.go`. Process starts belong in `ExecRunner` only.
 
 ## Phase freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 is open as **SPEC only**: [`APPLY.md`](APPLY.md). Implementation is not authorized.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation (`Invoke` / `Runner`) is authorized. `go get` execution and module mutation are not.
 
 | Phase | Status |
 |-------|--------|
@@ -111,10 +114,10 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | **SPEC draft** — [`APPLY.md`](APPLY.md); implementation not authorized |
+| 8 Module Acquisition Apply | SPEC + invocation boundary; `go get` not authorized |
 
-Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning at start.
+Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Deferred (Phase 8)
 
-Implementation of [`APPLY.md`](APPLY.md) is not authorized. A new CLI command, private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.
+`go get` execution, go.mod / go.sum inspection, concurrency, partial apply, rollback, and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.

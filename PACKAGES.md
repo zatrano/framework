@@ -33,7 +33,7 @@ go run ./cmd/zatrano package:resolve session
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **SPEC only** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)); implementation is not authorized. `package:install` ≠ module acquisition (enablement).
+Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply SPEC is [`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md); the process invocation boundary (`Invoke` / `Runner`) is in. `go get` as acquisition is not. `package:install` ≠ module acquisition (enablement).
 
 ---
 
