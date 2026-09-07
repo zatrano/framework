@@ -111,9 +111,9 @@ Phases 1–7 Plan are closed at this boundary:
 | `zatrano.registry/v1` Search / Resolve | Frozen |
 | CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
 | `zatrano.acquire/v1` Plan (`FromResult` / `Targets` / `GoGetArg`) | Frozen |
-| Phase 8 Apply | SPEC + `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles` + integration tests; [`acquire/APPLY.md`](../acquire/APPLY.md) |
+| Phase 8 Apply | **Frozen** (`Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`); [`acquire/APPLY.md`](../acquire/APPLY.md) |
 
-Phase 8 Apply implementation is complete at this boundary. Dry-run and a new CLI command stay deferred. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
+Phase 8 Apply is frozen at this boundary. Dry-run and a new CLI command are a later phase, not remaining Phase 8 gates. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 
@@ -123,7 +123,7 @@ If `digest` is set, `Verify` compares SHA-256 of the manifest bytes (hex). Missi
 
 ## Deferred
 
-HTTP registry service, GOPROXY as a ZATRANO protocol, `Apply` of [`acquire.Plan`](../acquire/SPEC.md), publisher identity, licenses, yank/retract beyond skipping a version in the index. Existing `package:enable` / `package:install` remain enablement.
+HTTP registry service, GOPROXY as a ZATRANO protocol, dry-run, a CLI acquisition command, connecting acquisition and enablement, publisher identity, licenses, yank/retract beyond skipping a version in the index. Existing `package:enable` / `package:install` remain enablement.
 
 ## Compatibility
 

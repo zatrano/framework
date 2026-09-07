@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.21" {
-		t.Fatalf("VERSION=%q want 2.0.21", version)
+	if version != "2.0.22" {
+		t.Fatalf("VERSION=%q want 2.0.22", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -236,7 +236,7 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 	}
 }
 
-func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
+func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "APPLY.md"))
 	if err != nil {
@@ -244,7 +244,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"Draft — specification only",
+		"**Status:** Frozen",
 		"not authorized",
 		"No automatic tidy",
 		"package:install",
@@ -253,24 +253,30 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 		"fail-fast",
 		"rollback guaranteed",
 		"Enabled ∩ Imported",
+		"complete and frozen",
+		"later phase",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("APPLY.md missing %q — remaining Apply gates stay SPEC-locked", want)
+			t.Errorf("APPLY.md missing %q — Phase 8 Apply stays frozen", want)
 		}
 	}
+	if strings.Contains(text, "Current gate") {
+		t.Error("APPLY.md still names a current gate — Phase 8 has no remaining implementation step")
+	}
 	allowed := map[string]bool{
-		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true, "lock.go": true, "recovery.go": true,
+		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
+		"lock.go": true, "recovery.go": true, "plan.go": true, "doc.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
 		base := strings.ToLower(filepath.Base(path))
-		if strings.HasSuffix(base, "_test.go") || allowed[base] {
+		if !strings.HasSuffix(base, ".go") || strings.HasSuffix(base, "_test.go") {
 			return nil
 		}
-		if strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go") {
-			t.Errorf("%s — go get / inspection / rollback are not authorized yet", filepath.Base(path))
+		if !allowed[base] {
+			t.Errorf("%s — Phase 8 production surface is frozen", filepath.Base(path))
 		}
 		return nil
 	})
@@ -452,8 +458,8 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				continue
 			}
 			switch fn.Name.Name {
-			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
-				t.Errorf("%s defines %s — mutation / resolution stay out of this gate", base, fn.Name.Name)
+			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "DryRun", "Preview", "Acquire", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
+				t.Errorf("%s defines %s — Phase 8 production surface is frozen", base, fn.Name.Name)
 			case "AllAcquired":
 				t.Errorf("%s defines AllAcquired — partial apply must not claim all targets acquired", base)
 			}
@@ -537,6 +543,47 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "integration_test.go")); err != nil {
 		t.Fatal("missing integration_test.go — Plan through recovery on a real module root")
+	}
+}
+
+func TestPhase8AcquireExportsStayFrozen(t *testing.T) {
+	allowFn := map[string]bool{
+		"FromResult": true, "Targets": true, "Invoke": true, "Execute": true, "ExecuteTargets": true,
+		"Inspect": true, "SnapshotFiles": true, "RecoverFiles": true,
+	}
+	allowMethod := map[string]bool{
+		"GoGetArg": true, "Run": true, "WithRecovery": true, "Successful": true, "Failed": true,
+		"Unattempted": true, "Requirement": true, "Sums": true,
+	}
+	fset := token.NewFileSet()
+	dir := filepath.Join(moduleRoot(t), "distribution", "acquire")
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		file, parseErr := parser.ParseFile(fset, path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name == nil || !fn.Name.IsExported() {
+				continue
+			}
+			if fn.Recv != nil {
+				if !allowMethod[fn.Name.Name] {
+					t.Errorf("%s grew method %s — Phase 8 exports are frozen", filepath.Base(path), fn.Name.Name)
+				}
+				continue
+			}
+			if !allowFn[fn.Name.Name] {
+				t.Errorf("%s grew %s — Phase 8 exports are frozen", filepath.Base(path), fn.Name.Name)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

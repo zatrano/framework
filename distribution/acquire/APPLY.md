@@ -1,10 +1,10 @@
 # Phase 8 — Module Acquisition Apply
 
-**Status:** Draft — specification only  
+**Status:** Frozen  
 Previous phases: 1–7 frozen  
 Phase 7 boundary: `GoGetArg`  
 This phase: Apply contract only  
-**Implementation:** steps 1–8 authorized. Dry-run and a new CLI command remain not authorized
+**Implementation:** steps 1–8 complete and frozen. Dry-run and a new CLI command remain not authorized. They are not Phase 8 remaining gates.
 
 ```
 Resolve → FromResult → Plan → Targets → GoGetArg
@@ -133,7 +133,7 @@ Existing `package:install` stays enablement for the whole of Phase 8. It MUST NO
 
 ## 21. Dry run
 
-A future implementation SHOULD support a non-mutating dry-run that consumes the **same** frozen Phase 7 plan. Dry-run MUST NOT introduce a second resolver.
+Dry-run is **not a Phase 8 remaining gate**. A later phase MAY add a non-mutating dry-run that consumes the **same** frozen Phase 7 plan. Dry-run MUST NOT introduce a second resolver. It MUST NOT be folded into this phase.
 
 ## 22. Idempotency
 
@@ -185,10 +185,12 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Current gate:** step 8 is authorized (integration tests on a real module root: `FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`). No new Apply API, resolver, or process abstraction. Dry-run and a new CLI command remain not authorized.
+**Implementation order is complete and frozen.** Steps 1–8 remain the only Apply gates, including integration tests on a real module root. Do not add a ninth step, `func Apply`, a second resolver, a second process abstraction, dry-run, or a new CLI command into this phase.
 
 Integration tests MUST run against a real application module root and consume frozen APIs only: `FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`. They MUST NOT add a resolver, `func Apply`, a second process abstraction, `go mod tidy`, `zatrano.lock`, or transactional rollback.
 
 ## 29. Completion
 
-Phase 8 is complete only when: Apply consumes frozen Phase 7 output; no second resolver; concrete args reach Go tooling; `latest` cannot reach Apply; conflicting pins cannot merge silently; mutation is scoped to the intended app module; go.mod/go.sum changes are from Go tooling; tidy is not treated as pinning; concurrent mutation of one module is serialized; partial apply is observable; rollback is documented as guaranteed **or** unavailable; enablement stays independent; `package:install` unchanged; no `zatrano.lock`; Phase 7 stays pure and filesystem-free.
+Phase 8 is **complete and frozen**. Apply consumes frozen Phase 7 output; no second resolver; concrete args reach Go tooling; `latest` cannot reach Apply; conflicting pins cannot merge silently; mutation is scoped to the intended app module; go.mod/go.sum changes are from Go tooling; tidy is not treated as pinning; concurrent mutation of one module is serialized; partial apply is observable; rollback is documented as guaranteed **or** unavailable; enablement stays independent; `package:install` unchanged; no `zatrano.lock`; Phase 7 stays pure and filesystem-free.
+
+Further work (dry-run, a new CLI command, connecting acquisition and enablement) is a **later phase**, not a Phase 8 remaining gate.

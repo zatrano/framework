@@ -32,9 +32,12 @@ func TestApplySpecDeclaresPhase8Boundary(t *testing.T) {
 	spec := applySpecText(t)
 
 	requireSpecContains(t, spec, "# Phase 8 — Module Acquisition Apply")
+	requireSpecContains(t, spec, "**Status:** Frozen")
 	requireSpecContains(t, spec, "Previous phases: 1–7 frozen")
 	requireSpecContains(t, spec, "Phase 7 boundary: `GoGetArg`")
 	requireSpecContains(t, spec, "This phase: Apply contract only")
+	requireSpecContains(t, spec, "steps 1–8 complete and frozen")
+	requireSpecContains(t, spec, "They are not Phase 8 remaining gates")
 }
 
 func TestApplySpecDoesNotRedefineResolution(t *testing.T) {
@@ -228,6 +231,8 @@ func TestApplySpecFreezesPreviousPhaseAPIs(t *testing.T) {
 	spec := applySpecText(t)
 
 	requireSpecContains(t, spec, "MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.")
+	requireSpecContains(t, spec, "Implementation order is complete and frozen.")
+	requireSpecContains(t, spec, "later phase")
 }
 
 func TestApplySpecArchitectureInvariants(t *testing.T) {

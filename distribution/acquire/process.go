@@ -11,7 +11,7 @@ type Invocation struct {
 }
 
 // InvocationResult is what the process boundary can observe.
-// Mutation inspection (go.mod / go.sum) is a later Phase 8 step.
+// Inspect owns go.mod / go.sum observation; this type is process-only.
 type InvocationResult struct {
 	Invocation Invocation
 	ExitCode   int
