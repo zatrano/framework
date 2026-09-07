@@ -240,7 +240,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@v2.0.1
+go install github.com/zatrano/framework/v2/cmd/zatrano@latest
 zatrano new myapp
 cd myapp
 
@@ -254,11 +254,9 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@v2.0.1
+go get github.com/zatrano/framework/v2@latest
 go get github.com/zatrano/packages@main
 ```
-
-Do not use `@v2.0.0`: that tag predates the `/v2` module path, and `proxy.golang.org` still rejects it.
 
 To generate against this checkout, clone **framework** and **packages** as siblings (CI does the same), then pass the **absolute** framework path to `--replace`. `.` is wrong when the app is a subdirectory: Go resolves replace paths relative to the new module.
 
@@ -569,7 +567,7 @@ ZATRANO Platform
 | `v2.0.1` (`main`) | Current two-module application platform |
 | `v1.x` | Previous tagged ZATRANO line |
 
-ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@v2.0.1`.
+ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## Documentation
 
