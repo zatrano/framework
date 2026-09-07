@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## Unreleased
+
+## 2.0.3 - 2026-09-07
+
+Package registry data model (`zatrano.registry/v1`): in-memory index, discovery, and version resolution. Not an HTTP service or marketplace. Artifact versions follow the Go module path (official packages: channel `main`). Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.2 - 2026-09-07
 
 Package contract freeze and the `zatrano.package/v1` distribution protocol. Install with `go get github.com/zatrano/framework/v2@latest`.
