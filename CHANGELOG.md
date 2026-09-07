@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.14 - 2026-09-07
+
+`deploy:build` compiles the generated application (`./cmd/app`), not the host CLI. Phase 8 Apply stays SPEC-only; contract tests lock [`APPLY.md`](distribution/acquire/APPLY.md). Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.13 - 2026-09-07
 
 Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v2/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Phase 8 Apply stays SPEC-only. Install with `go get github.com/zatrano/framework/v2@latest`.

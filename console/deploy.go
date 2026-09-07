@@ -99,7 +99,7 @@ func (c *DeployBuildCommand) Handle(args []string) error {
 	if filepath.Ext(out) == "" && strings.Contains(strings.ToLower(os.Getenv("OS")), "windows") {
 		out = "zatrano.exe"
 	}
-	cmd := exec.Command("go", "build", "-o", out, "./cmd/zatrano")
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/app")
 	cmd.Dir = c.app.BasePath()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
