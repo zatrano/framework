@@ -3,8 +3,8 @@ package addons_test
 import (
 	"testing"
 
-	_ "github.com/zatrano/framework/v2/bootstrap"
 	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/contracts"
 )
 
 func TestSelectUnknown(t *testing.T) {
@@ -24,5 +24,26 @@ func TestSelectEmpty(t *testing.T) {
 func TestFrameworkRegistryEmpty(t *testing.T) {
 	if len(addons.Available()) != 0 {
 		t.Fatalf("framework binary must not register packages, got %v", addons.Names())
+	}
+}
+
+func TestRegisterDuplicatePanics(t *testing.T) {
+	addons.ClearRegistry()
+	t.Cleanup(addons.ClearRegistry)
+	addons.Register(addons.Meta{Name: "dup-test", Factory: func() contracts.Provider { return nil }})
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic on duplicate name")
+		}
+	}()
+	addons.Register(addons.Meta{Name: "dup-test"})
+}
+
+func TestRegisterEmptyNameIsIgnored(t *testing.T) {
+	addons.ClearRegistry()
+	t.Cleanup(addons.ClearRegistry)
+	addons.Register(addons.Meta{Name: "   "})
+	if len(addons.Available()) != 0 {
+		t.Fatalf("blank name must not register, got %v", addons.Names())
 	}
 }

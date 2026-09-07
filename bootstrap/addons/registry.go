@@ -32,6 +32,11 @@ type Meta struct {
 	// packages/<name>/.env.example file; this field is a fallback when the
 	// CLI process already imported the addon and the file is not on disk.
 	EnvExample string
+	// FrameworkMin is the lowest github.com/zatrano/framework/v2 version this
+	// addon claims to support (semver, optional "v" prefix). Empty means
+	// unspecified — the runtime does not infer a default. package:doctor
+	// reports an error when the running kernel is older than this value.
+	FrameworkMin string
 }
 
 // CLICommand is an addon-provided console command.

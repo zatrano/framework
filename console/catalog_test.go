@@ -38,6 +38,24 @@ func TestEcosystemCatalogCoversLayers(t *testing.T) {
 	if _, ok := kernel.LookupPackage("auth"); ok {
 		t.Fatal("kernel must not know auth")
 	}
+	for _, p := range catalogByLayer(kernel.LayerFoundation) {
+		if p.Kind != kernel.KindService {
+			t.Errorf("foundation %q Kind=%q want explicit service", p.Name, p.Kind)
+		}
+	}
+}
+
+func TestEcosystemCatalogNamesUnique(t *testing.T) {
+	seen := map[string]bool{}
+	for _, p := range catalogAll() {
+		if p.Name == "" {
+			t.Fatal("catalog entry missing name")
+		}
+		if seen[p.Name] {
+			t.Fatalf("duplicate catalog name %q", p.Name)
+		}
+		seen[p.Name] = true
+	}
 }
 
 func TestEcosystemCatalogAddonKinds(t *testing.T) {

@@ -4,7 +4,7 @@ How to choose and use first-party packages.
 
 This repository is the **framework kernel** (`github.com/zatrano/framework/v2`). Foundation, intelligence (AI/RAG/Agent), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
 
-- **Catalog source:** `kernel/catalog.go` (addon *names* for discovery; addon *code* is not in this module)
+- **Catalog source:** `kernel/catalog.go` (primitives) plus `console/catalog.go` (foundation / intelligence / addon *names*). Addon *code* is not in this module.
 - **Addon implementations:** blank-import + `bootstrap.WithAddons` / `EnabledAddons`
 - **Website docs:** [zatrano.com/docs](https://zatrano.com/docs)
 - **CLI:** `go run ./cmd/zatrano package:list --all`
@@ -510,8 +510,9 @@ Docs: [Health](https://zatrano.com/docs/health)
 
 ```go
 tokens := apitoken.From(app)
-plain, _, err := tokens.Create(userID, "cli", []string{"*"}, 24*time.Hour)
-router.Use(apitoken.Middleware())
+tok, err := tokens.Create(userID, "cli", []string{"*"}, 24*time.Hour)
+plain := tok.PlainText // shown once
+router.Use(tokens.Middleware())
 ```
 
 ---

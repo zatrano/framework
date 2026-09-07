@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/v2/bootstrap"
+	"github.com/zatrano/framework/v2/bootstrap/addons"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -208,5 +209,59 @@ func TestPackageDoctorEmptyManifestFile(t *testing.T) {
 	}
 	if codes["enabled.nomanifest"] != "" {
 		t.Fatalf("empty file is a registered manifest, not missing: %#v", codes)
+	}
+}
+
+func TestPackageDoctorUnknownRegistryName(t *testing.T) {
+	addons.ClearRegistry()
+	t.Cleanup(addons.ClearRegistry)
+	addons.Register(addons.Meta{Name: "not-a-catalog-package"})
+	app := kernel.NewApplication(t.TempDir())
+	findings := runPackageDoctor(app)
+	found := false
+	for _, f := range findings {
+		if f.Code == "catalog.unknown" && f.Level == "ERROR" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected catalog.unknown ERROR, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorAllowsRegisteredLibrary(t *testing.T) {
+	addons.ClearRegistry()
+	t.Cleanup(addons.ClearRegistry)
+	addons.Register(addons.Meta{Name: "agent"})
+	app := kernel.NewApplication(t.TempDir())
+	findings := runPackageDoctor(app)
+	for _, f := range findings {
+		if f.Code == "catalog.provider" || f.Code == "catalog.unknown" {
+			t.Fatalf("library registry entry must not fail catalog checks: %#v", findings)
+		}
+	}
+	codes := map[string]string{}
+	for _, f := range findings {
+		codes[f.Code] = f.Level
+	}
+	if codes["catalog.providers"] != "OK" {
+		t.Fatalf("expected catalog.providers OK, got %#v", codes)
+	}
+}
+
+func TestPackageDoctorFrameworkMin(t *testing.T) {
+	addons.ClearRegistry()
+	t.Cleanup(addons.ClearRegistry)
+	addons.Register(addons.Meta{Name: "session", FrameworkMin: "9.9.9"})
+	app := kernel.NewApplication(t.TempDir())
+	findings := runPackageDoctor(app)
+	found := false
+	for _, f := range findings {
+		if f.Code == "compatibility.framework" && f.Level == "ERROR" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected compatibility.framework ERROR, got %#v", findings)
 	}
 }

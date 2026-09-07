@@ -56,6 +56,7 @@ func TestProductAndModuleIdentity(t *testing.T) {
 	}
 }
 
+// Phase 1 freeze: kernel must not import github.com/zatrano/packages.
 func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
@@ -183,6 +184,7 @@ func TestKernelConfigHasNoPackageSchemas(t *testing.T) {
 	}
 }
 
+// Phase 1 freeze: contracts.App stays kernel-complete; no package capability methods.
 func TestContractsAppMethodFreeze(t *testing.T) {
 	allow := map[string]bool{
 		"BasePath": true, "Container": true, "Make": true, "Bound": true,

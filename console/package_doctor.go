@@ -237,18 +237,38 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		})
 	}
 
-	// Registered providers must appear in the catalog as KindService.
-	// LayerAddon services now live in github.com/zatrano/packages and are
-	// registered only when the application blank-imports them.
+	// Registered addons must appear in the CLI catalog. KindLibrary is
+	// allowed: those packages register for CLI / init-only providers and
+	// package:enable still rejects them. Unknown names are errors.
 	badRegistry := 0
+	running := strings.TrimSpace(app.Version())
 	for _, m := range addons.Available() {
+		if !addons.MeetsFrameworkMin(running, m.FrameworkMin) {
+			badRegistry++
+			out = append(out, doctorFinding{
+				Level:   "ERROR",
+				Code:    "compatibility.framework",
+				Message: fmt.Sprintf("registry package %q needs framework >= %s (running %s)", m.Name, m.FrameworkMin, running),
+			})
+			continue
+		}
 		info, ok := catalogLookup(m.Name)
-		if !ok || info.EffectiveKind() != kernel.KindService {
+		if !ok {
+			badRegistry++
+			out = append(out, doctorFinding{
+				Level:   "ERROR",
+				Code:    "catalog.unknown",
+				Message: fmt.Sprintf("registry package %q is not in the CLI catalog", m.Name),
+			})
+			continue
+		}
+		kind := info.EffectiveKind()
+		if kind != kernel.KindService && kind != kernel.KindLibrary {
 			badRegistry++
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
 				Code:    "catalog.provider",
-				Message: fmt.Sprintf("registry package %q is not a catalog KindService", m.Name),
+				Message: fmt.Sprintf("registry package %q has catalog kind %q", m.Name, kind),
 			})
 		}
 	}
@@ -256,7 +276,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		out = append(out, doctorFinding{
 			Level:   "OK",
 			Code:    "catalog.providers",
-			Message: "every registered addon is a catalog KindService",
+			Message: "every registered addon is in the CLI catalog",
 		})
 	}
 
