@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.5 - 2026-09-07
+
+Harden registry Search/Resolve contracts (framework constraints, `main` fallback, heavy modules) and lock CLI output plus the invariant that console must call `registry.Resolve` rather than reimplement it. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.4 - 2026-09-07
 
 CLI registry consumers: `package:search` (discovery), `package:info` (identity), `package:resolve` (version selection). They call `registry.Search` / `Resolve`; they do not install, enable, or own the algorithm. Channel `main` is a source stream, not a published release. Install with `go get github.com/zatrano/framework/v2@latest`.

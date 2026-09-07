@@ -23,6 +23,8 @@ func registerPackageRegistryCommands(console *Application, app *kernel.Applicati
 
 // catalogRegistryIndex is the official in-memory index from the CLI catalog.
 // Resolution stays in package registry; this only supplies documents.
+// Invariant: these commands must call Index.Search / Lookup / Resolve and
+// must not copy version-selection (semver compare, latestCompatible, main fallback).
 func catalogRegistryIndex() (registry.Index, error) {
 	docs := make([]manifest.Document, 0, len(ecosystemCatalog))
 	for _, p := range ecosystemCatalog {

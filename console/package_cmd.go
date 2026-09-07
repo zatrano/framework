@@ -166,7 +166,7 @@ type PackageInstallCommand struct{ app *kernel.Application }
 
 func (c *PackageInstallCommand) Name() string { return "package:install" }
 func (c *PackageInstallCommand) Description() string {
-	return "Enable an addon and publish its config stubs"
+	return "Enable an imported addon and publish its config stubs (not a module download)"
 }
 func (c *PackageInstallCommand) Handle(args []string) error {
 	if len(args) < 1 {

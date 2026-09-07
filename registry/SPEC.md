@@ -90,6 +90,14 @@ These are three different operations. This package implements only the first two
 
 Runtime remains Enabled ∩ Imported. A CLI, marketplace, or IDE must call this algorithm rather than reimplement it.
 
+## Consumer invariant
+
+The CLI is **never** a second implementation of package resolution.
+
+Consumers (`package:search`, `package:info`, `package:resolve`, and any later HTTP registry, marketplace, or IDE) call `Index.Search`, `Index.Lookup`, and `Index.Resolve`. They pass a `Query` / `Filter` and print the result. Changing `Resolve` constraints must not require a parallel update of selection logic in the CLI.
+
+`package:enable` turns on an already imported package in the application. Today's `package:install` is the same enablement family (enable + stubs). It is **not** download, `go.mod` mutation, or `Resolve`. A future module-install command is a separate operation and must not overwrite this meaning.
+
 ## Integrity
 
 If `digest` is set, `Verify` compares SHA-256 of the manifest bytes (hex). Missing digest is not an error in v1.

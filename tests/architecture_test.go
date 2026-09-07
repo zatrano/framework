@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.4" {
-		t.Fatalf("VERSION=%q want 2.0.4", version)
+	if version != "2.0.5" {
+		t.Fatalf("VERSION=%q want 2.0.5", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -107,6 +107,53 @@ func TestRegistryDoesNotImportConsole(t *testing.T) {
 			imp := strings.Trim(spec.Path.Value, `"`)
 			if strings.Contains(imp, "/console") {
 				t.Errorf("%s imports %s — CLI consumes registry, not the reverse", filepath.Base(path), imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
+	path := filepath.Join(moduleRoot(t), "console", "package_registry.go")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	for _, want := range []string{
+		`"github.com/zatrano/framework/v2/registry"`,
+		"idx.Search(",
+		"idx.Lookup(",
+		"idx.Resolve(",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("package_registry.go must call registry API %s", want)
+		}
+	}
+
+	banned := map[string]bool{
+		"compareSemver": true, "latestCompatible": true, "MeetsFrameworkMin": true,
+		"releaseOK": true, "normalizeVersion": true, "semverParts": true,
+	}
+	fset := token.NewFileSet()
+	err = filepath.WalkDir(filepath.Join(moduleRoot(t), "console"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name == nil {
+				continue
+			}
+			if banned[fn.Name.Name] {
+				t.Errorf("%s defines %s — resolution stays in package registry", filepath.Base(path), fn.Name.Name)
 			}
 		}
 		return nil

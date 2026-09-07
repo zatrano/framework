@@ -27,7 +27,9 @@ go run ./cmd/zatrano package:info session
 go run ./cmd/zatrano package:resolve session
 ```
 
-`package:search` discovers identity and does not pick a version. `package:resolve` selects a compatible tag (or source `main` when the module is untagged). Neither writes `go.mod` or enables the package. Existing `package:enable` / `package:install` remain enablement (Enabled ∩ Imported), not registry-driven module install.
+`package:search` discovers identity and does not pick a version. `package:info` prints identity and known releases without selecting one. `package:resolve` calls `registry.Resolve` (compatible tag, else source `main`). None of these write `go.mod`. The CLI must not grow a second copy of the resolution algorithm.
+
+`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. A future add-to-`go.mod` command is a separate operation.
 
 ---
 
