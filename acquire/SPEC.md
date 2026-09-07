@@ -39,7 +39,9 @@ Catalog **name** is not a versioned artifact. Many official names share `github.
 | channel `main` | `selected` = `main` | `module@main` |
 | `Package.Name` / `Import` | identity for later enablement | **not** a go.mod path |
 
-`latest` never appears in `Plan.Query`. Resolve already picked a tag or `main`.
+`latest` never appears in `Plan.Query` or `Plan.Selected`. Resolve already picked a tag or `main`.
+
+A `Plan` is defined only after a **successful** `Resolve`. `FromResult` does not re-check `framework_min` or re-pick versions. An incompatible query is a Resolve error — there is no plan to translate.
 
 `go get module@main` is allowed as the **input** to the toolchain. Go then writes a **pseudo-version** (`v0.0.0-<timestamp>-<commit>`) into go.mod. That rewritten pin, plus go.sum, is what CI reproduces — not the word `main`.
 

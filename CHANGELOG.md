@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.8 - 2026-09-07
+
+Exhaustive `acquire.Plan` contract tests: shared vs heavy modules, tagged/`main`/`latest`→concrete, missing identity, incompatible Resolve (no plan). Apply still deferred. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.7 - 2026-09-07
 
 Module acquisition contract (`acquire`): map `registry.Result` to a `go get` plan. No `zatrano.lock` — pins stay in go.mod / go.sum. No Apply / no change to `package:install`. Install with `go get github.com/zatrano/framework/v2@latest`.
