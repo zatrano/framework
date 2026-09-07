@@ -29,7 +29,9 @@ go run ./cmd/zatrano package:resolve session
 
 `package:search` discovers identity and does not pick a version. `package:info` prints identity and known releases without selecting one. `package:resolve` calls `registry.Resolve` (compatible tag, else source `main`). None of these write `go.mod`. The CLI must not grow a second copy of the resolution algorithm.
 
-`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. A future add-to-`go.mod` command is a separate operation.
+`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. A future add-to-`go.mod` command is a **separate phase** (acquisition protocol). Do not fold it into these consumers or into `package:install`.
+
+Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
 ---
 

@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.6 - 2026-09-07
+
+Freeze Phase 6: CLI registry consumer (`package:search` / `info` / `resolve`) is closed. Next phase is module acquisition, not more resolution in the CLI. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.5 - 2026-09-07
 
 Harden registry Search/Resolve contracts (framework constraints, `main` fallback, heavy modules) and lock CLI output plus the invariant that console must call `registry.Resolve` rather than reimplement it. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.

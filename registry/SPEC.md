@@ -98,6 +98,23 @@ Consumers (`package:search`, `package:info`, `package:resolve`, and any later HT
 
 `package:enable` turns on an already imported package in the application. Today's `package:install` is the same enablement family (enable + stubs). It is **not** download, `go.mod` mutation, or `Resolve`. A future module-install command is a separate operation and must not overwrite this meaning.
 
+## Phase freeze
+
+Phases 1–6 are closed at this boundary:
+
+| Surface | Status |
+|---------|--------|
+| Kernel architecture / `contracts.App` | Frozen |
+| Package contract (Enabled ∩ Imported) | Frozen |
+| Official packages | Frozen |
+| `zatrano.package/v1` | Frozen |
+| `zatrano.registry/v1` Search / Resolve | Frozen |
+| CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
+
+The next phase is **module acquisition** (go.mod mutation, provenance, checksums, upgrade/rollback) — not more CLI resolution helpers, and not folding that work into `package:install`.
+
+A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
+
 ## Integrity
 
 If `digest` is set, `Verify` compares SHA-256 of the manifest bytes (hex). Missing digest is not an error in v1.

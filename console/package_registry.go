@@ -1,3 +1,7 @@
+// Registry CLI commands consume Index.Search / Lookup / Resolve.
+// They do not select versions themselves and do not mutate go.mod.
+// Phase 6 freeze: do not grow these into an installer; do not copy
+// compareSemver / latestCompatible into this package.
 package console
 
 import (

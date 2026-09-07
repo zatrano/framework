@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.5" {
-		t.Fatalf("VERSION=%q want 2.0.5", version)
+	if version != "2.0.6" {
+		t.Fatalf("VERSION=%q want 2.0.6", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -160,6 +160,43 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEnablementCommandsDoNotImportRegistry(t *testing.T) {
+	root := filepath.Join(moduleRoot(t), "console")
+	files := []string{"package_cmd.go", "package_doctor.go", "package_wire.go", "package_env.go"}
+	fset := token.NewFileSet()
+	for _, name := range files {
+		path := filepath.Join(root, name)
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.HasSuffix(imp, "/registry") {
+				t.Errorf("%s imports %s — enablement stays off the registry consumer", name, imp)
+			}
+		}
+	}
+}
+
+func TestPhase6SearchHitHasNoSelectionFields(t *testing.T) {
+	allow := map[string]bool{
+		"Name": true, "Import": true, "Module": true, "Kind": true,
+		"Layer": true, "Heavy": true, "Description": true,
+	}
+	got := structFields(t, filepath.Join(moduleRoot(t), "console", "package_registry.go"), "searchHit")
+	for name := range got {
+		if !allow[name] {
+			t.Errorf("searchHit grew %s — search must not carry selection/release fields", name)
+		}
+	}
+	for _, ban := range []string{"Selected", "Releases", "Release", "Version"} {
+		if got[ban] {
+			t.Errorf("searchHit must not have %s", ban)
+		}
 	}
 }
 
