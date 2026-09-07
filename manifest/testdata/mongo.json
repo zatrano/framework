@@ -1,0 +1,12 @@
+{
+  "schema": "zatrano.package/v1",
+  "name": "mongo",
+  "import": "github.com/zatrano/packages/mongo",
+  "module": "github.com/zatrano/packages/mongo",
+  "kind": "service",
+  "layer": "addon",
+  "heavy": true,
+  "description": "MongoDB client",
+  "provider": "factory",
+  "capabilities": ["import", "enable", "heavy"]
+}

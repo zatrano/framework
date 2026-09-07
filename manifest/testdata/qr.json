@@ -1,0 +1,11 @@
+{
+  "schema": "zatrano.package/v1",
+  "name": "qr",
+  "import": "github.com/zatrano/packages/qr",
+  "module": "github.com/zatrano/packages/qr",
+  "kind": "library",
+  "layer": "addon",
+  "heavy": true,
+  "description": "QR code generation",
+  "capabilities": ["import", "heavy"]
+}

@@ -1,0 +1,8 @@
+{
+  "schema": "zatrano.package/v1",
+  "name": "collection",
+  "import": "github.com/zatrano/packages/collection",
+  "kind": "library",
+  "layer": "addon",
+  "description": "Collection helpers"
+}

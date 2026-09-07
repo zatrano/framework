@@ -13,6 +13,10 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
 
+## Package manifest (distribution protocol)
+
+A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`manifest/SPEC.md`](manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
+
 ---
 
 ## How packaging works

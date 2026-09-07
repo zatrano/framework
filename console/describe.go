@@ -13,7 +13,7 @@ import (
 )
 
 func registerDescribeCommand(console *Application, app *kernel.Application) {
-	ver := "2.0.1"
+	ver := "2.0.2"
 	if app != nil {
 		if v := app.Version(); v != "" {
 			ver = v
@@ -186,7 +186,7 @@ func BuildDescribeDocument(scanRoot string) (*DescribeDocument, error) {
 		return nil, err
 	}
 	return &DescribeDocument{
-		Version:   "2.0.1",
+		Version:   "2.0.2",
 		Contracts: contracts,
 		Catalog:   CatalogReport{Layers: catalog},
 		Routing: RoutingReport{

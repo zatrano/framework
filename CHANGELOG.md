@@ -2,6 +2,21 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 2.0.2 - 2026-09-07
+
+Package contract freeze and the `zatrano.package/v1` distribution protocol. Install with `go get github.com/zatrano/framework/v2@latest`.
+
+### Added
+
+- Package manifest schema (`manifest`): name, import, kind, layer, optional requires. Not a second boot path; Enabled ∩ Imported is unchanged.
+- Optional `addons.Meta.FrameworkMin`; `package:doctor` errors when the running kernel is older.
+
+### Fixed
+
+- `package:doctor` no longer treats every `addons.Register` name as KindService. Libraries may register for CLI or a no-op provider (`agent`, `rag`, `factory`, `openapi`).
+- Duplicate addon registration stays a panic, now covered by tests.
+- CLI catalog names stay aligned with packages `Register` names; foundation catalog kinds are explicit.
+
 ## 2.0.1 - 2026-09-06
 
 First GOPROXY-valid `/v2` module version. `v2.0.0` was tagged before `go.mod` declared `module github.com/zatrano/framework/v2`; `proxy.golang.org` cached that as invalid. Install with `go get github.com/zatrano/framework/v2@v2.0.1`.

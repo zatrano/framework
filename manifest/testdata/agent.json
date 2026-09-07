@@ -1,0 +1,9 @@
+{
+  "schema": "zatrano.package/v1",
+  "name": "agent",
+  "import": "github.com/zatrano/packages/agent",
+  "kind": "library",
+  "layer": "intelligence",
+  "description": "AI agent loop, tools, conversation memory",
+  "provider": "factory"
+}
