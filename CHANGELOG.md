@@ -4,9 +4,13 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.13 - 2026-09-07
+
+Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v2/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Phase 8 Apply stays SPEC-only. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.12 - 2026-09-07
 
-Open Phase 8 as Apply SPEC only ([`acquire/APPLY.md`](acquire/APPLY.md)): mutation boundary, `go get` invocation, fail-fast, no automatic `tidy`, rollback guaranteed vs unavailable. Implementation is not authorized. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Open Phase 8 as Apply SPEC only ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): mutation boundary, `go get` invocation, fail-fast, no automatic `tidy`, rollback guaranteed vs unavailable. Implementation is not authorized. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.11 - 2026-09-07
 

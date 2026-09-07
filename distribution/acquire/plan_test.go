@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/manifest"
-	"github.com/zatrano/framework/v2/registry"
+	"github.com/zatrano/framework/v2/distribution/manifest"
+	"github.com/zatrano/framework/v2/distribution/registry"
 )
 
 func TestFromResultTaggedVersion(t *testing.T) {

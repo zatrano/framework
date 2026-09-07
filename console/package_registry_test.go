@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zatrano/framework/v2/distribution/manifest"
+	"github.com/zatrano/framework/v2/distribution/registry"
 	"github.com/zatrano/framework/v2/kernel"
-	"github.com/zatrano/framework/v2/manifest"
-	"github.com/zatrano/framework/v2/registry"
 )
 
 func TestPackageSearchDiscoversWithoutSelectingVersion(t *testing.T) {

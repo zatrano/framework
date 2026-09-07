@@ -15,9 +15,9 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 ## Package manifest (distribution protocol)
 
-A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`manifest/SPEC.md`](manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
+A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`registry/SPEC.md`](registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module** (shared `github.com/zatrano/packages` uses channel `main` until tagged). Channel `main` is a source stream, not a published release.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module** (shared `github.com/zatrano/packages` uses channel `main` until tagged). Channel `main` is a source stream, not a published release.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -33,7 +33,7 @@ go run ./cmd/zatrano package:resolve session
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`acquire/SPEC.md`](acquire/SPEC.md). Phase 8 Apply is **SPEC only** ([`acquire/APPLY.md`](acquire/APPLY.md)); implementation is not authorized. `package:install` ≠ module acquisition (enablement).
+Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **SPEC only** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)); implementation is not authorized. `package:install` ≠ module acquisition (enablement).
 
 ---
 

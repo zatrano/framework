@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.12" {
-		t.Fatalf("VERSION=%q want 2.0.12", version)
+	if version != "2.0.13" {
+		t.Fatalf("VERSION=%q want 2.0.13", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -92,8 +92,21 @@ func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 	}
 }
 
+func TestDistributionProtocolLivesUnderDistribution(t *testing.T) {
+	root := moduleRoot(t)
+	for _, name := range []string{"acquire", "manifest", "registry"} {
+		if st, err := os.Stat(filepath.Join(root, name)); err == nil && st.IsDir() {
+			t.Errorf("%s/ must not sit at module root — use distribution/%s", name, name)
+		}
+		dir := filepath.Join(root, "distribution", name)
+		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+			t.Errorf("missing distribution/%s", name)
+		}
+	}
+}
+
 func TestRegistryDoesNotImportConsole(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "registry")
+	dir := filepath.Join(moduleRoot(t), "distribution", "registry")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -124,7 +137,7 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 	}
 	text := string(src)
 	for _, want := range []string{
-		`"github.com/zatrano/framework/v2/registry"`,
+		`"github.com/zatrano/framework/v2/distribution/registry"`,
 		"idx.Search(",
 		"idx.Lookup(",
 		"idx.Resolve(",
@@ -205,7 +218,7 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 		"Schema": true, "Name": true, "Import": true, "Module": true,
 		"Query": true, "Selected": true, "Kind": true, "Heavy": true,
 	}
-	got := structFields(t, filepath.Join(moduleRoot(t), "acquire", "plan.go"), "Plan")
+	got := structFields(t, filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go"), "Plan")
 	for name := range got {
 		if !allow[name] {
 			t.Errorf("Plan grew %s — Plan is not enablement, lock, or Apply state", name)
@@ -225,7 +238,7 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 
 func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "acquire", "APPLY.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "APPLY.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +258,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 			t.Errorf("APPLY.md missing %q — Phase 8 is SPEC only", want)
 		}
 	}
-	err = filepath.WalkDir(filepath.Join(root, "acquire"), func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -264,7 +277,7 @@ func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
 	allowFn := map[string]bool{"FromResult": true, "Targets": true}
 	allowMethod := map[string]bool{"GoGetArg": true}
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filepath.Join(moduleRoot(t), "acquire", "plan.go"), nil, 0)
+	file, err := parser.ParseFile(fset, filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go"), nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,10 +299,10 @@ func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
 }
 
 func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "acquire")
+	dir := filepath.Join(moduleRoot(t), "distribution", "acquire")
 	allowImport := map[string]bool{
 		"fmt": true, "strings": true, "sort": true,
-		"github.com/zatrano/framework/v2/registry": true,
+		"github.com/zatrano/framework/v2/distribution/registry": true,
 	}
 	bannedFn := map[string]bool{
 		"Apply": true, "Install": true, "Tidy": true, "Download": true,

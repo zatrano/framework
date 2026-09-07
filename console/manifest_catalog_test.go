@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zatrano/framework/v2/distribution/manifest"
 	"github.com/zatrano/framework/v2/kernel"
-	"github.com/zatrano/framework/v2/manifest"
 )
 
 var (

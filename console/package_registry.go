@@ -12,9 +12,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/zatrano/framework/v2/distribution/manifest"
+	"github.com/zatrano/framework/v2/distribution/registry"
 	"github.com/zatrano/framework/v2/kernel"
-	"github.com/zatrano/framework/v2/manifest"
-	"github.com/zatrano/framework/v2/registry"
 )
 
 func registerPackageRegistryCommands(console *Application, app *kernel.Application) {
