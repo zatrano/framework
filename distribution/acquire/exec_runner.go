@@ -8,7 +8,8 @@ import (
 )
 
 // ExecRunner runs an Invocation with CommandContext. It is the only acquire
-// file allowed to call exec. Tests of Invoke must not use this type.
+// file allowed to call exec. Invoke tests stay on a fake Runner; Execute
+// is the acquisition path that uses this type.
 type ExecRunner struct{}
 
 func (ExecRunner) Run(ctx context.Context, inv Invocation) (InvocationResult, error) {

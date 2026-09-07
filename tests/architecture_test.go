@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.15" {
-		t.Fatalf("VERSION=%q want 2.0.15", version)
+	if version != "2.0.16" {
+		t.Fatalf("VERSION=%q want 2.0.16", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -309,7 +309,18 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 		}
 		if strings.HasSuffix(base, "_test.go") {
 			if base == "apply_test.go" && (strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec")) {
-				t.Errorf("%s must use a fake Runner — real process / go get is the next gate", base)
+				t.Errorf("%s must use a fake Runner — Execute owns real go get", base)
+			}
+			if base == "execute_test.go" {
+				if !strings.Contains(text, "Execute(") {
+					t.Error("execute_test.go must exercise Execute")
+				}
+				if strings.Contains(text, "os.ReadFile") || strings.Contains(text, "os.ReadDir") {
+					t.Error("execute_test.go must not inspect go.mod / go.sum")
+				}
+				if strings.Contains(text, "golang.org/x/mod") || strings.Contains(text, "modfile") {
+					t.Error("execute_test.go must not parse module files")
+				}
 			}
 			return nil
 		}
@@ -374,6 +385,20 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	src, err := os.ReadFile(filepath.Join(dir, "apply.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	if !strings.Contains(text, "func Execute(") {
+		t.Error("apply.go must export Execute as the acquisition go get entry")
+	}
+	if !strings.Contains(text, "ExecRunner{}") {
+		t.Error("Execute must bind ExecRunner; do not scatter exec.Command")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "execute_test.go")); err != nil {
+		t.Fatal("missing execute_test.go — go get execution tests belong there, not in apply_test.go")
 	}
 }
 

@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.16 - 2026-09-07
+
+Phase 8 `go get` execution (`Execute` / `ExecRunner`). Result is `InvocationResult`; no go.mod / go.sum inspection, tidy, `ApplyResult`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.15 - 2026-09-07
 
 Phase 8 process invocation boundary (`Invoke` / `Runner`). Fake process in tests; no `go get` execution, no go.mod mutation, `package:install` unchanged. Install with `go get github.com/zatrano/framework/v2@latest`.

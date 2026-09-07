@@ -14,6 +14,14 @@ type Request struct {
 	Go       string
 }
 
+// Execute runs `go get` through ExecRunner. It is the acquisition execution
+// entry: frozen GoGetArg as argv, explicit module root as Dir, streams and
+// exit status on InvocationResult. It does not inspect go.mod / go.sum,
+// run tidy, resolve latest, or invent ApplyResult.
+func Execute(ctx context.Context, req Request) (InvocationResult, error) {
+	return Invoke(ctx, ExecRunner{}, req)
+}
+
 // Invoke asks Runner to run `go get` with the concrete Phase 7 argument as-is.
 // It does not resolve packages, rewrite versions, run tidy, or edit go.mod as text.
 func Invoke(ctx context.Context, runner Runner, req Request) (InvocationResult, error) {
