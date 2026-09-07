@@ -4,7 +4,7 @@
 Previous phases: 1–7 frozen  
 Phase 7 boundary: `GoGetArg`  
 This phase: Apply contract only  
-**Implementation:** steps 1–7 authorized. Integration (step 8) is not authorized
+**Implementation:** steps 1–8 authorized. Dry-run and a new CLI command remain not authorized
 
 ```
 Resolve → FromResult → Plan → Targets → GoGetArg
@@ -185,7 +185,9 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Current gate:** step 7 is authorized (`SnapshotFiles` / `RecoverFiles`: best-effort go.mod / go.sum restore; not transactional; cache not undone). `ExecuteTargets` still does not restore files. Step 8 remains not authorized: no integration suite.
+**Current gate:** step 8 is authorized (integration tests on a real module root: `FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`). No new Apply API, resolver, or process abstraction. Dry-run and a new CLI command remain not authorized.
+
+Integration tests MUST run against a real application module root and consume frozen APIs only: `FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`. They MUST NOT add a resolver, `func Apply`, a second process abstraction, `go mod tidy`, `zatrano.lock`, or transactional rollback.
 
 ## 29. Completion
 

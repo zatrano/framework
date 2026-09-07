@@ -29,7 +29,7 @@ Registry Resolve
               ✕
          RecoverFiles       ← Phase 8 best-effort file recovery
               ✕
-         integration        ← later Phase 8 gate
+         integration tests  ← Phase 8 completion evidence
 ```
 
 Phases 1–7 are frozen. Phase 7 stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
@@ -96,7 +96,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 entry
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Step 7 (best-effort go.mod / go.sum recovery) is in this package. Integration stays on that document; do not recode it here.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Step 8 (integration tests on a real module root) is in this package. Dry-run and a new CLI command stay deferred; do not recode them here.
 
 ## Invariants (frozen)
 
@@ -116,7 +116,7 @@ Architecture tests reject a second resolution implementation, enablement fields 
 
 ## Phase freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation, `go get`, inspection, per-root mutation serialization, partial-apply reporting, and best-effort file recovery are authorized. Integration is not.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation, `go get`, inspection, per-root mutation serialization, partial-apply reporting, best-effort file recovery, and integration tests are authorized. Dry-run and a new CLI command are not.
 
 | Phase | Status |
 |-------|--------|
@@ -127,10 +127,10 @@ Architecture tests reject a second resolution implementation, enablement fields 
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | SPEC + invocation + `go get` + inspection + per-root lock + partial apply + file recovery; integration not authorized |
+| 8 Module Acquisition Apply | SPEC + invocation + `go get` + inspection + per-root lock + partial apply + file recovery + integration tests |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Deferred (Phase 8)
 
-Integration tests and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.
+A new CLI command and dry-run remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.

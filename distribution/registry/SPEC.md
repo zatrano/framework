@@ -111,9 +111,9 @@ Phases 1–7 Plan are closed at this boundary:
 | `zatrano.registry/v1` Search / Resolve | Frozen |
 | CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
 | `zatrano.acquire/v1` Plan (`FromResult` / `Targets` / `GoGetArg`) | Frozen |
-| Phase 8 Apply | Draft SPEC + `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; [`acquire/APPLY.md`](../acquire/APPLY.md); integration not yet |
+| Phase 8 Apply | SPEC + `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles` + integration tests; [`acquire/APPLY.md`](../acquire/APPLY.md) |
 
-The next remaining work is **8 — Apply** after file recovery: integration tests. The contract is [`acquire/APPLY.md`](../acquire/APPLY.md). Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
+Phase 8 Apply implementation is complete at this boundary. Dry-run and a new CLI command stay deferred. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 

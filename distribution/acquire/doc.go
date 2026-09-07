@@ -5,5 +5,6 @@
 // reads go.mod / go.sum and does not take that lock. ExecuteTargets reports
 // successful, failed, and unattempted targets (fail-fast). RecoverFiles
 // restores a go.mod / go.sum snapshot (not transactional; cache not undone).
+// Integration tests consume those APIs on a real module root.
 // package:install is not acquisition.
 package acquire

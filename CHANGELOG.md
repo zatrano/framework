@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.21 - 2026-09-07
+
+Phase 8 integration tests: Plan → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → RecoverFiles on a real module root. No new Apply API, resolver, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.20 - 2026-09-07
 
 Phase 8 file recovery: `RecoverFiles` restores a `go.mod` / `go.sum` snapshot (best-effort). It is not transactional rollback and does not undo the module cache. `ExecuteTargets` still does not restore files. No tidy, `func Rollback`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.

@@ -216,6 +216,14 @@ func TestApplySpecFreezesImplementationOrder(t *testing.T) {
 	requireSpecContains(t, spec, "8. Integration tests")
 }
 
+func TestApplySpecDefinesIntegrationBoundary(t *testing.T) {
+	spec := applySpecText(t)
+
+	requireSpecContains(t, spec, "integration tests on a real module root")
+	requireSpecContains(t, spec, "`FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`")
+	requireSpecContains(t, spec, "They MUST NOT add a resolver, `func Apply`, a second process abstraction, `go mod tidy`, `zatrano.lock`, or transactional rollback.")
+}
+
 func TestApplySpecFreezesPreviousPhaseAPIs(t *testing.T) {
 	spec := applySpecText(t)
 

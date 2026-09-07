@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.20" {
-		t.Fatalf("VERSION=%q want 2.0.20", version)
+	if version != "2.0.21" {
+		t.Fatalf("VERSION=%q want 2.0.21", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -342,6 +342,24 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 					t.Error("do not add transactional Rollback")
 				}
 			}
+			if base == "integration_test.go" {
+				for _, want := range []string{
+					"FromResult(", "Targets(", "GoGetArg", "Execute(", "ExecuteTargets(", "Inspect(", "SnapshotFiles(", "RecoverFiles(",
+				} {
+					if !strings.Contains(text, want) {
+						t.Errorf("integration_test.go must wire %s on a real module root", want)
+					}
+				}
+				if strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec") {
+					t.Error("integration must use Execute / ExecuteTargets, not a second process abstraction")
+				}
+				if strings.Contains(text, "func Apply") || strings.Contains(text, "func Rollback") {
+					t.Error("integration must not add Apply or Rollback")
+				}
+				if strings.Contains(text, ".Resolve(") {
+					t.Error("integration must not re-resolve; start from FromResult")
+				}
+			}
 			if base == "execute_test.go" {
 				if !strings.Contains(text, "Execute(") {
 					t.Error("execute_test.go must exercise Execute")
@@ -516,6 +534,9 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "recovery_test.go")); err != nil {
 		t.Fatal("missing recovery_test.go — guaranteed vs file recovery tests belong there")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "integration_test.go")); err != nil {
+		t.Fatal("missing integration_test.go — Plan through recovery on a real module root")
 	}
 }
 
