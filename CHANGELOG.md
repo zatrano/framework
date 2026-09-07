@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.17 - 2026-09-07
+
+Phase 8 `Inspect` reads go.mod / go.sum after `Execute`. `InvocationResult` is the process; `Inspection` is module state. No tidy, `ApplyResult`, concurrency, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.16 - 2026-09-07
 
 Phase 8 `go get` execution (`Execute` / `ExecRunner`). Result is `InvocationResult`; no go.mod / go.sum inspection, tidy, `ApplyResult`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.

@@ -114,7 +114,8 @@ func TestInvokeRequiresRootAndArg(t *testing.T) {
 	if _, err := Invoke(context.Background(), fake, Request{Root: t.TempDir()}); err == nil {
 		t.Fatal("empty arg")
 	}
-	if _, err := Invoke(nil, fake, Request{Root: t.TempDir(), GoGetArg: "m@main"}); err == nil {
+	var nilCtx context.Context
+	if _, err := Invoke(nilCtx, fake, Request{Root: t.TempDir(), GoGetArg: "m@main"}); err == nil {
 		t.Fatal("nil context")
 	}
 	if _, err := Invoke(context.Background(), nil, Request{Root: t.TempDir(), GoGetArg: "m@main"}); err == nil {

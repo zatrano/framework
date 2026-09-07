@@ -21,12 +21,14 @@ Registry Resolve
               ✕
          Execute / go get   ← Phase 8 execution
               ✕
-         inspect go.mod     ← later Phase 8 gates
+         Inspect            ← Phase 8 go.mod / go.sum
+              ✕
+         concurrency / …    ← later Phase 8 gates
 ```
 
 Phases 1–7 are frozen. Phase 7 stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
-Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. `Execute` binds `ExecRunner` and may run `go get`. It does not inspect go.mod / go.sum.
+Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. `Execute` binds `ExecRunner` and may run `go get`. `Inspect` reads go.mod / go.sum and does not mutate them.
 
 | Layer | Question | Owner |
 |-------|----------|--------|
@@ -35,7 +37,8 @@ Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke
 | GoGetArg | Which concrete argument to `go get`? | `Plan.GoGetArg` / `Targets` (frozen) |
 | Invoke | How is the process called? | `Invoke` / `Runner` |
 | Execute | Did `go get` run, and what did it return? | `Execute` / `ExecRunner` |
-| Apply | How do we interpret module mutation? | Phase 8 — **not started** |
+| Inspect | What did Go write into go.mod / go.sum? | `Inspect` |
+| Apply | How do we report mutation / partial / rollback? | Phase 8 — **not started** |
 
 `package:install` **≠** module acquisition. It stays enablement.
 
@@ -86,7 +89,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 entry
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Step 3 (`Execute` / `go get`) is in this package. Later gates (inspection, concurrency, partial apply, rollback) stay on that document; do not recode them here.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Step 4 (`Inspect`) is in this package. Later gates (concurrency, partial apply, rollback) stay on that document; do not recode them here.
 
 ## Invariants (frozen)
 
@@ -106,7 +109,7 @@ Architecture tests reject a second resolution implementation, enablement fields 
 
 ## Phase freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation and `go get` execution (`Execute`) are authorized. go.mod / go.sum inspection is not.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation, `go get` execution, and go.mod / go.sum inspection are authorized. Concurrency and rollback are not.
 
 | Phase | Status |
 |-------|--------|
@@ -117,10 +120,10 @@ Architecture tests reject a second resolution implementation, enablement fields 
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | SPEC + invocation + `go get` execution; inspection not authorized |
+| 8 Module Acquisition Apply | SPEC + invocation + `go get` + inspection; concurrency not authorized |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Deferred (Phase 8)
 
-go.mod / go.sum inspection, concurrency, partial apply, rollback, and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.
+Concurrency, partial apply, rollback, and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.

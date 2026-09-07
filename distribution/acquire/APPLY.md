@@ -183,7 +183,7 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Current gate:** step 3 is authorized (`Execute` runs `go get` via `ExecRunner`). Result is `InvocationResult` (argv, dir, exit, stdout/stderr). Steps 4–8 remain not authorized: no go.mod / go.sum inspection, no concurrency lock, no partial-apply reporting, no rollback.
+**Current gate:** step 4 is authorized (`Inspect` reads go.mod / go.sum). `InvocationResult` stays the process outcome; `Inspection` is module state. Steps 5–8 remain not authorized: no concurrency lock, no partial-apply reporting, no rollback.
 
 ## 29. Completion
 

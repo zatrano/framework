@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.16" {
-		t.Fatalf("VERSION=%q want 2.0.16", version)
+	if version != "2.0.17" {
+		t.Fatalf("VERSION=%q want 2.0.17", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -259,7 +259,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 		}
 	}
 	allowed := map[string]bool{
-		"apply.go": true, "process.go": true, "exec_runner.go": true,
+		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -350,6 +350,14 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				t.Errorf("%s contains exec.Command — do not scatter process starts", base)
 			}
 		}
+		if base == "inspect.go" {
+			if strings.Contains(text, "os.WriteFile") || strings.Contains(text, "os.Create") || strings.Contains(text, "os.OpenFile") {
+				t.Error("inspect.go must not mutate go.mod / go.sum")
+			}
+			if strings.Contains(text, "golang.org/x/mod") {
+				t.Error("inspect.go must not import x/mod — observation only")
+			}
+		}
 		if base == "exec_runner.go" {
 			if !strings.Contains(text, "exec.CommandContext") {
 				t.Error("exec_runner.go must pass context via CommandContext")
@@ -396,6 +404,16 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if !strings.Contains(text, "ExecRunner{}") {
 		t.Error("Execute must bind ExecRunner; do not scatter exec.Command")
+	}
+	insp, err := os.ReadFile(filepath.Join(dir, "inspect.go"))
+	if err != nil {
+		t.Fatal("missing inspect.go")
+	}
+	if !strings.Contains(string(insp), "func Inspect(") {
+		t.Error("inspect.go must export Inspect")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "inspect_test.go")); err != nil {
+		t.Fatal("missing inspect_test.go")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "execute_test.go")); err != nil {
 		t.Fatal("missing execute_test.go — go get execution tests belong there, not in apply_test.go")

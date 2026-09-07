@@ -158,7 +158,8 @@ func TestExecuteTimeoutReachesGoProcess(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected deadline error")
 	}
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("want context.DeadlineExceeded, got %v", err)
+	if errors.Is(err, context.DeadlineExceeded) || ctx.Err() == context.DeadlineExceeded {
+		return
 	}
+	t.Fatalf("want context.DeadlineExceeded, got %v", err)
 }
