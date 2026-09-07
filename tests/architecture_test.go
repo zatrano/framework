@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.6" {
-		t.Fatalf("VERSION=%q want 2.0.6", version)
+	if version != "2.0.7" {
+		t.Fatalf("VERSION=%q want 2.0.7", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -175,8 +175,8 @@ func TestEnablementCommandsDoNotImportRegistry(t *testing.T) {
 		}
 		for _, spec := range file.Imports {
 			imp := strings.Trim(spec.Path.Value, `"`)
-			if strings.HasSuffix(imp, "/registry") {
-				t.Errorf("%s imports %s — enablement stays off the registry consumer", name, imp)
+			if strings.HasSuffix(imp, "/registry") || strings.HasSuffix(imp, "/acquire") {
+				t.Errorf("%s imports %s — enablement stays off registry/acquire", name, imp)
 			}
 		}
 	}
@@ -197,6 +197,61 @@ func TestPhase6SearchHitHasNoSelectionFields(t *testing.T) {
 		if got[ban] {
 			t.Errorf("searchHit must not have %s", ban)
 		}
+	}
+}
+
+func TestAcquireDoesNotImportConsoleOrExec(t *testing.T) {
+	dir := filepath.Join(moduleRoot(t), "acquire")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.Contains(imp, "/console") || imp == "os/exec" {
+				t.Errorf("%s imports %s — Apply is deferred", filepath.Base(path), imp)
+			}
+		}
+		src, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(src), "os.WriteFile") {
+			t.Errorf("%s writes files — Apply is deferred", filepath.Base(path))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestConsoleDoesNotImportAcquireYet(t *testing.T) {
+	dir := filepath.Join(moduleRoot(t), "console")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.HasSuffix(imp, "/acquire") {
+				t.Errorf("%s imports acquire — Apply/CLI add is not this slice (%s)", filepath.Base(path), imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

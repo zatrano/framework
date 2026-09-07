@@ -33,6 +33,8 @@ go run ./cmd/zatrano package:resolve session
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
+Module **acquisition** (Phase 7, translation only today) maps `registry.Result` onto a `go get` argument — see [`acquire/SPEC.md`](acquire/SPEC.md). There is no `zatrano.lock`: go.mod + go.sum are the pin. `Apply` and a new CLI command are later. Do not put that work in `package:install`.
+
 ---
 
 ## How packaging works
