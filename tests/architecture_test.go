@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.11" {
-		t.Fatalf("VERSION=%q want 2.0.11", version)
+	if version != "2.0.12" {
+		t.Fatalf("VERSION=%q want 2.0.12", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -220,6 +220,43 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 		if got[ban] {
 			t.Errorf("Plan must not have %s", ban)
 		}
+	}
+}
+
+func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "acquire", "APPLY.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"Draft — specification only",
+		"not authorized",
+		"No automatic tidy",
+		"package:install",
+		"zatrano.lock",
+		"exec.Command",
+		"fail-fast",
+		"rollback guaranteed",
+		"Enabled ∩ Imported",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("APPLY.md missing %q — Phase 8 is SPEC only", want)
+		}
+	}
+	err = filepath.WalkDir(filepath.Join(root, "acquire"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		base := strings.ToLower(filepath.Base(path))
+		if base == "apply.go" || (strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go")) {
+			t.Errorf("%s — Apply implementation is not authorized", filepath.Base(path))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

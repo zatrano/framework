@@ -78,33 +78,9 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 `go get` is later **acquisition** (Phase 8). `go mod tidy` is **module/import graph rearrangement**. It is not an acquisition manifest and not a lockfile.
 
-## Phase 8 entry (not started)
+## Phase 8 entry
 
-Phase 8 has **not** started. When it does, the first task is **not** coding `go get`. Order:
-
-1. Apply SPEC
-2. Mutation boundary
-3. `go get` invocation contract
-4. go.mod / go.sum failure semantics
-5. Concurrency semantics
-6. Partial-apply semantics
-7. Rollback / recovery semantics
-8. **Then** implementation
-
-That contract must exist before any `exec` or filesystem mutation. It is the hand-off that keeps phases 1–6 and Phase 7's pure translation intact.
-
-| Topic | Why it is not Phase 7 |
-|-------|------------------------|
-| Mutation boundary | What Apply may write (go.mod / go.sum only?) vs what it must not (enablement, stubs, blank-imports) |
-| `go get` invocation | Process model, working directory, arguments (`Targets` / `GoGetArg`), environment |
-| go.mod / go.sum failures | Toolchain errors vs ZATRANO errors; incomplete writes |
-| Concurrency | Two Apply calls on the same module |
-| Partial application | N of M `Targets` applied when one fails |
-| Rollback | Restore previous go.mod/go.sum pair vs leave toolchain output |
-
-`package:install` keeps today's enablement meaning **even at the start of Phase 8**. Binding real module acquisition to that command is evaluated only after the Apply contract is written.
-
-`tidy` must not be assumed as “pin what we acquired.”
+Phase 8 is open as **SPEC only** — [`APPLY.md`](APPLY.md). Implementation is not authorized. The SPEC order (mutation, invocation, failures, concurrency, partial apply, rollback) is now that document; do not recode it here.
 
 ## Invariants (frozen)
 
@@ -124,7 +100,7 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 
 ## Phase freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Next is Phase 8: Apply **contract first**, then process execution.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 is open as **SPEC only**: [`APPLY.md`](APPLY.md). Implementation is not authorized.
 
 | Phase | Status |
 |-------|--------|
@@ -135,10 +111,10 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | **Not started** — SPEC first, then implementation |
+| 8 Module Acquisition Apply | **SPEC draft** — [`APPLY.md`](APPLY.md); implementation not authorized |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning at start.
 
 ## Deferred (Phase 8)
 
-Apply contract (mutation boundary, `go get` invocation, go.mod/go.sum failures, concurrency, partial apply, rollback), then implementation. A new CLI command, private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install` at Phase 8 start. Do not treat `go mod tidy` as an acquisition lockfile.
+Implementation of [`APPLY.md`](APPLY.md) is not authorized. A new CLI command, private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.

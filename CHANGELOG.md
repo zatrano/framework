@@ -4,7 +4,9 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-Lock the Phase 8 hand-off: Resolve / Plan / GoGetArg / Apply stay four distinct questions. `package:install` ≠ module acquisition. Phase 8 starts with Apply SPEC, not `go get` code.
+## 2.0.12 - 2026-09-07
+
+Open Phase 8 as Apply SPEC only ([`acquire/APPLY.md`](acquire/APPLY.md)): mutation boundary, `go get` invocation, fail-fast, no automatic `tidy`, rollback guaranteed vs unavailable. Implementation is not authorized. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.11 - 2026-09-07
 
