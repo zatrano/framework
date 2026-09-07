@@ -263,7 +263,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 			return err
 		}
 		base := strings.ToLower(filepath.Base(path))
-		if base == "apply.go" || (strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go")) {
+		if base == "apply.go" || (strings.HasPrefix(base, "apply_") && strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, "_test.go")) {
 			t.Errorf("%s — Apply implementation is not authorized", filepath.Base(path))
 		}
 		return nil

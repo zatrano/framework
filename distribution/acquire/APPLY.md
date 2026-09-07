@@ -1,9 +1,9 @@
 # Phase 8 — Module Acquisition Apply
 
 **Status:** Draft — specification only  
-**Previous phases:** 1–7 frozen  
-**Phase 7 boundary:** `GoGetArg`  
-**This phase:** Apply contract only  
+Previous phases: 1–7 frozen  
+Phase 7 boundary: `GoGetArg`  
+This phase: Apply contract only  
 **Implementation:** not authorized
 
 ```
@@ -24,7 +24,7 @@ Nothing below Apply is Phase 7. Nothing above `GoGetArg` is redesigned here. `pa
 
 Phase 8 defines how a resolved acquisition plan may be applied to a Go application's module graph.
 
-Apply converts an already-resolved plan into **controlled Go module mutations**. It MUST NOT become another resolver.
+Apply converts an already-resolved plan into **controlled Go module mutations**. Apply MUST NOT become another resolver.
 
 It MUST NOT change: package resolution, manifest, registry, CLI resolution, enablement, framework boot, or Enabled ∩ Imported.
 
@@ -73,11 +73,11 @@ Each target has a concrete `GoGetArg`. Apply MAY run `go get <GoGetArg>`. It MUS
 
 ## 8. Shared-module targets
 
-Phase 7 may collapse `session@main` + `auth@main` into one `github.com/zatrano/packages@main`. Apply operates on **acquisition targets**, not catalog names. It MUST NOT `go get` the same module twice because two packages share it.
+Phase 7 may collapse `session@main` + `auth@main` into one `github.com/zatrano/packages@main`. Apply operates on acquisition targets, not catalog names. It MUST NOT `go get` the same module twice because two packages share it.
 
 ## 9. Conflicting pins
 
-Phase 7 already rejects two pins for one module. If a conflict reaches Apply, it is invalid input: **no mutation**. Apply MUST NOT invent last-write-wins, first-write-wins, highest-version-wins, or main-wins.
+Phase 7 already rejects two pins for one module. If a conflict reaches Apply, it is invalid input: no mutation. Apply MUST NOT invent last-write-wins, first-write-wins, highest-version-wins, or main-wins.
 
 ## 10. Atomicity
 
@@ -97,7 +97,7 @@ Apply MUST NOT treat `go mod tidy` as pinning or resolution. Default Phase 8: `g
 
 ## 14. Concurrency
 
-At most one Apply may mutate a given application's go.mod / go.sum at a time. Concurrent Apply against **different** module roots MAY proceed independently. The serialization mechanism is an implementation detail; the contract is exclusive mutation per module root.
+At most one Apply may mutate a given application's go.mod / go.sum at a time. Concurrent Apply against different module roots MAY proceed independently. The serialization mechanism is an implementation detail; the contract is exclusive mutation per module root.
 
 ## 15. Partial apply
 
@@ -105,29 +105,29 @@ Multiple targets can yield A success, B success, C failure, D unattempted. Apply
 
 ## 16. Rollback
 
-Rollback MUST NOT be assumed transactional. Distinguish **rollback guaranteed** from **rollback unavailable / recovery required**. If rollback is not guaranteed, the API MUST report partial mutation explicitly. Best-effort cleanup MUST NOT be presented as transactional rollback.
+Rollback MUST NOT be assumed transactional. Distinguish rollback guaranteed from rollback unavailable / recovery required. If rollback is not guaranteed, the API MUST report partial mutation explicitly. Best-effort cleanup MUST NOT be presented as transactional rollback.
 
 ## 17. Failure strategy
 
-Initial contract: **fail-fast**. Stop on the first mutation failure. MUST NOT continue and report success. If earlier targets already mutated the graph, the result MUST expose that.
+Initial contract: fail-fast. Stop on the first mutation failure. MUST NOT continue and report success. If earlier targets already mutated the graph, the result MUST expose that.
 
 ## 18. Filesystem scope
 
-Apply operates only in the explicitly supplied application/module root. It MUST NOT scan parent trees, mutate unrelated repos, the framework tree, the packages tree, global Go config, the module cache, or shell config. Go tooling may use its normal cache; Apply MUST NOT write those locations itself.
+Apply operates only in the explicitly supplied application/module root. It MUST NOT scan parent trees. It MUST NOT mutate unrelated repos, the framework tree, the packages tree, global Go config, the module cache, or shell config. Go tooling may use its normal cache; Apply MUST NOT write those locations itself.
 
 ## 19. Enablement
 
 Apply MUST NOT modify `bootstrap/enabled.go`, addon registration, or equivalent enablement state.
 
 ```
-Acquire module  ≠  Enable package
+Acquire module ≠ Enable package
 ```
 
 A successful Apply does not enable a package. Enabling a package does not mean Phase 8 ran.
 
 ## 20. `package:install`
 
-Existing `package:install` stays enablement for the whole of Phase 8. No implementation may silently redefine it. Connecting acquisition and enablement needs a **separate** approved contract.
+Existing `package:install` stays enablement for the whole of Phase 8. It MUST NOT silently redefine it. Connecting acquisition and enablement needs a **separate** approved contract.
 
 ## 21. Dry run
 
