@@ -17,7 +17,17 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`manifest/SPEC.md`](manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`registry/SPEC.md`](registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module** (shared `github.com/zatrano/packages` uses channel `main` until tagged). CLI `package:install` is a later consumer of this model.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`registry/SPEC.md`](registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module** (shared `github.com/zatrano/packages` uses channel `main` until tagged). Channel `main` is a source stream, not a published release.
+
+CLI **consumes** that index; it does not own resolution:
+
+```bash
+go run ./cmd/zatrano package:search session
+go run ./cmd/zatrano package:info session
+go run ./cmd/zatrano package:resolve session
+```
+
+`package:search` discovers identity and does not pick a version. `package:resolve` selects a compatible tag (or source `main` when the module is untagged). Neither writes `go.mod` or enables the package. Existing `package:enable` / `package:install` remain enablement (Enabled ∩ Imported), not registry-driven module install.
 
 ---
 

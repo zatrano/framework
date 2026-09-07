@@ -8,25 +8,7 @@ import (
 )
 
 func TestEcosystemCatalogBuildsRegistryIndex(t *testing.T) {
-	hints := loadRegisterHints(t)
-	docs := make([]manifest.Document, 0, len(ecosystemCatalog))
-	for _, p := range ecosystemCatalog {
-		in := manifest.Input{
-			Name:        p.Name,
-			Kind:        string(p.EffectiveKind()),
-			Layer:       string(p.Layer),
-			Description: p.Description,
-			Heavy:       p.Heavy,
-		}
-		if h, ok := hints[p.Name]; ok {
-			in.Factory = h.factory
-			in.CLI = h.cli
-			in.Requires = h.requires
-			in.Key = h.key
-		}
-		docs = append(docs, manifest.Derive(in))
-	}
-	idx, err := registry.FromDocuments(docs)
+	idx, err := catalogRegistryIndex()
 	if err != nil {
 		t.Fatal(err)
 	}

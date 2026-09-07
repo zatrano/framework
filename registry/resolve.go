@@ -84,6 +84,7 @@ func (p Package) latestCompatible(framework string) (Release, error) {
 	if best != nil {
 		return *best, nil
 	}
+	// No compatible tag: fall back to the source channel, not a published version.
 	if r, ok := p.channel(ChannelMain); ok && releaseOK(framework, r.FrameworkMin) {
 		return r, nil
 	}

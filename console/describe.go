@@ -13,7 +13,7 @@ import (
 )
 
 func registerDescribeCommand(console *Application, app *kernel.Application) {
-	ver := "2.0.3"
+	ver := "2.0.4"
 	if app != nil {
 		if v := app.Version(); v != "" {
 			ver = v
@@ -186,7 +186,7 @@ func BuildDescribeDocument(scanRoot string) (*DescribeDocument, error) {
 		return nil, err
 	}
 	return &DescribeDocument{
-		Version:   "2.0.3",
+		Version:   "2.0.4",
 		Contracts: contracts,
 		Catalog:   CatalogReport{Layers: catalog},
 		Routing: RoutingReport{
@@ -299,6 +299,8 @@ func formatFromArgs(args []string) (string, error) {
 			i++
 		case strings.HasPrefix(a, "--format="):
 			format = strings.TrimPrefix(a, "--format=")
+		case a == "--json":
+			format = "json"
 		}
 	}
 	format = strings.ToLower(strings.TrimSpace(format))

@@ -26,6 +26,7 @@ func registerPackageCommands(console *Application, app *kernel.Application) {
 		&PackagePresetCommand{app: app},
 	)
 	registerPackageHealthCommands(console, app)
+	registerPackageRegistryCommands(console, app)
 }
 
 type PackageListCommand struct{ app *kernel.Application }

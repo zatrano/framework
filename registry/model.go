@@ -39,7 +39,7 @@ type Index struct {
 	Packages []Package `json:"packages"`
 }
 
-// Query selects one release. Install/update behavior is not defined here.
+// Query selects one release. It does not install, enable, or mutate go.mod.
 type Query struct {
 	Name      string
 	Version   string // empty/"latest", "main", or tagged semver

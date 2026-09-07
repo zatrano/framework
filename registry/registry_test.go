@@ -92,6 +92,20 @@ func TestResolveLatestPrefersSemverThenMain(t *testing.T) {
 	}
 }
 
+func TestResolveLatestFallsBackToMainWhenNoTags(t *testing.T) {
+	idx, err := FromDocuments(sampleDocs())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.Resolve(Query{Name: "session", Version: "latest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Release.Version != "" || got.Release.Channel != ChannelMain {
+		t.Fatalf("untagged latest must be source channel main, got %#v", got.Release)
+	}
+}
+
 func TestResolveMainAndExact(t *testing.T) {
 	idx, err := FromDocuments(sampleDocs())
 	if err != nil {

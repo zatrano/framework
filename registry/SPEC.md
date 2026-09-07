@@ -26,6 +26,20 @@ Many official packages share `github.com/zatrano/packages` and therefore share o
 
 Do not invent a second semver field on the package name.
 
+## Channels vs published versions
+
+`channel: main` is the **source/development stream** of a Go module (typically the default git branch). It is **not** a published release version. A marketplace or UI “Latest / stable” label must show a tagged version, or state that the module is untagged — never present `main` as a release.
+
+`latest` is a **resolve selector**, not a channel:
+
+```
+latest
+  ├─ compatible tag exists → highest compatible tag
+  └─ no compatible tag     → main (source channel, if present and compatible)
+```
+
+`session@main` means “this module’s source channel”, not “the current stable release”.
+
 ## Index document (`zatrano.registry/v1`)
 
 ```json
@@ -51,22 +65,30 @@ A **release** is either a tagged version (`version`) or a channel (`channel`). A
 
 Names and import paths are unique in one index.
 
-## Discovery
+## Discovery vs resolution vs install
+
+These are three different operations. This package implements only the first two.
+
+| Operation | Meaning | Mutates |
+|-----------|---------|---------|
+| **Search** | Metadata discovery (identity filters) | No |
+| **Resolve** | Compatible version selection | No |
+| **Install** | Filesystem / go.mod / source mutation | Yes — **not defined here** |
 
 `Search` filters identity (name, description, kind, layer, heavy). It does not pick a version.
 
 ## Resolution
 
-`Resolve(Query)` picks one release:
+`Resolve(Query)` picks one release. It does not enable, import, or write `go.mod`.
 
 1. Unknown `name` is an error.
 2. Optional `kind` filter must match.
 3. `framework` (kernel VERSION): when set, skip releases whose `framework_min` is not met. Empty min always meets. An empty `framework` query does not filter.
-4. `version` empty or `latest`: highest tagged semver that remains; if none, channel `main` if present and compatible.
+4. `version` empty or `latest`: highest tagged semver that remains; if none, channel `main` if present and compatible (source fallback, not a published version).
 5. `version` `main`: that channel.
 6. other `version`: exact tagged match (`v` prefix optional).
 
-Resolution does not blank-import, enable, or run `Register`. Runtime remains Enabled ∩ Imported.
+Runtime remains Enabled ∩ Imported. A CLI, marketplace, or IDE must call this algorithm rather than reimplement it.
 
 ## Integrity
 
@@ -74,7 +96,7 @@ If `digest` is set, `Verify` compares SHA-256 of the manifest bytes (hex). Missi
 
 ## Deferred
 
-HTTP registry service, `package:install` / `update`, GOPROXY as the transport, publisher identity, licenses, checksums of zip/mod files (Go sumdb), yank/retract beyond skipping a version in the index.
+HTTP registry service, GOPROXY as the transport, `package:add` / `remove` / `update` (go.mod mutation), publisher identity, licenses, checksums of zip/mod files (Go sumdb), yank/retract beyond skipping a version in the index. Existing `package:enable` / `package:install` remain enablement (Enabled ∩ Imported), not registry-driven module install.
 
 ## Compatibility
 

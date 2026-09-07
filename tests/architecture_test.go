@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.3" {
-		t.Fatalf("VERSION=%q want 2.0.3", version)
+	if version != "2.0.4" {
+		t.Fatalf("VERSION=%q want 2.0.4", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -83,6 +83,30 @@ func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 			imp := strings.Trim(spec.Path.Value, `"`)
 			if imp == "github.com/zatrano/packages" || strings.HasPrefix(imp, "github.com/zatrano/packages/") {
 				t.Errorf("%s imports %s", rel, imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRegistryDoesNotImportConsole(t *testing.T) {
+	dir := filepath.Join(moduleRoot(t), "registry")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.Contains(imp, "/console") {
+				t.Errorf("%s imports %s — CLI consumes registry, not the reverse", filepath.Base(path), imp)
 			}
 		}
 		return nil

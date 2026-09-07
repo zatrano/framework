@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.3-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.4-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -464,6 +464,9 @@ zatrano doctor
 zatrano describe
 zatrano key:generate
 zatrano package:list
+zatrano package:search
+zatrano package:info
+zatrano package:resolve
 zatrano package:enable
 zatrano package:disable
 zatrano package:doctor
@@ -548,7 +551,7 @@ Framework contracts / kernel
 
 ## v2
 
-**v2.0.3** is the current line on **`main`**. Version: `2.0.3` ([`VERSION`](VERSION)).
+**v2.0.4** is the current line on **`main`**. Version: `2.0.4` ([`VERSION`](VERSION)).
 
 The v2 line is two independently maintained modules: `github.com/zatrano/framework/v2` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
 
@@ -564,7 +567,7 @@ ZATRANO Platform
 
 | Line | Meaning |
 | --- | --- |
-| `v2.0.3` (`main`) | Current two-module application platform |
+| `v2.0.4` (`main`) | Current two-module application platform |
 | `v1.x` | Previous tagged ZATRANO line |
 
 ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@latest`.
