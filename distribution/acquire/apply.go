@@ -14,12 +14,20 @@ type Request struct {
 	Go       string
 }
 
-// Execute runs `go get` through ExecRunner. It is the acquisition execution
-// entry: frozen GoGetArg as argv, explicit module root as Dir, streams and
-// exit status on InvocationResult. It does not inspect go.mod / go.sum,
-// run tidy, resolve latest, or invent ApplyResult.
+// Execute runs `go get` through ExecRunner under a per-module-root mutation
+// lock. Same root is serialized; other roots proceed independently. Inspect
+// is not locked. It does not run tidy, resolve latest, or invent ApplyResult.
 func Execute(ctx context.Context, req Request) (InvocationResult, error) {
-	return Invoke(ctx, ExecRunner{}, req)
+	return execute(ctx, ExecRunner{}, req)
+}
+
+func execute(ctx context.Context, runner Runner, req Request) (InvocationResult, error) {
+	unlock, err := lockMutation(ctx, strings.TrimSpace(req.Root))
+	if err != nil {
+		return InvocationResult{}, err
+	}
+	defer unlock()
+	return Invoke(ctx, runner, req)
 }
 
 // Invoke asks Runner to run `go get` with the concrete Phase 7 argument as-is.

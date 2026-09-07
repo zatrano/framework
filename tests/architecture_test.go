@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.17" {
-		t.Fatalf("VERSION=%q want 2.0.17", version)
+	if version != "2.0.18" {
+		t.Fatalf("VERSION=%q want 2.0.18", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -259,7 +259,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 		}
 	}
 	allowed := map[string]bool{
-		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
+		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true, "lock.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -311,6 +311,9 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			if base == "apply_test.go" && (strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec")) {
 				t.Errorf("%s must use a fake Runner — Execute owns real go get", base)
 			}
+			if base == "lock_test.go" && (strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec")) {
+				t.Errorf("%s must prove serialization with a fake Runner — not real go get", base)
+			}
 			if base == "execute_test.go" {
 				if !strings.Contains(text, "Execute(") {
 					t.Error("execute_test.go must exercise Execute")
@@ -356,6 +359,14 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			}
 			if strings.Contains(text, "golang.org/x/mod") {
 				t.Error("inspect.go must not import x/mod — observation only")
+			}
+			if strings.Contains(text, "lockMutation") {
+				t.Error("Inspect must not take the mutation lock")
+			}
+		}
+		if base == "lock.go" {
+			if strings.Contains(text, "zatrano.lock") || strings.Contains(text, "os.WriteFile") || strings.Contains(text, "os.Create") {
+				t.Error("mutation lock must not write a lockfile")
 			}
 		}
 		if base == "exec_runner.go" {
@@ -404,6 +415,15 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if !strings.Contains(text, "ExecRunner{}") {
 		t.Error("Execute must bind ExecRunner; do not scatter exec.Command")
+	}
+	if !strings.Contains(text, "lockMutation(") {
+		t.Error("Execute must serialize mutation per module root")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "lock.go")); err != nil {
+		t.Fatal("missing lock.go")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "lock_test.go")); err != nil {
+		t.Fatal("missing lock_test.go")
 	}
 	insp, err := os.ReadFile(filepath.Join(dir, "inspect.go"))
 	if err != nil {
