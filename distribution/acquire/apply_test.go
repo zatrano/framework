@@ -295,6 +295,9 @@ func TestExecuteTargetsReportsPartialFailFast(t *testing.T) {
 	if len(fake.calls) != 3 {
 		t.Fatalf("fail-fast must not start D: calls=%d", len(fake.calls))
 	}
+	if got.Recovery.Kind != RecoveryUnavailable {
+		t.Fatalf("ExecuteTargets must leave recovery unavailable: %#v", got.Recovery)
+	}
 	if fake.calls[2].Args[1] != c {
 		t.Fatalf("last attempted=%q", fake.calls[2].Args)
 	}

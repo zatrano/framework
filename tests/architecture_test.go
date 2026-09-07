@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.19" {
-		t.Fatalf("VERSION=%q want 2.0.19", version)
+	if version != "2.0.20" {
+		t.Fatalf("VERSION=%q want 2.0.20", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -259,7 +259,7 @@ func TestPhase8ApplySpecExistsWithoutImplementation(t *testing.T) {
 		}
 	}
 	allowed := map[string]bool{
-		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true, "lock.go": true,
+		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true, "lock.go": true, "recovery.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -289,6 +289,7 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	allowApplyImport := map[string]bool{"context": true, "fmt": true, "strings": true}
 	allowProcessImport := map[string]bool{"context": true}
+	allowRecoveryImport := map[string]bool{"context": true, "fmt": true, "os": true, "path/filepath": true, "strings": true}
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -304,6 +305,9 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			if base != "apply.go" {
 				t.Errorf("%s invents ApplyResult — partial-apply report lives in apply.go", base)
 			}
+		}
+		if strings.Contains(text, "RecoveryGuaranteed") || strings.Contains(text, "RecoveryTransactional") {
+			t.Errorf("%s claims guaranteed/transactional rollback", base)
 		}
 		file, parseErr := parser.ParseFile(fset, path, nil, 0)
 		if parseErr != nil {
@@ -325,6 +329,17 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				}
 				if strings.Contains(text, "func Rollback") || strings.Contains(text, "go mod tidy") {
 					t.Error("partial apply must not implement rollback or tidy")
+				}
+			}
+			if base == "recovery_test.go" {
+				if !strings.Contains(text, "RecoverFiles(") || !strings.Contains(text, "SnapshotFiles(") {
+					t.Error("recovery_test.go must exercise SnapshotFiles and RecoverFiles")
+				}
+				if !strings.Contains(text, "GOMODCACHE") {
+					t.Error("recovery_test.go must prove file restore does not undo the module cache")
+				}
+				if strings.Contains(text, "func Rollback") {
+					t.Error("do not add transactional Rollback")
 				}
 			}
 			if base == "execute_test.go" {
@@ -375,6 +390,26 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			}
 			if strings.Contains(text, "lockMutation") {
 				t.Error("Inspect must not take the mutation lock")
+			}
+		}
+		if base == "recovery.go" {
+			for _, spec := range file.Imports {
+				imp := strings.Trim(spec.Path.Value, `"`)
+				if !allowRecoveryImport[imp] {
+					t.Errorf("recovery.go imports %s — file restore only", imp)
+				}
+			}
+			if !strings.Contains(text, "lockMutation(") {
+				t.Error("RecoverFiles must serialize through lockMutation")
+			}
+			if strings.Contains(text, "os.WriteFile") && (!strings.Contains(text, "go.mod") || !strings.Contains(text, "go.sum")) {
+				t.Error("recovery must write only go.mod / go.sum")
+			}
+			if strings.Contains(text, "go mod tidy") || strings.Contains(text, "zatrano.lock") {
+				t.Errorf("recovery.go must not tidy or write a lockfile")
+			}
+			if strings.Contains(text, "Invoke(") || strings.Contains(text, "Execute(") {
+				t.Error("RecoverFiles must not run go get")
 			}
 		}
 		if base == "lock.go" {
@@ -440,6 +475,14 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	if strings.Contains(text, "func Apply(") {
 		t.Error("do not add a general Apply API; ExecuteTargets is the partial-apply gate")
 	}
+	if !strings.Contains(text, "RecoveryUnavailable") {
+		t.Error("ExecuteTargets must leave recovery unavailable")
+	}
+	if !strings.Contains(text, "func (r ApplyResult) WithRecovery(") && !strings.Contains(text, "func (r ApplyResult) WithRecovery (") {
+		if !strings.Contains(text, "WithRecovery(") {
+			t.Error("ApplyResult must attach recovery without rewriting target reports")
+		}
+	}
 	if !strings.Contains(text, "ExecRunner{}") {
 		t.Error("Execute must bind ExecRunner; do not scatter exec.Command")
 	}
@@ -467,6 +510,12 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "partial_test.go")); err != nil {
 		t.Fatal("missing partial_test.go — partial-apply mutation vs report tests belong there")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "recovery.go")); err != nil {
+		t.Fatal("missing recovery.go")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "recovery_test.go")); err != nil {
+		t.Fatal("missing recovery_test.go — guaranteed vs file recovery tests belong there")
 	}
 }
 

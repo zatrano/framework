@@ -4,7 +4,7 @@
 Previous phases: 1–7 frozen  
 Phase 7 boundary: `GoGetArg`  
 This phase: Apply contract only  
-**Implementation:** steps 1–6 authorized. Rollback (step 7) is not authorized
+**Implementation:** steps 1–7 authorized. Integration (step 8) is not authorized
 
 ```
 Resolve → FromResult → Plan → Targets → GoGetArg
@@ -101,11 +101,13 @@ At most one Apply may mutate a given application's go.mod / go.sum at a time. Co
 
 ## 15. Partial apply
 
-Multiple targets can yield A success, B success, C failure, D unattempted. Apply MUST NOT claim “all targets acquired”. Successful, failed, and unattempted targets MUST be observable if the implementation applies incrementally. `ApplyResult` is that report. Partial apply MUST NOT roll back earlier successful mutations. Rollback is a later gate.
+Multiple targets can yield A success, B success, C failure, D unattempted. Apply MUST NOT claim “all targets acquired”. Successful, failed, and unattempted targets MUST be observable if the implementation applies incrementally. `ApplyResult` is that report. Partial apply MUST NOT roll back earlier successful mutations. `ExecuteTargets` does not restore files.
 
 ## 16. Rollback
 
 Rollback MUST NOT be assumed transactional. Distinguish rollback guaranteed from rollback unavailable / recovery required. If rollback is not guaranteed, the API MUST report partial mutation explicitly. Best-effort cleanup MUST NOT be presented as transactional rollback.
+
+Optional `RecoverFiles` restores a `SnapshotFiles` copy of `go.mod` and `go.sum` in the supplied module root. That is the only state it restores. Restoring those two files MUST NOT be reported as guaranteed rollback and MUST NOT mean the Go module cache, sumdb, or other Go tooling side effects were undone. A failed restore is recovery failure: distinct from the acquisition error. Target success / failed / unattempted reports MUST stay unchanged.
 
 ## 17. Failure strategy
 
@@ -183,7 +185,7 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Current gate:** step 6 is authorized (`ExecuteTargets` / `ApplyResult`: successful, failed, unattempted; fail-fast; no rollback). `Execute` still serializes per module root. `Inspect` is not locked. Steps 7–8 remain not authorized: no rollback, no integration suite.
+**Current gate:** step 7 is authorized (`SnapshotFiles` / `RecoverFiles`: best-effort go.mod / go.sum restore; not transactional; cache not undone). `ExecuteTargets` still does not restore files. Step 8 remains not authorized: no integration suite.
 
 ## 29. Completion
 

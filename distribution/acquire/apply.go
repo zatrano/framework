@@ -31,11 +31,20 @@ type TargetReport struct {
 	Err      error
 }
 
-// ApplyResult is SPEC §15 partial-apply reporting. It is not rollback,
-// not enablement, and not a claim that all targets were acquired.
+// ApplyResult is SPEC §15 partial-apply reporting. Recovery (SPEC §16) is
+// unavailable unless the caller attaches a RecoverFiles outcome. It is not
+// enablement and not a claim that all targets were acquired.
 type ApplyResult struct {
-	Root    string
-	Reports []TargetReport
+	Root     string
+	Reports  []TargetReport
+	Recovery Recovery
+}
+
+// WithRecovery keeps target reports and records a file-restore outcome.
+// It does not rewrite success, failed, or unattempted.
+func (r ApplyResult) WithRecovery(rec Recovery) ApplyResult {
+	r.Recovery = rec
+	return r
 }
 
 // Successful returns GoGetArg values reported as success, in input order.
@@ -81,15 +90,19 @@ func execute(ctx context.Context, runner Runner, req Request) (InvocationResult,
 
 // ExecuteTargets applies each GoGetArg in order under one per-root mutation
 // lock. Fail-fast: the first failure stops the sequence; later targets stay
-// unattempted. Earlier successes are not rolled back. The result is never
-// “all targets acquired”.
+// unattempted. Earlier successes are not rolled back and files are not
+// restored. The result is never “all targets acquired”.
 func ExecuteTargets(ctx context.Context, root string, args []string) (ApplyResult, error) {
 	return executeTargets(ctx, ExecRunner{}, Request{Root: root}, args)
 }
 
 func executeTargets(ctx context.Context, runner Runner, req Request, args []string) (ApplyResult, error) {
 	root := strings.TrimSpace(req.Root)
-	out := ApplyResult{Root: root, Reports: make([]TargetReport, 0, len(args))}
+	out := ApplyResult{
+		Root:     root,
+		Reports:  make([]TargetReport, 0, len(args)),
+		Recovery: Recovery{Kind: RecoveryUnavailable},
+	}
 	for _, arg := range args {
 		out.Reports = append(out.Reports, TargetReport{
 			GoGetArg: strings.TrimSpace(arg),

@@ -27,7 +27,9 @@ Registry Resolve
               ✕
          ExecuteTargets     ← Phase 8 partial apply
               ✕
-         rollback / …       ← later Phase 8 gates
+         RecoverFiles       ← Phase 8 best-effort file recovery
+              ✕
+         integration        ← later Phase 8 gate
 ```
 
 Phases 1–7 are frozen. Phase 7 stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
@@ -43,7 +45,7 @@ Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke
 | Execute | Did `go get` run, and what did it return? | `Execute` / `ExecRunner` |
 | Inspect | What did Go write into go.mod / go.sum? | `Inspect` |
 | Lock | Exclusive mutation per module root | `lockMutation` |
-| Apply | How do we report mutation / partial / rollback? | `ExecuteTargets` / `ApplyResult` (partial); rollback not started |
+| Apply | How do we report mutation / partial / rollback? | `ExecuteTargets` / `ApplyResult`; `RecoverFiles` (files only, not guaranteed) |
 
 `package:install` **≠** module acquisition. It stays enablement.
 
@@ -94,7 +96,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 entry
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Step 6 (partial-apply reporting) is in this package. Rollback stays on that document; do not recode it here.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Step 7 (best-effort go.mod / go.sum recovery) is in this package. Integration stays on that document; do not recode it here.
 
 ## Invariants (frozen)
 
@@ -114,7 +116,7 @@ Architecture tests reject a second resolution implementation, enablement fields 
 
 ## Phase freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation, `go get`, inspection, per-root mutation serialization, and partial-apply reporting are authorized. Rollback is not.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). Process invocation, `go get`, inspection, per-root mutation serialization, partial-apply reporting, and best-effort file recovery are authorized. Integration is not.
 
 | Phase | Status |
 |-------|--------|
@@ -125,10 +127,10 @@ Architecture tests reject a second resolution implementation, enablement fields 
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | SPEC + invocation + `go get` + inspection + per-root lock + partial apply; rollback not authorized |
+| 8 Module Acquisition Apply | SPEC + invocation + `go get` + inspection + per-root lock + partial apply + file recovery; integration not authorized |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Deferred (Phase 8)
 
-Rollback and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.
+Integration tests and a new CLI command remain not authorized. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.

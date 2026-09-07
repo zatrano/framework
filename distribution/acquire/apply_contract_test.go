@@ -142,6 +142,11 @@ func TestApplySpecSeparatesRollbackFromRecovery(t *testing.T) {
 	requireSpecContains(t, spec, "Rollback MUST NOT be assumed transactional.")
 	requireSpecContains(t, spec, "Distinguish rollback guaranteed from rollback unavailable / recovery required.")
 	requireSpecContains(t, spec, "Best-effort cleanup MUST NOT be presented as transactional rollback.")
+	requireSpecContains(t, spec, "Optional `RecoverFiles` restores a `SnapshotFiles` copy of `go.mod` and `go.sum`")
+	requireSpecContains(t, spec, "MUST NOT be reported as guaranteed rollback")
+	requireSpecContains(t, spec, "MUST NOT mean the Go module cache")
+	requireSpecContains(t, spec, "distinct from the acquisition error")
+	requireSpecContains(t, spec, "`ExecuteTargets` does not restore files.")
 }
 
 func TestApplySpecRestrictsFilesystemScope(t *testing.T) {
