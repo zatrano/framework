@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.9" {
-		t.Fatalf("VERSION=%q want 2.0.9", version)
+	if version != "2.0.10" {
+		t.Fatalf("VERSION=%q want 2.0.10", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -219,6 +219,31 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 	for _, ban := range []string{"Enabled", "Imported", "Stubs", "Enablement", "Lock", "Checksum", "Apply"} {
 		if got[ban] {
 			t.Errorf("Plan must not have %s", ban)
+		}
+	}
+}
+
+func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
+	allowFn := map[string]bool{"FromResult": true, "Targets": true}
+	allowMethod := map[string]bool{"GoGetArg": true}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filepath.Join(moduleRoot(t), "acquire", "plan.go"), nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name == nil || !fn.Name.IsExported() {
+			continue
+		}
+		if fn.Recv != nil {
+			if !allowMethod[fn.Name.Name] {
+				t.Errorf("Plan grew method %s — Apply stays out of Phase 7", fn.Name.Name)
+			}
+			continue
+		}
+		if !allowFn[fn.Name.Name] {
+			t.Errorf("acquire grew %s — Phase 7 exports are FromResult and Targets", fn.Name.Name)
 		}
 	}
 }

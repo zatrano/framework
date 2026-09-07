@@ -33,7 +33,7 @@ go run ./cmd/zatrano package:resolve session
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Plan** is **frozen**: `acquire.FromResult` translates a successful `registry.Result` into a `go get` argument; `Targets` collapses shared modules into a deterministic query list. See [`acquire/SPEC.md`](acquire/SPEC.md). There is no `zatrano.lock`: go.mod + go.sum are the pin. `Apply` (`go get`, filesystem mutation) is a later phase. Do not put that work in `package:install`.
+Phase 7 **Acquisition Plan** is **closed**: `FromResult` translates a successful `registry.Result`; `Targets` deduplicates modules and **does not** pick a pin when they conflict. See [`acquire/SPEC.md`](acquire/SPEC.md). There is no `zatrano.lock`: go.mod + go.sum are the pin. Phase 8 is Apply (contract first, then `go get` / mutation). Do not fold Apply into `package:install`. Do not assume `go get` → `go mod tidy` pins acquired modules.
 
 ---
 

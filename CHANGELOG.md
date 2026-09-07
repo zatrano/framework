@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.10 - 2026-09-07
+
+Close Phase 7: `Targets` deduplicates modules and does not resolve pin conflicts. Phase 8 Apply starts with a contract; `package:install` stays enablement; `go get` → `go mod tidy` is not an install assumption. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.9 - 2026-09-07
 
 Freeze Phase 7 Plan layer: `FromResult` is a pure translation; `Targets` collapses shared modules into a deterministic query list. Same Result → same Plan; `latest` never survives; unresolved → no Plan. Apply (`go get`) remains a later phase. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.

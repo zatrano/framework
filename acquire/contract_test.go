@@ -212,6 +212,9 @@ func TestTargetsRejectsConflictingPinsForOneModule(t *testing.T) {
 	if _, err := Targets([]Plan{a, b}); err == nil {
 		t.Fatal("shared module with two pins must not silently merge")
 	}
+	if _, err := Targets([]Plan{b, a}); err == nil {
+		t.Fatal("conflict must not depend on input order")
+	}
 }
 
 func TestMissingModuleIdentityHasNoPlan(t *testing.T) {

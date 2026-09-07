@@ -6,19 +6,21 @@ How a **registry-resolved** package identity becomes a Go module dependency. **N
 zatrano.package/v1
        ↓
 Registry Resolve
-       ↓
-Resolved identity (name + module + selected release)
-       ↓
-acquire.Plan          ← this package (translation only)
-       ↓
-go get <Plan.Query>   ← later Apply; mutates go.mod / go.sum
-       ↓
-Go verification (go.sum + checksum database)
-       ↓
-Application enablement (Enabled ∩ Imported) — still a separate step
+       ├── error → NO PLAN
+       └── resolved identity
+              ↓
+         acquire.FromResult
+              ↓
+            Plan
+              ↓
+           Targets          ← Phase 7 ends (frozen)
+              ↓
+     unique acquisition units
+              ✕
+         Apply / go get     ← Phase 8, not this package
 ```
 
-Phases 1–6 stay frozen. The Plan layer of this package is frozen. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Phases 1–7 are frozen. This package stops at `Targets`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
 This package does not run `go get`, write files, or blank-import.
 
@@ -47,7 +49,7 @@ A `Plan` is defined only after a **successful** `Resolve`. `FromResult` does not
 
 Heavy packages (`mongo`, `webauthn`, `qr`) have their own module path; the same table applies. Shared-module names produce identical `Query` strings; acquiring `auth` after `session` is a no-op at the module layer.
 
-`Targets([]Plan)` is the acquisition-unit view: unique `Query` per `Module`, ordered by module path. Input order does not matter. Two plans that share a module but disagree on `Query` are a conflict (no silent last-write-wins). Catalog `Name` never becomes a target.
+`Targets([]Plan)` is **module-level normalization**, not Apply and not a second resolver. It deduplicates identical `Query` values per `Module` and orders by module path. Input order does not matter. If two plans share a module but disagree on `Query` (`session@main` vs `auth@v1.0.0`), that is a **conflict**: Targets returns an error. It does not pick `main`, the higher semver, or last-write-wins. Catalog `Name` never becomes a target.
 
 `Plan.Name` / `Plan.Import` are copied identity for traceability. They are **not** enablement: the struct has no Enabled / Imported / stubs / blank-import fields. Enablement remains Enabled ∩ Imported after a later Apply.
 
@@ -65,13 +67,16 @@ A second lockfile would duplicate pins, drift from `go mod tidy`, and imply per-
 
 Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.go cannot express (for example a non-Go artifact). Do not add one “in case”.
 
-## Verification (later Apply)
+## Verification (later Apply — Phase 8)
 
-1. `Plan` came from `registry.Resolve` (not from a CLI-local picker).
-2. `go get` / `go mod download` using `Plan.Query`.
-3. Trust Go's `go.sum` + sumdb for source.
-4. Optional: `registry.VerifyDigest` on manifest bytes — metadata only.
-5. Enablement is a **following** step, not part of Apply.
+Phase 8 starts with an **Apply contract**, not by rewriting `package:install`. Enablement (Enabled ∩ Imported + stubs) stays a separate operation.
+
+1. `Plan` came from `registry.Resolve` (not from a CLI-local picker). `Targets` only listed unique modules; it did not re-resolve.
+2. Mutate go.mod / go.sum using `Plan.Query` / `Targets` output. Policy for `go get` vs `go mod edit` belongs in that contract.
+3. Do **not** code `go get` → `go mod tidy` as the install mechanism. `tidy` rearranges the module graph from source imports; it is not “pin the packages we just acquired.”
+4. Trust Go's `go.sum` + sumdb for source.
+5. Optional: `registry.VerifyDigest` on manifest bytes — metadata only.
+6. Enablement is a **following** step, not part of Apply.
 
 Failure/rollback of Apply is “leave go.mod/go.sum as Go left them or restore the previous pair.” That policy is for the Apply implementation, not this translation contract.
 
@@ -80,7 +85,8 @@ Failure/rollback of Apply is “leave go.mod/go.sum as Go left them or restore t
 | Property | Lock |
 |----------|------|
 | Same `Result` → same `Plan` | `FromResult` is a pure function |
-| Same module, different catalog names → one target | `Targets` keys on `Module` |
+| Same module, different catalog names, same pin → one target | `Targets` keys on `Module` |
+| Same module, different pins → error | Targets **deduplicates**; it does not pick a winner |
 | Target order is deterministic | lexicographic module path; input order ignored |
 | `latest` never appears on a Plan | `moduleQuery` rejects it; Resolve already chose tag or `main` |
 | Unresolved → no Plan | Resolve error short-circuits; `FromResult` requires name + module + version-or-`main` |
@@ -92,10 +98,21 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 
 ## Phase freeze
 
-The **Plan layer is frozen**. Next is Apply (process execution, go.mod mutation, failure/rollback), not more translation.
+**Phase 7 is closed.** This package stops at `Targets`. Next is Phase 8: Apply contract, then process execution.
 
-Phases 1–6 stay frozen. Today's `package:install` remains enablement.
+| Phase | Status |
+|-------|--------|
+| 1 Architecture | Frozen |
+| 2 Package contract | Frozen |
+| 3 Official packages | Frozen |
+| 4 `zatrano.package/v1` | Frozen |
+| 5 Registry | Frozen |
+| 6 Registry CLI consumer | Frozen |
+| 7 Acquisition Plan (`FromResult` / `Targets`) | **Frozen** |
+| 8 Module Acquisition Apply | Not started — contract first |
 
-## Deferred
+Today's `package:install` remains enablement. Phase 8 must not overwrite that meaning.
 
-`Apply` (`exec.Command("go", "get", …)`), `go mod edit` / `tidy`, go.sum mutation, upgrade/downgrade UX, private GOPROXY, offline, `package:add` CLI, GOPROXY as a ZATRANO HTTP registry, folding any of this into `package:install`.
+## Deferred (Phase 8)
+
+`Apply` (`go get`, `go mod edit`, go.sum mutation), process execution, failure/rollback, upgrade/downgrade UX, private GOPROXY, offline, a new CLI command, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install`. Do not assume `go mod tidy` pins acquired modules.

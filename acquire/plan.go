@@ -54,10 +54,10 @@ func (p Plan) GoGetArg() string {
 	return p.Query
 }
 
-// Targets collapses plans onto unique module queries, ordered by module path.
-// Catalog names are not acquisition units: session and auth that share a module
-// become one query. Conflicting pins for the same module are an error.
-// Input order does not affect output order. This is still not Apply.
+// Targets is module-level normalization: unique Query per Module, ordered by
+// module path. It deduplicates; it does not resolve conflicts or run go get.
+// session@main and auth@main collapse to one query. session@main and auth@v1.0.0
+// on the same module are an error — not last-write-wins, not a second Resolve.
 func Targets(plans []Plan) ([]string, error) {
 	byMod := make(map[string]string, len(plans))
 	for _, p := range plans {
