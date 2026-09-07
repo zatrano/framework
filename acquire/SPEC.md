@@ -24,6 +24,15 @@ Phases 1–7 are frozen. This package stops at `GoGetArg`. Today's `package:inst
 
 This package does not run `go get`, write files, or blank-import.
 
+| Layer | Question | Owner |
+|-------|----------|--------|
+| Resolve | What should be acquired? | `registry` (frozen) |
+| Plan | Which `module@version`? | `FromResult` (frozen) |
+| GoGetArg | Which concrete argument to `go get`? | `Plan.GoGetArg` / `Targets` (frozen) |
+| Apply | How do we actually mutate the module? | Phase 8 — **not started** |
+
+`package:install` **≠** module acquisition. It stays enablement.
+
 ## The question
 
 ZATRANO turns a resolved identity into a Go dependency by treating the **Go module** as the acquisition unit and letting **go.mod + go.sum** be the only dependency state.
@@ -71,7 +80,18 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 entry (not started)
 
-The first artefact is an **Apply contract**, not code. That contract must define, before any `exec` or filesystem mutation:
+Phase 8 has **not** started. When it does, the first task is **not** coding `go get`. Order:
+
+1. Apply SPEC
+2. Mutation boundary
+3. `go get` invocation contract
+4. go.mod / go.sum failure semantics
+5. Concurrency semantics
+6. Partial-apply semantics
+7. Rollback / recovery semantics
+8. **Then** implementation
+
+That contract must exist before any `exec` or filesystem mutation. It is the hand-off that keeps phases 1–6 and Phase 7's pure translation intact.
 
 | Topic | Why it is not Phase 7 |
 |-------|------------------------|
@@ -115,9 +135,9 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | Not started — contract first |
+| 8 Module Acquisition Apply | **Not started** — SPEC first, then implementation |
 
-Today's `package:install` remains enablement. Phase 8 must not overwrite that meaning.
+Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning at start.
 
 ## Deferred (Phase 8)
 

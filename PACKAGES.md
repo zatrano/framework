@@ -33,7 +33,7 @@ go run ./cmd/zatrano package:resolve session
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`acquire/SPEC.md`](acquire/SPEC.md). `go get` is later acquisition; `go mod tidy` rearranges the import graph and is not a lockfile. Phase 8 starts with an Apply contract (mutation, invocation, failures, concurrency, partial apply, rollback) — not by rewriting `package:install`.
+Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`acquire/SPEC.md`](acquire/SPEC.md). Resolve / Plan / GoGetArg / Apply stay distinct questions. `package:install` ≠ module acquisition (enablement). Phase 8 has not started; its first task is the Apply SPEC, not `go get` code.
 
 ---
 
