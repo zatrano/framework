@@ -100,7 +100,7 @@ Consumers (`package:search`, `package:info`, `package:resolve`, and any later HT
 
 ## Phase freeze
 
-Phases 1–6 are closed at this boundary:
+Phases 1–7 Plan are closed at this boundary:
 
 | Surface | Status |
 |---------|--------|
@@ -110,8 +110,9 @@ Phases 1–6 are closed at this boundary:
 | `zatrano.package/v1` | Frozen |
 | `zatrano.registry/v1` Search / Resolve | Frozen |
 | CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
+| `zatrano.acquire/v1` Plan (`FromResult` / `Targets`) | Frozen |
 
-The next phase is **module acquisition**. Translation of `registry.Result` → `go get` argument is [`acquire/SPEC.md`](../acquire/SPEC.md). Apply (filesystem mutation) is still deferred. Do not fold acquisition into `package:install`.
+The next phase is **Apply** (process execution, go.mod / go.sum mutation). Translation of `registry.Result` → `go get` argument stays [`acquire/SPEC.md`](../acquire/SPEC.md). Do not fold Apply into `package:install`.
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 

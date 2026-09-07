@@ -159,6 +159,61 @@ func TestUnknownPackageHasNoPlan(t *testing.T) {
 	}
 }
 
+func TestTargetsCollapsesSharedModuleAndIgnoresInputOrder(t *testing.T) {
+	idx := officialTypeIndex(t)
+	session := mustPlan(t, idx, registry.Query{Name: "session"})
+	auth := mustPlan(t, idx, registry.Query{Name: "auth"})
+	mongo := mustPlan(t, idx, registry.Query{Name: "mongo"})
+	webauthn := mustPlan(t, idx, registry.Query{Name: "webauthn"})
+	qr := mustPlan(t, idx, registry.Query{Name: "qr"})
+	console := mustPlan(t, idx, registry.Query{Name: "console"})
+
+	forward, err := Targets([]Plan{session, auth, mongo, webauthn, qr, console})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverse, err := Targets([]Plan{console, qr, webauthn, mongo, auth, session})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		manifest.FrameworkModule + "@main",
+		manifest.DefaultModule + "@main",
+		manifest.DefaultModule + "/mongo@main",
+		manifest.DefaultModule + "/qr@main",
+		manifest.DefaultModule + "/webauthn@main",
+	}
+	if len(forward) != 5 {
+		t.Fatalf("session+auth must collapse to one target: %v", forward)
+	}
+	for i, q := range want {
+		if forward[i] != q || reverse[i] != q {
+			t.Fatalf("targets[%d]=%q reverse=%q want %q\nforward=%v", i, forward[i], reverse[i], q, forward)
+		}
+	}
+}
+
+func TestTargetsRejectsConflictingPinsForOneModule(t *testing.T) {
+	mod := manifest.DefaultModule
+	a, err := FromResult(registry.Result{
+		Package: registry.Package{Name: "session", Module: mod},
+		Release: registry.Release{Channel: registry.ChannelMain},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := FromResult(registry.Result{
+		Package: registry.Package{Name: "auth", Module: mod},
+		Release: registry.Release{Version: "1.0.0"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Targets([]Plan{a, b}); err == nil {
+		t.Fatal("shared module with two pins must not silently merge")
+	}
+}
+
 func TestMissingModuleIdentityHasNoPlan(t *testing.T) {
 	if _, err := FromResult(registry.Result{
 		Package: registry.Package{Name: "session"},

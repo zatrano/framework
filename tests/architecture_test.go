@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.8" {
-		t.Fatalf("VERSION=%q want 2.0.8", version)
+	if version != "2.0.9" {
+		t.Fatalf("VERSION=%q want 2.0.9", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -200,29 +200,86 @@ func TestPhase6SearchHitHasNoSelectionFields(t *testing.T) {
 	}
 }
 
-func TestAcquireDoesNotImportConsoleOrExec(t *testing.T) {
+func TestPhase7PlanStructFreeze(t *testing.T) {
+	allow := map[string]bool{
+		"Schema": true, "Name": true, "Import": true, "Module": true,
+		"Query": true, "Selected": true, "Kind": true, "Heavy": true,
+	}
+	got := structFields(t, filepath.Join(moduleRoot(t), "acquire", "plan.go"), "Plan")
+	for name := range got {
+		if !allow[name] {
+			t.Errorf("Plan grew %s — Plan is not enablement, lock, or Apply state", name)
+		}
+	}
+	for name := range allow {
+		if !got[name] {
+			t.Errorf("Plan lost %s", name)
+		}
+	}
+	for _, ban := range []string{"Enabled", "Imported", "Stubs", "Enablement", "Lock", "Checksum", "Apply"} {
+		if got[ban] {
+			t.Errorf("Plan must not have %s", ban)
+		}
+	}
+}
+
+func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 	dir := filepath.Join(moduleRoot(t), "acquire")
+	allowImport := map[string]bool{
+		"fmt": true, "strings": true, "sort": true,
+		"github.com/zatrano/framework/v2/registry": true,
+	}
+	bannedFn := map[string]bool{
+		"Apply": true, "Install": true, "Tidy": true, "Download": true,
+		"compareSemver": true, "latestCompatible": true, "MeetsFrameworkMin": true,
+	}
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return err
-		}
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
 			return err
 		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		base := filepath.Base(path)
 		for _, spec := range file.Imports {
 			imp := strings.Trim(spec.Path.Value, `"`)
-			if strings.Contains(imp, "/console") || imp == "os/exec" {
-				t.Errorf("%s imports %s — Apply is deferred", filepath.Base(path), imp)
+			if !allowImport[imp] {
+				t.Errorf("%s imports %s — Plan layer stays a pure translation", base, imp)
 			}
 		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name == nil {
+				continue
+			}
+			if bannedFn[fn.Name.Name] {
+				t.Errorf("%s defines %s — Apply/resolution stay out of acquire", base, fn.Name.Name)
+			}
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok || sel.Sel == nil {
+				return true
+			}
+			if sel.Sel.Name == "Resolve" || sel.Sel.Name == "Search" || sel.Sel.Name == "Lookup" {
+				t.Errorf("%s calls Index.%s — FromResult must not re-resolve", base, sel.Sel.Name)
+			}
+			return true
+		})
 		src, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return readErr
 		}
-		if strings.Contains(string(src), "os.WriteFile") {
-			t.Errorf("%s writes files — Apply is deferred", filepath.Base(path))
+		text := string(src)
+		for _, ban := range []string{"os.WriteFile", "os.Create", "os.Mkdir", "exec.Command", "go mod tidy", "go mod edit"} {
+			if strings.Contains(text, ban) {
+				t.Errorf("%s contains %q — Apply is deferred", base, ban)
+			}
 		}
 		return nil
 	})
@@ -245,7 +302,7 @@ func TestConsoleDoesNotImportAcquireYet(t *testing.T) {
 		for _, spec := range file.Imports {
 			imp := strings.Trim(spec.Path.Value, `"`)
 			if strings.HasSuffix(imp, "/acquire") {
-				t.Errorf("%s imports acquire — Apply/CLI add is not this slice (%s)", filepath.Base(path), imp)
+				t.Errorf("%s imports acquire — Plan layer is frozen; Apply/CLI add is later (%s)", filepath.Base(path), imp)
 			}
 		}
 		return nil

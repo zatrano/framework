@@ -18,7 +18,7 @@ Go verification (go.sum + checksum database)
 Application enablement (Enabled ∩ Imported) — still a separate step
 ```
 
-Phases 1–6 stay frozen. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Phases 1–6 stay frozen. The Plan layer of this package is frozen. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
 This package does not run `go get`, write files, or blank-import.
 
@@ -37,7 +37,7 @@ Catalog **name** is not a versioned artifact. Many official names share `github.
 | `Package.Module` | `module` | left side of `@` |
 | tagged `Release.Version` | `selected` | `module@v1.2.0` (`v` prefix normalized) |
 | channel `main` | `selected` = `main` | `module@main` |
-| `Package.Name` / `Import` | identity for later enablement | **not** a go.mod path |
+| `Package.Name` / `Import` | catalog identity (not enablement) | **not** a go.mod path |
 
 `latest` never appears in `Plan.Query` or `Plan.Selected`. Resolve already picked a tag or `main`.
 
@@ -46,6 +46,10 @@ A `Plan` is defined only after a **successful** `Resolve`. `FromResult` does not
 `go get module@main` is allowed as the **input** to the toolchain. Go then writes a **pseudo-version** (`v0.0.0-<timestamp>-<commit>`) into go.mod. That rewritten pin, plus go.sum, is what CI reproduces — not the word `main`.
 
 Heavy packages (`mongo`, `webauthn`, `qr`) have their own module path; the same table applies. Shared-module names produce identical `Query` strings; acquiring `auth` after `session` is a no-op at the module layer.
+
+`Targets([]Plan)` is the acquisition-unit view: unique `Query` per `Module`, ordered by module path. Input order does not matter. Two plans that share a module but disagree on `Query` are a conflict (no silent last-write-wins). Catalog `Name` never becomes a target.
+
+`Plan.Name` / `Plan.Import` are copied identity for traceability. They are **not** enablement: the struct has no Enabled / Imported / stubs / blank-import fields. Enablement remains Enabled ∩ Imported after a later Apply.
 
 ## Why there is no `zatrano.lock`
 
@@ -71,6 +75,27 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 Failure/rollback of Apply is “leave go.mod/go.sum as Go left them or restore the previous pair.” That policy is for the Apply implementation, not this translation contract.
 
+## Invariants (frozen)
+
+| Property | Lock |
+|----------|------|
+| Same `Result` → same `Plan` | `FromResult` is a pure function |
+| Same module, different catalog names → one target | `Targets` keys on `Module` |
+| Target order is deterministic | lexicographic module path; input order ignored |
+| `latest` never appears on a Plan | `moduleQuery` rejects it; Resolve already chose tag or `main` |
+| Unresolved → no Plan | Resolve error short-circuits; `FromResult` requires name + module + version-or-`main` |
+| `FromResult` does not Resolve | no `Index` methods; no `framework_min` re-check |
+| `FromResult` does not touch the filesystem | no `os` / `os/exec`; Apply is a later phase |
+| Plan is not enablement | field freeze; no Enabled / Imported / stubs |
+
+Architecture tests reject a second resolution implementation, Apply/`go get`, and enablement fields on `Plan`.
+
+## Phase freeze
+
+The **Plan layer is frozen**. Next is Apply (process execution, go.mod mutation, failure/rollback), not more translation.
+
+Phases 1–6 stay frozen. Today's `package:install` remains enablement.
+
 ## Deferred
 
-`Apply` (`exec.Command("go", "get", …)`), upgrade/downgrade UX, private GOPROXY, offline, `package:add` CLI, GOPROXY as a ZATRANO HTTP registry, folding any of this into `package:install`.
+`Apply` (`exec.Command("go", "get", …)`), `go mod edit` / `tidy`, go.sum mutation, upgrade/downgrade UX, private GOPROXY, offline, `package:add` CLI, GOPROXY as a ZATRANO HTTP registry, folding any of this into `package:install`.

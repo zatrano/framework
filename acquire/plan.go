@@ -2,6 +2,7 @@ package acquire
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/zatrano/framework/v2/registry"
@@ -10,7 +11,9 @@ import (
 const SchemaV1 = "zatrano.acquire/v1"
 
 // Plan is how a resolved identity becomes a go get argument.
-// It is not dependency state. After Apply, go.mod / go.sum are authoritative.
+// It is not dependency state, not enablement, and not a lockfile.
+// Name/Import are catalog identity copied from Result; they do not mean
+// the package is enabled. After a later Apply, go.mod / go.sum are authoritative.
 type Plan struct {
 	Schema   string `json:"schema"`
 	Name     string `json:"name"`
@@ -22,8 +25,8 @@ type Plan struct {
 	Heavy    bool   `json:"heavy,omitempty"`
 }
 
-// FromResult maps registry.Resolve output onto a module acquisition plan.
-// It does not call Resolve, run go get, or write go.mod.
+// FromResult maps a successful registry.Result onto a module acquisition plan.
+// It does not call Resolve, re-check framework_min, run go get, or touch the filesystem.
 func FromResult(got registry.Result) (Plan, error) {
 	name := strings.ToLower(strings.TrimSpace(got.Package.Name))
 	mod := strings.TrimSpace(got.Package.Module)
@@ -46,9 +49,38 @@ func FromResult(got registry.Result) (Plan, error) {
 	}, nil
 }
 
-// GoGetArg is the token passed to `go get`. It is never the selector "latest".
+// GoGetArg is the token later passed to `go get`. It is never the selector "latest".
 func (p Plan) GoGetArg() string {
 	return p.Query
+}
+
+// Targets collapses plans onto unique module queries, ordered by module path.
+// Catalog names are not acquisition units: session and auth that share a module
+// become one query. Conflicting pins for the same module are an error.
+// Input order does not affect output order. This is still not Apply.
+func Targets(plans []Plan) ([]string, error) {
+	byMod := make(map[string]string, len(plans))
+	for _, p := range plans {
+		mod := strings.TrimSpace(p.Module)
+		q := strings.TrimSpace(p.Query)
+		if mod == "" || q == "" {
+			return nil, fmt.Errorf("acquire: incomplete plan")
+		}
+		if prev, ok := byMod[mod]; ok && prev != q {
+			return nil, fmt.Errorf("acquire: conflicting plans for %s: %s vs %s", mod, prev, q)
+		}
+		byMod[mod] = q
+	}
+	mods := make([]string, 0, len(byMod))
+	for mod := range byMod {
+		mods = append(mods, mod)
+	}
+	sort.Strings(mods)
+	out := make([]string, 0, len(mods))
+	for _, mod := range mods {
+		out = append(out, byMod[mod])
+	}
+	return out, nil
 }
 
 func moduleQuery(mod string, rel registry.Release) (selected, query string, err error) {

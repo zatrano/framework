@@ -102,6 +102,42 @@ func TestFromResultRejectsLatestAndEmpty(t *testing.T) {
 	}
 }
 
+func TestFromResultIsIdempotent(t *testing.T) {
+	in := registry.Result{
+		Package: registry.Package{
+			Name: "Session", Import: manifest.DefaultModule + "/session",
+			Module: manifest.DefaultModule, Kind: manifest.KindService,
+		},
+		Release: registry.Release{Channel: registry.ChannelMain},
+	}
+	a, err := FromResult(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := FromResult(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Fatalf("same Result must yield the same Plan:\n%#v\n%#v", a, b)
+	}
+}
+
+func TestFromResultDoesNotReCheckFrameworkMin(t *testing.T) {
+	// An incompatible pin is a Resolve error. FromResult still translates
+	// whatever Result it is given — it is not a second resolver.
+	got, err := FromResult(registry.Result{
+		Package: registry.Package{Name: "session", Module: manifest.DefaultModule},
+		Release: registry.Release{Version: "9.0.0", FrameworkMin: "3.0.0"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Query != manifest.DefaultModule+"@v9.0.0" {
+		t.Fatalf("FromResult must not filter on framework_min: %#v", got)
+	}
+}
+
 func TestPlanJSONIsNotALockfile(t *testing.T) {
 	p, err := FromResult(registry.Result{
 		Package: registry.Package{Name: "session", Module: manifest.DefaultModule},
@@ -122,5 +158,10 @@ func TestPlanJSONIsNotALockfile(t *testing.T) {
 	}
 	if !strings.Contains(s, `"schema":"zatrano.acquire/v1"`) {
 		t.Fatalf("%s", s)
+	}
+	for _, ban := range []string{`"enabled"`, `"imported"`, `"stub"`, `"enablement"`} {
+		if strings.Contains(strings.ToLower(s), ban) {
+			t.Fatalf("plan must not carry enablement (%s):\n%s", ban, s)
+		}
 	}
 }

@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.9 - 2026-09-07
+
+Freeze Phase 7 Plan layer: `FromResult` is a pure translation; `Targets` collapses shared modules into a deterministic query list. Same Result → same Plan; `latest` never survives; unresolved → no Plan. Apply (`go get`) remains a later phase. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.8 - 2026-09-07
 
 Exhaustive `acquire.Plan` contract tests: shared vs heavy modules, tagged/`main`/`latest`→concrete, missing identity, incompatible Resolve (no plan). Apply still deferred. Install with `go get github.com/zatrano/framework/v2@latest`.
