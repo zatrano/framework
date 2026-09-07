@@ -110,9 +110,9 @@ Phases 1–7 Plan are closed at this boundary:
 | `zatrano.package/v1` | Frozen |
 | `zatrano.registry/v1` Search / Resolve | Frozen |
 | CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
-| `zatrano.acquire/v1` Plan (`FromResult` / `Targets`) | Frozen |
+| `zatrano.acquire/v1` Plan (`FromResult` / `Targets` / `GoGetArg`) | Frozen |
 
-The next phase is **8 — Apply**. Start with an Apply contract. Do not rewrite `package:install` into a downloader. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
+The next phase is **8 — Apply**. First artefact is the Apply contract (not code, not a `package:install` rewrite). Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 

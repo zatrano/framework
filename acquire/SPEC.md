@@ -13,14 +13,14 @@ Registry Resolve
               ↓
             Plan
               ↓
-           Targets          ← Phase 7 ends (frozen)
+           Targets
               ↓
-     unique acquisition units
+          GoGetArg          ← Phase 7 ends (frozen)
               ✕
          Apply / go get     ← Phase 8, not this package
 ```
 
-Phases 1–7 are frozen. This package stops at `Targets`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Phases 1–7 are frozen. This package stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
 This package does not run `go get`, write files, or blank-import.
 
@@ -67,18 +67,24 @@ A second lockfile would duplicate pins, drift from `go mod tidy`, and imply per-
 
 Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.go cannot express (for example a non-Go artifact). Do not add one “in case”.
 
-## Verification (later Apply — Phase 8)
+`go get` is later **acquisition** (Phase 8). `go mod tidy` is **module/import graph rearrangement**. It is not an acquisition manifest and not a lockfile.
 
-Phase 8 starts with an **Apply contract**, not by rewriting `package:install`. Enablement (Enabled ∩ Imported + stubs) stays a separate operation.
+## Phase 8 entry (not started)
 
-1. `Plan` came from `registry.Resolve` (not from a CLI-local picker). `Targets` only listed unique modules; it did not re-resolve.
-2. Mutate go.mod / go.sum using `Plan.Query` / `Targets` output. Policy for `go get` vs `go mod edit` belongs in that contract.
-3. Do **not** code `go get` → `go mod tidy` as the install mechanism. `tidy` rearranges the module graph from source imports; it is not “pin the packages we just acquired.”
-4. Trust Go's `go.sum` + sumdb for source.
-5. Optional: `registry.VerifyDigest` on manifest bytes — metadata only.
-6. Enablement is a **following** step, not part of Apply.
+The first artefact is an **Apply contract**, not code. That contract must define, before any `exec` or filesystem mutation:
 
-Failure/rollback of Apply is “leave go.mod/go.sum as Go left them or restore the previous pair.” That policy is for the Apply implementation, not this translation contract.
+| Topic | Why it is not Phase 7 |
+|-------|------------------------|
+| Mutation boundary | What Apply may write (go.mod / go.sum only?) vs what it must not (enablement, stubs, blank-imports) |
+| `go get` invocation | Process model, working directory, arguments (`Targets` / `GoGetArg`), environment |
+| go.mod / go.sum failures | Toolchain errors vs ZATRANO errors; incomplete writes |
+| Concurrency | Two Apply calls on the same module |
+| Partial application | N of M `Targets` applied when one fails |
+| Rollback | Restore previous go.mod/go.sum pair vs leave toolchain output |
+
+`package:install` keeps today's enablement meaning **even at the start of Phase 8**. Binding real module acquisition to that command is evaluated only after the Apply contract is written.
+
+`tidy` must not be assumed as “pin what we acquired.”
 
 ## Invariants (frozen)
 
@@ -98,7 +104,7 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 
 ## Phase freeze
 
-**Phase 7 is closed.** This package stops at `Targets`. Next is Phase 8: Apply contract, then process execution.
+**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. Next is Phase 8: Apply **contract first**, then process execution.
 
 | Phase | Status |
 |-------|--------|
@@ -108,11 +114,11 @@ Architecture tests reject a second resolution implementation, Apply/`go get`, an
 | 4 `zatrano.package/v1` | Frozen |
 | 5 Registry | Frozen |
 | 6 Registry CLI consumer | Frozen |
-| 7 Acquisition Plan (`FromResult` / `Targets`) | **Frozen** |
+| 7 Acquisition Plan | **Frozen** |
 | 8 Module Acquisition Apply | Not started — contract first |
 
 Today's `package:install` remains enablement. Phase 8 must not overwrite that meaning.
 
 ## Deferred (Phase 8)
 
-`Apply` (`go get`, `go mod edit`, go.sum mutation), process execution, failure/rollback, upgrade/downgrade UX, private GOPROXY, offline, a new CLI command, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install`. Do not assume `go mod tidy` pins acquired modules.
+Apply contract (mutation boundary, `go get` invocation, go.mod/go.sum failures, concurrency, partial apply, rollback), then implementation. A new CLI command, private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry. Do not fold any of this into `package:install` at Phase 8 start. Do not treat `go mod tidy` as an acquisition lockfile.
