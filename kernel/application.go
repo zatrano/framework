@@ -79,7 +79,8 @@ type Application struct {
 	enabledAddons      []string
 }
 
-// NewApplication creates a new application instance.
+// NewApplication creates an application in Created state. Call RegisterProviders,
+// then Bootstrap or Start. It does not load env, run providers, or listen.
 func NewApplication(basePath string) *Application {
 	if basePath == "" {
 		basePath, _ = os.Getwd()
@@ -651,7 +652,8 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 	return http.PublicFile(publicPath, req.Raw())
 }
 
-// Run starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.
+// Run calls Start (which bootstraps if needed), listens on addr or APP_PORT,
+// and shuts down on SIGINT/SIGTERM (HTTP Shutdown then Stop).
 func (app *Application) Run(addr string) error {
 	if err := app.Start(); err != nil {
 		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)

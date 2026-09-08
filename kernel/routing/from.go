@@ -8,7 +8,8 @@ package routing
 import "github.com/zatrano/framework/v2/contracts"
 
 // From returns the typed router. Prefer this over App.Router() when registering
-// HandlerFunc or MiddlewareFunc values.
+// HandlerFunc or MiddlewareFunc values. App.Router() remains the untyped ABI
+// used by contracts; it is not missing and should not be duplicated.
 func From(app contracts.App) *Router {
 	if app == nil {
 		return nil

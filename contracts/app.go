@@ -57,11 +57,12 @@ type Provider interface {
 
 // LifecycleProvider is an optional Provider that owns long-running work
 // (queue workers, schedulers, consumers). Boot initializes; Start launches;
-// Stop shuts down with the process.
+// Stop shuts down with the process. Do not start goroutines in Register or Boot.
 //
-// If Start returns an error after allocating resources or starting goroutines,
-// the provider must clean those up itself. The kernel only Stop()s providers
-// whose Start() returned nil.
+// Stop receives only a context (not App). Keep handles from Register/Start on
+// the provider value. If Start returns an error after allocating resources or
+// starting goroutines, the provider must clean those up itself. The kernel only
+// Stop()s providers whose Start() returned nil.
 type LifecycleProvider interface {
 	Provider
 	Start(app App) error

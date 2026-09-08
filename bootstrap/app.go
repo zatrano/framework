@@ -35,9 +35,12 @@ func WithAddons(names ...string) Option {
 	}
 }
 
-// App creates the application.
+// App constructs an application and registers providers. It does not call
+// Application.Bootstrap: the instance is Created. HTTP is 503 until Bootstrap
+// (or Start/Run, which bootstrap if needed). serve, about, and Run are the
+// usual process entries.
 //
-// Enablement:
+// Enablement (which package providers are registered, not Bootstrap itself):
 //   - WithAddons(names) → names ∩ Imported (explicit override)
 //   - consumer RegisterEnablement → Enabled ∩ Imported
 //   - no manifest → DefaultMetas() (all imported; legacy / G-001)
@@ -117,7 +120,8 @@ func providersFromMetas(metas []addons.Meta) ([]contracts.Provider, []string) {
 	return extra, enabled
 }
 
-// Boot assembles an application from providers.
+// Boot constructs an application and registers providers. It does not run
+// Provider.Register/Boot or Application.Bootstrap; the name is historical.
 func Boot(providers []kernel.Provider, _ ...any) (*kernel.Application, error) {
 	basePath, _ := findBasePath()
 	application := kernel.NewApplication(basePath)

@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+Phase 17 public API stability review: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+
 Phase 16 production reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
 
 Phase 15 production application ergonomics: `zatrano --help` / `--version` (reports 2.0.28), deterministic `list` order, invalid `APP_PORT` / `serve --port` fail with named type errors (secrets not echoed), provider/phase errors preserved through `serve`/`Run`, generated `--minimal` `/up` + lifecycle tests, cancellation/Stop safety tests, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.

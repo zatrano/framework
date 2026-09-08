@@ -282,13 +282,13 @@ go run ./cmd/zatrano new lite --minimal --replace "$PWD"
 
 ## Enabling packages
 
-`bootstrap.App()` boots the intersection of the enablement list and imported packages (see `bootstrap/app.go`):
+`bootstrap.App()` constructs the application and **registers** the intersection of the enablement list and imported packages (see `bootstrap/app.go`). It does not call `Application.Bootstrap()`:
 
 1. `App(WithAddons(names...))` → names ∩ imported
 2. else consumer `RegisterEnablement` (`bootstrap/enabled.go`) → Enabled ∩ imported
 3. else no manifest (legacy) → all imported
 
-A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there does not boot. `auth.From(app)` is nil unless `auth` is both imported and enabled.
+A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there is not registered. `auth.From(app)` is nil unless `auth` is both imported and enabled. Providers run at `Bootstrap` (or the first `Start`/`Run`).
 
 Prefer the CLI, which writes both sides:
 
@@ -395,6 +395,25 @@ After freezing, route registration and mutation are rejected. Typed routing APIs
 
 ## Application lifecycle
 
+Construction is not Bootstrap:
+
+```text
+bootstrap.App / bootstrap.Boot
+    → Created (providers registered, HTTP 503)
+
+Application.Bootstrap
+    → Booted (HTTP ready; workers not started)
+
+Application.Start
+    → Running (bootstraps first if needed; LifecycleProvider.Start)
+
+Application.Run
+    → Start + listen + SIGINT/SIGTERM → Stop
+
+Application.Stop
+    → Stopped (terminal; no-op unless Running)
+```
+
 Providers can implement `contracts.LifecycleProvider`:
 
 ```go
@@ -466,7 +485,7 @@ slice
 
 Pointer and arbitrary struct values are not cloned. Copy semantics cover the configuration value graph managed by the repository, not a universal Go object cloner.
 
-After bootstrap, the configuration repository is frozen. Startup-critical integers such as `APP_PORT` use `env.IntOr`: unset falls back, invalid values fail boot with a named type error and do not echo credential-like keys.
+After bootstrap, the configuration repository is frozen. Startup-critical integers such as `APP_PORT` use `env.IntOr`: unset falls back, invalid values fail boot with a named type error and do not echo credential-like keys. `env.GetInt` remains a silent-fallback helper (invalid → default); do not use it where an unparsable value must stop startup.
 
 ## Package lifecycle
 

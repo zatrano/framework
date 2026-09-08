@@ -104,6 +104,8 @@ func GetBool(key string, fallback ...bool) bool {
 }
 
 // GetInt returns an environment variable as int.
+// Unset or invalid values use fallback (or 0). It never returns an error.
+// Prefer IntOr for startup-critical integers that must fail closed.
 func GetInt(key string, fallback ...int) int {
 	value, ok := os.LookupEnv(key)
 	if !ok {
@@ -145,6 +147,7 @@ func Sensitive(key string) bool {
 // IntOr parses key as a base-10 integer. Unset or blank uses fallback.
 // Invalid values return a configuration error that names the variable and
 // expected type. Secret-like keys do not echo the received value.
+// Use this instead of GetInt when an invalid value must not silently fall back.
 func IntOr(key string, fallback int) (int, error) {
 	value, ok := os.LookupEnv(key)
 	if !ok || strings.TrimSpace(value) == "" {
