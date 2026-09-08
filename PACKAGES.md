@@ -86,7 +86,7 @@ database.Migrator(app)
 | Social login | `social` | [Socialite](https://zatrano.com/docs/socialite) |
 | OAuth **server** | `oauth` | [OAuth](https://zatrano.com/docs/oauth) |
 | API Bearer tokens | `apitoken` | [API Tokens](https://zatrano.com/docs/api-tokens) |
-| Redis | `redisx` (+ cache/queue) | [Redis](https://zatrano.com/docs/redis) |
+| Redis | `cache` (owns client; `redisx` is a library) | [Redis](https://zatrano.com/docs/redis) |
 | CSRF | `middleware/csrf` | [CSRF](https://zatrano.com/docs/csrf) |
 
 ---
@@ -334,7 +334,8 @@ Docs: [Cache](https://zatrano.com/docs/cache)
 
 ### `redisx`
 
-**For:** Shared Redis client used by cache/queue when configured.  
+**For:** Redis client helper used by cache when a Redis store is configured. Cache owns `Connect` and publishes `"redis"`; queue reads that binding. Import-only — do not `package:enable redisx`.
+
 **Use:**
 
 ```env

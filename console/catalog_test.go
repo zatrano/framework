@@ -32,6 +32,10 @@ func TestEcosystemCatalogCoversLayers(t *testing.T) {
 	if !ok || agent.Layer != kernel.LayerIntelligence || agent.EffectiveKind() != kernel.KindLibrary {
 		t.Fatal("agent should be an intelligence library")
 	}
+	redisx, ok := catalogLookup("redisx")
+	if !ok || redisx.Layer != kernel.LayerFoundation || redisx.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("redisx should be a foundation library")
+	}
 	if _, ok := catalogLookup("container"); !ok {
 		t.Fatal("primitives must still resolve through catalogLookup")
 	}
@@ -39,6 +43,12 @@ func TestEcosystemCatalogCoversLayers(t *testing.T) {
 		t.Fatal("kernel must not know auth")
 	}
 	for _, p := range catalogByLayer(kernel.LayerFoundation) {
+		if p.Name == "redisx" {
+			if p.EffectiveKind() != kernel.KindLibrary {
+				t.Errorf("foundation %q Kind=%q want library", p.Name, p.EffectiveKind())
+			}
+			continue
+		}
 		if p.Kind != kernel.KindService {
 			t.Errorf("foundation %q Kind=%q want explicit service", p.Name, p.Kind)
 		}

@@ -18,7 +18,7 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "authorization", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Gates and policies"},
 	{Name: "hashing", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Password hashing"},
 	{Name: "cache", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Cache manager"},
-	{Name: "redisx", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Redis client helper"},
+	{Name: "redisx", Layer: kernel.LayerFoundation, Kind: kernel.KindLibrary, Description: "Redis client helper (cache owns the connection)"},
 	{Name: "database", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Database manager"},
 	{Name: "orm", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Active-record ORM"},
 	{Name: "view", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "HTML view engine"},
