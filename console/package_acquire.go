@@ -12,8 +12,19 @@ import (
 	"github.com/zatrano/framework/v2/kernel"
 )
 
+const (
+	acquireStatusSuccess     = "success"
+	acquireStatusFailed      = "failed"
+	acquireStatusNotExecuted = "not_executed"
+	enablementNotRequested   = "not_requested"
+	enablementSuccess        = "success"
+	enablementFailed         = "failed"
+)
+
 // PackageAcquireCommand orchestrates existing acquisition APIs.
-// It is not a second resolver, process runner, or enablement command.
+// It is not a second resolver or process runner.
+// Enablement is a separate transition: only an explicit --enable after
+// successful acquisition reuses enablePackage. Default acquire does not enable.
 type PackageAcquireCommand struct {
 	app            *kernel.Application
 	out            io.Writer
@@ -24,11 +35,12 @@ type PackageAcquireCommand struct {
 	inspect        func(root string) (acquire.Inspection, error)
 	snapshotFiles  func(root string) (acquire.FileSnapshot, error)
 	recoverFiles   func(ctx context.Context, snap acquire.FileSnapshot) (acquire.Recovery, error)
+	enableFn       func(name string) (bool, error)
 }
 
 func (c *PackageAcquireCommand) Name() string { return "package:acquire" }
 func (c *PackageAcquireCommand) Description() string {
-	return "Acquire a package module via existing acquire APIs (does not enable)"
+	return "Acquire a package module via existing acquire APIs (does not enable unless --enable)"
 }
 func (c *PackageAcquireCommand) writer() io.Writer {
 	if c.out != nil {
@@ -39,7 +51,7 @@ func (c *PackageAcquireCommand) writer() io.Writer {
 
 func (c *PackageAcquireCommand) Handle(args []string) error {
 	if hasFlag(args, "--help", "-h") {
-		fmt.Fprintln(c.writer(), "Usage: package:acquire <name>[@version] [version] [--dry-run] [--root=] [--framework=] [--no-recover] [--format=json|text]")
+		fmt.Fprintln(c.writer(), "Usage: package:acquire <name>[@version] [version] [--dry-run] [--enable] [--root=] [--framework=] [--no-recover] [--format=json|text]")
 		return nil
 	}
 	format, err := formatFromArgs(args)
@@ -93,9 +105,11 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 		return err
 	}
 	view := acquireCLIView{
-		Root:      root,
-		GoGetArgs: getArgs,
-		Enabled:   false,
+		Root:        root,
+		GoGetArgs:   getArgs,
+		Enabled:     false,
+		Acquisition: acquireStatusNotExecuted,
+		Enablement:  enablementNotRequested,
 	}
 	if hasFlag(args, "--dry-run") {
 		reps, err := c.runDryRun(root, getArgs)
@@ -136,6 +150,26 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if view.Recovery == "" {
 		view.Recovery = string(acquire.RecoveryUnavailable)
 	}
+	view.Acquisition = acquireStatusFailed
+	if execErr == nil && len(view.Failed) == 0 {
+		view.Acquisition = acquireStatusSuccess
+	}
+	view.Enablement = enablementNotRequested
+	view.Enabled = false
+	if hasFlag(args, "--enable") && view.Acquisition == acquireStatusSuccess {
+		if err := c.runEnable(name); err != nil {
+			view.Enablement = enablementFailed
+			if _, ierr := c.runInspect(root); ierr != nil {
+				view.InspectErr = ierr.Error()
+			}
+			if werr := c.writeView(format, view); werr != nil {
+				return werr
+			}
+			return err
+		}
+		view.Enablement = enablementSuccess
+		view.Enabled = true
+	}
 	if _, err := c.runInspect(root); err != nil {
 		view.InspectErr = err.Error()
 	}
@@ -153,7 +187,9 @@ func (c *PackageAcquireCommand) writeView(format string, view acquireCLIView) er
 	}
 	w := c.writer()
 	fmt.Fprintf(w, "mode: %s\n", view.Mode)
-	fmt.Fprintf(w, "enabled: false\n")
+	fmt.Fprintf(w, "acquisition: %s\n", view.Acquisition)
+	fmt.Fprintf(w, "enablement: %s\n", view.Enablement)
+	fmt.Fprintf(w, "enabled: %t\n", view.Enabled)
 	fmt.Fprintf(w, "root: %s\n", view.Root)
 	for _, arg := range view.GoGetArgs {
 		fmt.Fprintf(w, "go_get_arg: %s\n", arg)
@@ -236,6 +272,22 @@ func (c *PackageAcquireCommand) runRecover(ctx context.Context, snap acquire.Fil
 	return acquire.RecoverFiles(ctx, snap)
 }
 
+func (c *PackageAcquireCommand) runEnable(name string) error {
+	if c.enableFn != nil {
+		_, err := c.enableFn(name)
+		return err
+	}
+	_, err := enablePackage(c.app, name)
+	if err != nil {
+		return err
+	}
+	if err := wireEnabledAddon(c.app, name); err != nil {
+		return err
+	}
+	_ = applyPackageEnvList(c.app, []string{name})
+	return nil
+}
+
 type acquireCLIView struct {
 	Mode        string          `json:"mode"`
 	Root        string          `json:"root"`
@@ -244,6 +296,8 @@ type acquireCLIView struct {
 	Failed      []string        `json:"failed,omitempty"`
 	Unattempted []string        `json:"unattempted,omitempty"`
 	Recovery    string          `json:"recovery,omitempty"`
+	Acquisition string          `json:"acquisition"`
+	Enablement  string          `json:"enablement"`
 	Enabled     bool            `json:"enabled"`
 	DryRun      []dryRunCLIView `json:"dry_run,omitempty"`
 	InspectErr  string          `json:"inspect_error,omitempty"`

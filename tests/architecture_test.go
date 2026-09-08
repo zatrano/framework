@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.26" {
-		t.Fatalf("VERSION=%q want 2.0.26", version)
+	if version != "2.0.27" {
+		t.Fatalf("VERSION=%q want 2.0.27", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -298,10 +298,10 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 		"Contract A — Dry-run",
 		"Contract A complete",
 		"Contract B complete",
-		"Contract C closed",
+		"Contract C OPEN",
 		"COMPLETE / FROZEN",
 		"IMPLEMENTED",
-		"not automatically Contract C",
+		"MUST NOT enable automatically",
 		"explicitly opened",
 		"Acquisition ≠ Enablement",
 		"func Apply",
@@ -804,15 +804,21 @@ func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
 	}
 	for _, ban := range []string{
 		"compareSemver", "latestCompatible", "MeetsFrameworkMin",
-		"exec.Command", "os/exec", "enablePackage(", "go mod tidy", "zatrano.lock",
+		"exec.Command", "os/exec", "go mod tidy", "zatrano.lock",
 		"func Apply", "func Rollback",
 	} {
 		if strings.Contains(text, ban) {
 			t.Errorf("package_acquire.go contains %s — CLI must not own acquisition mechanics", ban)
 		}
 	}
-	if !strings.Contains(text, `"enabled": false`) && !strings.Contains(text, "Enabled: false") && !strings.Contains(text, "enabled: false") {
-		t.Error("package_acquire.go must report that acquisition does not enable")
+	if !strings.Contains(text, `hasFlag(args, "--enable")`) {
+		t.Error("package_acquire.go must gate enablement on explicit --enable")
+	}
+	if !strings.Contains(text, "enablePackage(") {
+		t.Error("package_acquire.go --enable must reuse enablePackage")
+	}
+	if !strings.Contains(text, `"enabled": false`) && !strings.Contains(text, "Enabled: false") && !strings.Contains(text, "enabled: false") && !strings.Contains(text, `json:"enabled"`) {
+		t.Error("package_acquire.go must still report enabled as a distinct field")
 	}
 	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
 	if err != nil {
@@ -823,7 +829,7 @@ func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
 	}
 }
 
-func TestPhase9ContractCRemainsClosed(t *testing.T) {
+func TestPhase9ContractCExplicitEnablement(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
 	if err != nil {
@@ -831,19 +837,18 @@ func TestPhase9ContractCRemainsClosed(t *testing.T) {
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"Contract C closed",
+		"Contract C OPEN",
 		"Acquisition ≠ Enablement",
-		"not automatically Contract C",
-		"explicitly opened",
+		"MUST NOT enable automatically",
+		"--enable",
+		"not_requested",
 		"Phase 8 — v2.0.22",
-		"tested as an implementation",
-		"wired into acquisition",
-		"inspect current boundaries",
-		"define/lock C tests",
-		"No C-specific wiring",
+		"package:install",
+		"implicit transaction",
+		"enablePackage",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("PHASE9.md missing %q — Contract C stays closed", want)
+			t.Errorf("PHASE9.md missing %q — Contract C explicit workflow", want)
 		}
 	}
 	for _, name := range []string{
@@ -852,11 +857,28 @@ func TestPhase9ContractCRemainsClosed(t *testing.T) {
 		"package_acquire_enable.go",
 	} {
 		if _, err := os.Stat(filepath.Join(root, "distribution", "acquire", name)); err == nil {
-			t.Errorf("%s — Contract C remains closed", name)
+			t.Errorf("%s — Contract C must not add an acquire-side enablement engine", name)
 		}
 		if _, err := os.Stat(filepath.Join(root, "console", name)); err == nil {
-			t.Errorf("console/%s — Contract C remains closed", name)
+			t.Errorf("console/%s — Contract C stays in package_acquire.go", name)
 		}
+	}
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(cmdSrc), "/acquire") {
+		t.Error("package_cmd.go must not import acquire — package:install stays enablement")
+	}
+	if !strings.Contains(string(cmdSrc), `return "package:install"`) || !strings.Contains(string(cmdSrc), "enablePackage(") {
+		t.Error("package:install must remain enablement")
+	}
+	dry, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "dry_run.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dry), "enablePackage") {
+		t.Error("dry_run.go must not enable — Contract A stays frozen")
 	}
 }
 

@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.27 - 2026-09-08
+
+Open Phase 9 Contract C: `package:acquire --enable` reuses existing `enablePackage` after successful acquisition. Default acquire does not enable. Acquisition and enablement stay separate (no implicit transaction, no automatic rollback). `package:install` stays enablement. Contract A and Phase 8 stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.26 - 2026-09-08
 
 Lock the only valid Contract C path: explicitly open C → inspect current boundaries → define/lock C tests → implement C. C must not be implemented, tested as an implementation, or wired into acquisition while closed. `package:acquire` stays orchestration; `package:install` stays enablement. Contract A and Phase 8 stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.

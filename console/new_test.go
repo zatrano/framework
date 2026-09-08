@@ -209,7 +209,7 @@ func TestFrameworkGoModVersion(t *testing.T) {
 	if got := frameworkGoModVersion("2.0.0"); got != "v2.0.0" {
 		t.Fatalf("2.0.0: got %q", got)
 	}
-	if got := frameworkGoModVersion("2.0.0-dev"); got != "v2.0.26" {
+	if got := frameworkGoModVersion("2.0.0-dev"); got != "v2.0.27" {
 		t.Fatalf("2.0.0-dev: got %q", got)
 	}
 	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
@@ -219,8 +219,8 @@ func TestFrameworkGoModVersion(t *testing.T) {
 
 func assertGeneratedFrameworkRequire(t *testing.T, modText string) {
 	t.Helper()
-	if !strings.Contains(modText, "github.com/zatrano/framework/v2 v2.0.26") {
-		t.Fatalf("generated require must be v2.0.26:\n%s", modText)
+	if !strings.Contains(modText, "github.com/zatrano/framework/v2 v2.0.27") {
+		t.Fatalf("generated require must be v2.0.27:\n%s", modText)
 	}
 }
 

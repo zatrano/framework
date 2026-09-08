@@ -240,3 +240,197 @@ func TestPackageAcquireUsesInjectedIndexResolve(t *testing.T) {
 		t.Fatalf("%v", view.GoGetArgs)
 	}
 }
+
+func successfulExecute(root string) func(context.Context, string, []string) (acquire.ApplyResult, error) {
+	return func(_ context.Context, gotRoot string, args []string) (acquire.ApplyResult, error) {
+		return acquire.ApplyResult{
+			Root:     gotRoot,
+			Reports:  []acquire.TargetReport{{GoGetArg: args[0], Status: acquire.StatusSuccess}},
+			Recovery: acquire.Recovery{Kind: acquire.RecoveryUnavailable},
+		}, nil
+	}
+}
+
+func TestPackageAcquireEnablementNotRequestedByDefault(t *testing.T) {
+	root := t.TempDir()
+	called := false
+	var buf bytes.Buffer
+	cmd := &PackageAcquireCommand{
+		out:  &buf,
+		root: root,
+		snapshotFiles: func(string) (acquire.FileSnapshot, error) {
+			return acquire.FileSnapshot{Root: root}, nil
+		},
+		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
+		executeTargets: successfulExecute(root),
+		enableFn: func(string) (bool, error) {
+			called = true
+			return true, nil
+		},
+	}
+	if err := cmd.Handle([]string{"session", "--format=json"}); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("default acquire must not enable")
+	}
+	var view acquireCLIView
+	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Acquisition != "success" || view.Enablement != "not_requested" || view.Enabled {
+		t.Fatalf("%#v", view)
+	}
+}
+
+func TestPackageAcquireExplicitEnableAfterSuccess(t *testing.T) {
+	root := t.TempDir()
+	var gotName string
+	recovered := false
+	var buf bytes.Buffer
+	cmd := &PackageAcquireCommand{
+		out:  &buf,
+		root: root,
+		snapshotFiles: func(string) (acquire.FileSnapshot, error) {
+			return acquire.FileSnapshot{Root: root}, nil
+		},
+		recoverFiles: func(context.Context, acquire.FileSnapshot) (acquire.Recovery, error) {
+			recovered = true
+			return acquire.Recovery{Kind: acquire.RecoveryFiles}, nil
+		},
+		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
+		executeTargets: successfulExecute(root),
+		enableFn: func(name string) (bool, error) {
+			gotName = name
+			return true, nil
+		},
+	}
+	if err := cmd.Handle([]string{"session", "--enable", "--format=json"}); err != nil {
+		t.Fatal(err)
+	}
+	if recovered {
+		t.Fatal("successful acquire+enable must not recover")
+	}
+	if gotName != "session" {
+		t.Fatalf("enable name=%q", gotName)
+	}
+	var view acquireCLIView
+	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Acquisition != "success" || view.Enablement != "success" || !view.Enabled {
+		t.Fatalf("%#v", view)
+	}
+}
+
+func TestPackageAcquireDoesNotEnableWhenAcquisitionFails(t *testing.T) {
+	root := t.TempDir()
+	called := false
+	var buf bytes.Buffer
+	cmd := &PackageAcquireCommand{
+		out:  &buf,
+		root: root,
+		snapshotFiles: func(string) (acquire.FileSnapshot, error) {
+			return acquire.FileSnapshot{Root: root}, nil
+		},
+		recoverFiles: func(context.Context, acquire.FileSnapshot) (acquire.Recovery, error) {
+			return acquire.Recovery{Kind: acquire.RecoveryFiles}, nil
+		},
+		inspect: func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
+		executeTargets: func(_ context.Context, gotRoot string, args []string) (acquire.ApplyResult, error) {
+			return acquire.ApplyResult{
+				Root:     gotRoot,
+				Reports:  []acquire.TargetReport{{GoGetArg: args[0], Status: acquire.StatusFailed, Err: errors.New("proxy denied")}},
+				Recovery: acquire.Recovery{Kind: acquire.RecoveryUnavailable},
+			}, errors.New("proxy denied")
+		},
+		enableFn: func(string) (bool, error) {
+			called = true
+			return true, nil
+		},
+	}
+	if err := cmd.Handle([]string{"session", "--enable", "--format=json"}); err == nil {
+		t.Fatal("expected acquisition error")
+	}
+	if called {
+		t.Fatal("acquisition failure must not start enablement")
+	}
+	var view acquireCLIView
+	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Acquisition != "failed" || view.Enablement != "not_requested" || view.Enabled {
+		t.Fatalf("%#v", view)
+	}
+}
+
+func TestPackageAcquireEnablementFailureDoesNotRollbackAcquisition(t *testing.T) {
+	root := t.TempDir()
+	recovered := false
+	var buf bytes.Buffer
+	cmd := &PackageAcquireCommand{
+		out:  &buf,
+		root: root,
+		snapshotFiles: func(string) (acquire.FileSnapshot, error) {
+			return acquire.FileSnapshot{Root: root}, nil
+		},
+		recoverFiles: func(context.Context, acquire.FileSnapshot) (acquire.Recovery, error) {
+			recovered = true
+			return acquire.Recovery{Kind: acquire.RecoveryFiles}, nil
+		},
+		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
+		executeTargets: successfulExecute(root),
+		enableFn: func(string) (bool, error) {
+			return false, errors.New("bootstrap write failed")
+		},
+	}
+	err := cmd.Handle([]string{"session", "--enable", "--format=json"})
+	if err == nil || err.Error() != "bootstrap write failed" {
+		t.Fatalf("enablement error: %v", err)
+	}
+	if recovered {
+		t.Fatal("enablement failure must not recover/rollback acquisition")
+	}
+	var view acquireCLIView
+	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Acquisition != "success" || view.Enablement != "failed" || view.Enabled {
+		t.Fatalf("must not collapse into acquisition failure: %#v", view)
+	}
+	if len(view.Successful) != 1 {
+		t.Fatalf("acquisition success must remain visible: %#v", view)
+	}
+}
+
+func TestPackageAcquireDryRunDoesNotEnableEvenWithFlag(t *testing.T) {
+	root := t.TempDir()
+	called := false
+	executed := false
+	var buf bytes.Buffer
+	cmd := &PackageAcquireCommand{
+		out:  &buf,
+		root: root,
+		executeTargets: func(context.Context, string, []string) (acquire.ApplyResult, error) {
+			executed = true
+			return acquire.ApplyResult{}, errors.New("execute must not run")
+		},
+		enableFn: func(string) (bool, error) {
+			called = true
+			return true, nil
+		},
+	}
+	if err := cmd.Handle([]string{"session", "--dry-run", "--enable", "--format=json"}); err != nil {
+		t.Fatal(err)
+	}
+	if executed || called {
+		t.Fatal("dry-run must not execute or enable")
+	}
+	var view acquireCLIView
+	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Mode != "dry-run" || view.Acquisition != "not_executed" || view.Enablement != "not_requested" || view.Enabled {
+		t.Fatalf("%#v", view)
+	}
+}

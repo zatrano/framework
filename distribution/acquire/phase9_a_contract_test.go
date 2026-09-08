@@ -38,19 +38,16 @@ func TestPhase9SpecAcceptsContractA(t *testing.T) {
 	}
 }
 
-func TestPhase9SpecKeepsContractCClosed(t *testing.T) {
+func TestPhase9SpecKeepsContractCExplicit(t *testing.T) {
 	spec := phase9SpecText(t)
 	for _, want := range []string{
 		"Contract B — CLI Acquisition",
 		"Contract B complete",
 		"Contract C — Acquisition ↔ Enablement",
-		"Contract C closed",
-		"not automatically Contract C",
-		"explicitly opened",
-		"tested as an implementation",
-		"inspect current boundaries",
-		"define/lock C tests",
-		"No C-specific wiring",
+		"Contract C OPEN",
+		"MUST NOT enable automatically",
+		"--enable",
+		"not_requested",
 		"package:install",
 		"implicit transaction",
 		"renamed equivalent",

@@ -96,7 +96,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 freeze
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. A new CLI command is a later phase, not a remaining Phase 8 gate. Do not recode it here. Phase 9: [`PHASE9.md`](PHASE9.md) — SPEC accepted; Contract A complete / FROZEN; Contract B (`package:acquire`) implemented; Contract C closed.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. A new CLI command is a later phase, not a remaining Phase 8 gate. Do not recode it here. Phase 9: [`PHASE9.md`](PHASE9.md) — SPEC accepted; Contract A complete / FROZEN; Contract B (`package:acquire`) implemented; Contract C OPEN (`--enable`).
 
 ## Invariants (frozen)
 
@@ -128,10 +128,10 @@ Architecture tests reject a second resolution implementation, enablement fields 
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
 | 8 Module Acquisition Apply | **Frozen** (`Invoke` / `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`) |
-| 9 Dry-run / CLI acquisition / Acquisition ↔ enablement | SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C closed; [`PHASE9.md`](PHASE9.md) |
+| 9 Dry-run / CLI acquisition / Acquisition ↔ enablement | SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C OPEN (`--enable`); [`PHASE9.md`](PHASE9.md) |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Out of Phase 8 (later phase)
 
-Phase 9: [`PHASE9.md`](PHASE9.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Acquisition ↔ enablement remains not authorized. The next step is not automatically Contract C. The next valid transition is only: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.
+Phase 9: [`PHASE9.md`](PHASE9.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C is OPEN: `--enable` after successful acquisition; default acquire does not enable. Do not fold this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.

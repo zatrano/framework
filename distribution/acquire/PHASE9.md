@@ -1,41 +1,25 @@
 # Phase 9 — Bounding SPEC
 
-**Status:** SPEC accepted — Contract A complete / FROZEN; Contract B complete (IMPLEMENTED); Contract C closed  
+**Status:** SPEC accepted — Contract A complete / FROZEN; Contract B complete (IMPLEMENTED); Contract C OPEN (IMPLEMENTED)  
 **Prerequisite:** Phase 8 (`v2.0.22`) FROZEN  
 **Acceptance:** ACCEPTED  
-**Implementation:** Contract A (Dry-run) COMPLETE / FROZEN. Contract B (CLI acquisition) IMPLEMENTED. Contract C (Acquisition ↔ enablement) CLOSED.
+**Implementation:** Contract A (Dry-run) COMPLETE / FROZEN. Contract B (CLI acquisition) IMPLEMENTED. Contract C (Acquisition ↔ enablement) OPEN / IMPLEMENTED.
 
 ```text
 Contract A — Dry-run              COMPLETE / FROZEN
 Contract B — CLI Acquisition      IMPLEMENTED
-Contract C — Acquisition ↔ Enablement  CLOSED
+Contract C — Acquisition ↔ Enablement  OPEN / IMPLEMENTED
 Phase 8 — v2.0.22                FROZEN
 ```
 
-The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
-
-Contract C must not be implemented, tested as an implementation, or wired into acquisition until C is explicitly opened.
+Contract A is not reopened. Contract B is not redesigned. Phase 8 remains untouched.
+`func Apply` and renamed equivalents remain forbidden.
 
 `package:acquire` remains acquisition orchestration.
 `package:install` remains enablement.
-No automatic acquisition → enablement transition.
-No implicit transaction.
-No C-specific wiring.
-Contract A is not reopened.
-Phase 8 remains untouched.
-`func Apply` and renamed equivalents remain forbidden.
-
-The next valid transition is only:
-
-```text
-Explicitly open Contract C
-        →
-inspect current boundaries
-        →
-define/lock C tests
-        →
-implement C
-```
+A successful acquisition MUST NOT enable automatically.
+The only enablement request on the acquire command is the explicit `--enable` flag.
+There is no implicit transaction between acquisition and enablement.
 
 ---
 
@@ -47,7 +31,7 @@ Phase 9 defines three independent contracts:
 2. **Contract B — CLI Acquisition**
 3. **Contract C — Acquisition ↔ Enablement**
 
-The SPEC is accepted. Contract A is complete / FROZEN. Contract B is implemented. Contract C remains closed. The next step is not automatically Contract C.
+The SPEC is accepted. Contract A is complete / FROZEN. Contract B is implemented. Contract C is explicitly opened. Enablement is never an automatic consequence of acquisition.
 
 ---
 
@@ -230,13 +214,46 @@ Its meaning remains **enablement**.
 
 This SPEC does not guarantee automatic rollback of acquisition in the last case.
 
-## Future combined workflow
+## Explicit workflow (`--enable`)
 
-A combined user workflow such as `Acquire + Enable` MAY be designed later. That requires a separate contract. Phase 9 does not define it.
+Contract C is **OPEN**. The integration is an explicit, testable request — not `acquire → automatically install`.
 
-Contract C remains CLOSED. The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
+```text
+package:acquire NAME              → acquire only; enablement not requested
+package:acquire NAME --enable     → acquire, then enable only if acquisition succeeded
+package:install NAME              → enablement (unchanged)
+```
 
-Contract C must not be implemented, tested as an implementation, or wired into acquisition until C is explicitly opened. The next valid transition is only: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C.
+`--enable` reuses the existing enablement API (`enablePackage` and the same follow-up wiring as `package:enable`). It MUST NOT:
+
+* run on `--dry-run`;
+* run when acquisition failed;
+* call `Execute` / `ExecuteTargets` itself;
+* resolve versions;
+* edit `go.mod` / `go.sum`;
+* run `go mod tidy`;
+* create `zatrano.lock`;
+* roll back acquisition when enablement fails.
+
+Default `package:acquire` (no `--enable`) MUST leave enablement **not requested**.
+
+## CLI reporting
+
+The CLI MUST distinguish:
+
+```text
+Acquisition: success / failed / not_executed
+Enablement:  not_requested / success / failed
+```
+
+It MUST NOT report a combined success when only acquisition succeeded.
+`enabled` is true only when enablement succeeded.
+
+## Transaction
+
+There is NO implicit transaction across acquisition ↔ enablement.
+
+MUST NOT add automatic rollback of acquisition when enablement fails, automatic enablement rollback when acquisition fails, a filesystem transaction abstraction, or hidden compensation. Acquisition recovery stays the existing `SnapshotFiles` / `RecoverFiles` contract and applies only to acquisition mutation.
 
 ---
 
@@ -305,22 +322,20 @@ Contract A — Dry-run              COMPLETE / FROZEN
         ↓
 Contract B — CLI Acquisition      IMPLEMENTED
         ↓
-Contract C — Acquisition ↔ Enablement  CLOSED
+Contract C — Acquisition ↔ Enablement  OPEN / IMPLEMENTED
 ```
 
 Phase 8 (`v2.0.22`) stays FROZEN.
 
 Each contract: contract tests → implementation → verification.
 
-Contract A is complete / FROZEN. Contract B is complete (IMPLEMENTED). Contract C remains closed. The next step is not automatically Contract C. Do not start acquisition ↔ enablement wiring until Contract C is explicitly opened.
+Contract A is complete / FROZEN. Contract B is complete (IMPLEMENTED). Contract C is explicitly opened. Enablement is requested only via `--enable` after successful acquisition.
 
 ## Current status
 
 ```text
 Phase 9
 Status: SPEC ACCEPTED
-Implementation: Contract A COMPLETE / FROZEN; Contract B IMPLEMENTED; Contract C CLOSED
+Implementation: Contract A COMPLETE / FROZEN; Contract B IMPLEMENTED; Contract C OPEN / IMPLEMENTED
 Acceptance: ACCEPTED
-Next: not automatically Contract C
-Next valid transition: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C
 ```

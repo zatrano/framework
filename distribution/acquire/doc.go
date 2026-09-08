@@ -7,6 +7,7 @@
 // restores a go.mod / go.sum snapshot (not transactional; cache not undone).
 // No func Apply. Phase 9 Contract A is complete / frozen: DryRun reports the
 // same GoGetArg without mutation. Contract B is implemented: package:acquire
-// (console) orchestrates these APIs. Contract C (acquisition ↔ enablement) is
-// closed; the next step is not automatically C. package:install is not acquisition.
+// (console) orchestrates these APIs. Contract C is open: package:acquire
+// --enable reuses enablePackage after successful acquisition; default acquire
+// does not enable. There is no implicit transaction. package:install is not acquisition.
 package acquire
