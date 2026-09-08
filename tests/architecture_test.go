@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.24" {
-		t.Fatalf("VERSION=%q want 2.0.24", version)
+	if version != "2.0.25" {
+		t.Fatalf("VERSION=%q want 2.0.25", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -299,6 +299,10 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 		"Contract A complete",
 		"Contract B complete",
 		"Contract C closed",
+		"COMPLETE / FROZEN",
+		"IMPLEMENTED",
+		"not automatically Contract C",
+		"explicitly opened",
 		"Acquisition ≠ Enablement",
 		"func Apply",
 		"package:install",
@@ -816,6 +820,38 @@ func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
 	}
 	if strings.Contains(string(cmdSrc), "/acquire") {
 		t.Error("package_cmd.go must not import acquire — package:install stays enablement")
+	}
+}
+
+func TestPhase9ContractCRemainsClosed(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"Contract C closed",
+		"Acquisition ≠ Enablement",
+		"not automatically Contract C",
+		"explicitly opened",
+		"Phase 8 — v2.0.22",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("PHASE9.md missing %q — Contract C stays closed", want)
+		}
+	}
+	for _, name := range []string{
+		"acquire_enable.go",
+		"enablement.go",
+		"package_acquire_enable.go",
+	} {
+		if _, err := os.Stat(filepath.Join(root, "distribution", "acquire", name)); err == nil {
+			t.Errorf("%s — Contract C remains closed", name)
+		}
+		if _, err := os.Stat(filepath.Join(root, "console", name)); err == nil {
+			t.Errorf("console/%s — Contract C remains closed", name)
+		}
 	}
 }
 

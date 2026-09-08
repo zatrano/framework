@@ -1,11 +1,18 @@
 # Phase 9 — Bounding SPEC
 
-**Status:** SPEC accepted — Contract A complete; Contract B complete; Contract C closed  
-**Prerequisite:** Phase 8 (`v2.0.22`) frozen  
+**Status:** SPEC accepted — Contract A complete / FROZEN; Contract B complete (IMPLEMENTED); Contract C closed  
+**Prerequisite:** Phase 8 (`v2.0.22`) FROZEN  
 **Acceptance:** ACCEPTED  
-**Implementation:** Contract A (Dry-run) complete. Contract B (CLI acquisition) complete. Contract C (Acquisition ↔ enablement) remains closed.
+**Implementation:** Contract A (Dry-run) COMPLETE / FROZEN. Contract B (CLI acquisition) IMPLEMENTED. Contract C (Acquisition ↔ enablement) CLOSED.
 
-The SPEC is accepted. Implementation order is A → B → C. Contract B is complete; only Contract C remains closed.
+```text
+Contract A — Dry-run              COMPLETE / FROZEN
+Contract B — CLI Acquisition      IMPLEMENTED
+Contract C — Acquisition ↔ Enablement  CLOSED
+Phase 8 — v2.0.22                FROZEN
+```
+
+The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
 
 ---
 
@@ -17,7 +24,7 @@ Phase 9 defines three independent contracts:
 2. **Contract B — CLI Acquisition**
 3. **Contract C — Acquisition ↔ Enablement**
 
-The SPEC is accepted. Only Contract C remains closed.
+The SPEC is accepted. Contract A is complete / FROZEN. Contract B is implemented. Contract C remains closed. The next step is not automatically Contract C.
 
 ---
 
@@ -204,6 +211,8 @@ This SPEC does not guarantee automatic rollback of acquisition in the last case.
 
 A combined user workflow such as `Acquire + Enable` MAY be designed later. That requires a separate contract. Phase 9 does not define it.
 
+Contract C remains CLOSED. The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
+
 ---
 
 # Phase 8 Freeze Boundary
@@ -267,22 +276,25 @@ A Phase 9 implementation:
 The SPEC is accepted. Implementation order:
 
 ```text
-Contract A — Dry-run          ← complete
+Contract A — Dry-run              COMPLETE / FROZEN
         ↓
-Contract B — CLI acquisition  ← complete
+Contract B — CLI Acquisition      IMPLEMENTED
         ↓
-Contract C — Acquisition ↔ enablement  ← closed
+Contract C — Acquisition ↔ Enablement  CLOSED
 ```
+
+Phase 8 (`v2.0.22`) stays FROZEN.
 
 Each contract: contract tests → implementation → verification.
 
-Contract A and Contract B are complete. Contract C remains closed. Do not start acquisition ↔ enablement wiring.
+Contract A is complete / FROZEN. Contract B is complete (IMPLEMENTED). Contract C remains closed. The next step is not automatically Contract C. Do not start acquisition ↔ enablement wiring until Contract C is explicitly opened.
 
 ## Current status
 
 ```text
 Phase 9
 Status: SPEC ACCEPTED
-Implementation: Contract A complete; Contract B complete; Contract C LOCKED
+Implementation: Contract A COMPLETE / FROZEN; Contract B IMPLEMENTED; Contract C CLOSED
 Acceptance: ACCEPTED
+Next: not automatically Contract C
 ```

@@ -45,6 +45,8 @@ func TestPhase9SpecKeepsContractCClosed(t *testing.T) {
 		"Contract B complete",
 		"Contract C — Acquisition ↔ Enablement",
 		"Contract C closed",
+		"not automatically Contract C",
+		"explicitly opened",
 		"package:install",
 		"implicit transaction",
 		"renamed equivalent",

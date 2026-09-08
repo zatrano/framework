@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.25 - 2026-09-08
+
+Freeze Phase 9 Contract B as implemented (`package:acquire` orchestration). Contract A stays complete / frozen. Contract C remains closed; the next step is not automatically C. Phase 8 (`v2.0.22`) stays frozen. No `func Apply`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.24 - 2026-09-08
 
 Phase 9 Contract A (`DryRun` / `DryRunTargets`) and Contract B (`package:acquire` CLI orchestration). No `func Apply`. `package:install` stays enablement. Contract C remains closed. Install with `go get github.com/zatrano/framework/v2@latest`.
