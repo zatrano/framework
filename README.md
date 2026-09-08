@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.27-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.28-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -297,6 +297,12 @@ go run ./cmd/app package:enable auth
 ```
 
 That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages` when needed, and merges env keys into `.env.example`. Then rebuild/restart.
+
+To add a module that is not yet in `go.mod`, acquire first (enablement is separate; default acquire does not enable):
+
+```bash
+go run ./cmd/app package:acquire auth --enable
+```
 
 Manual equivalent:
 
@@ -643,7 +649,7 @@ Framework contracts / kernel
 
 ## v2
 
-**v2.0.27** is the current line on **`main`**. Version: `2.0.27` ([`VERSION`](VERSION)).
+**v2.0.28** is the current line on **`main`**. Version: `2.0.28` ([`VERSION`](VERSION)).
 
 The v2 line is two independently maintained modules: `github.com/zatrano/framework/v2` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
 
@@ -659,7 +665,7 @@ ZATRANO Platform
 
 | Line | Meaning |
 | --- | --- |
-| `v2.0.27` (`main`) | Current two-module application platform |
+| `v2.0.28` (`main`) | Current two-module application platform |
 | `v1.x` | Previous tagged ZATRANO line |
 
 ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@latest`.

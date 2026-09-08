@@ -4,11 +4,13 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-Phase 12 dependency-safe package lifecycle: `package:enable` writes the transitive `Requires` closure (Optional excluded) before mutating files; `package:disable` refuses when a remaining enabled addon requires the target, is a successful no-op when already disabled, and does not call Stop; enablement wiring preserves an existing `github.com/zatrano/packages` module pin instead of `go get @main`. Phase 8–11 stay frozen. No `func Apply`. No `package:upgrade` / `package:uninstall`. `package:install` stays enablement.
+## 2.0.28 - 2026-09-08
+
+Phase 10 production hardening: real CLI acquisition E2E, classified CLI exit codes, JSON inspection/recovery/target reporting, observable recovery failures, `--timeout` context propagation, enablement consistency checks, official/heavy/`framework_min`/tagged ecosystem validation, and CI acquisition E2E. Phase 8 and Phase 9 stay frozen. No `func Apply`. `package:install` stays enablement.
 
 Phase 11 runtime hardening: deterministic boot order tests, lifecycle contract tests, Start-failure cleanup via `errors.Join`, `BootstrapContext` / `StartContext` (zero-arg methods remain), Enabled ∩ Imported and process-global registry contracts, `framework_min` agreement tests, isolated acquire→enable→Start/Stop E2E, and runtime CLI exit codes 20–23 (`serve` / `Run` never reuse acquisition 2–7). Phase 8–10 stay frozen. No `func Apply`. `package:install` stays enablement.
 
-Phase 10 production hardening: real CLI acquisition E2E, classified CLI exit codes, JSON inspection/recovery/target reporting, observable recovery failures, `--timeout` context propagation, enablement consistency checks, official/heavy/`framework_min`/tagged ecosystem validation, and CI acquisition E2E. Phase 8 and Phase 9 stay frozen. No `func Apply`. `package:install` stays enablement.
+Phase 12 dependency-safe package lifecycle: `package:enable` writes the transitive `Requires` closure (Optional excluded) before mutating files; `package:disable` refuses when a remaining enabled addon requires the target, is a successful no-op when already disabled, and does not call Stop; enablement wiring preserves an existing `github.com/zatrano/packages` module pin instead of `go get @main`. Phase 8–11 stay frozen. No `func Apply`. No `package:upgrade` / `package:uninstall`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@v2.0.28`.
 
 ## 2.0.27 - 2026-09-08
 

@@ -282,6 +282,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
+	// Last proxy-published tag. go.mod replace still binds this checkout (HEAD).
 	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.0.27", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
@@ -445,6 +446,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
+	// Last proxy-published tag. go.mod replace still binds this checkout (HEAD).
 	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.0.27", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
