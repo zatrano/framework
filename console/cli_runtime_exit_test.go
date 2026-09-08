@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/v2/contracts"
@@ -12,6 +13,7 @@ import (
 
 type failStartProvider struct{ err error }
 
+func (p *failStartProvider) Name() string                 { return "worker" }
 func (p *failStartProvider) Register(contracts.App) error { return nil }
 func (p *failStartProvider) Boot(contracts.App) error     { return nil }
 func (p *failStartProvider) Start(contracts.App) error    { return p.err }
@@ -80,5 +82,9 @@ func TestServeCommandClassifiesRunErrors(t *testing.T) {
 	}
 	if CodeFromError(err) == ExitAcquisition || CodeFromError(err) == ExitCanceled {
 		t.Fatal("runtime errors must never become acquisition codes")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "provider worker") || !strings.Contains(msg, "phase start") || !strings.Contains(msg, "nope") {
+		t.Fatalf("serve must preserve provider/phase context: %v", err)
 	}
 }

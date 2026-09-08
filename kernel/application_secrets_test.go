@@ -18,6 +18,21 @@ func TestProductionRejectsPasswordAPP_KEY(t *testing.T) {
 	}
 }
 
+func TestProductionKeyErrorDoesNotLeakValue(t *testing.T) {
+	secret := "hunter2-production-key-value"
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_KEY", secret)
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	err := app.Bootstrap()
+	if err == nil {
+		t.Fatal("expected production key error")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Fatalf("APP_KEY value leaked: %v", err)
+	}
+}
+
 func TestProductionRejectsPaddedShortKey(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_KEY", "short")

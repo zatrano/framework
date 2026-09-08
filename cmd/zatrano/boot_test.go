@@ -24,6 +24,12 @@ func TestCliUsesCoreBoot(t *testing.T) {
 		{[]string{"doctor"}, true},
 		{[]string{"agents:generate"}, true},
 		{[]string{"db:setup", "--drivers=sqlite"}, true},
+		{[]string{"--help"}, true},
+		{[]string{"-h"}, true},
+		{[]string{"--version"}, true},
+		{[]string{"-v"}, true},
+		{[]string{"version"}, true},
+		{[]string{"help"}, true},
 		{[]string{"list"}, false},
 	}
 	for _, tc := range cases {

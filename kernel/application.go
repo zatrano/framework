@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -656,11 +657,14 @@ func (app *Application) Run(addr string) error {
 		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 	}
 	if addr == "" {
-		port := strings.TrimSpace(env.Get("APP_PORT", "8080"))
-		if port == "" {
-			port = "8080"
+		port, err := env.IntOr("APP_PORT", 8080)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 		}
-		addr = ":" + port
+		if port < 0 || port > 65535 {
+			return fmt.Errorf("%w: %w", ErrRuntimeBoot, env.ConfigError("APP_PORT", "TCP port 0-65535", strconv.Itoa(port)))
+		}
+		addr = ":" + strconv.Itoa(port)
 	}
 
 	server := &stdhttp.Server{

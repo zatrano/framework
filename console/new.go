@@ -289,6 +289,9 @@ func registerHealth(router *routing.Router) {
 	if router == nil {
 		return
 	}
+	router.Get("/up", func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"status": "ok"})
+	}).As("up")
 	router.Get("/health", func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"status": "ok"})
 	}).As("health")
@@ -301,6 +304,86 @@ func All() any { return nil }
 		filepath.Join("app", "database", "seeders", "database_seeder.go"): `package seeders
 
 func All() any { return nil }
+`,
+		filepath.Join("tests", "feature_test.go"): `package tests
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	stdhttp "net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"` + module + `/app/providers"
+	_ "` + module + `/bootstrap"
+
+	"github.com/zatrano/framework/v2/bootstrap"
+)
+
+func doGet(t *testing.T, path string, acceptJSON bool) *stdhttp.Response {
+	t.Helper()
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(stdhttp.MethodGet, path, nil)
+	if acceptJSON {
+		req.Header.Set("Accept", "application/json")
+	}
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	return rec.Result()
+}
+
+func TestHealthEndpoint(t *testing.T) {
+	for _, path := range []string{"/health", "/up"} {
+		resp := doGet(t, path, true)
+		defer resp.Body.Close()
+		if resp.StatusCode != stdhttp.StatusOK {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		var body map[string]any
+		if err := json.Unmarshal(raw, &body); err != nil {
+			t.Fatalf("%s: json: %v body=%s", path, err, raw)
+		}
+		if body["status"] != "ok" {
+			t.Fatalf("%s: expected status ok, got %#v", path, body)
+		}
+	}
+}
+
+func TestLifecycleStartStopWithoutInfrastructure(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWelcomeUsesLayout(t *testing.T) {
+	resp := doGet(t, "/", false)
+	defer resp.Body.Close()
+	if resp.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	body := string(raw)
+	if !strings.Contains(body, "` + appName + `") {
+		t.Fatalf("expected brand in welcome page, got %s", body)
+	}
+}
 `,
 	}
 	for rel, body := range files {

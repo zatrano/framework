@@ -122,3 +122,46 @@ func GetInt(key string, fallback ...int) int {
 	}
 	return parsed
 }
+
+// Sensitive reports whether key looks like a credential. Used so configuration
+// errors can name the variable without echoing the value.
+func Sensitive(key string) bool {
+	k := strings.ToLower(strings.TrimSpace(key))
+	if k == "" {
+		return false
+	}
+	for _, n := range []string{
+		"password", "passwd", "secret", "token", "api_key", "apikey",
+		"authorization", "credential", "private", "app_key", "dsn",
+		"database_url", "db_url",
+	} {
+		if k == n || strings.Contains(k, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// IntOr parses key as a base-10 integer. Unset or blank uses fallback.
+// Invalid values return a configuration error that names the variable and
+// expected type. Secret-like keys do not echo the received value.
+func IntOr(key string, fallback int) (int, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return 0, ConfigError(key, "integer", strings.TrimSpace(value))
+	}
+	return n, nil
+}
+
+// ConfigError describes a configuration parse failure without leaking secrets.
+func ConfigError(key, expected, received string) error {
+	key = strings.TrimSpace(key)
+	if Sensitive(key) {
+		return fmt.Errorf("configuration error: %s: expected %s, received a value that could not be parsed", key, expected)
+	}
+	return fmt.Errorf("configuration error: %s: expected %s, received %q", key, expected, received)
+}

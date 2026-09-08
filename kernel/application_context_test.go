@@ -206,6 +206,138 @@ func TestStartContextFailureJoinPreserved(t *testing.T) {
 	_ = app.Stop(context.Background())
 }
 
+func TestBootstrapContextCancelBetweenRegisterProviders(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	ctx, cancel := context.WithCancel(context.Background())
+	first := &cancelAfterRegisterProvider{cancel: cancel}
+	second := &countingProvider{}
+	app.RegisterProviders(first, second)
+	err := app.BootstrapContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want context.Canceled, got %v", err)
+	}
+	if first.registers != 1 {
+		t.Fatalf("first must Register, registers=%d", first.registers)
+	}
+	if second.registers != 0 {
+		t.Fatalf("second must not Register after cancel, registers=%d", second.registers)
+	}
+	if !app.BootstrapFailed() {
+		t.Fatal("cancelled Bootstrap is terminal BootFailed")
+	}
+}
+
+func TestBootstrapContextCancelBetweenBootProviders(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	ctx, cancel := context.WithCancel(context.Background())
+	first := &cancelAfterBootProvider{cancel: cancel}
+	second := &countingProvider{}
+	app.RegisterProviders(first, second)
+	err := app.BootstrapContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want context.Canceled, got %v", err)
+	}
+	if first.boots != 1 {
+		t.Fatalf("first must Boot, boots=%d", first.boots)
+	}
+	if second.boots != 0 {
+		t.Fatalf("second must not Boot after cancel, boots=%d", second.boots)
+	}
+	if !app.BootstrapFailed() {
+		t.Fatal("cancelled Bootstrap is terminal BootFailed")
+	}
+}
+
+func TestStopCanceledContextStillStopsProviders(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &stopSeesContext{}
+	app.RegisterProviders(p)
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := app.Stop(ctx)
+	if p.stops != 1 {
+		t.Fatalf("Stop must still visit providers, stops=%d", p.stops)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("provider Stop should observe canceled ctx, got %v", err)
+	}
+}
+
+func TestStopOnBootFailedIsNoop(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(&failRegisterProvider{}, p)
+	if err := app.Bootstrap(); err == nil {
+		t.Fatal("expected BootFailed")
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop on BootFailed must be a no-op, got %v", err)
+	}
+	if p.stops != 0 {
+		t.Fatalf("must not Stop providers that never reached Running, stops=%d", p.stops)
+	}
+}
+
+func TestStopBeforeStartIsNoop(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(p)
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p.starts != 0 || p.stops != 0 {
+		t.Fatalf("Booted but not Running: starts=%d stops=%d", p.starts, p.stops)
+	}
+}
+
+func TestBootstrapDoesNotStartWorkers(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	p := &lifecycleProbe{name: "worker"}
+	app.RegisterProviders(p)
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if p.starts != 0 {
+		t.Fatalf("workers must not Start before Running, starts=%d", p.starts)
+	}
+}
+
+type cancelAfterBootProvider struct {
+	cancel context.CancelFunc
+	boots  int
+}
+
+func (p *cancelAfterBootProvider) Register(contracts.App) error { return nil }
+func (p *cancelAfterBootProvider) Boot(contracts.App) error {
+	p.boots++
+	if p.cancel != nil {
+		p.cancel()
+	}
+	return nil
+}
+
+type stopSeesContext struct{ stops int }
+
+func (p *stopSeesContext) Register(contracts.App) error { return nil }
+func (p *stopSeesContext) Boot(contracts.App) error     { return nil }
+func (p *stopSeesContext) Start(contracts.App) error    { return nil }
+func (p *stopSeesContext) Stop(ctx context.Context) error {
+	p.stops++
+	return ctx.Err()
+}
+
 type cancelAfterRegisterProvider struct {
 	cancel    context.CancelFunc
 	registers int

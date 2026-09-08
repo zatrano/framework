@@ -32,5 +32,14 @@ func cliUsesCoreBoot(args []string) bool {
 		return false
 	}
 	name := strings.TrimSpace(args[0])
-	return strings.HasPrefix(name, "make:") || name == "db:setup" || name == "new" || name == "describe" || name == "doctor" || name == "agents:generate"
+	if strings.HasPrefix(name, "make:") {
+		return true
+	}
+	switch name {
+	case "db:setup", "new", "describe", "doctor", "agents:generate",
+		"--help", "-h", "help", "--version", "-v", "version":
+		return true
+	default:
+		return false
+	}
 }

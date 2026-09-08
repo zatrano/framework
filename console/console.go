@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -38,6 +40,7 @@ func New(app *kernel.Application) *Application {
 		&MakeMiddlewareCommand{app: app},
 		&KeyGenerateCommand{app: app},
 		&AboutCommand{app: app},
+		&VersionCommand{},
 	)
 	registerCacheCommands(console, app)
 	registerRequestCommands(console, app)
@@ -71,11 +74,16 @@ func (c *Application) Run(args []string) error {
 	if len(args) == 0 {
 		return c.commands["list"].Handle(nil)
 	}
-
 	name := args[0]
+	switch name {
+	case "--help", "-h", "help":
+		return c.commands["list"].Handle(nil)
+	case "--version", "-v":
+		return c.commands["version"].Handle(nil)
+	}
 	command, ok := c.commands[name]
 	if !ok {
-		return fmt.Errorf("command [%s] not defined", name)
+		return fmt.Errorf("command [%s] not defined\nNext: run zatrano --help (or list) for available commands", name)
 	}
 	return command.Handle(args[1:])
 }
@@ -94,8 +102,14 @@ func (c *ListCommand) Description() string { return "List all available commands
 func (c *ListCommand) Handle(args []string) error {
 	fmt.Println("ZATRANO Console")
 	fmt.Println()
+	names := make([]string, 0, len(c.console.commands))
+	for name := range c.console.commands {
+		names = append(names, name)
+	}
+	sort.Strings(names)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for name, command := range c.console.commands {
+	for _, name := range names {
+		command := c.console.commands[name]
 		fmt.Fprintf(w, "  %s\t%s\n", name, command.Description())
 	}
 	return w.Flush()
@@ -113,7 +127,12 @@ func (c *ServeCommand) Handle(args []string) error {
 	addr := ""
 	for i := 0; i < len(args); i++ {
 		if (args[i] == "--port" || args[i] == "-p") && i+1 < len(args) {
-			addr = ":" + args[i+1]
+			raw := strings.TrimSpace(args[i+1])
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 0 || n > 65535 {
+				return cliErr(ExitUsage, fmt.Errorf("serve --port expected a TCP port 0-65535, received %q", raw))
+			}
+			addr = ":" + strconv.Itoa(n)
 			i++
 		}
 		if strings.HasPrefix(args[i], "--host=") {
@@ -145,9 +164,16 @@ func (c *AboutCommand) Handle(args []string) error {
 	return nil
 }
 
-type KeyGenerateCommand struct {
-	app *kernel.Application
+type VersionCommand struct{}
+
+func (c *VersionCommand) Name() string        { return "version" }
+func (c *VersionCommand) Description() string { return "Print the ZATRANO framework version" }
+func (c *VersionCommand) Handle(args []string) error {
+	fmt.Println(productVersion())
+	return nil
 }
+
+type KeyGenerateCommand struct{ app *kernel.Application }
 
 func (c *KeyGenerateCommand) Name() string        { return "key:generate" }
 func (c *KeyGenerateCommand) Description() string { return "Set the application key" }

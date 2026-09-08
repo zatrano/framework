@@ -427,39 +427,7 @@ Stopping
 Stopped (terminal)
 ```
 
-## Application lifecycle
-
-Providers can implement `contracts.LifecycleProvider`:
-
-```go
-Start(app contracts.App) error
-Stop(ctx context.Context) error
-```
-
-`Start` / `Stop` (and `Run`) own process lifetime. Lifecycle transitions are serialized and protected against concurrent `Start` / `Stop` calls.
-
-```text
-Created
-   │
-   ▼
-Bootstrapping
-   │
-   ├── fail → BootFailed (terminal)
-   ▼
-Booted
-   │
-   ▼
-Starting
-   │
-   ▼
-Running
-   │
-   ▼
-Stopping
-   │
-   ▼
-Stopped (terminal)
-```
+HTTP is not dispatched until `Booted` (Created/Bootstrapping/BootFailed return `503`). `/up` on a generated app is process liveness after Bootstrap. Optional `package:enable health` adds `/health`. `LifecycleProvider.Start` (workers) runs only in `Start()` / `Running`. `Run()` handles `SIGINT`/`SIGTERM` with a 15s bounded HTTP shutdown, then `Stop` in reverse provider order.
 
 Failed bootstrap is terminal for that application instance. Stopped applications cannot restart.
 
@@ -498,7 +466,7 @@ slice
 
 Pointer and arbitrary struct values are not cloned. Copy semantics cover the configuration value graph managed by the repository, not a universal Go object cloner.
 
-After bootstrap, the configuration repository is frozen.
+After bootstrap, the configuration repository is frozen. Startup-critical integers such as `APP_PORT` use `env.IntOr`: unset falls back, invalid values fail boot with a named type error and do not echo credential-like keys.
 
 ## Package lifecycle
 
