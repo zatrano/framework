@@ -81,7 +81,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. A production-shaped consumer that lives in-tree for validation is [`examples/reference`](examples/reference).
+This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
 
 ## Architecture
 
@@ -663,6 +663,7 @@ ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is
 - [Installation](https://zatrano.com/docs/installation)
 - [PACKAGES.md](PACKAGES.md)
 - [github.com/zatrano/packages](https://github.com/zatrano/packages)
+- [github.com/zatrano/examples](https://github.com/zatrano/examples)
 - [Releases](https://github.com/zatrano/framework/releases)
 
 ## Community
@@ -676,4 +677,5 @@ Issues and pull requests are welcome. Keep changes focused, preserve architectur
 - [zatrano.com](https://zatrano.com/docs)
 - [github.com/zatrano/framework/v2](https://github.com/zatrano/framework)
 - [github.com/zatrano/packages](https://github.com/zatrano/packages)
+- [github.com/zatrano/examples](https://github.com/zatrano/examples)
 - [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)

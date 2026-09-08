@@ -1,55 +1,17 @@
 package tests
 
 import (
-	"go/parser"
-	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestPhase16ReferenceApplicationExists(t *testing.T) {
+func TestFrameworkDoesNotVendorExampleApplications(t *testing.T) {
 	root := moduleRoot(t)
-	readme := filepath.Join(root, "examples", "reference", "README.md")
-	if _, err := os.Stat(readme); err != nil {
-		t.Fatalf("reference README missing: %v", err)
-	}
-	main := filepath.Join(root, "examples", "reference", "cmd", "reference", "main.go")
-	if _, err := os.Stat(main); err != nil {
-		t.Fatalf("reference main missing: %v", err)
-	}
-}
-
-func TestPhase16ReferenceDoesNotImportPackagesModule(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "examples", "reference")
-	fset := token.NewFileSet()
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(moduleRoot(t), path)
-		for _, spec := range file.Imports {
-			imp := strings.Trim(spec.Path.Value, `"`)
-			if imp == "github.com/zatrano/packages" || strings.HasPrefix(imp, "github.com/zatrano/packages/") {
-				t.Errorf("%s imports %s", filepath.ToSlash(rel), imp)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+	dir := filepath.Join(root, "examples")
+	if st, err := os.Stat(dir); err == nil && st.IsDir() {
+		t.Fatal("example applications belong in github.com/zatrano/examples, not this module")
 	}
 }
 
@@ -68,25 +30,25 @@ func TestPhase16DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		"func Rollback(",
 		"zatrano.lock",
 	}
-	err := filepath.WalkDir(filepath.Join(root, "examples", "reference"), func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
-			return err
-		}
-		body, err := os.ReadFile(path)
+	files := []string{
+		filepath.Join("console", "console.go"),
+		filepath.Join("console", "new.go"),
+		filepath.Join("kernel", "application.go"),
+		filepath.Join("kernel", "env", "env.go"),
+		filepath.Join("contracts", "app.go"),
+		filepath.Join("bootstrap", "app.go"),
+	}
+	for _, rel := range files {
+		body, err := os.ReadFile(filepath.Join(root, rel))
 		if err != nil {
-			return err
+			t.Fatal(err)
 		}
 		src := string(body)
-		rel, _ := filepath.Rel(root, path)
 		for _, ban := range bans {
 			if strings.Contains(src, ban) {
 				t.Errorf("%s contains %s", filepath.ToSlash(rel), ban)
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))

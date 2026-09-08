@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+Example applications moved to [`github.com/zatrano/examples`](https://github.com/zatrano/examples). The framework module no longer contains `examples/`. VERSION stays `2.0.28`.
+
 Phase 17 public API stability review: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
 
 Phase 16 production reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
