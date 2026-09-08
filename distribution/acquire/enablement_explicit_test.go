@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestPhase9ContractCWorkflowIsExplicit(t *testing.T) {
-	spec := phase9SpecText(t)
+func TestAcquireEnablementWorkflowIsExplicit(t *testing.T) {
+	spec := orchestrationSpecText(t)
 	for _, want := range []string{
 		"Contract C OPEN",
 		"package:acquire NAME --enable",
@@ -17,10 +17,10 @@ func TestPhase9ContractCWorkflowIsExplicit(t *testing.T) {
 		"MUST NOT enable automatically",
 	} {
 		if !strings.Contains(spec, want) {
-			t.Fatalf("PHASE9.md missing %q", want)
+			t.Fatalf("ORCHESTRATION.md missing %q", want)
 		}
 	}
 	if strings.Contains(spec, "Contract C remains CLOSED") {
-		t.Fatal("PHASE9.md still treats Contract C as closed")
+		t.Fatal("ORCHESTRATION.md still treats Contract C as closed")
 	}
 }

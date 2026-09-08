@@ -7,7 +7,7 @@ import (
 )
 
 // Request is one `go get <GoGetArg>` invocation against an application module root.
-// GoGetArg must be a frozen Phase 7 token (Plan.GoGetArg). This is not enablement.
+// GoGetArg must be a frozen Acquisition plan token (Plan.GoGetArg). This is not enablement.
 type Request struct {
 	Root     string
 	GoGetArg string
@@ -140,7 +140,7 @@ func executeTargets(ctx context.Context, runner Runner, req Request, args []stri
 	return out, nil
 }
 
-// Invoke asks Runner to run `go get` with the concrete Phase 7 argument as-is.
+// Invoke asks Runner to run `go get` with the concrete Acquisition plan argument as-is.
 // It does not resolve packages, rewrite versions, run tidy, or edit go.mod as text.
 func Invoke(ctx context.Context, runner Runner, req Request) (InvocationResult, error) {
 	if ctx == nil {

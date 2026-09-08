@@ -6,22 +6,22 @@ import (
 	"testing"
 )
 
-//go:embed PHASE9.md
-var phase9Spec []byte
+//go:embed ORCHESTRATION.md
+var orchestrationSpec []byte
 
-func phase9SpecText(t *testing.T) string {
+func orchestrationSpecText(t *testing.T) string {
 	t.Helper()
-	spec := string(phase9Spec)
+	spec := string(orchestrationSpec)
 	if strings.TrimSpace(spec) == "" {
-		t.Fatal("PHASE9.md must not be empty")
+		t.Fatal("ORCHESTRATION.md must not be empty")
 	}
 	return spec
 }
 
-func TestPhase9SpecAcceptsContractA(t *testing.T) {
-	spec := phase9SpecText(t)
+func TestDryRunSpecAcceptsContractA(t *testing.T) {
+	spec := orchestrationSpecText(t)
 	for _, want := range []string{
-		"# Phase 9 — Bounding SPEC",
+		"# Acquisition / Enablement Contracts",
 		"Acceptance:** ACCEPTED",
 		"Contract A complete",
 		"Contract A — Dry-run",
@@ -33,13 +33,13 @@ func TestPhase9SpecAcceptsContractA(t *testing.T) {
 		"Acquisition ≠ Enablement",
 	} {
 		if !strings.Contains(spec, want) {
-			t.Fatalf("PHASE9.md missing %q", want)
+			t.Fatalf("ORCHESTRATION.md missing %q", want)
 		}
 	}
 }
 
-func TestPhase9SpecKeepsContractCExplicit(t *testing.T) {
-	spec := phase9SpecText(t)
+func TestAcquireEnablementStaysExplicit(t *testing.T) {
+	spec := orchestrationSpecText(t)
 	for _, want := range []string{
 		"Contract B — CLI Acquisition",
 		"Contract B complete",
@@ -53,7 +53,7 @@ func TestPhase9SpecKeepsContractCExplicit(t *testing.T) {
 		"renamed equivalent",
 	} {
 		if !strings.Contains(spec, want) {
-			t.Fatalf("PHASE9.md missing %q", want)
+			t.Fatalf("ORCHESTRATION.md missing %q", want)
 		}
 	}
 }

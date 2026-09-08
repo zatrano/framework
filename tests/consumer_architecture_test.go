@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestPhase14DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
+func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
 	bans := []string{
 		"type PackageManager",

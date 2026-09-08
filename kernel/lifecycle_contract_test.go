@@ -13,7 +13,7 @@ import (
 	zhttp "github.com/zatrano/framework/v2/kernel/http"
 )
 
-// Phase 11 Contract B locks the existing state machine through public APIs.
+// Lifecycle Contract B locks the existing state machine through public APIs.
 // There is no exported lifecycle type; Bootstrapped / BootstrapFailed / HTTP
 // readiness / Start+Stop behavior are the contract.
 

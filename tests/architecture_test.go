@@ -56,7 +56,7 @@ func TestProductAndModuleIdentity(t *testing.T) {
 	}
 }
 
-// Phase 1 freeze: kernel must not import github.com/zatrano/packages.
+// Architecture: kernel must not import github.com/zatrano/packages.
 func TestFrameworkDoesNotImportPackagesModule(t *testing.T) {
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
@@ -195,7 +195,7 @@ func TestEnablementCommandsDoNotImportRegistry(t *testing.T) {
 	}
 }
 
-func TestPhase6SearchHitHasNoSelectionFields(t *testing.T) {
+func TestSearchHitHasNoSelectionFields(t *testing.T) {
 	allow := map[string]bool{
 		"Name": true, "Import": true, "Module": true, "Kind": true,
 		"Layer": true, "Heavy": true, "Description": true,
@@ -213,7 +213,7 @@ func TestPhase6SearchHitHasNoSelectionFields(t *testing.T) {
 	}
 }
 
-func TestPhase7PlanStructFreeze(t *testing.T) {
+func TestAcquirePlanStructFreeze(t *testing.T) {
 	allow := map[string]bool{
 		"Schema": true, "Name": true, "Import": true, "Module": true,
 		"Query": true, "Selected": true, "Kind": true, "Heavy": true,
@@ -236,7 +236,7 @@ func TestPhase7PlanStructFreeze(t *testing.T) {
 	}
 }
 
-func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
+func TestApplySurfaceStaysFrozen(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "APPLY.md"))
 	if err != nil {
@@ -254,14 +254,14 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 		"rollback guaranteed",
 		"Enabled ∩ Imported",
 		"complete and frozen",
-		"later phase",
+		"later specification",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("APPLY.md missing %q — Phase 8 Apply stays frozen", want)
+			t.Errorf("APPLY.md missing %q — Apply contract stays frozen", want)
 		}
 	}
 	if strings.Contains(text, "Current gate") {
-		t.Error("APPLY.md still names a current gate — Phase 8 has no remaining implementation step")
+		t.Error("APPLY.md still names a current gate — Apply contract has no remaining implementation step")
 	}
 	allowed := map[string]bool{
 		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
@@ -276,7 +276,7 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 			return nil
 		}
 		if !allowed[base] {
-			t.Errorf("%s — Phase 8 production surface is frozen", filepath.Base(path))
+			t.Errorf("%s — Apply production surface is frozen", filepath.Base(path))
 		}
 		return nil
 	})
@@ -285,15 +285,15 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 	}
 }
 
-func TestPhase9ContractADryRunGate(t *testing.T) {
+func TestDryRunContractGate(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "ORCHESTRATION.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"# Phase 9 — Bounding SPEC",
+		"# Acquisition / Enablement Contracts",
 		"ACCEPTED",
 		"Contract A — Dry-run",
 		"Contract A complete",
@@ -310,11 +310,11 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 		"renamed equivalent",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("PHASE9.md missing %q — Phase 9 Contract A stays bounded", want)
+			t.Errorf("ORCHESTRATION.md missing %q — Contract A stays bounded", want)
 		}
 	}
 	if strings.Contains(text, "NOT ACCEPTED") {
-		t.Error("PHASE9.md still says NOT ACCEPTED — SPEC was accepted")
+		t.Error("ORCHESTRATION.md still says NOT ACCEPTED — SPEC was accepted")
 	}
 	dir := filepath.Join(root, "distribution", "acquire")
 	if _, err := os.Stat(filepath.Join(dir, "dry_run.go")); err != nil {
@@ -338,6 +338,7 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 			t.Errorf("dry_run.go contains %s — DryRun must not execute or recover", ban)
 		}
 	}
+	// Historical phase-named production files remain forbidden.
 	for _, name := range []string{"acquire_cmd.go", "phase9.go", "phase10.go"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
 			t.Errorf("%s — unauthorized acquire production file", name)
@@ -345,7 +346,7 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 	}
 }
 
-func TestPhase8ProcessInvocationBoundary(t *testing.T) {
+func TestApplyProcessInvocationBoundary(t *testing.T) {
 	root := moduleRoot(t)
 	dir := filepath.Join(root, "distribution", "acquire")
 	for _, name := range []string{"apply.go", "process.go", "exec_runner.go"} {
@@ -539,7 +540,7 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 			}
 			switch fn.Name.Name {
 			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "Preview", "Acquire", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
-				t.Errorf("%s defines %s — Phase 8 production surface is frozen", base, fn.Name.Name)
+				t.Errorf("%s defines %s — Apply production surface is frozen", base, fn.Name.Name)
 			case "DryRun", "DryRunTargets":
 				if base != "dry_run.go" {
 					t.Errorf("%s defines %s — DryRun lives in dry_run.go", base, fn.Name.Name)
@@ -630,7 +631,7 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	}
 }
 
-func TestPhase8AcquireExportsStayFrozen(t *testing.T) {
+func TestAcquireExportsStayFrozen(t *testing.T) {
 	allowFn := map[string]bool{
 		"FromResult": true, "Targets": true, "Invoke": true, "Execute": true, "ExecuteTargets": true,
 		"Inspect": true, "SnapshotFiles": true, "RecoverFiles": true, "DryRun": true, "DryRunTargets": true,
@@ -656,12 +657,12 @@ func TestPhase8AcquireExportsStayFrozen(t *testing.T) {
 			}
 			if fn.Recv != nil {
 				if !allowMethod[fn.Name.Name] {
-					t.Errorf("%s grew method %s — Phase 8 exports are frozen", filepath.Base(path), fn.Name.Name)
+					t.Errorf("%s grew method %s — Apply contract exports are frozen", filepath.Base(path), fn.Name.Name)
 				}
 				continue
 			}
 			if !allowFn[fn.Name.Name] {
-				t.Errorf("%s grew %s — Phase 8 exports are frozen", filepath.Base(path), fn.Name.Name)
+				t.Errorf("%s grew %s — Apply contract exports are frozen", filepath.Base(path), fn.Name.Name)
 			}
 		}
 		return nil
@@ -671,7 +672,7 @@ func TestPhase8AcquireExportsStayFrozen(t *testing.T) {
 	}
 }
 
-func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
+func TestAcquireExportsStayPlanOnly(t *testing.T) {
 	allowFn := map[string]bool{"FromResult": true, "Targets": true}
 	allowMethod := map[string]bool{"GoGetArg": true}
 	fset := token.NewFileSet()
@@ -686,12 +687,12 @@ func TestPhase7AcquireExportsStayPlanOnly(t *testing.T) {
 		}
 		if fn.Recv != nil {
 			if !allowMethod[fn.Name.Name] {
-				t.Errorf("Plan grew method %s — Apply stays out of Phase 7", fn.Name.Name)
+				t.Errorf("Plan grew method %s — Apply stays out of the acquisition plan", fn.Name.Name)
 			}
 			continue
 		}
 		if !allowFn[fn.Name.Name] {
-			t.Errorf("acquire grew %s — Phase 7 exports are FromResult and Targets", fn.Name.Name)
+			t.Errorf("acquire grew %s — Acquisition plan exports are FromResult and Targets", fn.Name.Name)
 		}
 	}
 }
@@ -724,7 +725,7 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 			continue
 		}
 		if bannedFn[fn.Name.Name] {
-			t.Errorf("plan.go defines %s — Apply/resolution stay out of Phase 7", fn.Name.Name)
+			t.Errorf("plan.go defines %s — Apply/resolution stay out of the acquisition plan", fn.Name.Name)
 		}
 	}
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -744,7 +745,7 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 	text := string(src)
 	for _, ban := range []string{"os.WriteFile", "os.Create", "os.Mkdir", "exec.Command", "go mod tidy", "go mod edit"} {
 		if strings.Contains(text, ban) {
-			t.Errorf("plan.go contains %q — Phase 7 stays filesystem-free", ban)
+			t.Errorf("plan.go contains %q — Acquisition plan stays filesystem-free", ban)
 		}
 	}
 }
@@ -777,7 +778,7 @@ func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
 	}
 }
 
-func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
+func TestCLIAcquireGate(t *testing.T) {
 	root := moduleRoot(t)
 	path := filepath.Join(root, "console", "package_acquire.go")
 	src, err := os.ReadFile(path)
@@ -829,9 +830,9 @@ func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
 	}
 }
 
-func TestPhase9ContractCExplicitEnablement(t *testing.T) {
+func TestExplicitEnablementAfterAcquire(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "ORCHESTRATION.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -842,13 +843,13 @@ func TestPhase9ContractCExplicitEnablement(t *testing.T) {
 		"MUST NOT enable automatically",
 		"--enable",
 		"not_requested",
-		"Phase 8 — v2.0.22",
+		"Apply contract — v2.0.22",
 		"package:install",
 		"implicit transaction",
 		"enablePackage",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("PHASE9.md missing %q — Contract C explicit workflow", want)
+			t.Errorf("ORCHESTRATION.md missing %q — Contract C explicit workflow", want)
 		}
 	}
 	for _, name := range []string{
@@ -882,15 +883,15 @@ func TestPhase9ContractCExplicitEnablement(t *testing.T) {
 	}
 }
 
-func TestPhase10SpecIsAccepted(t *testing.T) {
+func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE10.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "HARDENING.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"# Phase 10 — Production Hardening & Ecosystem Validation",
+		"# Acquisition Production Hardening",
 		"**Status:** Accepted",
 		"**Acceptance:** ACCEPTED",
 		"Implementation: COMPLETE",
@@ -901,7 +902,7 @@ func TestPhase10SpecIsAccepted(t *testing.T) {
 		"No implicit acquisition → enablement",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("PHASE10.md missing %q — Phase 10 SPEC must stay accepted", want)
+			t.Errorf("HARDENING.md missing %q — Acquisition hardening SPEC must stay accepted", want)
 		}
 	}
 	for _, ban := range []string{
@@ -910,11 +911,11 @@ func TestPhase10SpecIsAccepted(t *testing.T) {
 		"Implementation: LOCKED",
 	} {
 		if strings.Contains(text, ban) {
-			t.Errorf("PHASE10.md still contains %q", ban)
+			t.Errorf("HARDENING.md still contains %q", ban)
 		}
 	}
 	bannedProd := []string{
-		"phase10.go",
+		"phase10.go", // historical phase-named production file remains forbidden
 		"lifecycle.go",
 		"e2e.go",
 		"harden.go",
@@ -932,13 +933,13 @@ func TestPhase10SpecIsAccepted(t *testing.T) {
 	for _, dir := range dirs {
 		for _, name := range bannedProd {
 			if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-				t.Errorf("%s/%s — Phase 10 must not add a new acquisition engine", filepath.Base(dir), name)
+				t.Errorf("%s/%s — Acquisition hardening must not add a new acquisition engine", filepath.Base(dir), name)
 			}
 		}
 	}
 }
 
-func TestPhase10ExitCodesStayAtCLIBoundary(t *testing.T) {
+func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 	root := moduleRoot(t)
 	err := filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -978,7 +979,7 @@ func TestPhase10ExitCodesStayAtCLIBoundary(t *testing.T) {
 	}
 }
 
-func TestPhase10JSONPresentsExistingState(t *testing.T) {
+func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "package_acquire.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -1096,7 +1097,7 @@ func TestKernelConfigHasNoPackageSchemas(t *testing.T) {
 	}
 }
 
-// Phase 1 freeze: contracts.App stays kernel-complete; no package capability methods.
+// Architecture: contracts.App stays kernel-complete; no package capability methods.
 func TestContractsAppMethodFreeze(t *testing.T) {
 	allow := map[string]bool{
 		"BasePath": true, "Container": true, "Make": true, "Bound": true,

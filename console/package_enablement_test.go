@@ -10,7 +10,7 @@ import (
 	"github.com/zatrano/framework/v2/kernel"
 )
 
-func registerPhase12Graph(t *testing.T) {
+func registerEnablementGraph(t *testing.T) {
 	t.Helper()
 	addons.ClearRegistry()
 	t.Cleanup(addons.ClearRegistry)
@@ -22,7 +22,7 @@ func registerPhase12Graph(t *testing.T) {
 }
 
 func TestEnableRequiresClosureDirect(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	added, err := enablePackage(app, "session")
 	if err != nil {
@@ -45,7 +45,7 @@ func TestEnableRequiresClosureDirect(t *testing.T) {
 }
 
 func TestEnableRequiresClosureTransitive(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestEnableRequiresClosureTransitive(t *testing.T) {
 }
 
 func TestEnableOptionalNotPulled(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestEnableMissingRequiresFailsBeforeMutation(t *testing.T) {
 }
 
 func TestEnableWireWritesRequiresBlankImports(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestEnableWireWritesRequiresBlankImports(t *testing.T) {
 }
 
 func TestDisableReverseRequiresDirect(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -139,7 +139,7 @@ func TestDisableReverseRequiresDirect(t *testing.T) {
 }
 
 func TestDisableReverseRequiresTransitive(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -156,7 +156,7 @@ func TestDisableReverseRequiresTransitive(t *testing.T) {
 }
 
 func TestDisableIndependentPackage(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -184,7 +184,7 @@ func TestDisableIndependentPackage(t *testing.T) {
 }
 
 func TestDisableAlreadyDisabledIdempotent(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "features"); err != nil {
 		t.Fatal(err)
@@ -241,7 +241,7 @@ func TestDisableDoesNotCallStop(t *testing.T) {
 }
 
 func TestDisableBlockedUsesEnablementExitCode(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestPinIntegrityFirstTimeStillGetsMain(t *testing.T) {
 }
 
 func TestEnableThenWireDoesNotClobberPin(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	root := t.TempDir()
 	mod := "module example.com/enable-pin\n\ngo 1.25.0\n\nrequire github.com/zatrano/packages v2.1.0\n"
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(mod), 0o644); err != nil {
@@ -375,7 +375,7 @@ func TestPackageDoctorEnabledRequires(t *testing.T) {
 }
 
 func TestPackageDoctorTransitiveRequires(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), []string{"auth"}); err != nil {
 		t.Fatal(err)
@@ -405,7 +405,7 @@ func TestPackageDoctorTransitiveRequires(t *testing.T) {
 }
 
 func TestPackageDoctorImportedDisabled(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), []string{"hashing"}); err != nil {
 		t.Fatal(err)
@@ -452,7 +452,7 @@ func TestPackageDoctorFrameworkVersion(t *testing.T) {
 }
 
 func TestPackageDoctorRequiredBy(t *testing.T) {
-	registerPhase12Graph(t)
+	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)

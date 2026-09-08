@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func TestPhase15FreshApplicationErgonomics(t *testing.T) {
+func TestFreshApplicationErgonomics(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Phase 15 consumer uses go run + go build")
+		t.Skip("Application ergonomics consumer uses go run + go build")
 	}
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go executable not on PATH")
@@ -94,7 +94,7 @@ func TestPhase15FreshApplicationErgonomics(t *testing.T) {
 	}
 }
 
-func TestPhase15DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
+func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
 	bans := []string{
 		"type PackageManager",

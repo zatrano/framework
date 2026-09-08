@@ -26,11 +26,11 @@ type App interface {
 	RegisterProviders(providers ...Provider)
 	// Bootstrap remains the zero-argument entry (Background context).
 	Bootstrap() error
-	// BootstrapContext was added after Phase 11 API compatibility review.
+	// BootstrapContext accepts a context for Register/Boot cancellation.
 	// A nil ctx means Background. Provider.Register / Provider.Boot are unchanged.
 	BootstrapContext(ctx context.Context) error
 	Start() error
-	// StartContext was added after Phase 11 API compatibility review.
+	// StartContext accepts a context for Start cancellation.
 	// A nil ctx means Background. LifecycleProvider.Start is unchanged.
 	StartContext(ctx context.Context) error
 	Stop(ctx context.Context) error

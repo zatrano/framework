@@ -6,22 +6,22 @@ import (
 	"testing"
 )
 
-//go:embed PHASE10.md
-var phase10Spec []byte
+//go:embed HARDENING.md
+var hardeningSpec []byte
 
-func phase10SpecText(t *testing.T) string {
+func hardeningSpecText(t *testing.T) string {
 	t.Helper()
-	spec := string(phase10Spec)
+	spec := string(hardeningSpec)
 	if strings.TrimSpace(spec) == "" {
-		t.Fatal("PHASE10.md must not be empty")
+		t.Fatal("HARDENING.md must not be empty")
 	}
 	return spec
 }
 
-func TestPhase10SpecIsAccepted(t *testing.T) {
-	spec := phase10SpecText(t)
+func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
+	spec := hardeningSpecText(t)
 	for _, want := range []string{
-		"# Phase 10 — Production Hardening & Ecosystem Validation",
+		"# Acquisition Production Hardening",
 		"**Status:** Accepted",
 		"**Acceptance:** ACCEPTED",
 		"Implementation: COMPLETE",
@@ -32,27 +32,27 @@ func TestPhase10SpecIsAccepted(t *testing.T) {
 		"package:acquire",
 		"Exit-code interpretation belongs to the CLI boundary",
 		"No implicit acquisition → enablement",
-		"Phase 8 (`v2.0.22`) remains frozen",
-		"Phase 10 MUST NOT redesign `DryRun` or `DryRunTargets`",
+		"Apply contract (`v2.0.22`) remains frozen",
+		"Acquisition hardening MUST NOT redesign `DryRun` or `DryRunTargets`",
 	} {
 		if !strings.Contains(spec, want) {
-			t.Fatalf("PHASE10.md missing %q", want)
+			t.Fatalf("HARDENING.md missing %q", want)
 		}
 	}
 	for _, ban := range []string{
 		"**Status:** Draft",
 		"NOT ACCEPTED",
 		"Implementation: LOCKED",
-		"No Phase 10 implementation is authorized",
+		"No hardening implementation is authorized",
 	} {
 		if strings.Contains(spec, ban) {
-			t.Fatalf("PHASE10.md still contains %q — SPEC is accepted", ban)
+			t.Fatalf("HARDENING.md still contains %q — SPEC is accepted", ban)
 		}
 	}
 }
 
-func TestPhase10SpecKeepsFrozenBoundaries(t *testing.T) {
-	spec := phase10SpecText(t)
+func TestAcquisitionHardeningSpecKeepsFrozenBoundaries(t *testing.T) {
+	spec := hardeningSpecText(t)
 	for _, want := range []string{
 		"FromResult",
 		"Execute / ExecuteTargets",
@@ -68,7 +68,7 @@ func TestPhase10SpecKeepsFrozenBoundaries(t *testing.T) {
 		"rec, _ := c.runRecover",
 	} {
 		if !strings.Contains(spec, want) {
-			t.Fatalf("PHASE10.md missing frozen-boundary marker %q", want)
+			t.Fatalf("HARDENING.md missing frozen-boundary marker %q", want)
 		}
 	}
 }

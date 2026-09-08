@@ -98,9 +98,9 @@ Consumers (`package:search`, `package:info`, `package:resolve`, and any later HT
 
 `package:enable` turns on an already imported package in the application. Today's `package:install` is the same enablement family (enable + stubs). It is **not** download, `go.mod` mutation, or `Resolve`. A future module-install command is a separate operation and must not overwrite this meaning.
 
-## Phase freeze
+## Contract freeze
 
-Phases 1–7 Plan are closed at this boundary:
+These contracts are closed at this boundary:
 
 | Surface | Status |
 |---------|--------|
@@ -111,10 +111,10 @@ Phases 1–7 Plan are closed at this boundary:
 | `zatrano.registry/v1` Search / Resolve | Frozen |
 | CLI consumer (`package:search` / `info` / `resolve`) | Frozen |
 | `zatrano.acquire/v1` Plan (`FromResult` / `Targets` / `GoGetArg`) | Frozen |
-| Phase 8 Apply | **Frozen** (`Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`); [`acquire/APPLY.md`](../acquire/APPLY.md) |
-| Phase 9 | SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C OPEN (`--enable`); [`acquire/PHASE9.md`](../acquire/PHASE9.md) |
+| Apply contract | **Frozen** (`Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`); [`acquire/APPLY.md`](../acquire/APPLY.md) |
+| Acquisition/enablement | SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C OPEN (`--enable`); [`acquire/ORCHESTRATION.md`](../acquire/ORCHESTRATION.md) |
 
-Phase 8 Apply is frozen at this boundary. Phase 9 Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C is OPEN: explicit `--enable` after successful acquisition; default acquire does not enable. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
+Apply contract is frozen at this boundary. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C is OPEN: explicit `--enable` after successful acquisition; default acquire does not enable. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 

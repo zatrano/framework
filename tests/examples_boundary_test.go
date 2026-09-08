@@ -15,7 +15,7 @@ func TestFrameworkDoesNotVendorExampleApplications(t *testing.T) {
 	}
 }
 
-func TestPhase16DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
+func TestExamplesBoundaryDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
 	bans := []string{
 		"type PackageManager",

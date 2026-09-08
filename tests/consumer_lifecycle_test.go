@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func phase14PackagesCheckout(t *testing.T) string {
+func packagesCheckout(t *testing.T) string {
 	t.Helper()
 	if p := strings.TrimSpace(os.Getenv("PACKAGES_DIR")); p != "" {
 		if st, err := os.Stat(p); err == nil && st.IsDir() {
@@ -24,9 +24,9 @@ func phase14PackagesCheckout(t *testing.T) string {
 	return ""
 }
 
-func TestPhase14FreshConsumerLifecycle(t *testing.T) {
+func TestFreshConsumerLifecycle(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Phase 14 consumer uses go run + go build")
+		t.Skip("Fresh-consumer lifecycle uses go run + go build")
 	}
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go executable not on PATH")
@@ -102,7 +102,7 @@ func TestPhase14FreshConsumerLifecycle(t *testing.T) {
 		t.Fatalf("dry-run should report the planned go get:\n%s", dryOut)
 	}
 
-	pkgDir := phase14PackagesCheckout(t)
+	pkgDir := packagesCheckout(t)
 	if pkgDir != "" {
 		if !strings.Contains(string(mod), "replace github.com/zatrano/packages =>") {
 			f, err := os.OpenFile(filepath.Join(dest, "go.mod"), os.O_APPEND|os.O_WRONLY, 0o644)

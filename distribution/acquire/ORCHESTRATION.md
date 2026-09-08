@@ -1,18 +1,18 @@
-# Phase 9 — Bounding SPEC
+# Acquisition / Enablement Contracts
 
-**Status:** SPEC accepted — Contract A complete / FROZEN; Contract B complete (IMPLEMENTED); Contract C OPEN (IMPLEMENTED)  
-**Prerequisite:** Phase 8 (`v2.0.22`) FROZEN  
-**Acceptance:** ACCEPTED  
+**Status:** SPEC accepted — Contract A complete / FROZEN; Contract B complete (IMPLEMENTED); Contract C OPEN (IMPLEMENTED)
+**Prerequisite:** Apply contract (`v2.0.22`) FROZEN
+**Acceptance:** ACCEPTED
 **Implementation:** Contract A (Dry-run) COMPLETE / FROZEN. Contract B (CLI acquisition) IMPLEMENTED. Contract C (Acquisition ↔ enablement) OPEN / IMPLEMENTED.
 
 ```text
 Contract A — Dry-run              COMPLETE / FROZEN
 Contract B — CLI Acquisition      IMPLEMENTED
 Contract C — Acquisition ↔ Enablement  OPEN / IMPLEMENTED
-Phase 8 — v2.0.22                FROZEN
+Apply contract — v2.0.22                FROZEN
 ```
 
-Contract A is not reopened. Contract B is not redesigned. Phase 8 remains untouched.
+Contract A is not reopened. Contract B is not redesigned. The Apply contract remains untouched.
 `func Apply` and renamed equivalents remain forbidden.
 
 `package:acquire` remains acquisition orchestration.
@@ -25,7 +25,7 @@ There is no implicit transaction between acquisition and enablement.
 
 ## 1. Scope
 
-Phase 9 defines three independent contracts:
+This specification defines three independent contracts:
 
 1. **Contract A — Dry-run**
 2. **Contract B — CLI Acquisition**
@@ -198,7 +198,7 @@ There is no implicit transaction between acquisition and enablement.
 
 ## `package:install`
 
-`package:install` does not become an acquisition command in this phase.
+`package:install` does not become an acquisition command in this contract.
 
 Its meaning remains **enablement**.
 
@@ -257,9 +257,9 @@ MUST NOT add automatic rollback of acquisition when enablement fails, automatic 
 
 ---
 
-# Phase 8 Freeze Boundary
+# Apply contract Freeze Boundary
 
-Phase 9 MUST NOT touch the following Phase 8 surface:
+Acquisition/enablement MUST NOT touch the following Apply contract surface:
 
 ```text
 FromResult
@@ -279,7 +279,7 @@ SnapshotFiles / RecoverFiles
 
 The following MUST NOT change:
 
-* Phase 7 APIs
+* Acquisition plan APIs
 * `GoGetArg`
 * `Execute`
 * `ExecuteTargets`
@@ -296,9 +296,9 @@ A new Apply variant or renamed equivalent is also not accepted under this SPEC.
 
 ---
 
-# Phase 9 Global Invariants
+# Acquisition/enablement Global Invariants
 
-A Phase 9 implementation:
+An acquisition/enablement implementation:
 
 * MUST NOT create a new resolver.
 * MUST NOT create a second process abstraction.
@@ -306,8 +306,8 @@ A Phase 9 implementation:
 * MUST NOT change `package:install` semantics.
 * MUST NOT add `zatrano.lock`.
 * MUST NOT add automatic `go mod tidy`.
-* MUST NOT change the Phase 7 acquisition planning API.
-* MUST NOT change Phase 8 execution semantics.
+* MUST NOT change the Acquisition plan acquisition planning API.
+* MUST NOT change Apply contract execution semantics.
 * MUST NOT turn acquisition and enablement into an implicit transaction.
 * MUST NOT collapse A/B/C into one combined contract.
 
@@ -325,7 +325,7 @@ Contract B — CLI Acquisition      IMPLEMENTED
 Contract C — Acquisition ↔ Enablement  OPEN / IMPLEMENTED
 ```
 
-Phase 8 (`v2.0.22`) stays FROZEN.
+Apply contract (`v2.0.22`) stays FROZEN.
 
 Each contract: contract tests → implementation → verification.
 
@@ -334,7 +334,7 @@ Contract A is complete / FROZEN. Contract B is complete (IMPLEMENTED). Contract 
 ## Current status
 
 ```text
-Phase 9
+Acquisition / Enablement
 Status: SPEC ACCEPTED
 Implementation: Contract A COMPLETE / FROZEN; Contract B IMPLEMENTED; Contract C OPEN / IMPLEMENTED
 Acceptance: ACCEPTED

@@ -1,14 +1,13 @@
-# Phase 8 — Module Acquisition Apply
+# Apply contract — Module Acquisition Apply
 
-**Status:** Frozen  
-Previous phases: 1–7 frozen  
-Phase 7 boundary: `GoGetArg`  
-This phase: Apply contract only  
-**Implementation:** steps 1–8 complete and frozen. A new CLI command remains not authorized. Dry-run is not a Phase 8 remaining gate. They are not Phase 8 remaining gates.
+**Status:** Frozen
+Acquisition plan: frozen (`GoGetArg` boundary)
+This contract: Apply only
+**Implementation:** steps 1–8 complete and frozen. A new CLI command remains not authorized. Dry-run is not an Apply-contract remaining gate. They are not Apply contract remaining gates.
 
 ```
 Resolve → FromResult → Plan → Targets → GoGetArg
-                                         ✕ Phase 7
+                                         ✕ Acquisition plan
                                          │
                                          ▼
                                        Apply
@@ -18,11 +17,11 @@ Resolve → FromResult → Plan → Targets → GoGetArg
                                    go.mod / go.sum
 ```
 
-Nothing below Apply is Phase 7. Nothing above `GoGetArg` is redesigned here. `package:install` remains enablement.
+Nothing below Apply is the acquisition plan. Nothing above `GoGetArg` is redesigned here. `package:install` remains enablement.
 
 ## 1. Purpose
 
-Phase 8 defines how a resolved acquisition plan may be applied to a Go application's module graph.
+Apply contract defines how a resolved acquisition plan may be applied to a Go application's module graph.
 
 Apply converts an already-resolved plan into **controlled Go module mutations**. Apply MUST NOT become another resolver.
 
@@ -30,13 +29,13 @@ It MUST NOT change: package resolution, manifest, registry, CLI resolution, enab
 
 ## 2. Non-goals
 
-Phase 8 MUST NOT introduce: a new resolver or version selector; a ZATRANO lockfile; package-level semver beside Go modules; marketplace / registry HTTP / publisher / licensing; package boot or enablement; automatic blank-imports; automatic edits of `bootstrap/enabled.go` or package registration; automatic framework runtime changes.
+Apply contract MUST NOT introduce: a new resolver or version selector; a ZATRANO lockfile; package-level semver beside Go modules; marketplace / registry HTTP / publisher / licensing; package boot or enablement; automatic blank-imports; automatic edits of `bootstrap/enabled.go` or package registration; automatic framework runtime changes.
 
 Today's `package:install` remains enablement. It MUST NOT silently become module acquisition.
 
 ## 3. Input
 
-Apply consumes Phase 7 output (`Plan`, `Targets`, `GoGetArg`). It MUST receive concrete `module@version` strings. It MUST NOT receive `latest`, version ranges, `framework_min`, or package kind as a resolution instruction and then interpret them.
+Apply consumes Acquisition plan output (`Plan`, `Targets`, `GoGetArg`). It MUST receive concrete `module@version` strings. It MUST NOT receive `latest`, version ranges, `framework_min`, or package kind as a resolution instruction and then interpret them.
 
 Acceptable targets are of the form:
 
@@ -49,10 +48,10 @@ github.com/zatrano/framework/v2@main
 
 ## 4. Resolver boundary
 
-Apply treats Phase 7 as authoritative. It MUST NOT call `Resolve`, `Search`, `Lookup`, `compareSemver`, or `latestCompatible` to decide what to acquire.
+Apply treats Acquisition plan as authoritative. It MUST NOT call `Resolve`, `Search`, `Lookup`, `compareSemver`, or `latestCompatible` to decide what to acquire.
 
 ```
-Registry → Resolve → Phase 7 Plan → Phase 8 Apply
+Registry → Resolve → Acquisition Plan → Apply contract
 ```
 
 never `Apply → Resolve again`. Resolution happens **exactly once** before acquisition.
@@ -69,15 +68,15 @@ Each target has a concrete `GoGetArg`. Apply MAY run `go get <GoGetArg>`. It MUS
 
 ## 7. `main`
 
-`main` is a valid target when Phase 7 produced it. Apply passes `@main` to Go as-is. It MUST NOT invent a ZATRANO pseudo-version. Go tooling writes the resulting pin into go.mod / go.sum. That rewrite is Go module state, not registry resolution.
+`main` is a valid target when Acquisition plan produced it. Apply passes `@main` to Go as-is. It MUST NOT invent a ZATRANO pseudo-version. Go tooling writes the resulting pin into go.mod / go.sum. That rewrite is Go module state, not registry resolution.
 
 ## 8. Shared-module targets
 
-Phase 7 may collapse `session@main` + `auth@main` into one `github.com/zatrano/packages@main`. Apply operates on acquisition targets, not catalog names. It MUST NOT `go get` the same module twice because two packages share it.
+Acquisition plan may collapse `session@main` + `auth@main` into one `github.com/zatrano/packages@main`. Apply operates on acquisition targets, not catalog names. It MUST NOT `go get` the same module twice because two packages share it.
 
 ## 9. Conflicting pins
 
-Phase 7 already rejects two pins for one module. If a conflict reaches Apply, it is invalid input: no mutation. Apply MUST NOT invent last-write-wins, first-write-wins, highest-version-wins, or main-wins.
+Acquisition plan already rejects two pins for one module. If a conflict reaches Apply, it is invalid input: no mutation. Apply MUST NOT invent last-write-wins, first-write-wins, highest-version-wins, or main-wins.
 
 ## 10. Atomicity
 
@@ -93,7 +92,7 @@ go.sum is Go's verification state. Apply MUST NOT fabricate or repair checksums.
 
 ## 13. `go mod tidy`
 
-Apply MUST NOT treat `go mod tidy` as pinning or resolution. Default Phase 8: `go get` → inspect result → return. **No automatic tidy.** Whether tidy is appropriate after a particular mutation is a separate policy, not implicit in this contract.
+Apply MUST NOT treat `go mod tidy` as pinning or resolution. Default Apply: `go get` → inspect result → return. **No automatic tidy.** Whether tidy is appropriate after a particular mutation is a separate policy, not implicit in this contract.
 
 ## 14. Concurrency
 
@@ -125,15 +124,15 @@ Apply MUST NOT modify `bootstrap/enabled.go`, addon registration, or equivalent 
 Acquire module ≠ Enable package
 ```
 
-A successful Apply does not enable a package. Enabling a package does not mean Phase 8 ran.
+A successful Apply does not enable a package. Enabling a package does not mean Apply contract ran.
 
 ## 20. `package:install`
 
-Existing `package:install` stays enablement for the whole of Phase 8. It MUST NOT silently redefine it. Connecting acquisition and enablement needs a **separate** approved contract.
+Existing `package:install` stays enablement for the whole of the Apply contract. It MUST NOT silently redefine it. Connecting acquisition and enablement needs a **separate** approved contract.
 
 ## 21. Dry run
 
-Dry-run is **not a Phase 8 remaining gate**. Phase 9 Contract A MAY add a non-mutating dry-run that consumes the **same** frozen Phase 7 plan. Dry-run MUST NOT introduce a second resolver. It MUST NOT be folded into this phase. Phase 9: [`PHASE9.md`](PHASE9.md). Contract A is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C (`--enable`) is Phase 9, not a Phase 8 gate.
+Dry-run is **not an Apply-contract remaining gate**. Contract A MAY add a non-mutating dry-run that consumes the **same** frozen acquisition plan. Dry-run MUST NOT introduce a second resolver. It MUST NOT be folded into this contract. Acquisition/enablement: [`ORCHESTRATION.md`](ORCHESTRATION.md). Contract A is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C (`--enable`) is an orchestration contract, not an Apply-contract gate.
 
 ## 22. Idempotency
 
@@ -168,7 +167,7 @@ Expose: module root, target module, requested version, command, exit status, std
 9. Apply does not create a ZATRANO lockfile.  
 10. Apply does not implement its own Go module resolver.  
 11. Apply does not automatically run `go mod tidy`.  
-12. Phase 7 remains filesystem-free.
+12. Acquisition plan remains filesystem-free.
 
 ## 28. Implementation gate
 
@@ -185,12 +184,12 @@ After SPEC acceptance, implementation order:
 
 The first implementation MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.
 
-**Implementation order is complete and frozen.** Steps 1–8 remain the only Apply gates, including integration tests on a real module root. Do not add a ninth step, `func Apply`, a second resolver, a second process abstraction, dry-run, or a new CLI command into this phase.
+**Implementation order is complete and frozen.** Steps 1–8 remain the only Apply gates, including integration tests on a real module root. Do not add a ninth step, `func Apply`, a second resolver, a second process abstraction, dry-run, or a new CLI command into this contract.
 
 Integration tests MUST run against a real application module root and consume frozen APIs only: `FromResult` → `Targets` → `GoGetArg` → `Execute` / `ExecuteTargets` → `Inspect` → `RecoverFiles`. They MUST NOT add a resolver, `func Apply`, a second process abstraction, `go mod tidy`, `zatrano.lock`, or transactional rollback.
 
 ## 29. Completion
 
-Phase 8 is **complete and frozen**. Apply consumes frozen Phase 7 output; no second resolver; concrete args reach Go tooling; `latest` cannot reach Apply; conflicting pins cannot merge silently; mutation is scoped to the intended app module; go.mod/go.sum changes are from Go tooling; tidy is not treated as pinning; concurrent mutation of one module is serialized; partial apply is observable; rollback is documented as guaranteed **or** unavailable; enablement stays independent; `package:install` unchanged; no `zatrano.lock`; Phase 7 stays pure and filesystem-free.
+The Apply contract is **complete and frozen**. Apply consumes frozen Acquisition plan output; no second resolver; concrete args reach Go tooling; `latest` cannot reach Apply; conflicting pins cannot merge silently; mutation is scoped to the intended app module; go.mod/go.sum changes are from Go tooling; tidy is not treated as pinning; concurrent mutation of one module is serialized; partial apply is observable; rollback is documented as guaranteed **or** unavailable; enablement stays independent; `package:install` unchanged; no `zatrano.lock`; Acquisition plan stays pure and filesystem-free.
 
-Further work that is not Phase 8 remains a **later phase**, not a Phase 8 remaining gate. Phase 9 Contract C is an explicit `--enable` after successful acquisition. Phase 9: [`PHASE9.md`](PHASE9.md). SPEC is accepted; Contract A (Dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C (`--enable`) is COMPLETE / FROZEN at `v2.0.27`. Default acquire does not enable. Phase 10: [`PHASE10.md`](PHASE10.md). SPEC is accepted; implementation is COMPLETE without reopening Phase 8. `package:install` stays enablement. There is no implicit transaction.
+Work outside the Apply contract remains a **later specification**, not an Apply-contract remaining gate. Contract C is an explicit `--enable` after successful acquisition. Acquisition/enablement: [`ORCHESTRATION.md`](ORCHESTRATION.md). SPEC is accepted; Contract A (Dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C (`--enable`) is COMPLETE / FROZEN at `v2.0.27`. Default acquire does not enable. Production hardening: [`HARDENING.md`](HARDENING.md). SPEC is accepted; implementation is COMPLETE without reopening Apply. `package:install` stays enablement. There is no implicit transaction.

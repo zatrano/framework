@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestPhase11DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
+func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
 	acquireDir := filepath.Join(root, "distribution", "acquire")
 	err := filepath.WalkDir(acquireDir, func(path string, d fs.DirEntry, walkErr error) error {

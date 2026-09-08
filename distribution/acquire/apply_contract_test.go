@@ -28,23 +28,22 @@ func requireSpecContains(t *testing.T, spec, clause string) {
 	}
 }
 
-func TestApplySpecDeclaresPhase8Boundary(t *testing.T) {
+func TestApplySpecDeclaresApplyBoundary(t *testing.T) {
 	spec := applySpecText(t)
 
-	requireSpecContains(t, spec, "# Phase 8 — Module Acquisition Apply")
+	requireSpecContains(t, spec, "# Apply contract — Module Acquisition Apply")
 	requireSpecContains(t, spec, "**Status:** Frozen")
-	requireSpecContains(t, spec, "Previous phases: 1–7 frozen")
-	requireSpecContains(t, spec, "Phase 7 boundary: `GoGetArg`")
-	requireSpecContains(t, spec, "This phase: Apply contract only")
+	requireSpecContains(t, spec, "Acquisition plan: frozen (`GoGetArg` boundary)")
+	requireSpecContains(t, spec, "This contract: Apply only")
 	requireSpecContains(t, spec, "steps 1–8 complete and frozen")
-	requireSpecContains(t, spec, "They are not Phase 8 remaining gates")
+	requireSpecContains(t, spec, "They are not Apply contract remaining gates")
 }
 
 func TestApplySpecDoesNotRedefineResolution(t *testing.T) {
 	spec := applySpecText(t)
 
 	requireSpecContains(t, spec, "Apply MUST NOT become another resolver.")
-	requireSpecContains(t, spec, "Apply treats Phase 7 as authoritative.")
+	requireSpecContains(t, spec, "Apply treats Acquisition plan as authoritative.")
 	requireSpecContains(t, spec, "It MUST NOT call `Resolve`, `Search`, `Lookup`, `compareSemver`, or `latestCompatible`")
 	requireSpecContains(t, spec, "`latest`")
 	requireSpecContains(t, spec, "MUST NOT receive `latest`")
@@ -90,7 +89,7 @@ func TestApplySpecPreservesSharedModuleNormalization(t *testing.T) {
 func TestApplySpecRejectsConflictingPins(t *testing.T) {
 	spec := applySpecText(t)
 
-	requireSpecContains(t, spec, "Phase 7 already rejects two pins for one module.")
+	requireSpecContains(t, spec, "Acquisition plan already rejects two pins for one module.")
 	requireSpecContains(t, spec, "If a conflict reaches Apply, it is invalid input: no mutation.")
 	requireSpecContains(t, spec, "MUST NOT invent last-write-wins")
 	requireSpecContains(t, spec, "first-write-wins")
@@ -227,12 +226,12 @@ func TestApplySpecDefinesIntegrationBoundary(t *testing.T) {
 	requireSpecContains(t, spec, "They MUST NOT add a resolver, `func Apply`, a second process abstraction, `go mod tidy`, `zatrano.lock`, or transactional rollback.")
 }
 
-func TestApplySpecFreezesPreviousPhaseAPIs(t *testing.T) {
+func TestApplySpecFreezesPriorAPIs(t *testing.T) {
 	spec := applySpecText(t)
 
 	requireSpecContains(t, spec, "MUST NOT modify `package:install`, `Resolve`, `FromResult`, `Plan`, `Targets`, or `GoGetArg`.")
 	requireSpecContains(t, spec, "Implementation order is complete and frozen.")
-	requireSpecContains(t, spec, "later phase")
+	requireSpecContains(t, spec, "later specification")
 }
 
 func TestApplySpecArchitectureInvariants(t *testing.T) {
@@ -250,7 +249,7 @@ func TestApplySpecArchitectureInvariants(t *testing.T) {
 		"Apply does not create a ZATRANO lockfile.",
 		"Apply does not implement its own Go module resolver.",
 		"Apply does not automatically run `go mod tidy`.",
-		"Phase 7 remains filesystem-free.",
+		"Acquisition plan remains filesystem-free.",
 	}
 
 	for _, invariant := range invariants {

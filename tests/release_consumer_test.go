@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestPhase13ReleaseMetadata(t *testing.T) {
+func TestReleaseMetadata(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "VERSION"))
 	if err != nil {
@@ -45,9 +45,9 @@ func TestPhase13ReleaseMetadata(t *testing.T) {
 	}
 }
 
-func TestPhase13FreshConsumerLocalReplace(t *testing.T) {
+func TestFreshConsumerLocalReplace(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Phase 13 consumer uses go run + go build")
+		t.Skip("Release consumer uses go run + go build")
 	}
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go executable not on PATH")
@@ -80,7 +80,7 @@ func TestPhase13FreshConsumerLocalReplace(t *testing.T) {
 	}
 }
 
-func TestPhase13PublishedModuleTag(t *testing.T) {
+func TestPublishedModuleConsumption(t *testing.T) {
 	if testing.Short() {
 		t.Skip("published-tag consumption needs the module proxy")
 	}

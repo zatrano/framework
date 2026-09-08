@@ -6,97 +6,97 @@ All notable changes to ZATRANO are documented in this file.
 
 Example applications moved to [`github.com/zatrano/examples`](https://github.com/zatrano/examples). The framework module no longer contains `examples/`. VERSION stays `2.0.28`.
 
-Phase 17 public API stability review: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+Public API documentation: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
 
-Phase 16 production reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+In-tree reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
 
-Phase 15 production application ergonomics: `zatrano --help` / `--version` (reports 2.0.28), deterministic `list` order, invalid `APP_PORT` / `serve --port` fail with named type errors (secrets not echoed), provider/phase errors preserved through `serve`/`Run`, generated `--minimal` `/up` + lifecycle tests, cancellation/Stop safety tests, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
+Application ergonomics: `zatrano --help` / `--version` (reports 2.0.28), deterministic `list` order, invalid `APP_PORT` / `serve --port` fail with named type errors (secrets not echoed), provider/phase errors preserved through `serve`/`Run`, generated `--minimal` `/up` + lifecycle tests, cancellation/Stop safety tests, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
 
-Phase 14 consumer/developer-experience hardening: fresh-consumer lifecycle coverage (`zatrano new` → build → search → acquire → enable → doctor → boot), actionable package CLI errors (acquisition exit codes 0–7 unchanged; JSON contract unchanged), `package:doctor` framework/import/Requires-closure diagnostics, deterministic search/library list ordering, provider+phase identification on Register/Boot/Start failures, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
+Consumer diagnostics: fresh-consumer lifecycle coverage (`zatrano new` → build → search → acquire → enable → doctor → boot), actionable package CLI errors (acquisition exit codes 0–7 unchanged; JSON contract unchanged), `package:doctor` framework/import/Requires-closure diagnostics, deterministic search/library list ordering, provider+phase identification on Register/Boot/Start failures, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
 
 ## 2.0.28 - 2026-09-08
 
-Phase 10 production hardening: real CLI acquisition E2E, classified CLI exit codes, JSON inspection/recovery/target reporting, observable recovery failures, `--timeout` context propagation, enablement consistency checks, official/heavy/`framework_min`/tagged ecosystem validation, and CI acquisition E2E. Phase 8 and Phase 9 stay frozen. No `func Apply`. `package:install` stays enablement.
+Acquisition production hardening: real CLI acquisition E2E, classified CLI exit codes, JSON inspection/recovery/target reporting, observable recovery failures, `--timeout` context propagation, enablement consistency checks, official/heavy/`framework_min`/tagged ecosystem validation, and CI acquisition E2E. Apply contract and Acquisition/enablement stay frozen. No `func Apply`. `package:install` stays enablement.
 
-Phase 11 runtime hardening: deterministic boot order tests, lifecycle contract tests, Start-failure cleanup via `errors.Join`, `BootstrapContext` / `StartContext` (zero-arg methods remain), Enabled ∩ Imported and process-global registry contracts, `framework_min` agreement tests, isolated acquire→enable→Start/Stop E2E, and runtime CLI exit codes 20–23 (`serve` / `Run` never reuse acquisition 2–7). Phase 8–10 stay frozen. No `func Apply`. `package:install` stays enablement.
+Runtime lifecycle hardening: deterministic boot order tests, lifecycle contract tests, Start-failure cleanup via `errors.Join`, `BootstrapContext` / `StartContext` (zero-arg methods remain), Enabled ∩ Imported and process-global registry contracts, `framework_min` agreement tests, isolated acquire→enable→Start/Stop E2E, and runtime CLI exit codes 20–23 (`serve` / `Run` never reuse acquisition 2–7). Apply/orchestration/hardening stay frozen. No `func Apply`. `package:install` stays enablement.
 
-Phase 12 dependency-safe package lifecycle: `package:enable` writes the transitive `Requires` closure (Optional excluded) before mutating files; `package:disable` refuses when a remaining enabled addon requires the target, is a successful no-op when already disabled, and does not call Stop; enablement wiring preserves an existing `github.com/zatrano/packages` module pin instead of `go get @main`. Phase 8–11 stay frozen. No `func Apply`. No `package:upgrade` / `package:uninstall`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@v2.0.28`.
+Enablement dependency-safe package lifecycle: `package:enable` writes the transitive `Requires` closure (Optional excluded) before mutating files; `package:disable` refuses when a remaining enabled addon requires the target, is a successful no-op when already disabled, and does not call Stop; enablement wiring preserves an existing `github.com/zatrano/packages` module pin instead of `go get @main`. Apply, orchestration, hardening, and runtime contracts stay frozen. No `func Apply`. No `package:upgrade` / `package:uninstall`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@v2.0.28`.
 
 ## 2.0.27 - 2026-09-08
 
-Open Phase 9 Contract C: `package:acquire --enable` reuses existing `enablePackage` after successful acquisition. Default acquire does not enable. Acquisition and enablement stay separate (no implicit transaction, no automatic rollback). `package:install` stays enablement. Contract A and Phase 8 stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
+Open Contract C: `package:acquire --enable` reuses existing `enablePackage` after successful acquisition. Default acquire does not enable. Acquisition and enablement stay separate (no implicit transaction, no automatic rollback). `package:install` stays enablement. Contract A and Apply contract stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.26 - 2026-09-08
 
-Lock the only valid Contract C path: explicitly open C → inspect current boundaries → define/lock C tests → implement C. C must not be implemented, tested as an implementation, or wired into acquisition while closed. `package:acquire` stays orchestration; `package:install` stays enablement. Contract A and Phase 8 stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
+Lock the only valid Contract C path: explicitly open C → inspect current boundaries → define/lock C tests → implement C. C must not be implemented, tested as an implementation, or wired into acquisition while closed. `package:acquire` stays orchestration; `package:install` stays enablement. Contract A and Apply contract stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.25 - 2026-09-08
 
-Freeze Phase 9 Contract B as implemented (`package:acquire` orchestration). Contract A stays complete / frozen. Contract C remains closed; the next step is not automatically C. Phase 8 (`v2.0.22`) stays frozen. No `func Apply`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Freeze Contract B as implemented (`package:acquire` orchestration). Contract A stays complete / frozen. Contract C remains closed; the next step is not automatically C. Apply contract (`v2.0.22`) stays frozen. No `func Apply`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.24 - 2026-09-08
 
-Phase 9 Contract A (`DryRun` / `DryRunTargets`) and Contract B (`package:acquire` CLI orchestration). No `func Apply`. `package:install` stays enablement. Contract C remains closed. Install with `go get github.com/zatrano/framework/v2@latest`.
+Contract A (`DryRun` / `DryRunTargets`) and Contract B (`package:acquire` CLI orchestration). No `func Apply`. `package:install` stays enablement. Contract C remains closed. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.23 - 2026-09-08
 
-Record Phase 9 bounding SPEC draft ([`PHASE9.md`](distribution/acquire/PHASE9.md)): dry-run, CLI acquisition, and acquisition ↔ enablement as three independent contracts. Implementation is not authorized. Phase 8 Apply stays frozen. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Record Acquisition/enablement bounding SPEC draft ([`ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)): dry-run, CLI acquisition, and acquisition ↔ enablement as three independent contracts. Implementation is not authorized. Apply contract stays frozen. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.22 - 2026-09-07
 
-Freeze Phase 8 Apply: steps 1–8 complete. Surface stays FromResult → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → ApplyResult → SnapshotFiles / RecoverFiles. No `func Apply`, dry-run, CLI, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Freeze Apply contract: steps 1–8 complete. Surface stays FromResult → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → ApplyResult → SnapshotFiles / RecoverFiles. No `func Apply`, dry-run, CLI, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.21 - 2026-09-07
 
-Phase 8 integration tests: Plan → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → RecoverFiles on a real module root. No new Apply API, resolver, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract integration tests: Plan → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → RecoverFiles on a real module root. No new Apply API, resolver, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.20 - 2026-09-07
 
-Phase 8 file recovery: `RecoverFiles` restores a `go.mod` / `go.sum` snapshot (best-effort). It is not transactional rollback and does not undo the module cache. `ExecuteTargets` still does not restore files. No tidy, `func Rollback`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract file recovery: `RecoverFiles` restores a `go.mod` / `go.sum` snapshot (best-effort). It is not transactional rollback and does not undo the module cache. `ExecuteTargets` still does not restore files. No tidy, `func Rollback`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.19 - 2026-09-07
 
-Phase 8 partial apply: `ExecuteTargets` reports successful, failed, and unattempted targets (fail-fast). Earlier successes are not rolled back. No tidy, `func Apply`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract partial apply: `ExecuteTargets` reports successful, failed, and unattempted targets (fail-fast). Earlier successes are not rolled back. No tidy, `func Apply`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.18 - 2026-09-07
 
-Phase 8 per-root mutation lock: same module root cannot run two `Execute` mutations at once; other roots proceed independently. `Inspect` is not locked. No tidy, `ApplyResult`, partial apply, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract per-root mutation lock: same module root cannot run two `Execute` mutations at once; other roots proceed independently. `Inspect` is not locked. No tidy, `ApplyResult`, partial apply, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.17 - 2026-09-07
 
-Phase 8 `Inspect` reads go.mod / go.sum after `Execute`. `InvocationResult` is the process; `Inspection` is module state. No tidy, `ApplyResult`, concurrency, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract `Inspect` reads go.mod / go.sum after `Execute`. `InvocationResult` is the process; `Inspection` is module state. No tidy, `ApplyResult`, concurrency, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.16 - 2026-09-07
 
-Phase 8 `go get` execution (`Execute` / `ExecRunner`). Result is `InvocationResult`; no go.mod / go.sum inspection, tidy, `ApplyResult`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract `go get` execution (`Execute` / `ExecRunner`). Result is `InvocationResult`; no go.mod / go.sum inspection, tidy, `ApplyResult`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.15 - 2026-09-07
 
-Phase 8 process invocation boundary (`Invoke` / `Runner`). Fake process in tests; no `go get` execution, no go.mod mutation, `package:install` unchanged. Install with `go get github.com/zatrano/framework/v2@latest`.
+Apply contract process invocation boundary (`Invoke` / `Runner`). Fake process in tests; no `go get` execution, no go.mod mutation, `package:install` unchanged. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.14 - 2026-09-07
 
-`deploy:build` compiles the generated application (`./cmd/app`), not the host CLI. Phase 8 Apply stays SPEC-only; contract tests lock [`APPLY.md`](distribution/acquire/APPLY.md). Install with `go get github.com/zatrano/framework/v2@latest`.
+`deploy:build` compiles the generated application (`./cmd/app`), not the host CLI. Apply contract stays SPEC-only; contract tests lock [`APPLY.md`](distribution/acquire/APPLY.md). Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.13 - 2026-09-07
 
-Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v2/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Phase 8 Apply stays SPEC-only. Install with `go get github.com/zatrano/framework/v2@latest`.
+Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v2/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Apply contract stays SPEC-only. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.12 - 2026-09-07
 
-Open Phase 8 as Apply SPEC only ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): mutation boundary, `go get` invocation, fail-fast, no automatic `tidy`, rollback guaranteed vs unavailable. Implementation is not authorized. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Open Apply contract as Apply SPEC only ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): mutation boundary, `go get` invocation, fail-fast, no automatic `tidy`, rollback guaranteed vs unavailable. Implementation is not authorized. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.11 - 2026-09-07
 
-Record Phase 8 entry: first artefact is the Apply contract (mutation, `go get` invocation, go.mod/go.sum failures, concurrency, partial apply, rollback). `package:install` stays enablement at Phase 8 start. `tidy` is not an acquisition lockfile. Install with `go get github.com/zatrano/framework/v2@latest`.
+Record Apply contract entry: first artefact is the Apply contract (mutation, `go get` invocation, go.mod/go.sum failures, concurrency, partial apply, rollback). `package:install` stays enablement at Apply contract start. `tidy` is not an acquisition lockfile. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.10 - 2026-09-07
 
-Close Phase 7: `Targets` deduplicates modules and does not resolve pin conflicts. Phase 8 Apply starts with a contract; `package:install` stays enablement; `go get` → `go mod tidy` is not an install assumption. Install with `go get github.com/zatrano/framework/v2@latest`.
+Close Acquisition plan: `Targets` deduplicates modules and does not resolve pin conflicts. Apply contract starts with a contract; `package:install` stays enablement; `go get` → `go mod tidy` is not an install assumption. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.9 - 2026-09-07
 
-Freeze Phase 7 Plan layer: `FromResult` is a pure translation; `Targets` collapses shared modules into a deterministic query list. Same Result → same Plan; `latest` never survives; unresolved → no Plan. Apply (`go get`) remains a later phase. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Freeze Acquisition Plan layer: `FromResult` is a pure translation; `Targets` collapses shared modules into a deterministic query list. Same Result → same Plan; `latest` never survives; unresolved → no Plan. Apply (`go get`) remains a later specification. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.8 - 2026-09-07
 
@@ -108,7 +108,7 @@ Module acquisition contract (`acquire`): map `registry.Result` to a `go get` pla
 
 ## 2.0.6 - 2026-09-07
 
-Freeze Phase 6: CLI registry consumer (`package:search` / `info` / `resolve`) is closed. Next phase is module acquisition, not more resolution in the CLI. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+Freeze the registry CLI consumer (`package:search` / `info` / `resolve`). Module acquisition is a separate contract, not more resolution in the CLI. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
 
 ## 2.0.5 - 2026-09-07
 

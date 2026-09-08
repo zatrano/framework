@@ -1,7 +1,7 @@
-# Phase 10 — Production Hardening & Ecosystem Validation
+# Acquisition Production Hardening
 
 **Status:** Accepted
-**Prerequisite:** Phase 9 (`v2.0.27`) implemented and verified
+**Prerequisite:** Acquisition/enablement contracts (`v2.0.27`) implemented and verified
 **Acceptance:** ACCEPTED
 **Implementation:** COMPLETE
 
@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-Phase 10 does not introduce a new acquisition architecture.
+Acquisition hardening does not introduce a new acquisition architecture.
 
 Its purpose is to harden and validate the existing package lifecycle against real operational conditions:
 
@@ -27,7 +27,7 @@ optional --enable
 runtime / boot
 ```
 
-The phase addresses the gaps identified in the `v2.0.27` repository audit:
+This contract addresses the gaps identified in the `v2.0.27` repository audit:
 
 * end-to-end lifecycle validation;
 * CLI failure semantics;
@@ -42,7 +42,7 @@ The phase addresses the gaps identified in the `v2.0.27` repository audit:
 * tagged-release / `main` acquisition validation;
 * CI-level acquisition verification.
 
-Phase 10 MUST NOT reopen Phase 8 or redesign Phase 9.
+Acquisition hardening MUST NOT reopen the Apply contract or redesign orchestration contracts.
 
 ---
 
@@ -50,9 +50,9 @@ Phase 10 MUST NOT reopen Phase 8 or redesign Phase 9.
 
 The following remain immutable:
 
-### Phase 8
+### Apply contract
 
-Phase 8 (`v2.0.22`) remains frozen.
+Apply contract (`v2.0.22`) remains frozen.
 
 The existing acquisition surface remains authoritative:
 
@@ -72,7 +72,7 @@ ApplyResult
 SnapshotFiles / RecoverFiles
 ```
 
-No Phase 10 feature may create a replacement for this flow.
+No hardening feature may create a replacement for this flow.
 
 ### Apply
 
@@ -98,7 +98,7 @@ It continues to:
 * avoid enablement;
 * reject `latest`.
 
-Phase 10 MUST NOT redesign `DryRun` or `DryRunTargets`.
+Acquisition hardening MUST NOT redesign `DryRun` or `DryRunTargets`.
 
 ### Contract B
 
@@ -127,9 +127,9 @@ No implicit acquisition → enablement transition may be introduced.
 
 ---
 
-# 3. Phase 10 Scope
+# 3. Acquisition hardening Scope
 
-Phase 10 contains the following independent hardening areas:
+This hardening specification contains the following independent hardening areas:
 
 ### A. End-to-End Lifecycle
 
@@ -206,7 +206,7 @@ Existing unit tests with fakes remain valid and are not replaced.
 
 # 5. Contract B — Failure Matrix
 
-Phase 10 MUST explicitly validate CLI behavior for the following classes:
+Acquisition hardening MUST explicitly validate CLI behavior for the following classes:
 
 | Failure / State              | Required Result                                  |
 | ---------------------------- | ------------------------------------------------ |
@@ -231,7 +231,7 @@ The existing acquisition semantics remain authoritative.
 
 # 6. Contract C — Exit Codes
 
-Phase 10 may introduce classified CLI exit semantics.
+Acquisition hardening may introduce classified CLI exit semantics.
 
 The exit-code design MUST be deterministic and documented.
 
@@ -306,7 +306,7 @@ rec, _ := c.runRecover
 
 is insufficient because recovery failure is operationally significant.
 
-Phase 10 MUST ensure that recovery errors are observable.
+Acquisition hardening MUST ensure that recovery errors are observable.
 
 Required distinction:
 
@@ -329,7 +329,7 @@ Recovery remains explicit.
 
 There is still no transactional guarantee.
 
-Phase 10 MUST NOT claim that restoring:
+Acquisition hardening MUST NOT claim that restoring:
 
 ```text
 go.mod
@@ -350,7 +350,7 @@ context.Background()
 
 is insufficient for long-running acquisition operations.
 
-Phase 10 MUST establish an explicit context propagation path from CLI invocation into acquisition execution.
+Acquisition hardening MUST establish an explicit context propagation path from CLI invocation into acquisition execution.
 
 The implementation MUST:
 
@@ -368,7 +368,7 @@ The CLI MUST NOT call `os/exec` directly.
 
 # 10. Contract G — Enablement Consistency
 
-Phase 9 introduced:
+Acquisition/enablement introduced:
 
 ```text
 package:acquire NAME --enable
@@ -382,7 +382,7 @@ package:install NAME
 
 remains enablement.
 
-Phase 10 MUST verify and document whether the two commands intentionally share or differ in:
+Acquisition hardening MUST verify and document whether the two commands intentionally share or differ in:
 
 * wiring;
 * environment application;
@@ -453,7 +453,7 @@ No new version-selection algorithm may be introduced.
 
 # 12. Real Go Tooling
 
-Phase 10 MUST distinguish:
+Acquisition hardening MUST distinguish:
 
 ```text
 fake acquisition tests
@@ -486,7 +486,7 @@ They MUST NOT mutate the developer's repository dependency state.
 
 # 13. CI Validation
 
-Phase 10 SHOULD establish a dedicated acquisition E2E CI path.
+Acquisition hardening SHOULD establish a dedicated acquisition E2E CI path.
 
 The CI validation MUST cover the real CLI acquisition workflow without depending on a developer's local working tree.
 
@@ -508,7 +508,7 @@ CI MUST NOT require a persistent `zatrano.lock`.
 
 # 14. No New Architecture
 
-Phase 10 is a hardening phase.
+Acquisition hardening is a production-hardening contract.
 
 It MUST NOT introduce:
 
@@ -539,7 +539,7 @@ Architecture tests MUST enforce:
 4. No second acquisition engine.
 5. `package:install` remains enablement.
 6. Contract A remains frozen.
-7. Phase 8 APIs remain unchanged.
+7. Apply APIs remain unchanged.
 8. `func Apply` remains absent.
 9. No renamed Apply equivalent exists.
 10. No implicit acquisition → enablement transition exists.
@@ -553,7 +553,7 @@ Architecture tests MUST enforce:
 This document is currently:
 
 ```text
-Phase 10
+Acquisition hardening
 Status: ACCEPTED
 SPEC Acceptance: ACCEPTED
 Implementation: COMPLETE
@@ -599,9 +599,9 @@ A later contract MUST NOT silently redefine an earlier completed contract.
 
 # 17. Acceptance Checklist
 
-Phase 10 SPEC is ready for acceptance only if the following are explicitly understood:
+Acquisition hardening SPEC is ready for acceptance only if the following are explicitly understood:
 
-* [ ] Phase 8 remains frozen.
+* [ ] The Apply contract remains frozen.
 * [ ] Contract A remains frozen.
 * [ ] Contract B remains orchestration-only.
 * [ ] Contract C remains explicit `--enable`.
@@ -629,10 +629,10 @@ Phase 10 SPEC is ready for acceptance only if the following are explicitly under
 # 18. Current State
 
 ```text
-Phase 8 — v2.0.22
+Apply contract — v2.0.22
     FROZEN
 
-Phase 9 — v2.0.27
+Acquisition/enablement — v2.0.27
     COMPLETE
 
 Contract A
@@ -644,7 +644,7 @@ Contract B
 Contract C
     IMPLEMENTED
 
-Phase 10
+Acquisition hardening
     ACCEPTED
     IMPLEMENTATION COMPLETE
 

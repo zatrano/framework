@@ -15,26 +15,26 @@ Registry Resolve
               ↓
            Targets
               ↓
-          GoGetArg          ← Phase 7 ends (frozen)
+          GoGetArg          ← Acquisition plan ends (frozen)
               ✕
-         Invoke / Runner    ← Phase 8 process boundary
+         Invoke / Runner    ← Apply contract process boundary
               ✕
-         Execute / go get   ← Phase 8 execution
+         Execute / go get   ← Apply contract execution
               ✕
-         Inspect            ← Phase 8 go.mod / go.sum
+         Inspect            ← Apply contract go.mod / go.sum
               ✕
-         per-root lock      ← Phase 8 concurrency
+         per-root lock      ← Apply contract concurrency
               ✕
-         ExecuteTargets     ← Phase 8 partial apply
+         ExecuteTargets     ← Apply contract partial apply
               ✕
-         RecoverFiles       ← Phase 8 best-effort file recovery
+         RecoverFiles       ← Apply contract best-effort file recovery
               ✕
-         integration tests  ← Phase 8 completion evidence
+         integration tests  ← Apply contract completion evidence
 ```
 
-Phases 1–7 are frozen. Phase 7 stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Architecture, package, registry, and acquisition-plan contracts are frozen. Acquisition plan stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
 
-Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. `Execute` binds `ExecRunner` and serializes mutation per module root. `Inspect` reads go.mod / go.sum, does not mutate them, and does not take the mutation lock.
+Acquisition plan (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. `Execute` binds `ExecRunner` and serializes mutation per module root. `Inspect` reads go.mod / go.sum, does not mutate them, and does not take the mutation lock.
 
 | Layer | Question | Owner |
 |-------|----------|--------|
@@ -53,7 +53,7 @@ Phase 7 (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke
 
 ZATRANO turns a resolved identity into a Go dependency by treating the **Go module** as the acquisition unit and letting **go.mod + go.sum** be the only dependency state.
 
-Catalog **name** is not a versioned artifact. Many official names share `github.com/zatrano/packages`. Acquiring `session` means requiring that **module** once, then enabling `session` in the app. A per-name lock version would invent a second semver beside the module — Phase 5 already forbids that.
+Catalog **name** is not a versioned artifact. Many official names share `github.com/zatrano/packages`. Acquiring `session` means requiring that **module** once, then enabling `session` in the app. A per-name lock version would invent a second semver beside the module — the registry contract already forbids that.
 
 ## Translation (`zatrano.acquire/v1`)
 
@@ -92,11 +92,11 @@ A second lockfile would duplicate pins, drift from `go mod tidy`, and imply per-
 
 Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.go cannot express (for example a non-Go artifact). Do not add one “in case”.
 
-`go get` is later **acquisition** (Phase 8). `go mod tidy` is **module/import graph rearrangement**. It is not an acquisition manifest and not a lockfile.
+`go get` is later **acquisition** (Apply). `go mod tidy` is **module/import graph rearrangement**. It is not an acquisition manifest and not a lockfile.
 
-## Phase 8 freeze
+## Apply contract freeze
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. A new CLI command is a later phase, not a remaining Phase 8 gate. Do not recode it here. Phase 9: [`PHASE9.md`](PHASE9.md) — SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C (`--enable`) COMPLETE / FROZEN at `v2.0.27`.
+Apply contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. A new CLI command is a later specification, not a remaining Apply-contract gate. Do not recode it here. Acquisition/enablement: [`ORCHESTRATION.md`](ORCHESTRATION.md) — SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C (`--enable`) COMPLETE / FROZEN at `v2.0.27`.
 
 ## Invariants (frozen)
 
@@ -109,32 +109,32 @@ Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complet
 | `latest` never appears on a Plan | `moduleQuery` rejects it; Resolve already chose tag or `main` |
 | Unresolved → no Plan | Resolve error short-circuits; `FromResult` requires name + module + version-or-`main` |
 | `FromResult` does not Resolve | no `Index` methods; no `framework_min` re-check |
-| `FromResult` does not touch the filesystem | no `os` / `os/exec`; Apply is a later phase |
+| `FromResult` does not touch the filesystem | no `os` / `os/exec`; Apply is a later specification |
 | Plan is not enablement | field freeze; no Enabled / Imported / stubs |
 
 Architecture tests reject a second resolution implementation, enablement fields on `Plan`, and `go get` / `os/exec` in `plan.go`. Process starts belong in `ExecRunner` only.
 
-## Phase freeze
+## Contract freeze
 
-**Phase 7 is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. **Phase 8 is closed.** Apply surface: `Invoke` / `Runner` / `ExecRunner` / `Execute` / `Inspect` / `ExecuteTargets` / `ApplyResult` / `SnapshotFiles` / `RecoverFiles`. No `func Apply`. Phase 8 SPEC: [`APPLY.md`](APPLY.md). A new CLI command remains not authorized; it is not a Phase 8 remaining gate.
+**The acquisition plan is closed.** Export surface: `FromResult`, `Targets`, `Plan.GoGetArg`. **The Apply contract is closed.** Apply surface: `Invoke` / `Runner` / `ExecRunner` / `Execute` / `Inspect` / `ExecuteTargets` / `ApplyResult` / `SnapshotFiles` / `RecoverFiles`. No `func Apply`. Apply contract SPEC: [`APPLY.md`](APPLY.md). A new CLI command remains not authorized; it is not an Apply-contract remaining gate.
 
-| Phase | Status |
-|-------|--------|
-| 1 Architecture | Frozen |
-| 2 Package contract | Frozen |
-| 3 Official packages | Frozen |
-| 4 `zatrano.package/v1` | Frozen |
-| 5 Registry | Frozen |
-| 6 Registry CLI consumer | Frozen |
-| 7 Acquisition Plan | **Frozen** |
-| 8 Module Acquisition Apply | **Frozen** (`Invoke` / `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`) |
-| 9 Dry-run / CLI acquisition / Acquisition ↔ enablement | **COMPLETE / FROZEN** — A complete / FROZEN; B (`package:acquire`) implemented; C (`--enable`) COMPLETE / FROZEN at `v2.0.27`; [`PHASE9.md`](PHASE9.md) |
-| 10 Production Hardening & Ecosystem Validation | **COMPLETE**; [`PHASE10.md`](PHASE10.md) |
+| Contract | Status |
+|----------|--------|
+| Architecture | Frozen |
+| Package contract | Frozen |
+| Official packages | Frozen |
+| `zatrano.package/v1` | Frozen |
+| Registry | Frozen |
+| Registry CLI consumer | Frozen |
+| Acquisition Plan | **Frozen** |
+| Module Acquisition Apply | **Frozen** (`Invoke` / `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`) |
+| Dry-run / CLI acquisition / Acquisition ↔ enablement | **COMPLETE / FROZEN** — A complete / FROZEN; B (`package:acquire`) implemented; C (`--enable`) COMPLETE / FROZEN at `v2.0.27`; [`ORCHESTRATION.md`](ORCHESTRATION.md) |
+| Production Hardening & Ecosystem Validation | **COMPLETE**; [`HARDENING.md`](HARDENING.md) |
 
-Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
+Today's `package:install` remains enablement. It is not module acquisition. Apply contract must not overwrite that meaning.
 
-## Out of Phase 8 (later phase)
+## Out of Apply contract (later specification)
 
-Phase 9: [`PHASE9.md`](PHASE9.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C is COMPLETE / FROZEN at `v2.0.27`: `--enable` after successful acquisition; default acquire does not enable. Do not fold this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.
+Acquisition/enablement: [`ORCHESTRATION.md`](ORCHESTRATION.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Contract C is COMPLETE / FROZEN at `v2.0.27`: `--enable` after successful acquisition; default acquire does not enable. Do not fold this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.
 
-Phase 10: [`PHASE10.md`](PHASE10.md). SPEC is accepted. Implementation is COMPLETE. Do not reopen Phase 8 or redesign Phase 9.
+Production hardening: [`HARDENING.md`](HARDENING.md). SPEC is accepted. Implementation is COMPLETE. Do not reopen the Apply contract or redesign orchestration contracts.

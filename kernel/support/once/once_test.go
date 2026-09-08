@@ -32,10 +32,10 @@ func TestValueAndMemo(t *testing.T) {
 }
 
 func TestDo(t *testing.T) {
-	once.Reset("phase24")
+	once.Reset("once-key")
 	n := 0
-	once.Do("phase24", func() { n++ })
-	once.Do("phase24", func() { n++ })
+	once.Do("once-key", func() { n++ })
+	once.Do("once-key", func() { n++ })
 	if n != 1 {
 		t.Fatalf("n=%d", n)
 	}

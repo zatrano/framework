@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestPhase12DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
+func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
 	bans := []string{
 		"type PackageManager",
@@ -60,7 +60,7 @@ func TestPhase12DoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("console must not copy registry resolution")
 	}
 	if !strings.Contains(text, "addons.Expand(") {
-		t.Fatal("Phase 12 enable/disable must reuse addons.Expand")
+		t.Fatal("Enablement enable/disable must reuse addons.Expand")
 	}
 
 	wireSrc, err := os.ReadFile(filepath.Join(root, "console", "package_wire.go"))

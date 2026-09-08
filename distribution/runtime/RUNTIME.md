@@ -1,15 +1,15 @@
-# Phase 11 — Runtime & Application Lifecycle Hardening
+# Runtime & Application Lifecycle
 
 **Status:** Complete
-**Prerequisite:** Phase 10 complete (`v2.0.27` baseline plus Phase 10 hardening)
+**Prerequisite:** Acquisition hardening complete (`v2.0.27` baseline plus Acquisition hardening hardening)
 **Acceptance:** ACCEPTED
 **Implementation:** COMPLETE
 
-This SPEC is an evidence-backed hardening plan. It does not invent APIs that are absent from the repository. It does not reopen Phase 8–10 acquisition architecture.
+This SPEC is an evidence-backed hardening plan. It does not invent APIs that are absent from the repository. It does not reopen Apply/orchestration/hardening acquisition architecture.
 
 Implementation A–L is complete.
 
-**How to read this file:** §0 decisions and §7 increment contracts are the accepted Phase 11 contract and are unchanged. §§2–6 (except subsections labeled **implemented**) record the **historical pre-implementation baseline** used to write the SPEC. §3.2, §5.1, and §6.1 record the **final implemented** Phase 11 behavior.
+**How to read this file:** §0 decisions and §7 increment contracts are the accepted runtime contract and are unchanged. §§2–6 (except subsections labeled **implemented**) record the **historical pre-implementation baseline** used to write the SPEC. §3.2, §5.1, and §6.1 record the **final implemented** Runtime contract behavior.
 
 ---
 
@@ -70,14 +70,14 @@ to `contracts.App` (lifecycle surface, not package capabilities like `Auth()`). 
 
 ```text
 registry.Resolve     → validates framework_min (version selection)
-acquire.FromResult   → MUST NOT revalidate (Phase 7/8 freeze)
+acquire.FromResult   → MUST NOT revalidate (plan/apply freeze)
 runtime App()/Bootstrap → MUST NOT validate framework_min
 package:doctor       → validates imported addons vs running VERSION
 ```
 
 **Decision:** `framework_min` is a **distribution-time** compatibility constraint (select a compatible release; doctor the imported set). It is **not** a runtime boot invariant of `App()` / `Bootstrap` / `Start`.
 
-Phase 11 MUST NOT add `MeetsFrameworkMin` to `bootstrap.App` or `kernel.Application.Bootstrap`. An incompatible imported addon may still Register/Boot; `package:doctor` reports `compatibility.framework`.
+The runtime contract MUST NOT add `MeetsFrameworkMin` to `bootstrap.App` or `kernel.Application.Bootstrap`. An incompatible imported addon may still Register/Boot; `package:doctor` reports `compatibility.framework`.
 
 Increment H: lock this split with tests; add tests that `registry.MeetsFrameworkMin` and `addons.MeetsFrameworkMin` agree on fixtures; do not merge the two copies into acquire; do not add a third copy in `console`.
 
@@ -96,7 +96,7 @@ Acquisition codes in `console/cli_exit.go` are **acquire/registry/enablement onl
 | 6 | `ExitEnablement` | enable / install / acquire `--enable` |
 | 7 | `ExitCanceled` | acquire timeout/cancel only |
 
-**Decision:** `serve`, `Run`, and other runtime boot/shutdown failures MUST NOT use codes 2–7. Phase 11 does not reuse `ExitAcquisition` or `ExitCanceled` for HTTP/lifecycle errors.
+**Decision:** `serve`, `Run`, and other runtime boot/shutdown failures MUST NOT use codes 2–7. The runtime contract does not reuse `ExitAcquisition` or `ExitCanceled` for HTTP/lifecycle errors.
 
 Runtime table (CLI boundary only, not `distribution/acquire`):
 
@@ -109,7 +109,7 @@ Runtime table (CLI boundary only, not `distribution/acquire`):
 | 22 | `ExitRuntimeCanceled` | runtime context cancelled |
 | 23 | `ExitRuntimeTimeout` | runtime context deadline exceeded |
 
-`cmd/zatrano` maps `*CLIError` via `CodeFromError` as today. Increment L: define the 20–23 constants, wrap `serve`/`Run` errors, test that acquire JSON and codes 2–7 are unchanged. No `serve --format=json` boot payload in Phase 11 (would be a new output contract).
+`cmd/zatrano` maps `*CLIError` via `CodeFromError` as today. Increment L: define the 20–23 constants, wrap `serve`/`Run` errors, test that acquire JSON and codes 2–7 are unchanged. No `serve --format=json` boot payload in this runtime contract (would be a new output contract).
 
 ---
 
@@ -134,11 +134,11 @@ ZATRANO v2 already has:
 * framework independent of `github.com/zatrano/packages` (`bootstrap/register_addons.go`, `tests/architecture_test.go` `TestKernelHasZeroThirdPartyDependencies`)
 * official packages in `github.com/zatrano/packages`
 * `zatrano.package/v1`, registry resolution, acquisition plan/apply, DryRun, CLI acquire, explicit `--enable`
-* Phase 10: recovery reporting, acquisition exit codes, JSON, timeout into `ExecuteTargets`, ecosystem E2E, CI
+* Acquisition hardening: recovery reporting, acquisition exit codes, JSON, timeout into `ExecuteTargets`, ecosystem E2E, CI
 
 ### Frozen (do not reopen)
 
-* Phase 8 acquisition engine (`Execute` / `ExecuteTargets` / `Inspect` / `RecoverFiles`)
+* Apply-contract acquisition engine (`Execute` / `ExecuteTargets` / `Inspect` / `RecoverFiles`)
 * Contract A DryRun
 * Contract B CLI acquisition orchestration
 * Contract C explicit `--enable`
@@ -153,7 +153,7 @@ ZATRANO v2 already has:
 
 ## 3. Runtime Architecture Map
 
-**Historical baseline (pre-implementation evidence).** Do not infer stages that had no code at SPEC write time. The implemented Phase 11 runtime is §3.2.
+**Historical baseline (pre-implementation evidence).** Do not infer stages that had no code at SPEC write time. The implemented Runtime contract runtime is §3.2.
 
 ```text
 CLI / process entry
@@ -217,11 +217,11 @@ Stopped (no restart)
 * `WithAddons` selects a **per-App** subset; it does not clone or isolate the registry.
 * Tests that need isolation already call `addons.ClearRegistry` / `clearEnablement`.
 
-Phase 11 MUST document and test this contract (including two `App()` instances and `WithAddons` isolation). Phase 11 MUST NOT introduce a per-application addon registry unless a later SPEC explicitly replaces this model.
+The runtime contract MUST document and test this contract (including two `App()` instances and `WithAddons` isolation). The runtime contract MUST NOT introduce a per-application addon registry unless a later SPEC explicitly replaces this model.
 
-Embedded hosts that need two isolated package sets in one process are outside this phase.
+Embedded hosts that need two isolated package sets in one process are outside this contract.
 
-### 3.2 Implemented Phase 11 runtime (final)
+### 3.2 Implemented runtime (final)
 
 This subsection is the authoritative post-A–L runtime. Decisions C, E, H, and L are implemented; they are not reopened.
 
@@ -243,7 +243,7 @@ A nil `ctx` is `context.Background()`. Cancellation is checked **between** provi
 
 **CLI (Decision L):** `serve` / `Run` classify through codes 20–23. Acquisition codes 2–7 and acquire JSON are unchanged. There is no runtime `serve --format=json` contract.
 
-Embedded hosts that need two isolated package sets in one process remain outside this phase.
+Embedded hosts that need two isolated package sets in one process remain outside this contract.
 
 ---
 
@@ -287,7 +287,7 @@ File: `contracts/app.go`.
 | `Provider.Register` / `Boot` | none | unchanged signatures |
 | `LifecycleProvider.Start` | none | unchanged; kernel checks ctx between LPs |
 | `Stop` / `LifecycleProvider.Stop` | yes | unchanged |
-| Acquisition CLI `--timeout` | yes (Phase 10) | acquire only |
+| Acquisition CLI `--timeout` | yes (acquisition hardening) | acquire only |
 | HTTP request | request ctx | unchanged |
 
 ### 4.5 Registration integrity
@@ -350,7 +350,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | Acquire+enable+Bootstrap Bound | `console/package_acquire_e2e_test.go` `TestPackageAcquireE2EEnableThenBoot` (subprocess Bootstrap only; **no** `Start`/`Stop` at SPEC write time) |
 | `go test -race` | `.github/workflows/security.yml` job `race` |
 
-### 5.1 Implemented Phase 11 tests (final)
+### 5.1 Implemented runtime tests (final)
 
 | Area | Tests |
 |------|--------|
@@ -483,10 +483,10 @@ Follow **Decision L**. Do not extend acquire JSON.
 * Package methods on `contracts.App` (`Auth()`, `Queue()`, …)
 * Global App service locator
 * Duplicate lifecycle abstractions or a new context type
-* Per-application `addons.registry` in this phase
+* Per-application `addons.registry` in this contract
 * `framework_min` checks inside `App()` / `Bootstrap`
 * Reusing acquire exit codes 2–7 for `serve` / `Run`
-* Changing Phase 8/9/10 without a regression
+* Changing Apply/orchestration/hardening without a regression
 
 ---
 
@@ -530,7 +530,7 @@ A later increment must not silently redefine an earlier one. E must not ship bef
 
 Accepted. Implementation A–L is complete:
 
-* [x] Phase 8–10 acquisition remains frozen
+* [x] Apply/orchestration/hardening acquisition remains frozen
 * [x] Existing `Provider` / `LifecycleProvider` remain the lifecycle ABI
 * [x] No new global lifecycle manager
 * [x] Process-global addon registry is a usage contract, not a silent bug (§3.1)
@@ -549,9 +549,9 @@ Accepted. Implementation A–L is complete:
 ## 11. Current state
 
 ```text
-Phase 8–9     FROZEN / COMPLETE
-Phase 10      COMPLETE
-Phase 11      COMPLETE (increments A–L)
+Apply and orchestration     FROZEN / COMPLETE
+Acquisition hardening      COMPLETE
+Runtime contract      COMPLETE (increments A–L)
 SPEC          ACCEPTED
 Implementation COMPLETE
 ```

@@ -10,7 +10,7 @@ import (
 	"github.com/zatrano/framework/v2/kernel"
 )
 
-// Phase 11 Contract D: normal Stop vs Start-failure cleanup.
+// Lifecycle Contract D: normal Stop vs Start-failure cleanup.
 //
 // Start-failure cleanup stops only LifecycleProviders that returned nil
 // from Start (the failed provider is not Stop'd). Normal Stop, once
