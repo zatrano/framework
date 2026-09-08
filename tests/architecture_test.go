@@ -295,13 +295,16 @@ func TestPhase9SpecExistsWithoutImplementation(t *testing.T) {
 	for _, want := range []string{
 		"# Phase 9 — Sınırlandırıcı SPEC Taslağı",
 		"Draft — Implementation kapalı",
+		"NOT ACCEPTED",
 		"Contract A — Dry-run",
 		"Contract B — CLI Acquisition",
 		"Contract C — Acquisition ↔ Enablement",
 		"Acquisition ≠ Enablement",
 		"func Apply",
 		"package:install",
-		"kod yoktur",
+		"kod yazılmayacaktır",
+		"implicit transaction yoktur",
+		"isim değiştirilmiş eşdeğeri",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("PHASE9.md missing %q — Phase 9 stays a bounding draft", want)

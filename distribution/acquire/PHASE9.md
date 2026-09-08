@@ -1,346 +1,214 @@
 # Phase 9 — Sınırlandırıcı SPEC Taslağı
 
 **Durum:** Draft — Implementation kapalı  
-**Önkoşul:** Phase 8 frozen (`v2.0.22`)  
-**Kapsam:** Dry-run, CLI acquisition, Acquisition ↔ Enablement
+**Önkoşul:** Phase 8 (`v2.0.22`) frozen  
+**Acceptance:** NOT ACCEPTED  
+**Implementation:** LOCKED
+
+Bu belge yalnızca SPEC taslağıdır. Bu aşamada kod yazılmayacaktır.
 
 ---
 
-## 1. Amaç
+## 1. Kapsam
 
-Phase 9, Phase 8'de dondurulan module acquisition yüzeyinin üzerine üç ayrı kullanıcı/operasyon sözleşmesi eklemeyi değerlendirir:
+Phase 9 yalnızca üç bağımsız sözleşmeyi tanımlar:
 
-1. **Dry-run** — acquisition'ın ne yapacağını mutation yapmadan göstermek.
-2. **CLI acquisition** — acquisition yeteneğini açık ve deterministik CLI komutlarıyla sunmak.
-3. **Acquisition ↔ enablement** — module acquisition ile ZATRANO package enablement arasındaki ilişkiyi açıkça tanımlamak.
+1. **Contract A — Dry-run**
+2. **Contract B — CLI Acquisition**
+3. **Contract C — Acquisition ↔ Enablement**
 
-Bu fazın amacı Phase 8'i genişletmek veya yeniden tasarlamak değildir.
+Bu fazda sözleşme tanımlanır; implementation yapılmaz.
 
 ---
 
 # Contract A — Dry-run
 
-## A1. Amaç
+## Amaç
 
-Dry-run, belirli bir acquisition isteğinin **ne yapacağını gösterebilir**, fakat herhangi bir module mutation gerçekleştiremez.
+Acquisition işleminin ne yapacağını, herhangi bir acquisition mutation gerçekleştirmeden göstermek.
 
-Dry-run yalnızca acquisition planının ve beklenen execution işlemlerinin görünürleştirilmesidir.
-
-## A2. Mutation yasağı
+## MUST
 
 Dry-run:
 
-* `go get` çalıştırmaz.
-* `go mod tidy` çalıştırmaz.
-* `go.mod` yazmaz.
-* `go.sum` yazmaz.
-* `SnapshotFiles` / `RecoverFiles` çalıştırmaz.
-* package enablement state değiştirmez.
-* `package:install` çalıştırmaz.
-* filesystem üzerinde acquisition mutation yapmaz.
+* mevcut concrete acquisition plan/target üzerinden çalışır.
+* module path'i gösterir.
+* concrete version/ref'i gösterir.
+* `GoGetArg` değerini gösterir.
+* hedef module root'u gösterir.
+* çalıştırılacak acquisition komutunun biçimini gösterir.
+* execution boundary'ini çağırmaz.
+* filesystem mutation yapmaz.
+* `go.mod` değiştirmez.
+* `go.sum` değiştirmez.
 
-Dry-run sonucunun oluşması, acquisition'ın uygulanmış olduğu anlamına gelmez.
-
-## A3. Resolver sınırı
-
-Dry-run kendi resolver'ını oluşturmaz.
+## MUST NOT
 
 Dry-run:
 
-* kendi semver karşılaştırmasını yapmaz.
-* `latest` için alternatif çözümleme algoritması uygulamaz.
-* Registry resolution mantığını kopyalamaz.
-* Phase 7 `GoGetArg` üretimini yeniden uygulamaz.
+* `go get` çalıştıramaz.
+* `go mod tidy` çalıştıramaz.
+* recovery çalıştıramaz.
+* enablement yapamaz.
+* `package:install` çalıştıramaz.
+* package registry resolution yapamaz.
+* `latest` çözümleyemez.
+* semver algoritması uygulayamaz.
+* `GoGetArg` üretme algoritmasını yeniden uygulayamaz.
+* acquisition sonucunu installed / acquired / applied olarak raporlayamaz.
 
-Dry-run mevcut acquisition planını tüketir.
+## Temel ilke
 
-## A4. Kaynak
+Dry-run, execution'ın ikinci bir versiyonu değildir.
 
-Dry-run mümkün olan en erken aşamada **concrete acquisition target** üzerinden çalışmalıdır.
-
-Örneğin:
-
-```text
-github.com/zatrano/packages@main
-github.com/zatrano/packages@v1.0.0
-github.com/zatrano/framework/v2@v2.0.22
-```
-
-`latest` dry-run tarafından bağımsız bir version-selection mekanizmasına dönüştürülmez.
-
-## A5. Gösterilecek bilgi
-
-Dry-run en azından:
-
-* module path
-* requested/concrete version
-* Go acquisition argument
-* hedef module root
-* execution'ın yapılacağı komut biçimi
-
-bilgisini gösterebilir.
-
-Ancak dry-run çıktısı **"installed", "acquired", "applied"** gibi mutation gerçekleşmiş izlenimi veren durumlar kullanmamalıdır.
-
-## A6. Gerçek execution ayrımı
-
-Dry-run ile execution aynı planı tüketebilir; fakat execution boundary çağrılmaz.
+Aynı acquisition planı tüketir:
 
 ```text
+Resolve
+  ↓
+FromResult
+  ↓
+Targets
+  ↓
 Plan
-  ├── Dry-run → report only
-  │
-  └── Execute → mutation
+  ├── Dry-run
+  └── Execute
 ```
 
-Dry-run'ın amacı execution'ın simülasyonu değil, **execution planının güvenli şekilde gösterilmesidir**.
+Dry-run ile execution arasındaki fark plan değil, mutation boundary'sidir.
 
-## A7. Phase 8 koruması
+## Örnek
 
-Dry-run eklemek:
+Concrete plan:
 
-* `Execute` semantiğini değiştirmez.
-* `ExecuteTargets` semantiğini değiştirmez.
-* `Inspect` semantiğini değiştirmez.
-* `ApplyResult` semantiğini değiştirmez.
-* Recovery davranışını değiştirmez.
+```text
+module: github.com/zatrano/packages
+version: main
+arg: github.com/zatrano/packages@main
+root: /project
+```
+
+Dry-run bunu raporlayabilir; ancak `go get` çalıştıramaz.
 
 ---
 
 # Contract B — CLI Acquisition
 
-## B1. Amaç
+## Amaç
 
-CLI acquisition, kullanıcıya module acquisition işlemini açık bir komut yüzeyi olarak sunar.
+Kullanıcı tarafından çağrılabilen acquisition workflow'unun mevcut acquisition API'lerini orchestrate etmesi.
 
-CLI'nin görevi orchestration'dır; acquisition algoritmasının ikinci sahibi değildir.
+CLI kendi acquisition motorunu oluşturmaz.
 
-## B2. CLI sorumlulukları
-
-CLI:
-
-1. kullanıcı girdisini alır,
-2. gerekli resolution/plan akışını mevcut API'ler üzerinden çağırır,
-3. acquisition sonucunu kullanıcıya aktarır.
-
-CLI kendi:
-
-* semver resolver'ını,
-* registry resolver'ını,
-* module normalization algoritmasını,
-* conflict resolution algoritmasını
-
-oluşturmaz.
-
-## B3. Resolution sınırı
+## CLI MUST
 
 CLI:
 
-```text
-user input
-    ↓
-existing resolution/plan APIs
-    ↓
-concrete acquisition target
-    ↓
-execution
-```
+* mevcut registry resolution sonucunu kullanır.
+* mevcut `FromResult` / `Targets` / `Plan` akışını kullanır.
+* mevcut `GoGetArg` değerini kullanır.
+* mevcut execution boundary'sini kullanır.
+* acquisition sonucunu kullanıcıya raporlar.
+* partial acquisition sonucunu açıkça raporlar.
+* recovery sonucunu açıkça raporlayabilir.
+* dry-run desteği varsa aynı acquisition planını kullanır.
 
-şeklinde çalışmalıdır.
-
-CLI içinde:
-
-* `compareSemver`
-* `latestCompatible`
-* alternatif `Resolve`
-* module pin seçimi
-
-gibi ikinci resolution mekanizmaları bulunamaz.
-
-## B4. Dry-run ilişkisi
-
-CLI acquisition dry-run destekleyebilir.
-
-Ancak:
-
-```text
-acquisition --dry-run
-```
-
-ile gerçek acquisition birbirinden davranışsal olarak ayrılmalıdır.
-
-Dry-run:
-
-* process çalıştırmaz,
-* mutation yapmaz.
-
-Normal acquisition:
-
-* mevcut Phase 8 execution yüzeyini kullanır.
-
-CLI, dry-run için ayrı bir acquisition implementation oluşturmaz.
-
-## B5. `package:install` ayrımı
-
-CLI acquisition ile mevcut:
-
-```text
-package:install
-```
-
-aynı operasyon değildir.
-
-`package:install` mevcut anlamıyla:
-
-> **package enablement**
-
-olarak kalır.
-
-CLI acquisition ise:
-
-> **Go module acquisition**
-
-işlemidir.
-
-İki komutun kullanıcı açısından benzer görünmesi, semantik olarak birleştirilmelerini gerektirmez.
-
-## B6. CLI'nin mutation sınırı
-
-CLI kendi başına:
-
-* `go.mod` düzenlemez,
-* `go.sum` düzenlemez,
-* shell komutu oluşturmaz,
-* `go get` invocation implementation'ı yazmaz.
-
-Acquisition mevcut process/execution boundary üzerinden gerçekleştirilir.
-
-## B7. Çıktı
+## CLI MUST NOT
 
 CLI:
 
-* selected/concrete target
-* execution sonucu
-* success/failure
-* partial result
-* recovery durumu
+* ikinci resolver içeremez.
+* semver resolution yapamaz.
+* registry algorithm'ini kopyalayamaz.
+* module normalization algoritması oluşturamaz.
+* conflict resolution algoritması oluşturamaz.
+* `go get` komutunu kendisi execute eden ikinci abstraction oluşturamaz.
+* `go.mod` / `go.sum` dosyalarını doğrudan düzenleyemez.
+* acquisition state modelinin ikinci bir versiyonunu oluşturamaz.
 
-gibi acquisition API'lerinin sağladığı bilgileri gösterebilir.
+## Ayrım
 
-CLI bu sonuçları yeniden yorumlayıp farklı bir acquisition state modeli yaratmamalıdır.
+```text
+User
+ ↓
+CLI
+ ↓
+Existing Resolution / Planning APIs
+ ↓
+Existing Acquisition Execution Boundary
+ ↓
+Inspect / Result
+```
+
+CLI'nin görevi orchestration + presentation'dır.
 
 ---
 
 # Contract C — Acquisition ↔ Enablement
 
-## C1. Temel ayrım
+Bu sözleşme iki state transition'ı birbirinden kesin olarak ayırır.
 
-Bu fazın en önemli sözleşmesi:
+**Acquisition ≠ Enablement**
 
-> **Acquisition ≠ Enablement**
+## Acquisition
 
-Bir Go module'ünün başarılı şekilde acquire edilmesi, package'ın otomatik olarak enabled olduğu anlamına gelmez.
-
-## C2. Acquisition
-
-Acquisition'ın sorumluluğu:
+Go module dependency state'ini değiştirir:
 
 ```text
-Go module
-    ↓
-go.mod / go.sum dependency state
+module dependency
+       ↓
+go get
+       ↓
+go.mod / go.sum
 ```
 
-ile sınırlıdır.
+## Enablement
 
-Acquisition:
-
-* package enablement state değiştirmez.
-* `bootstrap/enabled.go` değiştirmez.
-* package registration state değiştirmez.
-
-## C3. Enablement
-
-Enablement'ın sorumluluğu:
+Package runtime state'ini değiştirir:
 
 ```text
-package capability
-    ↓
-enabled/imported state
-    ↓
-runtime registration
+package
+  ↓
+import / registration / enabled state
 ```
 
-alanındadır.
+## MUST
 
-Bu mevcut `package:install` semantiğinin parçasıdır.
+Başarılı acquisition otomatik olarak enablement yapmaz.
 
-## C4. Otomatik enablement yasağı
+Acquisition failure enablement başlatmaz.
 
-Başarılı acquisition sonrasında:
+Enablement failure acquisition rollback anlamına gelmez.
 
-```text
-go get package
-        ↓
-automatic enablement
-```
+Acquisition ile enablement arasında implicit transaction yoktur.
 
-olmayacaktır.
+## `package:install`
 
-Özellikle:
+`package:install` bu fazda acquisition command'i haline gelmez.
 
-* acquisition success → enablement success değildir.
-* acquisition failure → enablement state'i değiştirmez.
-* partial acquisition → enablement işlemi başlatmaz.
+Anlamı: **enablement** olarak kalır.
 
-## C5. `package:install`
+## State isolation
 
-`package:install`:
+| Adım | Acquisition | Enablement |
+|------|-------------|------------|
+| Başlangıç | Not acquired | Not enabled |
+| Acquisition başarılı | Acquired | Not enabled |
+| Enablement başarılı | Acquired | Enabled |
+| Acquisition başarısız | Not acquired | Not enabled |
+| Enablement başarısız | Acquired | Not enabled |
 
-**enablement command** olarak kalır.
+Son durumda acquisition'ın otomatik rollback edilmesi bu SPEC tarafından garanti edilmez.
 
-Phase 9:
+## Gelecek birleşik workflow
 
-* `package:install` anlamını değiştirmez.
-* acquisition command'a dönüştürmez.
-* `go get` çalıştırmasını zorunlu hale getirmez.
-* acquisition ile enablement'ı tek command altında gizlice birleştirmez.
-
-## C6. Gelecekteki bağlantı
-
-Eğer ileride acquisition ve enablement tek kullanıcı workflow'unda birleştirilmek istenirse, bunun ayrıca açık bir contract'a ihtiyacı vardır.
-
-Örneğin potansiyel workflow:
-
-```text
-Acquire module
-      ↓
-Verify acquisition
-      ↓
-Enable package
-```
-
-ancak bu üç adımın aynı transaction olduğu anlamına gelmez.
-
-Her adımın kendi başarısızlık ve recovery semantiği ayrıca tanımlanmalıdır.
-
-## C7. Failure isolation
-
-Acquisition başarısız olduğunda:
-
-* enablement otomatik başlamaz.
-
-Enablement başarısız olduğunda:
-
-* daha önce başarılı olmuş module acquisition otomatik olarak rollback edilmiş sayılmaz.
-
-Bu iki state birbirinden bağımsızdır.
+İleride `Acquire + Enable` gibi tek bir kullanıcı workflow'u tasarlanabilir. Ancak bunun için ayrı bir sözleşme gerekir. Phase 9 bunu tanımlamaz.
 
 ---
 
-# 4. Phase 8 Freeze Boundary
+# Phase 8 Freeze Boundary
 
-Phase 9 aşağıdaki Phase 8 yüzeyini değiştiremez:
+Phase 9 aşağıdaki Phase 8 yüzeyine dokunmaz:
 
 ```text
 FromResult
@@ -358,117 +226,75 @@ ApplyResult
 SnapshotFiles / RecoverFiles
 ```
 
-Aşağıdakiler özellikle yasaktır:
+Aşağıdakiler değiştirilemez:
 
-* `func Apply`
-* Phase 7 API değişikliği
-* `GoGetArg` değişikliği
-* yeni resolver
-* ikinci process abstraction
-* `Execute` semantiğini değiştirme
-* `ExecuteTargets` semantiğini değiştirme
-* `Inspect` semantiğini değiştirme
-* recovery semantics değiştirme
-* `package:install` semantiğini değiştirme.
+* Phase 7 API'leri
+* `GoGetArg`
+* `Execute`
+* `ExecuteTargets`
+* `Inspect`
+* recovery semantics
+* fail-fast davranışı
+* partial-result modeli
+* concurrency / lock davranışı
+* Go tooling mutation sınırı
 
----
+Ve özellikle **`func Apply`** yasaktır.
 
-# 5. Lockfile ve Tidy Boundary
-
-Phase 9:
-
-* `zatrano.lock` oluşturmaz.
-* `go.mod` / `go.sum` dışında acquisition state dosyası oluşturmaz.
-* `go mod tidy`yi acquisition workflow'una otomatik olarak eklemez.
-* `tidy`yi dependency resolver olarak kullanmaz.
+Yeni bir Apply varyantı veya isim değiştirilmiş eşdeğeri de bu SPEC kapsamında kabul edilmez.
 
 ---
 
-# 6. Contract Independence
+# Phase 9 Global Invariants
 
-Üç sözleşme birbirine bağımlı özellikler olarak tasarlanmayacaktır.
+Phase 9 implementation'ı:
+
+* Yeni resolver oluşturamaz.
+* İkinci process abstraction oluşturamaz.
+* `func Apply` ekleyemez.
+* `package:install` semantiğini değiştiremez.
+* `zatrano.lock` ekleyemez.
+* Otomatik `go mod tidy` ekleyemez.
+* Phase 7 acquisition planning API'sini değiştiremez.
+* Phase 8 execution semantics'ini değiştiremez.
+* Acquisition ile enablement'ı implicit transaction haline getiremez.
+* A/B/C sözleşmelerini tek bir birleşik contract'a dönüştüremez.
+
+---
+
+# Implementation Gate
+
+Implementation öncesi sıralama:
 
 ```text
-Dry-run
-   │
-   └── acquisition plan visibility
-
-CLI acquisition
-   │
-   └── user-facing acquisition orchestration
-
-Acquisition ↔ Enablement
-   │
-   └── state/semantic boundary
+Phase 9 Draft
+     ↓
+SPEC Acceptance
+     ↓
+Contract A/B/C implementation
 ```
 
-Bir contract'ın implementation'ı diğer contract'ın semantiğini kendiliğinden değiştiremez.
-
-Özellikle:
-
-* Dry-run → enablement yapmaz.
-* CLI acquisition → `package:install` anlamını değiştirmez.
-* Enablement → Phase 8 acquisition implementation'ını değiştirmez.
-
----
-
-# 7. Implementation Gate
-
-Bu SPEC kabul edilmeden:
-
-* dry-run implementation yok,
-* yeni CLI acquisition command yok,
-* acquisition ↔ enablement bağlantısı yok,
-* yeni API freeze yok,
-* mevcut Phase 8 API değişikliği yok.
-
-SPEC kabulünden sonra implementation sırası ayrıca belirlenecektir.
-
-Önerilen sıra:
+Implementation aşamasında her sözleşme için:
 
 ```text
-Contract A — Dry-run
-        ↓
-Contract tests
-        ↓
+Contract
+   ↓
+Tests
+   ↓
 Implementation
-
-Contract B — CLI acquisition
-        ↓
-Contract tests
-        ↓
-Implementation
-
-Contract C — Acquisition ↔ enablement
-        ↓
-Contract tests
-        ↓
-Implementation
+   ↓
+Verification
 ```
 
-Bir contract tamamlanmadan diğerinin implementation'ı onun davranışına varsayılan bağımlılık eklememelidir.
+şeklinde ilerlenir.
 
----
+## Mevcut durum
 
-# 8. Acceptance Criteria
+```text
+Phase 9
+Status: DRAFT
+Implementation: LOCKED
+Acceptance: NOT ACCEPTED
+```
 
-Phase 9 SPEC'i ancak şu sınırlar açıkça kabul edildiğinde implementation'a açılır:
-
-* [ ] Dry-run mutation yapmaz.
-* [ ] Dry-run resolver değildir.
-* [ ] CLI acquisition resolver değildir.
-* [ ] CLI acquisition process boundary'yi yeniden implement etmez.
-* [ ] Acquisition ve enablement ayrı state'lerdir.
-* [ ] Acquisition success otomatik enablement değildir.
-* [ ] `package:install` enablement olarak kalır.
-* [ ] Phase 8 API'leri değişmez.
-* [ ] `func Apply` eklenmez.
-* [ ] Phase 7 API'leri değişmez.
-* [ ] `GoGetArg` değişmez.
-* [ ] `go mod tidy` otomatik değildir.
-* [ ] `zatrano.lock` yoktur.
-* [ ] Üç contract birbirinden bağımsızdır.
-
-**Phase 9 implementation kapısı: SPEC kabulü.**
-
-SPEC kabul edilene kadar **kod yoktur**.
+Bu aşamada kod yazılmayacaktır.
