@@ -68,7 +68,7 @@ func (c *PackageSearchCommand) Handle(args []string) error {
 	}
 	format, err := formatFromArgs(args)
 	if err != nil {
-		return err
+		return cliErr(ExitUsage, err)
 	}
 	filter := registry.Filter{
 		Query: firstPositional(args),
@@ -135,19 +135,19 @@ func (c *PackageInfoCommand) Handle(args []string) error {
 	}
 	format, err := formatFromArgs(args)
 	if err != nil {
-		return err
+		return cliErr(ExitUsage, err)
 	}
 	name := firstPositional(args)
 	if name == "" {
-		return fmt.Errorf("usage: package:info <name>")
+		return cliErr(ExitUsage, fmt.Errorf("usage: package:info <name>"))
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return err
+		return cliErr(ExitResolution, err)
 	}
 	p, ok := idx.Lookup(name)
 	if !ok {
-		return fmt.Errorf("unknown package %q", name)
+		return cliErr(ExitResolution, fmt.Errorf("unknown package %q", name))
 	}
 	if format == "json" {
 		return writeJSON(c.writer(), p)
@@ -199,22 +199,22 @@ func (c *PackageResolveCommand) Handle(args []string) error {
 	}
 	format, err := formatFromArgs(args)
 	if err != nil {
-		return err
+		return cliErr(ExitUsage, err)
 	}
 	pos := positionalArgs(args)
 	if len(pos) < 1 {
-		return fmt.Errorf("usage: package:resolve <name>[@version] [version]")
+		return cliErr(ExitUsage, fmt.Errorf("usage: package:resolve <name>[@version] [version]"))
 	}
 	name, ver := splitNameVersion(pos[0])
 	if len(pos) > 1 {
 		if ver != "" && pos[1] != ver {
-			return fmt.Errorf("conflicting version %q and %q", ver, pos[1])
+			return cliErr(ExitUsage, fmt.Errorf("conflicting version %q and %q", ver, pos[1]))
 		}
 		ver = pos[1]
 	}
 	if opt := optionValue(args, "--version"); opt != "" {
 		if ver != "" && opt != ver {
-			return fmt.Errorf("conflicting version %q and %q", ver, opt)
+			return cliErr(ExitUsage, fmt.Errorf("conflicting version %q and %q", ver, opt))
 		}
 		ver = opt
 	}
@@ -229,11 +229,11 @@ func (c *PackageResolveCommand) Handle(args []string) error {
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return err
+		return cliErr(ExitResolution, err)
 	}
 	got, err := idx.Resolve(q)
 	if err != nil {
-		return err
+		return cliErr(ExitResolution, err)
 	}
 	view := resolveView{
 		Name:     got.Package.Name,
@@ -343,13 +343,14 @@ func positionalArgs(args []string) []string {
 			continue
 		}
 		switch {
-		case a == "--help", a == "-h", a == "--heavy", a == "--json", a == "--dry-run", a == "--no-recover":
+		case a == "--help", a == "-h", a == "--heavy", a == "--json", a == "--dry-run", a == "--no-recover", a == "--enable":
 			continue
 		case strings.HasPrefix(a, "--format="), strings.HasPrefix(a, "--kind="),
 			strings.HasPrefix(a, "--layer="), strings.HasPrefix(a, "--framework="),
-			strings.HasPrefix(a, "--version="), strings.HasPrefix(a, "--root="):
+			strings.HasPrefix(a, "--version="), strings.HasPrefix(a, "--root="),
+			strings.HasPrefix(a, "--timeout="):
 			continue
-		case a == "--format", a == "--kind", a == "--layer", a == "--framework", a == "--version", a == "--root":
+		case a == "--format", a == "--kind", a == "--layer", a == "--framework", a == "--version", a == "--root", a == "--timeout":
 			if i+1 < len(args) {
 				skipNext = true
 			}

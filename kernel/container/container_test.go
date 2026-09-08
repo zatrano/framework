@@ -293,6 +293,23 @@ func TestTransientRebuilds(t *testing.T) {
 	}
 }
 
+func TestInstanceLastWriteWinsBeforeFreeze(t *testing.T) {
+	c := container.New()
+	c.Instance("svc", "first")
+	c.Instance("svc", "second")
+	got, err := c.Make("svc")
+	if err != nil || got != "second" {
+		t.Fatalf("last write must win before freeze: got=%#v err=%v", got, err)
+	}
+	c.Freeze()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Instance after freeze must panic")
+		}
+	}()
+	c.Instance("svc", "third")
+}
+
 func TestBound(t *testing.T) {
 	c := container.New()
 	if c.Bound("x") {

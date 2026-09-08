@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/zatrano/framework/v2/distribution/acquire"
 	"github.com/zatrano/framework/v2/distribution/registry"
@@ -36,6 +37,7 @@ type PackageAcquireCommand struct {
 	snapshotFiles  func(root string) (acquire.FileSnapshot, error)
 	recoverFiles   func(ctx context.Context, snap acquire.FileSnapshot) (acquire.Recovery, error)
 	enableFn       func(name string) (bool, error)
+	ctx            context.Context
 }
 
 func (c *PackageAcquireCommand) Name() string { return "package:acquire" }
@@ -51,27 +53,27 @@ func (c *PackageAcquireCommand) writer() io.Writer {
 
 func (c *PackageAcquireCommand) Handle(args []string) error {
 	if hasFlag(args, "--help", "-h") {
-		fmt.Fprintln(c.writer(), "Usage: package:acquire <name>[@version] [version] [--dry-run] [--enable] [--root=] [--framework=] [--no-recover] [--format=json|text]")
+		fmt.Fprintln(c.writer(), "Usage: package:acquire <name>[@version] [version] [--dry-run] [--enable] [--root=] [--framework=] [--timeout=] [--no-recover] [--format=json|text]")
 		return nil
 	}
 	format, err := formatFromArgs(args)
 	if err != nil {
-		return err
+		return cliErr(ExitUsage, err)
 	}
 	pos := positionalArgs(args)
 	if len(pos) < 1 {
-		return fmt.Errorf("usage: package:acquire <name>[@version] [version]")
+		return cliErr(ExitUsage, fmt.Errorf("usage: package:acquire <name>[@version] [version]"))
 	}
 	name, ver := splitNameVersion(pos[0])
 	if len(pos) > 1 {
 		if ver != "" && pos[1] != ver {
-			return fmt.Errorf("conflicting version %q and %q", ver, pos[1])
+			return cliErr(ExitUsage, fmt.Errorf("conflicting version %q and %q", ver, pos[1]))
 		}
 		ver = pos[1]
 	}
 	if opt := optionValue(args, "--version"); opt != "" {
 		if ver != "" && opt != ver {
-			return fmt.Errorf("conflicting version %q and %q", ver, opt)
+			return cliErr(ExitUsage, fmt.Errorf("conflicting version %q and %q", ver, opt))
 		}
 		ver = opt
 	}
@@ -86,23 +88,23 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return err
+		return cliErr(ExitResolution, err)
 	}
 	got, err := idx.Resolve(q)
 	if err != nil {
-		return err
+		return cliErr(ExitResolution, err)
 	}
 	plan, err := acquire.FromResult(got)
 	if err != nil {
-		return err
+		return cliErr(ExitPlanning, err)
 	}
 	getArgs, err := acquire.Targets([]acquire.Plan{plan})
 	if err != nil {
-		return err
+		return cliErr(ExitPlanning, err)
 	}
 	root, err := c.resolveRoot(args)
 	if err != nil {
-		return err
+		return cliErr(ExitUsage, err)
 	}
 	view := acquireCLIView{
 		Root:        root,
@@ -114,7 +116,7 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if hasFlag(args, "--dry-run") {
 		reps, err := c.runDryRun(root, getArgs)
 		if err != nil {
-			return err
+			return cliErr(ExitPlanning, err)
 		}
 		view.Mode = "dry-run"
 		view.DryRun = make([]dryRunCLIView, 0, len(reps))
@@ -130,22 +132,35 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	}
 
 	view.Mode = "execute"
-	ctx := context.Background()
+	ctx, cancel, err := c.commandContext(args)
+	if err != nil {
+		return err
+	}
+	defer cancel()
 	var snap acquire.FileSnapshot
 	var snapErr error
 	if !hasFlag(args, "--no-recover") {
 		snap, snapErr = c.runSnapshot(root)
+		if snapErr != nil {
+			view.SnapshotError = snapErr.Error()
+			view.appendError(snapErr)
+		}
 	} else {
 		snapErr = errSkipRecover
 	}
 	result, execErr := c.runExecute(ctx, root, getArgs)
 	if execErr != nil && snapErr == nil {
-		rec, _ := c.runRecover(ctx, snap)
+		rec, recErr := c.runRecover(ctx, snap)
 		result = result.WithRecovery(rec)
+		if recErr != nil {
+			view.RecoveryError = recErr.Error()
+			view.appendError(recErr)
+		}
 	}
 	view.Successful = result.Successful()
 	view.Failed = result.Failed()
 	view.Unattempted = result.Unattempted()
+	view.Targets = targetViews(result)
 	view.Recovery = string(result.Recovery.Kind)
 	if view.Recovery == "" {
 		view.Recovery = string(acquire.RecoveryUnavailable)
@@ -159,24 +174,27 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if hasFlag(args, "--enable") && view.Acquisition == acquireStatusSuccess {
 		if err := c.runEnable(name); err != nil {
 			view.Enablement = enablementFailed
-			if _, ierr := c.runInspect(root); ierr != nil {
-				view.InspectErr = ierr.Error()
-			}
+			view.appendError(err)
+			c.attachInspect(root, &view)
 			if werr := c.writeView(format, view); werr != nil {
 				return werr
 			}
-			return err
+			return cliErr(ExitEnablement, err)
 		}
 		view.Enablement = enablementSuccess
 		view.Enabled = true
 	}
-	if _, err := c.runInspect(root); err != nil {
-		view.InspectErr = err.Error()
-	}
+	c.attachInspect(root, &view)
 	if err := c.writeView(format, view); err != nil {
 		return err
 	}
-	return execErr
+	if execErr == nil {
+		return nil
+	}
+	if cerr := classifyContextError(execErr); cerr != nil {
+		return cerr
+	}
+	return cliErr(ExitAcquisition, execErr)
 }
 
 var errSkipRecover = fmt.Errorf("acquire-cli: skip recover")
@@ -212,7 +230,90 @@ func (c *PackageAcquireCommand) writeView(format string, view acquireCLIView) er
 		fmt.Fprintf(w, "unattempted: %s\n", arg)
 	}
 	fmt.Fprintf(w, "recovery: %s\n", view.Recovery)
+	if view.SnapshotError != "" {
+		fmt.Fprintf(w, "snapshot_error: %s\n", view.SnapshotError)
+	}
+	if view.RecoveryError != "" {
+		fmt.Fprintf(w, "recovery_error: %s\n", view.RecoveryError)
+	}
+	if view.Inspection != nil && view.Inspection.Module != "" {
+		fmt.Fprintf(w, "inspect_module: %s\n", view.Inspection.Module)
+		for _, req := range view.Inspection.Requirements {
+			fmt.Fprintf(w, "inspect_require: %s %s\n", req.Path, req.Version)
+		}
+	}
+	for _, msg := range view.Errors {
+		fmt.Fprintf(w, "error: %s\n", msg)
+	}
 	return nil
+}
+
+func (c *PackageAcquireCommand) commandContext(args []string) (context.Context, context.CancelFunc, error) {
+	parent := c.ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	raw := strings.TrimSpace(optionValue(args, "--timeout"))
+	if raw == "" {
+		return parent, func() {}, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return nil, nil, cliErr(ExitUsage, fmt.Errorf("usage: package:acquire --timeout must be a positive duration"))
+	}
+	ctx, cancel := context.WithTimeout(parent, d)
+	return ctx, cancel, nil
+}
+
+func (c *PackageAcquireCommand) attachInspect(root string, view *acquireCLIView) {
+	in, err := c.runInspect(root)
+	if err != nil {
+		view.InspectErr = err.Error()
+		view.appendError(err)
+		return
+	}
+	view.Inspection = inspectionView(in)
+}
+
+func inspectionView(in acquire.Inspection) *inspectCLIView {
+	reqs := make([]inspectReqCLIView, 0, len(in.Requirements))
+	for _, r := range in.Requirements {
+		reqs = append(reqs, inspectReqCLIView{Path: r.Path, Version: r.Version, Indirect: r.Indirect})
+	}
+	sums := make([]inspectSumCLIView, 0, len(in.Checksums))
+	for _, s := range in.Checksums {
+		sums = append(sums, inspectSumCLIView{Module: s.Module, Version: s.Version, Hash: s.Hash})
+	}
+	return &inspectCLIView{
+		Module:       in.Module,
+		Go:           in.Go,
+		Requirements: reqs,
+		Checksums:    sums,
+		GoModMissing: in.GoModMissing,
+		GoSumMissing: in.GoSumMissing,
+	}
+}
+
+func targetViews(result acquire.ApplyResult) []targetCLIView {
+	if len(result.Reports) == 0 {
+		return nil
+	}
+	out := make([]targetCLIView, 0, len(result.Reports))
+	for _, rep := range result.Reports {
+		out = append(out, targetCLIView{GoGetArg: rep.GoGetArg, Status: string(rep.Status)})
+	}
+	return out
+}
+
+func (v *acquireCLIView) appendError(err error) {
+	if v == nil || err == nil {
+		return
+	}
+	msg := err.Error()
+	if msg == "" {
+		return
+	}
+	v.Errors = append(v.Errors, msg)
 }
 
 func (c *PackageAcquireCommand) resolveRoot(args []string) (string, error) {
@@ -281,26 +382,61 @@ func (c *PackageAcquireCommand) runEnable(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := wireEnabledAddon(c.app, name); err != nil {
+	if err := wireEnablement(c.app, name); err != nil {
 		return err
 	}
-	_ = applyPackageEnvList(c.app, []string{name})
+	names, _ := enableRequiresNames(name)
+	if len(names) == 0 {
+		names = []string{name}
+	}
+	_ = applyPackageEnvList(c.app, names)
 	return nil
 }
 
 type acquireCLIView struct {
-	Mode        string          `json:"mode"`
-	Root        string          `json:"root"`
-	GoGetArgs   []string        `json:"go_get_args"`
-	Successful  []string        `json:"successful,omitempty"`
-	Failed      []string        `json:"failed,omitempty"`
-	Unattempted []string        `json:"unattempted,omitempty"`
-	Recovery    string          `json:"recovery,omitempty"`
-	Acquisition string          `json:"acquisition"`
-	Enablement  string          `json:"enablement"`
-	Enabled     bool            `json:"enabled"`
-	DryRun      []dryRunCLIView `json:"dry_run,omitempty"`
-	InspectErr  string          `json:"inspect_error,omitempty"`
+	Mode          string          `json:"mode"`
+	Root          string          `json:"root"`
+	GoGetArgs     []string        `json:"go_get_args"`
+	Successful    []string        `json:"successful,omitempty"`
+	Failed        []string        `json:"failed,omitempty"`
+	Unattempted   []string        `json:"unattempted,omitempty"`
+	Targets       []targetCLIView `json:"targets,omitempty"`
+	Recovery      string          `json:"recovery,omitempty"`
+	RecoveryError string          `json:"recovery_error,omitempty"`
+	SnapshotError string          `json:"snapshot_error,omitempty"`
+	Acquisition   string          `json:"acquisition"`
+	Enablement    string          `json:"enablement"`
+	Enabled       bool            `json:"enabled"`
+	DryRun        []dryRunCLIView `json:"dry_run,omitempty"`
+	Inspection    *inspectCLIView `json:"inspection,omitempty"`
+	InspectErr    string          `json:"inspect_error,omitempty"`
+	Errors        []string        `json:"errors,omitempty"`
+}
+
+type targetCLIView struct {
+	GoGetArg string `json:"go_get_arg"`
+	Status   string `json:"status"`
+}
+
+type inspectCLIView struct {
+	Module       string              `json:"module,omitempty"`
+	Go           string              `json:"go,omitempty"`
+	Requirements []inspectReqCLIView `json:"requirements,omitempty"`
+	Checksums    []inspectSumCLIView `json:"checksums,omitempty"`
+	GoModMissing bool                `json:"go_mod_missing,omitempty"`
+	GoSumMissing bool                `json:"go_sum_missing,omitempty"`
+}
+
+type inspectReqCLIView struct {
+	Path     string `json:"path"`
+	Version  string `json:"version"`
+	Indirect bool   `json:"indirect,omitempty"`
+}
+
+type inspectSumCLIView struct {
+	Module  string `json:"module"`
+	Version string `json:"version"`
+	Hash    string `json:"hash"`
 }
 
 type dryRunCLIView struct {

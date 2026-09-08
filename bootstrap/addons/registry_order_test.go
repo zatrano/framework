@@ -68,6 +68,117 @@ func TestOrderMetasTieBreak(t *testing.T) {
 	}
 }
 
+func TestOrderMetasOrderTieBreakIndependent(t *testing.T) {
+	got, err := addons.OrderMetas([]addons.Meta{
+		{Name: "alpha", Order: 50},
+		{Name: "zeta", Order: 10},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Name != "zeta" || got[1].Name != "alpha" {
+		t.Fatalf("Order must beat Name: got %s %s", got[0].Name, got[1].Name)
+	}
+}
+
+func namesOfMetas(metas []addons.Meta) []string {
+	out := make([]string, len(metas))
+	for i, m := range metas {
+		out[i] = m.Name
+	}
+	return out
+}
+
+func equalNames(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestOrderMetasRepeatedIdentical(t *testing.T) {
+	in := []addons.Meta{
+		{Name: "auth", Order: 50, Requires: []string{"database", "session"}},
+		{Name: "session", Order: 130},
+		{Name: "zeta", Order: 1},
+		{Name: "alpha", Order: 1},
+		{Name: "database", Order: 10},
+	}
+	first, err := addons.OrderMetas(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := namesOfMetas(first)
+	for i := 0; i < 25; i++ {
+		got, err := addons.OrderMetas(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !equalNames(want, namesOfMetas(got)) {
+			t.Fatalf("run %d: want %v got %v", i, want, namesOfMetas(got))
+		}
+	}
+}
+
+func TestOrderMetasSameSetSameOrderAcrossShuffledInput(t *testing.T) {
+	base := []addons.Meta{
+		{Name: "auth", Order: 50, Requires: []string{"hashing", "session"}},
+		{Name: "session", Order: 130, Optional: []string{"redisx"}},
+		{Name: "hashing", Order: 15},
+		{Name: "database", Order: 10},
+		{Name: "redisx", Order: 20},
+		{Name: "zeta", Order: 1},
+		{Name: "alpha", Order: 1},
+	}
+	first, err := addons.OrderMetas(append([]addons.Meta(nil), base...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := namesOfMetas(first)
+	pos := map[string]int{}
+	for i, name := range want {
+		pos[name] = i
+	}
+	if pos["auth"] < pos["hashing"] || pos["auth"] < pos["session"] {
+		t.Fatalf("dependency must precede dependent: %v", want)
+	}
+	if pos["session"] < pos["redisx"] {
+		t.Fatalf("optional present must precede dependent: %v", want)
+	}
+	if pos["alpha"] > pos["zeta"] {
+		t.Fatalf("Name tie-break: %v", want)
+	}
+	if pos["database"] > pos["hashing"] {
+		t.Fatalf("Order tie-break: %v", want)
+	}
+
+	perms := [][]int{
+		{6, 5, 4, 3, 2, 1, 0},
+		{0, 2, 4, 6, 1, 3, 5},
+		{3, 1, 5, 0, 2, 4, 6},
+		{1, 0, 3, 2, 5, 4, 6},
+		{4, 0, 6, 2, 5, 1, 3},
+	}
+	for i, perm := range perms {
+		shuffled := make([]addons.Meta, len(base))
+		for j, idx := range perm {
+			shuffled[j] = base[idx]
+		}
+		got, err := addons.OrderMetas(shuffled)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !equalNames(want, namesOfMetas(got)) {
+			t.Fatalf("shuffle %d: want %v got %v", i, want, namesOfMetas(got))
+		}
+	}
+}
+
 func TestNewPlanNilMeansAllImported(t *testing.T) {
 	p := addons.NewPlan(nil)
 	if len(p.Imported) != len(p.Enabled) {

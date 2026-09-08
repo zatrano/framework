@@ -158,6 +158,13 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	heavy := 0
 	libs := 0
 	missingStub := 0
+	enabledSet := map[string]bool{}
+	for _, name := range enabled {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name != "" {
+			enabledSet[name] = true
+		}
+	}
 	for _, name := range enabled {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name == "" {
@@ -197,6 +204,17 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 				Level:   "WARN",
 				Code:    "enabled.heavy",
 				Message: fmt.Sprintf("%q is heavy (separate module / large deps)", name),
+			})
+		}
+		for _, req := range meta.Requires {
+			req = strings.ToLower(strings.TrimSpace(req))
+			if req == "" || enabledSet[req] {
+				continue
+			}
+			out = append(out, doctorFinding{
+				Level:   "ERROR",
+				Code:    "enabled.requires",
+				Message: fmt.Sprintf("%q requires %q which is not enabled", name, req),
 			})
 		}
 		files := stubs.ForPackage(name)

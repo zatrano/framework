@@ -16,7 +16,7 @@ func main() {
 	cli := console.New(app)
 	if err := cli.Run(args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(console.CodeFromError(err))
 	}
 }
 

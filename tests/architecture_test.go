@@ -338,9 +338,9 @@ func TestPhase9ContractADryRunGate(t *testing.T) {
 			t.Errorf("dry_run.go contains %s — DryRun must not execute or recover", ban)
 		}
 	}
-	for _, name := range []string{"acquire_cmd.go", "phase9.go"} {
+	for _, name := range []string{"acquire_cmd.go", "phase9.go", "phase10.go"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			t.Errorf("%s — Contract B/C remain closed", name)
+			t.Errorf("%s — unauthorized acquire production file", name)
 		}
 	}
 }
@@ -766,7 +766,7 @@ func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
 			if !strings.HasSuffix(imp, "/acquire") {
 				continue
 			}
-			if base != "package_acquire.go" && base != "package_acquire_test.go" {
+			if base != "package_acquire.go" && !strings.HasPrefix(base, "package_acquire") {
 				t.Errorf("%s imports acquire — only package:acquire may consume acquire (%s)", base, imp)
 			}
 		}
@@ -882,6 +882,128 @@ func TestPhase9ContractCExplicitEnablement(t *testing.T) {
 	}
 }
 
+func TestPhase10SpecIsAccepted(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE10.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"# Phase 10 — Production Hardening & Ecosystem Validation",
+		"**Status:** Accepted",
+		"**Acceptance:** ACCEPTED",
+		"Implementation: COMPLETE",
+		"func Apply",
+		"package:install",
+		"smallest possible change",
+		"Exit-code interpretation belongs to the CLI boundary",
+		"No implicit acquisition → enablement",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("PHASE10.md missing %q — Phase 10 SPEC must stay accepted", want)
+		}
+	}
+	for _, ban := range []string{
+		"**Status:** Draft",
+		"NOT ACCEPTED",
+		"Implementation: LOCKED",
+	} {
+		if strings.Contains(text, ban) {
+			t.Errorf("PHASE10.md still contains %q", ban)
+		}
+	}
+	bannedProd := []string{
+		"phase10.go",
+		"lifecycle.go",
+		"e2e.go",
+		"harden.go",
+		"timeout.go",
+		"cancel.go",
+		"exit_code.go",
+		"acquire_lifecycle.go",
+		"package_lifecycle.go",
+		"package_acquire_e2e.go",
+	}
+	dirs := []string{
+		filepath.Join(root, "distribution", "acquire"),
+		filepath.Join(root, "console"),
+	}
+	for _, dir := range dirs {
+		for _, name := range bannedProd {
+			if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+				t.Errorf("%s/%s — Phase 10 must not add a new acquisition engine", filepath.Base(dir), name)
+			}
+		}
+	}
+}
+
+func TestPhase10ExitCodesStayAtCLIBoundary(t *testing.T) {
+	root := moduleRoot(t)
+	err := filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		src, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		text := string(src)
+		for _, ban := range []string{"ExitUsage", "ExitResolution", "ExitPlanning", "ExitAcquisition", "ExitEnablement", "ExitCanceled", "ExitRuntimeBoot", "ExitRuntimeShutdown", "ExitRuntimeCanceled", "ExitRuntimeTimeout", "CodeFromError", "type CLIError"} {
+			if strings.Contains(text, ban) {
+				t.Errorf("%s contains %s — exit-code logic stays at the CLI boundary", filepath.Base(path), ban)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli, err := os.ReadFile(filepath.Join(root, "console", "cli_exit.go"))
+	if err != nil {
+		t.Fatal("missing console/cli_exit.go — classified exit codes belong to the CLI")
+	}
+	text := string(cli)
+	for _, want := range []string{"ExitUsage", "ExitResolution", "ExitPlanning", "ExitAcquisition", "ExitEnablement", "ExitCanceled", "ExitRuntimeBoot", "ExitRuntimeShutdown", "ExitRuntimeCanceled", "ExitRuntimeTimeout", "func CodeFromError"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("cli_exit.go missing %s", want)
+		}
+	}
+	mainSrc, err := os.ReadFile(filepath.Join(root, "cmd", "zatrano", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainSrc), "console.CodeFromError(") {
+		t.Error("cmd/zatrano must map CLI errors to exit codes")
+	}
+}
+
+func TestPhase10JSONPresentsExistingState(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "package_acquire.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	for _, want := range []string{
+		`json:"acquisition"`,
+		`json:"enablement"`,
+		`json:"inspection,omitempty"`,
+		`json:"recovery,omitempty"`,
+		`json:"targets,omitempty"`,
+		`json:"errors,omitempty"`,
+		`json:"status"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("package_acquire.go JSON missing %s", want)
+		}
+	}
+	for _, ban := range []string{"AcquireStateMachine", "type LifecycleService", "func Apply("} {
+		if strings.Contains(text, ban) {
+			t.Errorf("package_acquire.go contains %s — JSON must not invent a second state model", ban)
+		}
+	}
+}
+
 func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
 	root := moduleRoot(t)
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -981,7 +1103,8 @@ func TestContractsAppMethodFreeze(t *testing.T) {
 		"Config": true, "Router": true, "Logger": true, "Context": true,
 		"Encrypter": true, "Exceptions": true, "Reports": true,
 		"Environment": true, "IsProduction": true, "IsDebug": true,
-		"RegisterProviders": true, "Bootstrap": true, "Start": true, "Stop": true,
+		"RegisterProviders": true, "Bootstrap": true, "BootstrapContext": true,
+		"Start": true, "StartContext": true, "Stop": true,
 		"ServeHTTP": true, "Run": true,
 		"SetHTTPBridge": true, "HTTPBridge": true,
 	}

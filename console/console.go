@@ -121,7 +121,7 @@ func (c *ServeCommand) Handle(args []string) error {
 			addr = host
 		}
 	}
-	return c.app.Run(addr)
+	return classifyRuntimeError(c.app.Run(addr))
 }
 
 type AboutCommand struct {

@@ -158,6 +158,7 @@ type lifecycleProbe struct {
 	name     string
 	failOnce error
 	fail     error
+	failStop error
 }
 
 func (p *lifecycleProbe) Register(app contracts.App) error { return nil }
@@ -177,7 +178,7 @@ func (p *lifecycleProbe) Stop(ctx context.Context) error {
 		*p.order = append(*p.order, "stop:"+p.name)
 	}
 	p.stops++
-	return nil
+	return p.failStop
 }
 
 func TestLifecycleStartStopOrder(t *testing.T) {

@@ -421,7 +421,50 @@ Stopping
 Stopped (terminal)
 ```
 
+## Application lifecycle
+
+Providers can implement `contracts.LifecycleProvider`:
+
+```go
+Start(app contracts.App) error
+Stop(ctx context.Context) error
+```
+
+`Start` / `Stop` (and `Run`) own process lifetime. Lifecycle transitions are serialized and protected against concurrent `Start` / `Stop` calls.
+
+```text
+Created
+   │
+   ▼
+Bootstrapping
+   │
+   ├── fail → BootFailed (terminal)
+   ▼
+Booted
+   │
+   ▼
+Starting
+   │
+   ▼
+Running
+   │
+   ▼
+Stopping
+   │
+   ▼
+Stopped (terminal)
+```
+
 Failed bootstrap is terminal for that application instance. Stopped applications cannot restart.
+
+`contracts.App` also exposes context-bearing entry points:
+
+```go
+BootstrapContext(ctx context.Context) error
+StartContext(ctx context.Context) error
+```
+
+`Bootstrap()` and `Start()` remain. They call the context methods with `context.Background()`. A nil `ctx` is treated as `context.Background()`. Cancellation is checked between provider operations (`Register`, `Boot`, `LifecycleProvider.Start`). An in-flight provider call is not forcibly killed. Provider method signatures are unchanged. If `StartContext` fails after some lifecycle providers started, those that returned nil from `Start` are stopped; the failed provider is not stopped; cleanup errors are retained with the start error; the application returns to Booted and may retry.
 
 ## Dependency container
 
@@ -451,6 +494,27 @@ Pointer and arbitrary struct values are not cloned. Copy semantics cover the con
 
 After bootstrap, the configuration repository is frozen.
 
+## Package lifecycle
+
+These operations are separate. Do not collapse them into “install”.
+
+```text
+Acquire   = modify Go module dependencies (go get via package:acquire)
+Enable    = write consumer enablement + blank-imports (Requires closure)
+Boot      = Provider.Register + Provider.Boot for Enabled ∩ Imported
+Start     = LifecycleProvider.Start
+Stop      = LifecycleProvider.Stop
+Disable   = remove persistent enablement + that package’s blank-import
+```
+
+`package:enable` expands transitive `Requires` before writing files. Optional dependencies are not enabled. `package:disable` refuses if a remaining enabled addon requires the target (directly or through that Requires graph). Already-disabled is a successful no-op. Disable is not Stop: it does not shut down a running process.
+
+Disable does not remove Go modules, config stubs, `.env` keys, or database state. Unused module cleanup is Go/user-owned (`go get` / `go mod tidy` are not run automatically).
+
+Enablement does not overwrite an existing `github.com/zatrano/packages` requirement with `@main`. A tagged `package:acquire` pin stays in go.mod. First-time wiring may still `go get github.com/zatrano/packages@main` when that module is not yet required.
+
+Upgrade is `package:acquire name@version`. There is no `package:upgrade` or `package:uninstall` command.
+
 ## CLI
 
 This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app` (`go run ./cmd/app …`).
@@ -478,6 +542,33 @@ zatrano make:test
 ```
 
 `db:setup`, `migrate`, `queue:work`, `make:auth`, and similar commands register only when their package is imported. They are not part of a kernel-only CLI.
+
+Process exit codes are classified at the CLI boundary (`cmd/zatrano` via `console.CodeFromError`). Acquisition and runtime use different tables.
+
+Acquisition (`package:search` / `info` / `resolve` / `acquire`, enablement on acquire `--enable` / `package:enable` / `package:install`):
+
+```text
+0  success
+1  general
+2  usage
+3  resolution
+4  planning
+5  acquisition
+6  enablement
+7  canceled
+```
+
+Runtime (`zatrano serve` / `Application.Run`):
+
+```text
+0   success
+20  ExitRuntimeBoot
+21  ExitRuntimeShutdown
+22  ExitRuntimeCanceled
+23  ExitRuntimeTimeout
+```
+
+Runtime `serve` / `Run` failures use 20–23. They never reuse acquisition codes 2–7. Runtime cancellation is `ExitRuntimeCanceled` (22), not acquisition `ExitCanceled` (7). Acquisition JSON is unchanged. There is no runtime `serve --format=json` contract.
 
 ## Repository structure
 

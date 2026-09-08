@@ -241,7 +241,7 @@ func TestPackageAcquireUsesInjectedIndexResolve(t *testing.T) {
 	}
 }
 
-func successfulExecute(root string) func(context.Context, string, []string) (acquire.ApplyResult, error) {
+func successfulExecute() func(context.Context, string, []string) (acquire.ApplyResult, error) {
 	return func(_ context.Context, gotRoot string, args []string) (acquire.ApplyResult, error) {
 		return acquire.ApplyResult{
 			Root:     gotRoot,
@@ -262,7 +262,7 @@ func TestPackageAcquireEnablementNotRequestedByDefault(t *testing.T) {
 			return acquire.FileSnapshot{Root: root}, nil
 		},
 		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
-		executeTargets: successfulExecute(root),
+		executeTargets: successfulExecute(),
 		enableFn: func(string) (bool, error) {
 			called = true
 			return true, nil
@@ -299,7 +299,7 @@ func TestPackageAcquireExplicitEnableAfterSuccess(t *testing.T) {
 			return acquire.Recovery{Kind: acquire.RecoveryFiles}, nil
 		},
 		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
-		executeTargets: successfulExecute(root),
+		executeTargets: successfulExecute(),
 		enableFn: func(name string) (bool, error) {
 			gotName = name
 			return true, nil
@@ -379,7 +379,7 @@ func TestPackageAcquireEnablementFailureDoesNotRollbackAcquisition(t *testing.T)
 			return acquire.Recovery{Kind: acquire.RecoveryFiles}, nil
 		},
 		inspect:        func(string) (acquire.Inspection, error) { return acquire.Inspection{Root: root}, nil },
-		executeTargets: successfulExecute(root),
+		executeTargets: successfulExecute(),
 		enableFn: func(string) (bool, error) {
 			return false, errors.New("bootstrap write failed")
 		},

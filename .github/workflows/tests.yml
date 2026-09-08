@@ -54,7 +54,14 @@ jobs:
         run: go mod download
 
       - name: Unit tests
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
         run: go test ./...
+
+      - name: Acquisition E2E
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test ./console -count=1 -timeout 20m -run 'TestPackageAcquireE2E|TestPackageAcquireAlreadyPresent|TestPackageAcquireGoGetFailure|TestPackageAcquireTimeout'
 
   windows_tests:
     runs-on: windows-2022
@@ -95,6 +102,8 @@ jobs:
 
       - name: Execute tests
         working-directory: framework
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
         run: go test ./...
 
   starter_smoke:

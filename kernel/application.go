@@ -47,6 +47,13 @@ const (
 	lifeBootFailed
 )
 
+// Runtime process errors classified by the CLI (codes 20–23). Acquisition
+// codes 2–7 are unrelated and must not be used for serve/Run.
+var (
+	ErrRuntimeBoot     = errors.New("application: runtime boot failed")
+	ErrRuntimeShutdown = errors.New("application: runtime shutdown failed")
+)
+
 // Application is the ZATRANO application kernel.
 // Foundation and addon services live in the container (see accessors / package From helpers).
 // Kernel fields below are set by BootKernelServices.
@@ -223,13 +230,25 @@ func (app *Application) BootstrapFailed() bool {
 // A second call is a no-op so providers, routes, and middleware are not registered twice.
 // Bootstrap, Start, and Stop share one lock so concurrent Boot/Start cannot observe a
 // half-open boot (C-005): the later call waits, then no-ops or continues from Booted.
+// Zero-argument Bootstrap is equivalent to BootstrapContext(context.Background()).
 func (app *Application) Bootstrap() error {
-	app.transitionMu.Lock()
-	defer app.transitionMu.Unlock()
-	return app.bootstrapSerial()
+	return app.BootstrapContext(context.Background())
 }
 
-func (app *Application) bootstrapSerial() error {
+// BootstrapContext is Bootstrap with a cancellation/deadline. A nil ctx is
+// treated as context.Background(). Cancellation is checked before each
+// Provider.Register and Provider.Boot; an in-flight provider call is not
+// force-killed. Provider signatures are unchanged.
+func (app *Application) BootstrapContext(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	app.transitionMu.Lock()
+	defer app.transitionMu.Unlock()
+	return app.bootstrapSerial(ctx)
+}
+
+func (app *Application) bootstrapSerial(ctx context.Context) error {
 	app.lifeMu.Lock()
 	switch app.life {
 	case lifeBooted, lifeStarting, lifeRunning, lifeStopping, lifeStopped:
@@ -245,7 +264,7 @@ func (app *Application) bootstrapSerial() error {
 	app.life = lifeBootstrapping
 	app.lifeMu.Unlock()
 
-	if err := app.bootstrapLocked(); err != nil {
+	if err := app.bootstrapLocked(ctx); err != nil {
 		app.lifeMu.Lock()
 		app.life = lifeBootFailed
 		app.lifeMu.Unlock()
@@ -269,7 +288,7 @@ func (app *Application) loadEnvAppConfig() {
 	})
 }
 
-func (app *Application) bootstrapLocked() error {
+func (app *Application) bootstrapLocked(ctx context.Context) error {
 	_ = env.Load(app.BasePath(".env"))
 
 	app.environment = env.NormalizeAppEnv(env.Get("APP_ENV", "local"))
@@ -306,6 +325,9 @@ func (app *Application) bootstrapLocked() error {
 
 	// Kernel only above. Foundation + packages + app providers Register next.
 	for _, provider := range app.providers {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := provider.Register(app); err != nil {
 			return err
 		}
@@ -350,6 +372,9 @@ func (app *Application) bootstrapLocked() error {
 	}
 
 	for _, provider := range app.providers {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := provider.Boot(app); err != nil {
 			return err
 		}
@@ -374,11 +399,23 @@ func (app *Application) bootstrapLocked() error {
 // Concurrent Bootstrap/Start/Stop calls are serialized. If a provider's Start
 // returns an error, that provider must clean up any work it already launched;
 // the kernel only stops providers that returned nil from Start.
+// Zero-argument Start is equivalent to StartContext(context.Background()).
 func (app *Application) Start() error {
+	return app.StartContext(context.Background())
+}
+
+// StartContext is Start with a cancellation/deadline. A nil ctx is treated as
+// context.Background(). Cancellation is checked before each
+// LifecycleProvider.Start; an in-flight Start is not force-killed.
+// Acquisition CLI --timeout is not wired here.
+func (app *Application) StartContext(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	app.transitionMu.Lock()
 	defer app.transitionMu.Unlock()
 
-	if err := app.bootstrapSerial(); err != nil {
+	if err := app.bootstrapSerial(ctx); err != nil {
 		return err
 	}
 
@@ -405,14 +442,11 @@ func (app *Application) Start() error {
 		if !ok {
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			return app.failStart(ctx, started, err)
+		}
 		if err := lp.Start(app); err != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			_ = app.stopLifecycle(ctx, started)
-			cancel()
-			app.lifeMu.Lock()
-			app.life = lifeBooted
-			app.lifeMu.Unlock()
-			return err
+			return app.failStart(ctx, started, err)
 		}
 		started = append(started, lp)
 	}
@@ -424,7 +458,35 @@ func (app *Application) Start() error {
 	return nil
 }
 
-// Stop runs LifecycleProvider.Stop in reverse start order. No-op unless Running.
+// failStart performs Start-failure cleanup: only providers that returned nil
+// from Start. Distinct from Stop(), which visits every LifecycleProvider on
+// the provider slice once the application is Running. If ctx is still usable
+// it is used for cleanup; if it is already cancelled, cleanup uses a bounded
+// 15-second context (today's Start-failure bound).
+func (app *Application) failStart(ctx context.Context, started []contracts.LifecycleProvider, startErr error) error {
+	cleanup, cancel := startCleanupContext(ctx)
+	stopErr := app.stopLifecycleAll(cleanup, started)
+	cancel()
+	app.lifeMu.Lock()
+	app.life = lifeBooted
+	app.lifeMu.Unlock()
+	if stopErr != nil {
+		return errors.Join(startErr, stopErr)
+	}
+	return startErr
+}
+
+func startCleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx != nil && ctx.Err() == nil {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(context.Background(), 15*time.Second)
+}
+
+// Stop runs LifecycleProvider.Stop in reverse provider-slice order.
+// No-op unless Running (including Booted and already Stopped).
+// Unlike Start-failure cleanup, this visits every LifecycleProvider on
+// the slice, not only those that successfully started in the last Start.
 func (app *Application) Stop(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -461,6 +523,20 @@ func (app *Application) stopLifecycle(ctx context.Context, started []contracts.L
 		}
 	}
 	return first
+}
+
+// stopLifecycleAll stops started providers in reverse order and joins every
+// Stop error. Used for Start-failure cleanup so Decision C can surface
+// cleanup failures next to the original Start error. Normal Stop keeps
+// stopLifecycle (first error only).
+func (app *Application) stopLifecycleAll(ctx context.Context, started []contracts.LifecycleProvider) error {
+	var errs []error
+	for i := len(started) - 1; i >= 0; i-- {
+		if err := started[i].Stop(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // ServeHTTP implements net/stdhttp.Handler.
@@ -552,7 +628,7 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 // Run starts the HTTP server with graceful shutdown on SIGINT/SIGTERM.
 func (app *Application) Run(addr string) error {
 	if err := app.Start(); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 	}
 	if addr == "" {
 		port := strings.TrimSpace(env.Get("APP_PORT", "8080"))
@@ -591,19 +667,22 @@ func (app *Application) Run(addr string) error {
 		defer cancel()
 		stopErr := app.Stop(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 		}
-		return stopErr
+		if stopErr != nil {
+			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, stopErr)
+		}
+		return nil
 	case sig := <-sigCh:
 		app.logger.Infof("shutting down gracefully (%v)...", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
 			_ = app.Stop(ctx)
-			return err
+			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
 		}
 		if err := app.Stop(ctx); err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
 		}
 		app.logger.Infof("server stopped")
 		return nil

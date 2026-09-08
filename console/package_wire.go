@@ -19,8 +19,12 @@ func addonImportPath(name string) string {
 	return "github.com/zatrano/packages/" + name
 }
 
-func wireEnabledAddon(app *kernel.Application, name string) error {
-	return wireEnabledAddons(app, []string{name})
+func wireEnablement(app *kernel.Application, name string) error {
+	names, err := enableRequiresNames(name)
+	if err != nil {
+		return err
+	}
+	return wireEnabledAddons(app, names)
 }
 
 func wireEnabledAddons(app *kernel.Application, names []string) error {
@@ -139,6 +143,9 @@ func ensurePackagesModule(root string) error {
 	if err != nil || mod == "github.com/zatrano/framework/v2" {
 		return nil
 	}
+	if packagesModuleRequired(root) {
+		return nil
+	}
 	cmd := exec.Command("go", "get", "github.com/zatrano/packages@main")
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
@@ -146,4 +153,63 @@ func ensurePackagesModule(root string) error {
 		return fmt.Errorf("go get github.com/zatrano/packages@main failed: %w\n%s\nNext: go get github.com/zatrano/packages@main", err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+func packagesModuleRequired(root string) bool {
+	body, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return false
+	}
+	return goModRequiresPath(string(body), "github.com/zatrano/packages")
+}
+
+// goModRequiresPath reports whether module appears as a require path.
+// It does not select versions. replace-only lines are ignored so first-time
+// wiring can still introduce the module.
+func goModRequiresPath(src, module string) bool {
+	block := ""
+	for _, raw := range strings.Split(src, "\n") {
+		line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		if block != "" {
+			if line == ")" {
+				block = ""
+				continue
+			}
+			if block == "require" && requirePathToken(line) == module {
+				return true
+			}
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "require"):
+			rest := strings.TrimSpace(strings.TrimPrefix(line, "require"))
+			if rest == "(" || strings.HasPrefix(rest, "(") {
+				block = "require"
+				continue
+			}
+			if requirePathToken(rest) == module {
+				return true
+			}
+		case strings.HasPrefix(line, "replace"), strings.HasPrefix(line, "exclude"), strings.HasPrefix(line, "retract"):
+			rest := strings.TrimSpace(line[strings.Index(line, " ")+1:])
+			if rest == "(" || strings.HasPrefix(rest, "(") {
+				block = "skip"
+			}
+		}
+	}
+	return false
+}
+
+func requirePathToken(line string) string {
+	if i := strings.Index(line, "//"); i >= 0 {
+		line = strings.TrimSpace(line[:i])
+	}
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
 }

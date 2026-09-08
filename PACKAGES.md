@@ -32,11 +32,11 @@ go run ./cmd/zatrano package:acquire session --enable
 
 `package:search` discovers identity and does not pick a version. `package:info` prints identity and known releases without selecting one. `package:resolve` calls `registry.Resolve` (compatible tag, else source `main`). None of these write `go.mod`. The CLI must not grow a second copy of the resolution algorithm.
 
-`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. `package:acquire` orchestrates existing acquire APIs. `package:acquire --enable` is the explicit Contract C request to enable after successful acquisition; default acquire does not enable. Do not fold acquisition into `package:install`.
+`package:enable` activates a service in the app and writes its transitive `Requires` closure (Optional is not enabled). Today's `package:install` is enablement (enable + config stubs), not module download. `package:disable` removes enablement and that package’s blank-import; it is not Stop and does not drop Go modules. Disable is refused when a remaining enabled addon still requires the target. Already-disabled is a no-op. `package:acquire` orchestrates existing acquire APIs. `package:acquire --enable` is the explicit Contract C request to enable after successful acquisition; default acquire does not enable. The three commands share enablement intent but are not identical: `package:enable` writes the manifest and treats a wire failure as a Note; `package:install` also publishes config stubs; `package:acquire --enable` runs enablement only after successful acquisition and reports wire failure as enablement failure without rolling acquisition back. Do not fold acquisition into `package:install`.
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Phase 9 SPEC is accepted ([`distribution/acquire/PHASE9.md`](distribution/acquire/PHASE9.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is OPEN (`package:acquire --enable` after successful acquisition). Default acquire does not enable. `package:install` ≠ module acquisition (enablement).
+Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Phase 9 is **COMPLETE / FROZEN** ([`distribution/acquire/PHASE9.md`](distribution/acquire/PHASE9.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Phase 10 is **COMPLETE** ([`distribution/acquire/PHASE10.md`](distribution/acquire/PHASE10.md)). Phase 11 is **COMPLETE** ([`distribution/runtime/PHASE11.md`](distribution/runtime/PHASE11.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Phase 12 is **IMPLEMENTED / AUDITED / RELEASE READY / UNRELEASED**: enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin to `@main`. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement).
 
 ---
 
@@ -548,7 +548,10 @@ Enable, then resolve with `From(app)` (nil if not enabled).
 
 ```bash
 go run ./cmd/zatrano package:enable NAME
+go run ./cmd/zatrano package:disable NAME
 ```
+
+Enablement is not acquisition. Disable is not runtime Stop. Unused `github.com/zatrano/packages` requirements stay in go.mod until the developer removes them with Go tooling.
 
 ### `social` (docs: Socialite)
 

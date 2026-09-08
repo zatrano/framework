@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -39,5 +40,19 @@ func TestZatranoBinaryHasNoPackageModule(t *testing.T) {
 	}
 	if strings.Contains(string(out), "github.com/zatrano/packages") {
 		t.Fatalf("cmd/zatrano must not depend on github.com/zatrano/packages\n%s", out)
+	}
+}
+
+func TestZatranoMainClassifiesCLIErrors(t *testing.T) {
+	body, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(body)
+	if !strings.Contains(src, "console.CodeFromError(") {
+		t.Fatal("cmd/zatrano must map CLI errors including runtime 20–23")
+	}
+	if strings.Contains(src, "ExitAcquisition") {
+		t.Fatal("cmd/zatrano must not special-case acquisition codes")
 	}
 }
