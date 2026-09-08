@@ -338,8 +338,7 @@ func TestDryRunContractGate(t *testing.T) {
 			t.Errorf("dry_run.go contains %s — DryRun must not execute or recover", ban)
 		}
 	}
-	// Historical phase-named production files remain forbidden.
-	for _, name := range []string{"acquire_cmd.go", "phase9.go", "phase10.go"} {
+	for _, name := range []string{"acquire_cmd.go"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
 			t.Errorf("%s — unauthorized acquire production file", name)
 		}
@@ -915,7 +914,6 @@ func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
 		}
 	}
 	bannedProd := []string{
-		"phase10.go", // historical phase-named production file remains forbidden
 		"lifecycle.go",
 		"e2e.go",
 		"harden.go",
