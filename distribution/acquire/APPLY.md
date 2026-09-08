@@ -133,7 +133,7 @@ Existing `package:install` stays enablement for the whole of Phase 8. It MUST NO
 
 ## 21. Dry run
 
-Dry-run is **not a Phase 8 remaining gate**. A later phase MAY add a non-mutating dry-run that consumes the **same** frozen Phase 7 plan. Dry-run MUST NOT introduce a second resolver. It MUST NOT be folded into this phase.
+Dry-run is **not a Phase 8 remaining gate**. A later phase MAY add a non-mutating dry-run that consumes the **same** frozen Phase 7 plan. Dry-run MUST NOT introduce a second resolver. It MUST NOT be folded into this phase. Phase 9 bounding draft: [`PHASE9.md`](PHASE9.md). Implementation remains not authorized.
 
 ## 22. Idempotency
 
@@ -193,4 +193,4 @@ Integration tests MUST run against a real application module root and consume fr
 
 Phase 8 is **complete and frozen**. Apply consumes frozen Phase 7 output; no second resolver; concrete args reach Go tooling; `latest` cannot reach Apply; conflicting pins cannot merge silently; mutation is scoped to the intended app module; go.mod/go.sum changes are from Go tooling; tidy is not treated as pinning; concurrent mutation of one module is serialized; partial apply is observable; rollback is documented as guaranteed **or** unavailable; enablement stays independent; `package:install` unchanged; no `zatrano.lock`; Phase 7 stays pure and filesystem-free.
 
-Further work (dry-run, a new CLI command, connecting acquisition and enablement) is a **later phase**, not a Phase 8 remaining gate.
+Further work (dry-run, a new CLI command, connecting acquisition and enablement) is a **later phase**, not a Phase 8 remaining gate. Bounding draft: [`PHASE9.md`](PHASE9.md). SPEC acceptance is required before any Phase 9 code.

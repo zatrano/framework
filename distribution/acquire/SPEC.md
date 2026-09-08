@@ -96,7 +96,7 @@ Revisit a sidecar file only if a proven gap appears that go.mod/go.sum/enabled.g
 
 ## Phase 8 freeze
 
-Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. Dry-run and a new CLI command are a later phase, not remaining Phase 8 gates. Do not recode them here.
+Phase 8 contract: [`APPLY.md`](APPLY.md). Implementation steps 1–8 are complete and frozen. Dry-run and a new CLI command are a later phase, not remaining Phase 8 gates. Do not recode them here. Phase 9 bounding draft: [`PHASE9.md`](PHASE9.md) — Draft, implementation closed.
 
 ## Invariants (frozen)
 
@@ -128,9 +128,10 @@ Architecture tests reject a second resolution implementation, enablement fields 
 | 6 Registry CLI consumer | Frozen |
 | 7 Acquisition Plan | **Frozen** |
 | 8 Module Acquisition Apply | **Frozen** (`Invoke` / `Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`) |
+| 9 Dry-run / CLI acquisition / Acquisition ↔ enablement | Draft — implementation closed; [`PHASE9.md`](PHASE9.md) |
 
 Today's `package:install` remains enablement. It is not module acquisition. Phase 8 must not overwrite that meaning.
 
 ## Out of Phase 8 (later phase)
 
-A new CLI command and dry-run remain not authorized. They are not remaining Phase 8 gates. Private GOPROXY, offline, GOPROXY as a ZATRANO HTTP registry, and connecting acquisition with enablement stay deferred. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile.
+Phase 9 bounding draft: [`PHASE9.md`](PHASE9.md). Three independent contracts (dry-run, CLI acquisition, acquisition ↔ enablement). Implementation remains not authorized until SPEC acceptance. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.

@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.22" {
-		t.Fatalf("VERSION=%q want 2.0.22", version)
+	if version != "2.0.23" {
+		t.Fatalf("VERSION=%q want 2.0.23", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -282,6 +282,36 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPhase9SpecExistsWithoutImplementation(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"# Phase 9 — Sınırlandırıcı SPEC Taslağı",
+		"Draft — Implementation kapalı",
+		"Contract A — Dry-run",
+		"Contract B — CLI Acquisition",
+		"Contract C — Acquisition ↔ Enablement",
+		"Acquisition ≠ Enablement",
+		"func Apply",
+		"package:install",
+		"kod yoktur",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("PHASE9.md missing %q — Phase 9 stays a bounding draft", want)
+		}
+	}
+	banned := []string{"dry_run.go", "dryrun.go", "phase9.go", "acquire_cmd.go"}
+	for _, name := range banned {
+		if _, err := os.Stat(filepath.Join(root, "distribution", "acquire", name)); err == nil {
+			t.Errorf("%s — Phase 9 implementation is closed until SPEC acceptance", name)
+		}
 	}
 }
 

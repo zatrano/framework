@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.23 - 2026-09-08
+
+Record Phase 9 bounding SPEC draft ([`PHASE9.md`](distribution/acquire/PHASE9.md)): dry-run, CLI acquisition, and acquisition ↔ enablement as three independent contracts. Implementation is not authorized. Phase 8 Apply stays frozen. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.22 - 2026-09-07
 
 Freeze Phase 8 Apply: steps 1–8 complete. Surface stays FromResult → Targets → GoGetArg → Execute / ExecuteTargets → Inspect → ApplyResult → SnapshotFiles / RecoverFiles. No `func Apply`, dry-run, CLI, tidy, `zatrano.lock`, or `package:install` change. Install with `go get github.com/zatrano/framework/v2@latest`.
