@@ -38,6 +38,10 @@ func TestPackageAcquireUnknownIsResolutionFailure(t *testing.T) {
 	if CodeFromError(err) != ExitResolution {
 		t.Fatalf("exit=%d want %d (%v)", CodeFromError(err), ExitResolution, err)
 	}
+	msg := err.Error()
+	if !strings.Contains(msg, "package:acquire") || !strings.Contains(msg, "does-not-exist") || !strings.Contains(msg, "Next:") {
+		t.Fatalf("acquire error must name the command, package, and next step: %v", err)
+	}
 }
 
 func TestPackageAcquireIncompatibleIsResolutionFailure(t *testing.T) {
@@ -54,6 +58,9 @@ func TestPackageAcquireIncompatibleIsResolutionFailure(t *testing.T) {
 	}
 	if CodeFromError(err) != ExitResolution {
 		t.Fatalf("exit=%d want %d (%v)", CodeFromError(err), ExitResolution, err)
+	}
+	if !strings.Contains(err.Error(), "package:acquire") || !strings.Contains(err.Error(), "session") || !strings.Contains(err.Error(), "Next:") {
+		t.Fatalf("incompatible acquire must name action and next step: %v", err)
 	}
 }
 

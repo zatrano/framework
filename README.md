@@ -346,7 +346,7 @@ go run ./cmd/app package:enable auth
 go run ./cmd/app package:doctor
 ```
 
-Catalog: **[PACKAGES.md](PACKAGES.md)**. The package ecosystem is maintained separately from the kernel.
+`package:doctor` reports framework version, per-imported package state (`imported` / `enabled` / compatibility), and the transitive `Requires` closure. These are distinct states — there is no collapsed `"installed"` flag. Catalog: **[PACKAGES.md](PACKAGES.md)**. The package ecosystem is maintained separately from the kernel.
 
 ## HTTP
 

@@ -203,6 +203,52 @@ func goModRequiresPath(src, module string) bool {
 	return false
 }
 
+// goModRequireVersion returns the version token of a require path, or "".
+// It inspects go.mod text only; it does not select or compare versions.
+func goModRequireVersion(src, module string) string {
+	block := ""
+	for _, raw := range strings.Split(src, "\n") {
+		line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		if block != "" {
+			if line == ")" {
+				block = ""
+				continue
+			}
+			if block == "require" {
+				if v := requireVersionToken(line, module); v != "" {
+					return v
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "require") {
+			rest := strings.TrimSpace(strings.TrimPrefix(line, "require"))
+			if rest == "(" || strings.HasPrefix(rest, "(") {
+				block = "require"
+				continue
+			}
+			if v := requireVersionToken(rest, module); v != "" {
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+func requireVersionToken(line, module string) string {
+	if i := strings.Index(line, "//"); i >= 0 {
+		line = strings.TrimSpace(line[:i])
+	}
+	fields := strings.Fields(line)
+	if len(fields) >= 2 && fields[0] == module {
+		return fields[1]
+	}
+	return ""
+}
+
 func requirePathToken(line string) string {
 	if i := strings.Index(line, "//"); i >= 0 {
 		line = strings.TrimSpace(line[:i])

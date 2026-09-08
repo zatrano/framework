@@ -88,23 +88,23 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return cliErr(ExitResolution, err)
+		return cliFailed(ExitResolution, "package:acquire", name, err, "the registry index could not be loaded from the CLI catalog")
 	}
 	got, err := idx.Resolve(q)
 	if err != nil {
-		return cliErr(ExitResolution, err)
+		return cliFailed(ExitResolution, "package:acquire", name, err, "run package:info "+name+" or package:resolve "+name)
 	}
 	plan, err := acquire.FromResult(got)
 	if err != nil {
-		return cliErr(ExitPlanning, err)
+		return cliFailed(ExitPlanning, "package:acquire", name, err, "the selected release could not be turned into a go get argument")
 	}
 	getArgs, err := acquire.Targets([]acquire.Plan{plan})
 	if err != nil {
-		return cliErr(ExitPlanning, err)
+		return cliFailed(ExitPlanning, "package:acquire", name, err, "the acquisition plan has no go get targets")
 	}
 	root, err := c.resolveRoot(args)
 	if err != nil {
-		return cliErr(ExitUsage, err)
+		return cliFailed(ExitUsage, "package:acquire", name, err, "pass --root to a module directory that contains go.mod")
 	}
 	view := acquireCLIView{
 		Root:        root,
@@ -116,7 +116,7 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if hasFlag(args, "--dry-run") {
 		reps, err := c.runDryRun(root, getArgs)
 		if err != nil {
-			return cliErr(ExitPlanning, err)
+			return cliFailed(ExitPlanning, "package:acquire", name, err, "dry-run could not inspect the planned go get; check --root and go.mod")
 		}
 		view.Mode = "dry-run"
 		view.DryRun = make([]dryRunCLIView, 0, len(reps))
@@ -179,7 +179,7 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 			if werr := c.writeView(format, view); werr != nil {
 				return werr
 			}
-			return cliErr(ExitEnablement, err)
+			return cliFailed(ExitEnablement, "package:acquire --enable", name, err, "acquisition succeeded; enablement is separate — fix Requires/import then package:enable "+name+" (acquisition is not rolled back)")
 		}
 		view.Enablement = enablementSuccess
 		view.Enabled = true
@@ -191,10 +191,11 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if execErr == nil {
 		return nil
 	}
-	if cerr := classifyContextError(execErr); cerr != nil {
-		return cerr
+	wrapped := fmt.Errorf("package:acquire %q failed: %w", name, execErr)
+	if cerr := classifyContextError(wrapped); cerr != nil {
+		return cliFailed(ExitCanceled, "package:acquire", name, execErr, "the command was canceled or timed out; retry, or raise --timeout")
 	}
-	return cliErr(ExitAcquisition, execErr)
+	return cliFailed(ExitAcquisition, "package:acquire", name, execErr, "inspect go.mod / go.sum, retry, or run package:acquire --dry-run")
 }
 
 var errSkipRecover = fmt.Errorf("acquire-cli: skip recover")
@@ -259,7 +260,7 @@ func (c *PackageAcquireCommand) commandContext(args []string) (context.Context, 
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d <= 0 {
-		return nil, nil, cliErr(ExitUsage, fmt.Errorf("usage: package:acquire --timeout must be a positive duration"))
+		return nil, nil, cliFailed(ExitUsage, "package:acquire", "", fmt.Errorf("invalid --timeout %q", raw), "pass a positive duration such as 30s or 2m")
 	}
 	ctx, cancel := context.WithTimeout(parent, d)
 	return ctx, cancel, nil

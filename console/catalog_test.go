@@ -96,4 +96,9 @@ func TestEcosystemCatalogAddonKinds(t *testing.T) {
 	if len(libs) < 10 {
 		t.Fatalf("expected library catalog, got %d", len(libs))
 	}
+	for i := 1; i < len(libs); i++ {
+		if libs[i-1].Name > libs[i].Name {
+			t.Fatalf("catalogLibraries must be sorted by name: %q then %q", libs[i-1].Name, libs[i].Name)
+		}
+	}
 }

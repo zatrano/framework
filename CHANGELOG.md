@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+Phase 14 consumer/developer-experience hardening: fresh-consumer lifecycle coverage (`zatrano new` → build → search → acquire → enable → doctor → boot), actionable package CLI errors (acquisition exit codes 0–7 unchanged; JSON contract unchanged), `package:doctor` framework/import/Requires-closure diagnostics, deterministic search/library list ordering, provider+phase identification on Register/Boot/Start failures, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
+
 ## 2.0.28 - 2026-09-08
 
 Phase 10 production hardening: real CLI acquisition E2E, classified CLI exit codes, JSON inspection/recovery/target reporting, observable recovery failures, `--timeout` context propagation, enablement consistency checks, official/heavy/`framework_min`/tagged ecosystem validation, and CI acquisition E2E. Phase 8 and Phase 9 stay frozen. No `func Apply`. `package:install` stays enablement.

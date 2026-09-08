@@ -152,8 +152,16 @@ func TestPackageInfoJSONContract(t *testing.T) {
 
 func TestPackageInfoUnknownPackage(t *testing.T) {
 	cmd := &PackageInfoCommand{out: ioDiscard()}
-	if err := cmd.Handle([]string{"does-not-exist"}); err == nil {
+	err := cmd.Handle([]string{"does-not-exist"})
+	if err == nil {
 		t.Fatal("expected unknown package")
+	}
+	if CodeFromError(err) != ExitResolution {
+		t.Fatalf("exit=%d want %d (%v)", CodeFromError(err), ExitResolution, err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "package:info") || !strings.Contains(msg, "does-not-exist") || !strings.Contains(msg, "Next:") {
+		t.Fatalf("info error must name the command, package, and next step: %v", err)
 	}
 }
 
@@ -221,8 +229,16 @@ func TestPackageResolveNameAtVersion(t *testing.T) {
 
 func TestPackageResolveUnknownPackage(t *testing.T) {
 	cmd := &PackageResolveCommand{out: ioDiscard()}
-	if err := cmd.Handle([]string{"does-not-exist"}); err == nil {
+	err := cmd.Handle([]string{"does-not-exist"})
+	if err == nil {
 		t.Fatal("expected unknown package")
+	}
+	if CodeFromError(err) != ExitResolution {
+		t.Fatalf("exit=%d want %d (%v)", CodeFromError(err), ExitResolution, err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "package:resolve") || !strings.Contains(msg, "does-not-exist") || !strings.Contains(msg, "Next:") {
+		t.Fatalf("resolve error must name the command, package, and next step: %v", err)
 	}
 }
 
@@ -357,6 +373,26 @@ func TestPackageResolveEmptySelectorIsLatest(t *testing.T) {
 	}
 	if got.Selected != "1.4.0" {
 		t.Fatalf("empty selector must be latest via registry: %q", got.Selected)
+	}
+}
+
+func TestPackageSearchHitsAreSortedByName(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := &PackageSearchCommand{out: &buf}
+	if err := cmd.Handle([]string{"--kind=library", "--format=json"}); err != nil {
+		t.Fatal(err)
+	}
+	var hits []searchHit
+	if err := json.Unmarshal(buf.Bytes(), &hits); err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) < 2 {
+		t.Fatalf("need at least two library hits, got %d", len(hits))
+	}
+	for i := 1; i < len(hits); i++ {
+		if hits[i-1].Name > hits[i].Name {
+			t.Fatalf("search hits must be sorted by name: %q then %q", hits[i-1].Name, hits[i].Name)
+		}
 	}
 }
 

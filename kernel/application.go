@@ -329,7 +329,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 			return err
 		}
 		if err := provider.Register(app); err != nil {
-			return err
+			return providerPhaseError("register", provider, err)
 		}
 	}
 
@@ -376,7 +376,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 			return err
 		}
 		if err := provider.Boot(app); err != nil {
-			return err
+			return providerPhaseError("boot", provider, err)
 		}
 	}
 
@@ -446,7 +446,7 @@ func (app *Application) StartContext(ctx context.Context) error {
 			return app.failStart(ctx, started, err)
 		}
 		if err := lp.Start(app); err != nil {
-			return app.failStart(ctx, started, err)
+			return app.failStart(ctx, started, providerPhaseError("start", lp, err))
 		}
 		started = append(started, lp)
 	}
@@ -456,6 +456,31 @@ func (app *Application) StartContext(ctx context.Context) error {
 	}
 	app.lifeMu.Unlock()
 	return nil
+}
+
+// providerPhaseError identifies the provider, lifecycle phase, and cause.
+// It wraps err so callers can still use errors.Is / errors.As.
+func providerPhaseError(phase string, p contracts.Provider, err error) error {
+	if err == nil {
+		return nil
+	}
+	kind := "boot failed"
+	if phase == "start" {
+		kind = "start failed"
+	}
+	return fmt.Errorf("%s: provider %s phase %s: %w", kind, providerIdentity(p), phase, err)
+}
+
+func providerIdentity(p contracts.Provider) string {
+	if p == nil {
+		return "<nil>"
+	}
+	if n, ok := p.(interface{ Name() string }); ok {
+		if s := strings.TrimSpace(n.Name()); s != "" {
+			return s
+		}
+	}
+	return fmt.Sprintf("%T", p)
 }
 
 // failStart performs Start-failure cleanup: only providers that returned nil

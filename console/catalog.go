@@ -1,6 +1,10 @@
 package console
 
-import "github.com/zatrano/framework/v2/kernel"
+import (
+	"sort"
+
+	"github.com/zatrano/framework/v2/kernel"
+)
 
 // ecosystemCatalog is the CLI aggregation of packages-module names.
 // The kernel catalog stays primitive-only; this list is how package:list,
@@ -139,5 +143,6 @@ func catalogLibraries() []kernel.PackageInfo {
 			out = append(out, p)
 		}
 	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }

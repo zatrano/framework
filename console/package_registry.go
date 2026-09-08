@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -81,9 +82,10 @@ func (c *PackageSearchCommand) Handle(args []string) error {
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return err
+		return cliFailed(ExitResolution, "package:search", "", err, "the registry index could not be loaded from the CLI catalog")
 	}
 	hits := idx.Search(filter)
+	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Name < hits[j].Name })
 	if format == "json" {
 		views := make([]searchHit, 0, len(hits))
 		for _, p := range hits {
@@ -147,7 +149,7 @@ func (c *PackageInfoCommand) Handle(args []string) error {
 	}
 	p, ok := idx.Lookup(name)
 	if !ok {
-		return cliErr(ExitResolution, fmt.Errorf("unknown package %q", name))
+		return cliFailed(ExitResolution, "package:info", name, fmt.Errorf("unknown package (not in the registry index)"), "run package:search or package:list")
 	}
 	if format == "json" {
 		return writeJSON(c.writer(), p)
@@ -229,11 +231,11 @@ func (c *PackageResolveCommand) Handle(args []string) error {
 	}
 	idx, err := c.loadIndex()
 	if err != nil {
-		return cliErr(ExitResolution, err)
+		return cliFailed(ExitResolution, "package:resolve", name, err, "the registry index could not be loaded from the CLI catalog")
 	}
 	got, err := idx.Resolve(q)
 	if err != nil {
-		return cliErr(ExitResolution, err)
+		return cliFailed(ExitResolution, "package:resolve", name, err, "run package:info "+name+", check --framework against VERSION, or omit --framework to use the running kernel")
 	}
 	view := resolveView{
 		Name:     got.Package.Name,

@@ -254,6 +254,10 @@ func TestDisableBlockedUsesEnablementExitCode(t *testing.T) {
 	if CodeFromError(err) != ExitEnablement {
 		t.Fatalf("disable reverse-Requires must use ExitEnablement=6, got %d (%v)", CodeFromError(err), err)
 	}
+	msg := err.Error()
+	if !strings.Contains(msg, "package:disable") || !strings.Contains(msg, "session") || !strings.Contains(msg, "Next:") {
+		t.Fatalf("disable blocker must name action, package, and next step: %v", err)
+	}
 }
 
 func TestPinIntegrityPreservesExistingRequire(t *testing.T) {
@@ -336,6 +340,19 @@ func TestEnableThenWireDoesNotClobberPin(t *testing.T) {
 	}
 }
 
+func TestGoModRequireVersionInspectsOnly(t *testing.T) {
+	src := "module example.com/app\n\nrequire (\n\tgithub.com/zatrano/framework/v2 v2.0.28\n\tgithub.com/zatrano/packages v2.1.0\n)\n"
+	if got := goModRequireVersion(src, "github.com/zatrano/framework/v2"); got != "v2.0.28" {
+		t.Fatalf("framework pin=%q", got)
+	}
+	if got := goModRequireVersion(src, "github.com/zatrano/packages"); got != "v2.1.0" {
+		t.Fatalf("packages pin=%q", got)
+	}
+	if got := goModRequireVersion(src, "github.com/example/missing"); got != "" {
+		t.Fatalf("missing module must be empty, got %q", got)
+	}
+}
+
 func TestPackageDoctorEnabledRequires(t *testing.T) {
 	addons.ClearRegistry()
 	t.Cleanup(addons.ClearRegistry)
@@ -354,5 +371,115 @@ func TestPackageDoctorEnabledRequires(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected enabled.requires ERROR, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorTransitiveRequires(t *testing.T) {
+	registerPhase12Graph(t)
+	app := kernel.NewApplication(t.TempDir())
+	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), []string{"auth"}); err != nil {
+		t.Fatal(err)
+	}
+	findings := runPackageDoctor(app)
+	var session, hashing, redisx bool
+	for _, f := range findings {
+		if f.Code != "enabled.requires" || f.Level != "ERROR" {
+			continue
+		}
+		if strings.Contains(f.Message, "session") {
+			session = true
+		}
+		if strings.Contains(f.Message, "hashing") && strings.Contains(f.Message, "transitively") {
+			hashing = true
+		}
+		if strings.Contains(f.Message, "redisx") {
+			redisx = true
+		}
+	}
+	if !session || !hashing {
+		t.Fatalf("doctor must close A→B→C Requires, session=%v hashing=%v findings=%#v", session, hashing, findings)
+	}
+	if redisx {
+		t.Fatal("Optional redisx must not be a mandatory enabled.requires failure")
+	}
+}
+
+func TestPackageDoctorImportedDisabled(t *testing.T) {
+	registerPhase12Graph(t)
+	app := kernel.NewApplication(t.TempDir())
+	if err := writeEnabledAddons(app.BasePath("bootstrap", "enabled.go"), []string{"hashing"}); err != nil {
+		t.Fatal(err)
+	}
+	findings := runPackageDoctor(app)
+	found := false
+	for _, f := range findings {
+		if f.Code == "imported.disabled" && f.Level == "WARN" && strings.Contains(f.Message, "session") {
+			found = true
+		}
+		if f.Code == "enabled.requires" && strings.Contains(f.Message, "redisx") {
+			t.Fatalf("Optional must not be treated as required: %#v", f)
+		}
+	}
+	if !found {
+		t.Fatalf("expected imported.disabled WARN for session, got %#v", findings)
+	}
+	hasImported := false
+	for _, f := range findings {
+		if f.Code == "package.imported" && strings.Contains(f.Message, "package=session") && strings.Contains(f.Message, "enabled=false") {
+			hasImported = true
+		}
+	}
+	if !hasImported {
+		t.Fatalf("expected package.imported row for session, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorFrameworkVersion(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	findings := runPackageDoctor(app)
+	found := false
+	for _, f := range findings {
+		if f.Code == "framework.version" {
+			found = true
+			if f.Level != "WARN" && f.Level != "OK" {
+				t.Fatalf("framework.version level=%s", f.Level)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected framework.version, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorRequiredBy(t *testing.T) {
+	registerPhase12Graph(t)
+	app := kernel.NewApplication(t.TempDir())
+	if _, err := enablePackage(app, "auth"); err != nil {
+		t.Fatal(err)
+	}
+	findings := runPackageDoctor(app)
+	found := false
+	for _, f := range findings {
+		if f.Code == "enabled.required_by" && strings.Contains(f.Message, "session") && strings.Contains(f.Message, "auth") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected enabled.required_by for session←auth, got %#v", findings)
+	}
+}
+
+func TestEnableUnknownReportsNextStep(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	err := (&PackageEnableCommand{app: app}).Handle([]string{"does-not-exist"})
+	if err == nil {
+		t.Fatal("expected enable failure")
+	}
+	if CodeFromError(err) != ExitEnablement {
+		t.Fatalf("exit=%d want %d (%v)", CodeFromError(err), ExitEnablement, err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "package:enable") || !strings.Contains(msg, "does-not-exist") || !strings.Contains(msg, "Next:") {
+		t.Fatalf("enable error must name action, package, and next step: %v", err)
 	}
 }

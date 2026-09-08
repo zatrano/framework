@@ -43,7 +43,7 @@ func TestEnablementCommandsShareIntentionalDifferences(t *testing.T) {
 	if strings.Contains(acquireText, `fmt.Printf("Note:`) {
 		t.Fatal("package:acquire --enable must not swallow wire failure as a Note")
 	}
-	if !strings.Contains(acquireText, "cliErr(ExitEnablement, err)") {
+	if !strings.Contains(acquireText, "cliFailed(ExitEnablement") && !strings.Contains(acquireText, "cliErr(ExitEnablement, err)") {
 		t.Fatal("package:acquire --enable must classify wire/enablement failure distinctly from acquisition success")
 	}
 }

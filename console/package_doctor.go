@@ -49,7 +49,7 @@ func (c *PackageDoctorCommand) Handle(args []string) error {
 	}
 	fmt.Printf("\nSummary: %d error(s), %d warning(s), %d check(s)\n", errors, warns, len(findings))
 	if errors > 0 {
-		return fmt.Errorf("package:doctor found %d error(s)", errors)
+		return fmt.Errorf("package:doctor found %d error(s)\nNext: fix ERROR findings above (enabled.requires, enabled.library, compatibility.framework, catalog.unknown), then rerun package:doctor", errors)
 	}
 	return nil
 }
@@ -132,6 +132,41 @@ func (c *PackageInitCommand) Handle(args []string) error {
 func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	var out []doctorFinding
 
+	running := ""
+	if app != nil {
+		running = strings.TrimSpace(app.Version())
+	}
+	modBody := ""
+	if app != nil {
+		if raw, err := os.ReadFile(filepath.Join(app.BasePath(), "go.mod")); err == nil {
+			modBody = string(raw)
+		}
+	}
+	frameworkPin := goModRequireVersion(modBody, "github.com/zatrano/framework/v2")
+	packagesPin := goModRequireVersion(modBody, "github.com/zatrano/packages")
+	switch {
+	case running == "":
+		msg := "VERSION file missing in the app; running framework version is empty"
+		if frameworkPin != "" {
+			msg += fmt.Sprintf(" (go.mod requires github.com/zatrano/framework/v2 %s — not used as a second resolver)", frameworkPin)
+		}
+		out = append(out, doctorFinding{
+			Level:   "WARN",
+			Code:    "framework.version",
+			Message: msg + "; copy VERSION or run from a tree that has it",
+		})
+	default:
+		msg := fmt.Sprintf("running framework version %s (VERSION)", running)
+		if frameworkPin != "" && frameworkPin != running && frameworkPin != "v"+running {
+			msg += fmt.Sprintf("; go.mod require is %s", frameworkPin)
+		}
+		out = append(out, doctorFinding{
+			Level:   "OK",
+			Code:    "framework.version",
+			Message: msg,
+		})
+	}
+
 	enabled, hasManifest := consumerManifest(app)
 	if !hasManifest {
 		out = append(out, doctorFinding{
@@ -206,16 +241,41 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 				Message: fmt.Sprintf("%q is heavy (separate module / large deps)", name),
 			})
 		}
-		for _, req := range meta.Requires {
-			req = strings.ToLower(strings.TrimSpace(req))
-			if req == "" || enabledSet[req] {
-				continue
-			}
+		closure, cerr := addons.Expand([]string{name}, enablementLookup)
+		if cerr != nil {
 			out = append(out, doctorFinding{
 				Level:   "ERROR",
 				Code:    "enabled.requires",
-				Message: fmt.Sprintf("%q requires %q which is not enabled", name, req),
+				Message: fmt.Sprintf("%q Requires closure failed: %v — import the missing dependency then package:enable it", name, cerr),
 			})
+		} else {
+			direct := map[string]bool{}
+			for _, req := range meta.Requires {
+				req = strings.ToLower(strings.TrimSpace(req))
+				if req != "" {
+					direct[req] = true
+				}
+			}
+			missing := make([]string, 0)
+			for _, dep := range closure {
+				depName := strings.ToLower(strings.TrimSpace(dep.Name))
+				if depName == "" || depName == name || enabledSet[depName] {
+					continue
+				}
+				missing = append(missing, depName)
+			}
+			sort.Strings(missing)
+			for _, depName := range missing {
+				rel := "requires"
+				if !direct[depName] {
+					rel = "transitively requires"
+				}
+				out = append(out, doctorFinding{
+					Level:   "ERROR",
+					Code:    "enabled.requires",
+					Message: fmt.Sprintf("%q %s %q which is not enabled (enable the Requires closure before boot)", name, rel, depName),
+				})
+			}
 		}
 		files := stubs.ForPackage(name)
 		if len(files) == 0 {
@@ -255,12 +315,62 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		})
 	}
 
+	imported := addons.Available()
+	for _, m := range imported {
+		modPath := "github.com/zatrano/packages/" + m.Name
+		ver := packagesPin
+		if ver == "" {
+			ver = "-"
+		}
+		on := enabledSet[m.Name]
+		min := strings.TrimSpace(m.FrameworkMin)
+		if min == "" {
+			min = "-"
+		}
+		compat := addons.MeetsFrameworkMin(running, m.FrameworkMin)
+		bootable := on && compat
+		level := "OK"
+		if !compat {
+			level = "WARN"
+		}
+		out = append(out, doctorFinding{
+			Level: level,
+			Code:  "package.imported",
+			Message: fmt.Sprintf("package=%s module=%s version=%s enabled=%v framework_min=%s compatible=%v bootable=%v",
+				m.Name, modPath, ver, on, min, compat, bootable),
+		})
+		if hasManifest && !on {
+			out = append(out, doctorFinding{
+				Level:   "WARN",
+				Code:    "imported.disabled",
+				Message: fmt.Sprintf("%q is imported but not enabled (will not boot via Enabled ∩ Imported; not an \"installed\" collapse)", m.Name),
+			})
+		}
+	}
+	if hasManifest {
+		enabledNames := make([]string, 0, len(enabledSet))
+		for name := range enabledSet {
+			enabledNames = append(enabledNames, name)
+		}
+		sort.Strings(enabledNames)
+		for _, name := range enabledNames {
+			blockers := disableRequiresBlockers(name, enabledNames)
+			if len(blockers) == 0 {
+				continue
+			}
+			out = append(out, doctorFinding{
+				Level:   "OK",
+				Code:    "enabled.required_by",
+				Message: fmt.Sprintf("%q is required by %s (package:disable %q would be refused)", name, strings.Join(blockers, ", "), name),
+			})
+		}
+	}
+
 	// Registered addons must appear in the CLI catalog. KindLibrary is
 	// allowed: those packages register for CLI / init-only providers and
 	// package:enable still rejects them. Unknown names are errors.
 	badRegistry := 0
-	running := strings.TrimSpace(app.Version())
-	for _, m := range addons.Available() {
+	for _, m := range imported {
 		if !addons.MeetsFrameworkMin(running, m.FrameworkMin) {
 			badRegistry++
 			out = append(out, doctorFinding{
@@ -342,7 +452,10 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 		if rank[out[i].Level] != rank[out[j].Level] {
 			return rank[out[i].Level] < rank[out[j].Level]
 		}
-		return out[i].Code < out[j].Code
+		if out[i].Code != out[j].Code {
+			return out[i].Code < out[j].Code
+		}
+		return out[i].Message < out[j].Message
 	})
 	return out
 }

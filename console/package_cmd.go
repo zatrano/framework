@@ -105,13 +105,26 @@ func (c *PackageEnableCommand) Handle(args []string) error {
 	name := strings.ToLower(strings.TrimSpace(args[0]))
 	added, err := enablePackage(c.app, name)
 	if err != nil {
-		return cliErr(ExitEnablement, err)
+		return cliFailed(ExitEnablement, "package:enable", name, err, "import missing Requires (package:list / package:doctor), then retry; Optional dependencies are not auto-enabled")
 	}
 	names, _ := enableRequiresNames(name)
 	if !added {
 		fmt.Printf("Package %s is already enabled.\n", name)
 	} else {
-		fmt.Printf("Enabled package %s in bootstrap/enabled.go\n", name)
+		extras := make([]string, 0)
+		for _, n := range names {
+			if n != "" && n != name {
+				extras = append(extras, n)
+			}
+		}
+		if len(extras) > 0 {
+			fmt.Printf("Enabled package %s in bootstrap/enabled.go (also enabled Requires: %s)\n", name, strings.Join(extras, ", "))
+		} else {
+			fmt.Printf("Enabled package %s in bootstrap/enabled.go\n", name)
+		}
+		if _, imported := addons.Lookup(name); !imported {
+			fmt.Println("Note: this process has not imported the package yet; Requires facts may be incomplete until bootstrap/addons.go is compiled. Re-run package:enable after rebuild if package:doctor reports enabled.requires.")
+		}
 		if err := wireEnablement(c.app, name); err != nil {
 			fmt.Printf("Note: %v\n", err)
 		} else {
@@ -139,7 +152,7 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 	name := strings.ToLower(strings.TrimSpace(args[0]))
 	removed, err := disablePackage(c.app, name)
 	if err != nil {
-		return cliErr(ExitEnablement, err)
+		return cliFailed(ExitEnablement, "package:disable", name, err, "disable the requiring addons first (package:status / package:doctor), then retry; modules are not removed")
 	}
 	if !removed {
 		fmt.Printf("Package %s is already disabled.\n", name)
@@ -181,7 +194,7 @@ func (c *PackageInstallCommand) Handle(args []string) error {
 	force := hasFlag(args[1:], "--force", "-f")
 	added, err := enablePackage(c.app, name)
 	if err != nil {
-		return cliErr(ExitEnablement, err)
+		return cliFailed(ExitEnablement, "package:install", name, err, "import missing Requires (package:list / package:doctor), then retry; package:install is enablement, not module download")
 	}
 	if added {
 		fmt.Printf("Enabled package %s\n", name)
@@ -192,7 +205,7 @@ func (c *PackageInstallCommand) Handle(args []string) error {
 		fmt.Printf("Note: %v\n", err)
 	}
 	if err := publishPackage(c.app, name, force); err != nil {
-		return cliErr(ExitEnablement, err)
+		return cliFailed(ExitEnablement, "package:install", name, err, "enablement may already be written; fix stub publish (package:publish) or unknown package name")
 	}
 	names, _ := enableRequiresNames(name)
 	if len(names) == 0 {

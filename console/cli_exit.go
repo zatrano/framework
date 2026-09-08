@@ -3,6 +3,8 @@ package console
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/zatrano/framework/v2/kernel"
 )
@@ -74,6 +76,29 @@ func cliErr(code int, err error) error {
 		return ce
 	}
 	return &CLIError{Code: code, Err: err}
+}
+
+// cliFailed wraps a user-facing command error with action, target, and a next step.
+// It preserves the classified exit code and the underlying error via %w.
+func cliFailed(code int, action, target string, err error, next string) error {
+	if err == nil {
+		return nil
+	}
+	var wrapped error
+	action = strings.TrimSpace(action)
+	target = strings.TrimSpace(target)
+	switch {
+	case action != "" && target != "":
+		wrapped = fmt.Errorf("%s %q failed: %w", action, target, err)
+	case action != "":
+		wrapped = fmt.Errorf("%s failed: %w", action, err)
+	default:
+		wrapped = err
+	}
+	if n := strings.TrimSpace(next); n != "" {
+		wrapped = fmt.Errorf("%w\nNext: %s", wrapped, n)
+	}
+	return cliErr(code, wrapped)
 }
 
 func classifyContextError(err error) error {

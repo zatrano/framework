@@ -385,7 +385,7 @@ func TestPackageAcquireEnablementFailureDoesNotRollbackAcquisition(t *testing.T)
 		},
 	}
 	err := cmd.Handle([]string{"session", "--enable", "--format=json"})
-	if err == nil || err.Error() != "bootstrap write failed" {
+	if err == nil || CodeFromError(err) != ExitEnablement || !strings.Contains(err.Error(), "bootstrap write failed") {
 		t.Fatalf("enablement error: %v", err)
 	}
 	if recovered {
