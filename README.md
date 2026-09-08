@@ -81,7 +81,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`.
+This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. A production-shaped consumer that lives in-tree for validation is [`examples/reference`](examples/reference).
 
 ## Architecture
 

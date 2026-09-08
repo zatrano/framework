@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+Phase 16 production reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+
 Phase 15 production application ergonomics: `zatrano --help` / `--version` (reports 2.0.28), deterministic `list` order, invalid `APP_PORT` / `serve --port` fail with named type errors (secrets not echoed), provider/phase errors preserved through `serve`/`Run`, generated `--minimal` `/up` + lifecycle tests, cancellation/Stop safety tests, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
 
 Phase 14 consumer/developer-experience hardening: fresh-consumer lifecycle coverage (`zatrano new` → build → search → acquire → enable → doctor → boot), actionable package CLI errors (acquisition exit codes 0–7 unchanged; JSON contract unchanged), `package:doctor` framework/import/Requires-closure diagnostics, deterministic search/library list ordering, provider+phase identification on Register/Boot/Start failures, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
