@@ -22,6 +22,7 @@ func registerPackageRegistryCommands(console *Application, app *kernel.Applicati
 		&PackageSearchCommand{},
 		&PackageInfoCommand{},
 		&PackageResolveCommand{app: app},
+		&PackageAcquireCommand{app: app},
 	)
 }
 
@@ -342,13 +343,13 @@ func positionalArgs(args []string) []string {
 			continue
 		}
 		switch {
-		case a == "--help", a == "-h", a == "--heavy", a == "--json":
+		case a == "--help", a == "-h", a == "--heavy", a == "--json", a == "--dry-run", a == "--no-recover":
 			continue
 		case strings.HasPrefix(a, "--format="), strings.HasPrefix(a, "--kind="),
 			strings.HasPrefix(a, "--layer="), strings.HasPrefix(a, "--framework="),
-			strings.HasPrefix(a, "--version="):
+			strings.HasPrefix(a, "--version="), strings.HasPrefix(a, "--root="):
 			continue
-		case a == "--format", a == "--kind", a == "--layer", a == "--framework", a == "--version":
+		case a == "--format", a == "--kind", a == "--layer", a == "--framework", a == "--version", a == "--root":
 			if i+1 < len(args) {
 				skipNext = true
 			}

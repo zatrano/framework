@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.23" {
-		t.Fatalf("VERSION=%q want 2.0.23", version)
+	if version != "2.0.24" {
+		t.Fatalf("VERSION=%q want 2.0.24", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -265,7 +265,7 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 	}
 	allowed := map[string]bool{
 		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
-		"lock.go": true, "recovery.go": true, "plan.go": true, "doc.go": true,
+		"lock.go": true, "recovery.go": true, "plan.go": true, "doc.go": true, "dry_run.go": true,
 	}
 	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -285,7 +285,7 @@ func TestPhase8ApplySurfaceStaysFrozen(t *testing.T) {
 	}
 }
 
-func TestPhase9SpecExistsWithoutImplementation(t *testing.T) {
+func TestPhase9ContractADryRunGate(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "PHASE9.md"))
 	if err != nil {
@@ -293,27 +293,50 @@ func TestPhase9SpecExistsWithoutImplementation(t *testing.T) {
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"# Phase 9 — Sınırlandırıcı SPEC Taslağı",
-		"Draft — Implementation kapalı",
-		"NOT ACCEPTED",
+		"# Phase 9 — Bounding SPEC",
+		"ACCEPTED",
 		"Contract A — Dry-run",
-		"Contract B — CLI Acquisition",
-		"Contract C — Acquisition ↔ Enablement",
+		"Contract A complete",
+		"Contract B complete",
+		"Contract C closed",
 		"Acquisition ≠ Enablement",
 		"func Apply",
 		"package:install",
-		"kod yazılmayacaktır",
-		"implicit transaction yoktur",
-		"isim değiştirilmiş eşdeğeri",
+		"implicit transaction",
+		"renamed equivalent",
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("PHASE9.md missing %q — Phase 9 stays a bounding draft", want)
+			t.Errorf("PHASE9.md missing %q — Phase 9 Contract A stays bounded", want)
 		}
 	}
-	banned := []string{"dry_run.go", "dryrun.go", "phase9.go", "acquire_cmd.go"}
-	for _, name := range banned {
-		if _, err := os.Stat(filepath.Join(root, "distribution", "acquire", name)); err == nil {
-			t.Errorf("%s — Phase 9 implementation is closed until SPEC acceptance", name)
+	if strings.Contains(text, "NOT ACCEPTED") {
+		t.Error("PHASE9.md still says NOT ACCEPTED — SPEC was accepted")
+	}
+	dir := filepath.Join(root, "distribution", "acquire")
+	if _, err := os.Stat(filepath.Join(dir, "dry_run.go")); err != nil {
+		t.Fatal("missing dry_run.go — Contract A DryRun")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "dry_run_test.go")); err != nil {
+		t.Fatal("missing dry_run_test.go — Contract A tests")
+	}
+	src, err := os.ReadFile(filepath.Join(dir, "dry_run.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	for _, want := range []string{"func DryRun(", "func DryRunTargets("} {
+		if !strings.Contains(body, want) {
+			t.Errorf("dry_run.go missing %s", want)
+		}
+	}
+	for _, ban := range []string{"Invoke(", "Execute(", "ExecuteTargets(", "lockMutation(", "RecoverFiles(", "SnapshotFiles(", "os/exec"} {
+		if strings.Contains(body, ban) {
+			t.Errorf("dry_run.go contains %s — DryRun must not execute or recover", ban)
+		}
+	}
+	for _, name := range []string{"acquire_cmd.go", "phase9.go"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			t.Errorf("%s — Contract B/C remain closed", name)
 		}
 	}
 }
@@ -329,6 +352,7 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 	allowApplyImport := map[string]bool{"context": true, "fmt": true, "strings": true}
 	allowProcessImport := map[string]bool{"context": true}
 	allowRecoveryImport := map[string]bool{"context": true, "fmt": true, "os": true, "path/filepath": true, "strings": true}
+	allowDryRunImport := map[string]bool{"fmt": true, "strings": true}
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -410,6 +434,14 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 					t.Error("execute_test.go must not parse module files")
 				}
 			}
+			if base == "dry_run_test.go" {
+				if !strings.Contains(text, "DryRun(") {
+					t.Error("dry_run_test.go must exercise DryRun")
+				}
+				if strings.Contains(text, "Execute(") || strings.Contains(text, "Invoke(") || strings.Contains(text, "ExecRunner") || strings.Contains(text, "os/exec") {
+					t.Error("dry-run tests must not call the execution boundary")
+				}
+			}
 			return nil
 		}
 		if base == "apply.go" {
@@ -469,6 +501,17 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				t.Error("RecoverFiles must not run go get")
 			}
 		}
+		if base == "dry_run.go" {
+			for _, spec := range file.Imports {
+				imp := strings.Trim(spec.Path.Value, `"`)
+				if !allowDryRunImport[imp] {
+					t.Errorf("dry_run.go imports %s — DryRun is report-only", imp)
+				}
+			}
+			if strings.Contains(text, "lockMutation(") || strings.Contains(text, "Invoke(") || strings.Contains(text, "Execute(") {
+				t.Error("dry_run.go must not call the execution boundary")
+			}
+		}
 		if base == "lock.go" {
 			if strings.Contains(text, "zatrano.lock") || strings.Contains(text, "os.WriteFile") || strings.Contains(text, "os.Create") {
 				t.Error("mutation lock must not write a lockfile")
@@ -491,8 +534,12 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 				continue
 			}
 			switch fn.Name.Name {
-			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "DryRun", "Preview", "Acquire", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
+			case "Apply", "Install", "Tidy", "Download", "Rollback", "Revert", "Preview", "Acquire", "compareSemver", "latestCompatible", "MeetsFrameworkMin":
 				t.Errorf("%s defines %s — Phase 8 production surface is frozen", base, fn.Name.Name)
+			case "DryRun", "DryRunTargets":
+				if base != "dry_run.go" {
+					t.Errorf("%s defines %s — DryRun lives in dry_run.go", base, fn.Name.Name)
+				}
 			case "AllAcquired":
 				t.Errorf("%s defines AllAcquired — partial apply must not claim all targets acquired", base)
 			}
@@ -582,7 +629,7 @@ func TestPhase8ProcessInvocationBoundary(t *testing.T) {
 func TestPhase8AcquireExportsStayFrozen(t *testing.T) {
 	allowFn := map[string]bool{
 		"FromResult": true, "Targets": true, "Invoke": true, "Execute": true, "ExecuteTargets": true,
-		"Inspect": true, "SnapshotFiles": true, "RecoverFiles": true,
+		"Inspect": true, "SnapshotFiles": true, "RecoverFiles": true, "DryRun": true, "DryRunTargets": true,
 	}
 	allowMethod := map[string]bool{
 		"GoGetArg": true, "Run": true, "WithRecovery": true, "Successful": true, "Failed": true,
@@ -698,27 +745,77 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 	}
 }
 
-func TestConsoleDoesNotImportAcquireYet(t *testing.T) {
+func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
 	dir := filepath.Join(moduleRoot(t), "console")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
 			return err
 		}
+		base := filepath.Base(path)
 		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
 			return err
 		}
 		for _, spec := range file.Imports {
 			imp := strings.Trim(spec.Path.Value, `"`)
-			if strings.HasSuffix(imp, "/acquire") {
-				t.Errorf("%s imports acquire — Plan layer is frozen; Apply/CLI add is later (%s)", filepath.Base(path), imp)
+			if !strings.HasSuffix(imp, "/acquire") {
+				continue
+			}
+			if base != "package_acquire.go" && base != "package_acquire_test.go" {
+				t.Errorf("%s imports acquire — only package:acquire may consume acquire (%s)", base, imp)
 			}
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPhase9ContractBCLIAcquireGate(t *testing.T) {
+	root := moduleRoot(t)
+	path := filepath.Join(root, "console", "package_acquire.go")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal("missing console/package_acquire.go — Contract B CLI acquisition")
+	}
+	text := string(src)
+	for _, want := range []string{
+		`"github.com/zatrano/framework/v2/distribution/acquire"`,
+		`"github.com/zatrano/framework/v2/distribution/registry"`,
+		"idx.Resolve(",
+		"acquire.FromResult(",
+		"acquire.Targets(",
+		"acquire.DryRunTargets(",
+		"acquire.ExecuteTargets(",
+		"acquire.Inspect(",
+		"acquire.SnapshotFiles(",
+		"acquire.RecoverFiles(",
+		`return "package:acquire"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("package_acquire.go must orchestrate %s", want)
+		}
+	}
+	for _, ban := range []string{
+		"compareSemver", "latestCompatible", "MeetsFrameworkMin",
+		"exec.Command", "os/exec", "enablePackage(", "go mod tidy", "zatrano.lock",
+		"func Apply", "func Rollback",
+	} {
+		if strings.Contains(text, ban) {
+			t.Errorf("package_acquire.go contains %s — CLI must not own acquisition mechanics", ban)
+		}
+	}
+	if !strings.Contains(text, `"enabled": false`) && !strings.Contains(text, "Enabled: false") && !strings.Contains(text, "enabled: false") {
+		t.Error("package_acquire.go must report that acquisition does not enable")
+	}
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(cmdSrc), "/acquire") {
+		t.Error("package_cmd.go must not import acquire — package:install stays enablement")
 	}
 }
 

@@ -25,15 +25,16 @@ CLI **consumes** that index; it does not own resolution:
 go run ./cmd/zatrano package:search session
 go run ./cmd/zatrano package:info session
 go run ./cmd/zatrano package:resolve session
+go run ./cmd/zatrano package:acquire session --dry-run
 ```
 
 `package:search` discovers identity and does not pick a version. `package:info` prints identity and known releases without selecting one. `package:resolve` calls `registry.Resolve` (compatible tag, else source `main`). None of these write `go.mod`. The CLI must not grow a second copy of the resolution algorithm.
 
-`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. A future add-to-`go.mod` command is a **separate phase** (acquisition protocol). Do not fold it into these consumers or into `package:install`.
+`package:enable` activates an imported package in the app. Today's `package:install` is enablement (enable + config stubs), not module download. `package:acquire` orchestrates existing acquire APIs. Do not fold acquisition into `package:install`.
 
 Phase 6 is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Phase 9 is a bounding SPEC draft only ([`distribution/acquire/PHASE9.md`](distribution/acquire/PHASE9.md)); implementation is closed. `package:install` ≠ module acquisition (enablement).
+Phase 7 **Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Phase 8 Apply is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Phase 9 SPEC is accepted ([`distribution/acquire/PHASE9.md`](distribution/acquire/PHASE9.md)); Contracts A (dry-run) and B (`package:acquire`) are complete. Acquisition ↔ enablement stays closed. `package:install` ≠ module acquisition (enablement).
 
 ---
 
