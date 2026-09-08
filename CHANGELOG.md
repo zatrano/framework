@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.0.26 - 2026-09-08
+
+Lock the only valid Contract C path: explicitly open C → inspect current boundaries → define/lock C tests → implement C. C must not be implemented, tested as an implementation, or wired into acquisition while closed. `package:acquire` stays orchestration; `package:install` stays enablement. Contract A and Phase 8 stay frozen. No `func Apply`. Install with `go get github.com/zatrano/framework/v2@latest`.
+
 ## 2.0.25 - 2026-09-08
 
 Freeze Phase 9 Contract B as implemented (`package:acquire` orchestration). Contract A stays complete / frozen. Contract C remains closed; the next step is not automatically C. Phase 8 (`v2.0.22`) stays frozen. No `func Apply`. `package:install` stays enablement. Install with `go get github.com/zatrano/framework/v2@latest`.

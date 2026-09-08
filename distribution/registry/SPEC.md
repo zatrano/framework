@@ -114,7 +114,7 @@ Phases 1–7 Plan are closed at this boundary:
 | Phase 8 Apply | **Frozen** (`Execute` / `Inspect` / `ExecuteTargets` / `RecoverFiles`; no `func Apply`); [`acquire/APPLY.md`](../acquire/APPLY.md) |
 | Phase 9 | SPEC accepted; A complete / FROZEN; B (`package:acquire`) implemented; C closed; [`acquire/PHASE9.md`](../acquire/PHASE9.md) |
 
-Phase 8 Apply is frozen at this boundary. Phase 9 Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Acquisition ↔ enablement stays closed. The next step is not automatically Contract C. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
+Phase 8 Apply is frozen at this boundary. Phase 9 Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Acquisition ↔ enablement stays closed. The next step is not automatically Contract C. The next valid transition is only: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C. Do not rewrite `package:install`. Translation of `registry.Result` → unique module queries stays [`acquire/SPEC.md`](../acquire/SPEC.md).
 
 A later HTTP registry must implement the same `Search` / `Lookup` / `Resolve` contract so the CLI can swap the index source without copying semver logic.
 

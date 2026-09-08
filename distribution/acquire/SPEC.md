@@ -134,4 +134,4 @@ Today's `package:install` remains enablement. It is not module acquisition. Phas
 
 ## Out of Phase 8 (later phase)
 
-Phase 9: [`PHASE9.md`](PHASE9.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Acquisition ↔ enablement remains not authorized. The next step is not automatically Contract C. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.
+Phase 9: [`PHASE9.md`](PHASE9.md). SPEC accepted. Contract A (dry-run) is complete / FROZEN. Contract B (`package:acquire`) is implemented. Acquisition ↔ enablement remains not authorized. The next step is not automatically Contract C. The next valid transition is only: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C. Do not fold any of this into `package:install`. Do not treat `go mod tidy` as an acquisition lockfile. Private GOPROXY, offline, and GOPROXY as a ZATRANO HTTP registry stay deferred.

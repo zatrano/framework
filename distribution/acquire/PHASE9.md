@@ -14,6 +14,29 @@ Phase 8 — v2.0.22                FROZEN
 
 The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
 
+Contract C must not be implemented, tested as an implementation, or wired into acquisition until C is explicitly opened.
+
+`package:acquire` remains acquisition orchestration.
+`package:install` remains enablement.
+No automatic acquisition → enablement transition.
+No implicit transaction.
+No C-specific wiring.
+Contract A is not reopened.
+Phase 8 remains untouched.
+`func Apply` and renamed equivalents remain forbidden.
+
+The next valid transition is only:
+
+```text
+Explicitly open Contract C
+        →
+inspect current boundaries
+        →
+define/lock C tests
+        →
+implement C
+```
+
 ---
 
 ## 1. Scope
@@ -213,6 +236,8 @@ A combined user workflow such as `Acquire + Enable` MAY be designed later. That 
 
 Contract C remains CLOSED. The next step is not automatically Contract C. No Contract C implementation until Contract C is explicitly opened.
 
+Contract C must not be implemented, tested as an implementation, or wired into acquisition until C is explicitly opened. The next valid transition is only: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C.
+
 ---
 
 # Phase 8 Freeze Boundary
@@ -297,4 +322,5 @@ Status: SPEC ACCEPTED
 Implementation: Contract A COMPLETE / FROZEN; Contract B IMPLEMENTED; Contract C CLOSED
 Acceptance: ACCEPTED
 Next: not automatically Contract C
+Next valid transition: Explicitly open Contract C → inspect current boundaries → define/lock C tests → implement C
 ```

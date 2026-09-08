@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.0.25" {
-		t.Fatalf("VERSION=%q want 2.0.25", version)
+	if version != "2.0.26" {
+		t.Fatalf("VERSION=%q want 2.0.26", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -836,6 +836,11 @@ func TestPhase9ContractCRemainsClosed(t *testing.T) {
 		"not automatically Contract C",
 		"explicitly opened",
 		"Phase 8 — v2.0.22",
+		"tested as an implementation",
+		"wired into acquisition",
+		"inspect current boundaries",
+		"define/lock C tests",
+		"No C-specific wiring",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("PHASE9.md missing %q — Contract C stays closed", want)
