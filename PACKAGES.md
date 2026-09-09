@@ -11,13 +11,20 @@ This repository is the **framework kernel** (`github.com/zatrano/framework/v2`).
 
 The two modules cannot be merged: `github.com/zatrano/packages` already requires this framework (Go import cycle).
 
+Current public releases (independent lines; not a monolithic ZATRANO version):
+
+```text
+github.com/zatrano/framework/v2   v2.0.28
+github.com/zatrano/packages       v1.7.1
+```
+
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
 
 ## Package manifest (distribution protocol)
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module** (shared `github.com/zatrano/packages` uses channel `main` until tagged). Channel `main` is a source stream, not a published release.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.7.1`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -36,7 +43,7 @@ go run ./cmd/zatrano package:acquire session --enable
 
 The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin to `@main`. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public `v2.0.28` module-proxy consumption is still pending.
+**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin. First-time wiring may `go get github.com/zatrano/packages@v1.7.1` when the module is not yet required. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public consumption: `go get github.com/zatrano/framework/v2@v2.0.28` and `go get github.com/zatrano/packages@v1.7.1`.
 
 ---
 
@@ -49,7 +56,16 @@ The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Searc
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
-**Heavy** packages (`mongo`, `webauthn`, `qr`) use a separate Go module or heavy dependency — enable only when needed.
+**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.7.1`.
+
+Public nested-module tags follow Go path semantics, for example:
+
+```text
+github.com/zatrano/packages/database/driver/sqlite
+tag: database/driver/sqlite/v1.0.0
+```
+
+A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.7.1` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1`; do not retag `v1.7.0`.
 
 ```bash
 go run ./cmd/zatrano package:enable social billing
@@ -58,6 +74,14 @@ go run ./cmd/zatrano package:list --all
 ```
 
 `package:enable` / `package:install` / `package:preset` merge that package's `packages/<name>/.env.example` into the app `.env.example` (existing keys are left alone). The kernel `.env.example` stays HTTP/boot keys only.
+
+Flow:
+
+```text
+Acquire → Imported → Enabled ∩ Imported → Expand Requires → Bootstrap
+```
+
+`package:acquire` mutates go.mod via Go modules. `package:enable` writes enablement + blank-imports. `Expand` is declared `Requires` metadata, not module resolution. Default acquire does not enable.
 
 Resolve services with `From(app)` helpers — do not expect `app.Auth()` / `app.Mail()` on the kernel.
 

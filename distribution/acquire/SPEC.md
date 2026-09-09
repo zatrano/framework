@@ -32,7 +32,7 @@ Registry Resolve
          integration tests  ← Apply contract completion evidence
 ```
 
-Architecture, package, registry, and acquisition-plan contracts are frozen. Acquisition plan stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s `go get github.com/zatrano/packages@main` is a wiring convenience, not this protocol.
+Architecture, package, registry, and acquisition-plan contracts are frozen. Acquisition plan stops at `GoGetArg`. Today's `package:install` remains enablement (enable + stubs). `package:enable`'s first-time `go get github.com/zatrano/packages@v1.7.1` is a wiring convenience (skipped when the module is already required), not this protocol.
 
 Acquisition plan (`plan.go`) does not run `go get`, write files, or blank-import. `Invoke` takes a `Runner`; tests inject a fake. `Execute` binds `ExecRunner` and serializes mutation per module root. `Inspect` reads go.mod / go.sum, does not mutate them, and does not take the mutation lock.
 

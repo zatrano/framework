@@ -14,6 +14,11 @@ import (
 	"github.com/zatrano/framework/v2/kernel"
 )
 
+// packagesModuleGetArg is the first-time enablement pin when go.mod has no
+// github.com/zatrano/packages require. It is the current stable packages tag,
+// not a lockfile and not registry Resolve. Existing requires are left alone.
+const packagesModuleGetArg = "github.com/zatrano/packages@v1.7.1"
+
 func addonImportPath(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	return "github.com/zatrano/packages/" + name
@@ -146,11 +151,11 @@ func ensurePackagesModule(root string) error {
 	if packagesModuleRequired(root) {
 		return nil
 	}
-	cmd := exec.Command("go", "get", "github.com/zatrano/packages@main")
+	cmd := exec.Command("go", "get", packagesModuleGetArg)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go get github.com/zatrano/packages@main failed: %w\n%s\nNext: go get github.com/zatrano/packages@main", err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("go get %s failed: %w\n%s\nNext: go get %s", packagesModuleGetArg, err, strings.TrimSpace(string(out)), packagesModuleGetArg)
 	}
 	return nil
 }

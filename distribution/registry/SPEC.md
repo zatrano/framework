@@ -17,18 +17,18 @@ This package does not import `bootstrap/addons`. The process-global addon regist
 | Package **name** | Catalog id / `addons.Meta.Name` (`zatrano.package/v1` `name`) |
 | Go **import** | Manifest `import` |
 | Version **stream** | Go **module path** (`module`), not the package name |
-| Artifact **version** | Go module version (git tag) or channel `main` when the module is untagged |
+| Artifact **version** | Go module version (git tag). Channel `main` is a source/development selector, not a published release |
 | Kernel compatibility | Manifest `framework_min` (empty = unspecified) |
 | Kind / layer / heavy | Manifest (frozen v1) |
 | Integrity | Optional SHA-256 of the manifest document bytes |
 
-Many official packages share `github.com/zatrano/packages` and therefore share one version stream. Today that stream is channel `main` (the module is not tagged `v2.x`). Heavy packages (`mongo`, `webauthn`, `qr`) have their own module path and their own tags. `console` versions with `github.com/zatrano/framework/v2`.
+Many official packages share `github.com/zatrano/packages` and therefore share one version stream: that module is **v1.x** (current public tag `v1.7.1`). It is not a `packages/v2` module and must not be tagged `v2.x`. Heavy packages (`mongo`, `webauthn`, `qr`) and SQL drivers have their own module path and their own tags (path-relative, e.g. `database/driver/sqlite/v1.0.0`). `console` versions with `github.com/zatrano/framework/v2`.
 
-Do not invent a second semver field on the package name.
+Go modules remain authoritative. This registry does not download, `go get`, or replace the Go toolchain. Do not invent a second semver field on the package name.
 
 ## Channels vs published versions
 
-`channel: main` is the **source/development stream** of a Go module (typically the default git branch). It is **not** a published release version. A marketplace or UI “Latest / stable” label must show a tagged version, or state that the module is untagged — never present `main` as a release.
+`channel: main` is the **source/development stream** of a Go module (typically the default git branch). It is **not** a published release version. A marketplace or UI “Latest / stable” label must show a tagged version (for official packages, currently `v1.7.1`) — never present `main` as a release.
 
 `latest` is a **resolve selector**, not a channel:
 
@@ -38,7 +38,7 @@ latest
   └─ no compatible tag     → main (source channel, if present and compatible)
 ```
 
-`session@main` means “this module’s source channel”, not “the current stable release”.
+The in-memory CLI index may still list channel `main` as a known source stream for shared-module names. That is Resolve input, not the published packages tag. `session@main` means “this module’s source channel”, not “the current stable release”. Consume published code with `go get github.com/zatrano/packages@v1.7.1`.
 
 ## Index document (`zatrano.registry/v1`)
 
@@ -54,6 +54,7 @@ latest
       "layer": "foundation",
       "description": "HTTP sessions",
       "releases": [
+        { "version": "1.7.1" },
         { "channel": "main" }
       ]
     }

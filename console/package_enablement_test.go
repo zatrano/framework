@@ -293,7 +293,7 @@ func TestPinIntegrityReplaceIsNotARequire(t *testing.T) {
 	}
 }
 
-func TestPinIntegrityFirstTimeStillGetsMain(t *testing.T) {
+func TestPinIntegrityFirstTimeGetsCurrentStable(t *testing.T) {
 	root := t.TempDir()
 	mod := "module example.com/first-enable\n\ngo 1.25.0\n"
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(mod), 0o644); err != nil {
@@ -301,12 +301,13 @@ func TestPinIntegrityFirstTimeStillGetsMain(t *testing.T) {
 	}
 	t.Setenv("GOPROXY", "off")
 	t.Setenv("GOSUMDB", "off")
+	t.Setenv("GOMODCACHE", t.TempDir())
 	err := ensurePackagesModule(root)
 	if err == nil {
-		t.Fatal("first-time wiring must still attempt go get @main")
+		t.Fatal("first-time wiring must still attempt go get of the current stable tag")
 	}
-	if !strings.Contains(err.Error(), "github.com/zatrano/packages@main") {
-		t.Fatalf("first-time error must mention @main, got %v", err)
+	if !strings.Contains(err.Error(), packagesModuleGetArg) {
+		t.Fatalf("first-time error must mention %s, got %v", packagesModuleGetArg, err)
 	}
 	body, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {

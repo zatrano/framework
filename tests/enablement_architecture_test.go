@@ -71,8 +71,11 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	if !strings.Contains(wire, "packagesModuleRequired") {
 		t.Fatal("enablement must skip go get when packages is already required")
 	}
-	if strings.Count(wire, "github.com/zatrano/packages@main") < 1 {
-		t.Fatal("first-time enablement may still go get @main")
+	if strings.Count(wire, "github.com/zatrano/packages@v1.7.1") < 1 {
+		t.Fatal("first-time enablement must pin current stable packages@v1.7.1")
+	}
+	if strings.Contains(wire, "packages@main") {
+		t.Fatal("first-time enablement must not go get packages@main")
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))

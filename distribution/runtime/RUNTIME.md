@@ -324,7 +324,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 ### 4.8 Service vs library vs heavy
 
 * Service: catalog KindService; `enablePackage` allowed; typically `Meta.Factory` → Provider.
-* Library: `package:enable` error (import-only). May register CLI. No forced Start/Stop.
+* Library: `package:enable` error (import-only). May register CLI. No forced Start/Stop. Catalog libraries include `redisx`, `rag`, and `agent`. Cache owns Redis (`redisx.Connect` → container `"redis"`); queue consumes that binding.
 * Heavy: `Meta.Heavy` + own module path in manifest Derive. No extra kernel lifecycle.
 * Shared-module: one Go module, separate addon names; boot order is per-addon graph, not module.
 

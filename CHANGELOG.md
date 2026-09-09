@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+Documentation and CLI catalog alignment with the published ecosystem: Framework `v2.0.28` and Packages `v1.7.1`. Public README/PACKAGES.md install pins, registry SPEC (packages is a tagged v1.x module), and first-time `package:enable` wiring use `github.com/zatrano/packages@v1.7.1` instead of `@main`. Catalog `redisx` remains `KindLibrary`. No kernel ABI, acquisition Apply, or module-path change. VERSION stays `2.0.28`.
+
 Example applications moved to [`github.com/zatrano/examples`](https://github.com/zatrano/examples). The framework module no longer contains `examples/`. VERSION stays `2.0.28`.
 
 Public API documentation: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.

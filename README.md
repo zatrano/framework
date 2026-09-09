@@ -240,7 +240,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@latest
+go install github.com/zatrano/framework/v2/cmd/zatrano@v2.0.28
 zatrano new myapp
 cd myapp
 
@@ -254,9 +254,11 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@latest
-go get github.com/zatrano/packages@main
+go get github.com/zatrano/framework/v2@v2.0.28
+go get github.com/zatrano/packages@v1.7.1
 ```
+
+These are the **current stable public releases**. The two modules version independently; later applications may pin newer compatible tags. There is no monolithic `zatrano@x.y.z` version.
 
 To generate against this checkout, clone **framework** and **packages** as siblings (CI does the same), then pass the **absolute** framework path to `--replace`. `.` is wrong when the app is a subdirectory: Go resolves replace paths relative to the new module.
 
@@ -282,13 +284,27 @@ go run ./cmd/zatrano new lite --minimal --replace "$PWD"
 
 ## Enabling packages
 
+Acquisition, import, and enablement are separate. `package:enable` does not acquire a module as a resolver, and `package:acquire` does not enable unless you pass `--enable`.
+
+```text
+Acquire                 go get (package:acquire) — Go modules own resolution
+   ↓
+Imported                blank-import in the application
+   ↓
+Enabled ∩ Imported      bootstrap.App() registers that intersection
+   ↓
+Expand Requires         declared addon metadata only (not go get)
+   ↓
+Bootstrap               Provider.Register + Provider.Boot
+```
+
 `bootstrap.App()` constructs the application and **registers** the intersection of the enablement list and imported packages (see `bootstrap/app.go`). It does not call `Application.Bootstrap()`:
 
 1. `App(WithAddons(names...))` → names ∩ imported
 2. else consumer `RegisterEnablement` (`bootstrap/enabled.go`) → Enabled ∩ imported
 3. else no manifest (legacy) → all imported
 
-A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there is not registered. `auth.From(app)` is nil unless `auth` is both imported and enabled. Providers run at `Bootstrap` (or the first `Start`/`Run`).
+A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there is not registered. `auth.From(app)` is nil unless `auth` is both imported and enabled. Providers run at `Bootstrap` (or the first `Start`/`Run`). Resolve services with `From(app)` — the kernel has no `app.Auth()` / `app.Queue()` / `app.AI()`.
 
 Prefer the CLI, which writes both sides:
 
@@ -296,7 +312,7 @@ Prefer the CLI, which writes both sides:
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages` when needed, and merges env keys into `.env.example`. Then rebuild/restart.
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.7.1` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
 
 To add a module that is not yet in `go.mod`, acquire first (enablement is separate; default acquire does not enable):
 
@@ -504,7 +520,7 @@ Disable   = remove persistent enablement + that package’s blank-import
 
 Disable does not remove Go modules, config stubs, `.env` keys, or database state. Unused module cleanup is Go/user-owned (`go get` / `go mod tidy` are not run automatically).
 
-Enablement does not overwrite an existing `github.com/zatrano/packages` requirement with `@main`. A tagged `package:acquire` pin stays in go.mod. First-time wiring may still `go get github.com/zatrano/packages@main` when that module is not yet required.
+Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.7.1` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
 
 Upgrade is `package:acquire name@version`. There is no `package:upgrade` or `package:uninstall` command.
 
@@ -634,28 +650,47 @@ Packages
 Framework contracts / kernel
 ```
 
+### Frozen invariants
+
+These are the public architectural baseline after Framework `v2.0.28` and Packages `v1.7.1`. Do not reopen them for convenience.
+
+- Framework does not depend on Packages. Packages depend on Framework. Applications may import both.
+- `contracts` remains dependency-neutral. Kernel owns runtime lifecycle. Capabilities are not `App` methods; typed facades (`From(app)`) live beside implementations.
+- Packages are opt-in. `Enabled ∩ Imported` controls participation. `Expand` resolves declared package metadata dependencies only.
+- Go modules own dependency resolution. There is no second PackageManager, resolver, ServiceLocator, or lifecycle manager.
+- There is no automatic package enablement, implicit rollback, automatic `go mod tidy`, or `zatrano.lock`.
+- Resource ownership is singular. `redisx`, `rag`, and `agent` are libraries. Cache owns the Redis connection.
+- Framework remains `github.com/zatrano/framework/v2`. Packages remains `github.com/zatrano/packages` (v1.x, no `/v2` suffix).
+
 ## v2
 
-**v2.0.28** is the current line on **`main`**. Version: `2.0.28` ([`VERSION`](VERSION)).
-
-The v2 line is two independently maintained modules: `github.com/zatrano/framework/v2` and `github.com/zatrano/packages`. Create applications with `zatrano new`. Do not clone this repository as your application.
+**Framework `v2.0.28`** is the current public kernel. **Packages `v1.7.1`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
-ZATRANO Platform
-      │
-      ├── Kernel
-      ├── Contracts
-      ├── Bootstrap
-      ├── CLI
-      └── Package ecosystem
+Framework
+  module: github.com/zatrano/framework/v2
+  major:  v2
+  current: v2.0.28
+
+Packages
+  module: github.com/zatrano/packages
+  major:  v1
+  current: v1.7.1
 ```
+
+The two modules release independently. Framework does not import Packages. Packages pins a compatible Framework release. Applications do not need a single ZATRANO-wide version.
+
+Nested modules (SQL drivers, `mongo`, `webauthn`, `qr`) are separately versioned Go modules. Their tags follow the nested path (`database/driver/sqlite/v1.0.0`), not a `packages/` prefix. Nested publication is a separate release operation. Root `packages@v1.7.1` does not require those drivers.
+
+Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do not retag it. New apps use `v1.7.1`.
 
 | Line | Meaning |
 | --- | --- |
-| `v2.0.28` (`main`) | Current two-module application platform |
-| `v1.x` | Previous tagged ZATRANO line |
+| Framework `v2.0.28` | Current kernel / CLI / contracts |
+| Packages `v1.7.1` | Current official package ecosystem |
+| Framework `v1.x` | Previous tagged kernel line |
 
-ZATRANO follows semantic versioning: `vMAJOR.MINOR.PATCH`. The Go module path is `github.com/zatrano/framework/v2`. Install with `go get github.com/zatrano/framework/v2@latest`.
+Each module follows Go semantic versioning on its own path. Install current stables with the `go get` commands above.
 
 ## Documentation
 
