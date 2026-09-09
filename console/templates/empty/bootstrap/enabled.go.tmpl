@@ -1,0 +1,22 @@
+package bootstrap
+
+import (
+	fwbootstrap "github.com/zatrano/framework/v2/bootstrap"
+)
+
+// EnabledAddons is this application's enablement manifest.
+//
+// init() registers the list; App() boots Enabled ∩ Imported.
+// WithAddons is an explicit override. Missing this file (legacy apps)
+// falls back to all imported addons.
+//
+// Quick start:
+//	zatrano package:list
+//	zatrano package:enable mongo
+//	zatrano package:install billing
+//	zatrano package:disable mongo
+var EnabledAddons = []string{}
+
+func init() {
+	fwbootstrap.RegisterEnablement(EnabledAddons)
+}

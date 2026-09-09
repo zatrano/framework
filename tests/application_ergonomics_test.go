@@ -26,7 +26,7 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	newCmd := exec.CommandContext(ctx, "go", "run", "./cmd/zatrano", "new", dest, "--module", "example.com/freshapp", "--minimal", "--replace", root)
+	newCmd := exec.CommandContext(ctx, "go", "run", "./cmd/zatrano", "new", dest, "--module", "example.com/freshapp", "--replace", root)
 	newCmd.Dir = root
 	newCmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	out, err := newCmd.CombinedOutput()
@@ -42,11 +42,11 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if !strings.Contains(text, "module example.com/freshapp") {
 		t.Fatalf("go.mod module:\n%s", text)
 	}
-	if !strings.Contains(text, "github.com/zatrano/framework/v2 v2.0.28") {
-		t.Fatalf("go.mod must require v2.0.28:\n%s", text)
+	if !strings.Contains(text, "github.com/zatrano/framework/v2 v2.1.0") {
+		t.Fatalf("go.mod must require v2.1.0:\n%s", text)
 	}
 	if strings.Contains(text, "v2-dev") || strings.Contains(text, "github.com/zatrano/packages") {
-		t.Fatalf("minimal go.mod must not pin packages or v2-dev:\n%s", text)
+		t.Fatalf("empty go.mod must not pin packages or v2-dev:\n%s", text)
 	}
 
 	build := exec.CommandContext(ctx, "go", "build", "./...")
@@ -69,8 +69,8 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--version: %v\n%s", err, verOut)
 	}
-	if !strings.Contains(verOut, "2.0.28") {
-		t.Fatalf("version must report 2.0.28:\n%s", verOut)
+	if !strings.Contains(verOut, "2.1.0") {
+		t.Fatalf("version must report 2.1.0:\n%s", verOut)
 	}
 
 	helpOut, err := runApp("--help")

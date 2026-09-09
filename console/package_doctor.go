@@ -9,7 +9,6 @@ import (
 
 	"github.com/zatrano/framework/v2/bootstrap"
 	"github.com/zatrano/framework/v2/bootstrap/addons"
-	"github.com/zatrano/framework/v2/bootstrap/stubs"
 	"github.com/zatrano/framework/v2/kernel"
 	"github.com/zatrano/framework/v2/kernel/encryption"
 	"github.com/zatrano/framework/v2/kernel/env"
@@ -132,9 +131,9 @@ func (c *PackageInitCommand) Handle(args []string) error {
 func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	var out []doctorFinding
 
-	running := ""
+	appVer := ""
 	if app != nil {
-		running = strings.TrimSpace(app.Version())
+		appVer = strings.TrimSpace(app.Version())
 	}
 	modBody := ""
 	if app != nil {
@@ -144,21 +143,37 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 	}
 	frameworkPin := goModRequireVersion(modBody, "github.com/zatrano/framework/v2")
 	packagesPin := goModRequireVersion(modBody, "github.com/zatrano/packages")
+	frameworkID := strings.TrimPrefix(strings.TrimSpace(frameworkPin), "v")
+	frameworkSource := "go.mod require"
+	if frameworkID == "" && appVer != "" {
+		frameworkID = appVer
+		frameworkSource = "VERSION"
+	}
+	running := frameworkID
+	if appVer == "" {
+		out = append(out, doctorFinding{
+			Level:   "OK",
+			Code:    "app.version",
+			Message: "no VERSION file (optional application product identity; generated apps omit it)",
+		})
+	} else {
+		out = append(out, doctorFinding{
+			Level:   "OK",
+			Code:    "app.version",
+			Message: fmt.Sprintf("application VERSION %s", appVer),
+		})
+	}
 	switch {
-	case running == "":
-		msg := "VERSION file missing in the app; running framework version is empty"
-		if frameworkPin != "" {
-			msg += fmt.Sprintf(" (go.mod requires github.com/zatrano/framework/v2 %s — not used as a second resolver)", frameworkPin)
-		}
+	case frameworkID == "":
 		out = append(out, doctorFinding{
 			Level:   "WARN",
 			Code:    "framework.version",
-			Message: msg + "; copy VERSION or run from a tree that has it",
+			Message: "cannot determine framework version (no go.mod require for github.com/zatrano/framework/v2 and no VERSION file)",
 		})
 	default:
-		msg := fmt.Sprintf("running framework version %s (VERSION)", running)
-		if frameworkPin != "" && frameworkPin != running && frameworkPin != "v"+running {
-			msg += fmt.Sprintf("; go.mod require is %s", frameworkPin)
+		msg := fmt.Sprintf("framework %s (%s)", frameworkID, frameworkSource)
+		if appVer != "" && frameworkPin != "" && appVer != frameworkID && "v"+appVer != frameworkPin {
+			msg += fmt.Sprintf("; application VERSION is %s", appVer)
 		}
 		out = append(out, doctorFinding{
 			Level:   "OK",
@@ -277,7 +292,7 @@ func runPackageDoctor(app *kernel.Application) []doctorFinding {
 				})
 			}
 		}
-		files := stubs.ForPackage(name)
+		files := addons.ConfigFileNames(meta)
 		if len(files) == 0 {
 			continue
 		}

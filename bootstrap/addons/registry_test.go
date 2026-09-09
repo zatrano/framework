@@ -47,3 +47,16 @@ func TestRegisterEmptyNameIsIgnored(t *testing.T) {
 		t.Fatalf("blank name must not register, got %v", addons.Names())
 	}
 }
+
+func TestConfigFileNames(t *testing.T) {
+	got := addons.ConfigFileNames(addons.Meta{ConfigFiles: map[string]string{
+		"mongo.go": "package config\n",
+		"oauth.go": "package config\n",
+	}})
+	if len(got) != 2 || got[0] != "mongo.go" || got[1] != "oauth.go" {
+		t.Fatalf("got %#v", got)
+	}
+	if addons.ConfigFileNames(addons.Meta{}) != nil {
+		t.Fatal("empty ConfigFiles must be nil")
+	}
+}

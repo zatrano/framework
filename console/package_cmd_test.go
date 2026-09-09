@@ -70,23 +70,30 @@ func TestWriteEnabledAddonsPreamble(t *testing.T) {
 
 func TestPublishPackagesQuietOnlyStubbed(t *testing.T) {
 	app := kernel.NewApplication(t.TempDir())
-	published, skipped, err := publishPackagesQuiet(app, []string{"features", "oauth", "hashid"}, false)
+	files := map[string]string{"oauth.go": "package config\n"}
+	published, skipped, err := publishConfigFiles(app, files, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if published != 1 {
-		t.Fatalf("expected 1 publish (oauth), got published=%d skipped=%d", published, skipped)
+		t.Fatalf("expected 1 publish (oauth.go), got published=%d skipped=%d", published, skipped)
 	}
 	if _, err := os.Stat(filepath.Join(app.BasePath("config"), "oauth.go")); err != nil {
 		t.Fatal(err)
 	}
-	// second run skips existing
-	published, skipped, err = publishPackagesQuiet(app, []string{"oauth"}, false)
+	published, skipped, err = publishConfigFiles(app, files, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if published != 0 || skipped != 1 {
 		t.Fatalf("expected skip, got published=%d skipped=%d", published, skipped)
+	}
+	quiet, qskip, err := publishPackagesQuiet(app, []string{"features", "hashid"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quiet != 0 || qskip != 0 {
+		t.Fatalf("unknown names must not publish, got published=%d skipped=%d", quiet, qskip)
 	}
 }
 

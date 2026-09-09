@@ -3,6 +3,7 @@ package dirs
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/v2/kernel"
@@ -44,5 +45,23 @@ func TestDirForCreateUsesNewWhenMissing(t *testing.T) {
 	want := filepath.Join(dir, "app", "database")
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestCanonicalConsumerDirsArePlatformNotWeb(t *testing.T) {
+	got := CanonicalConsumerDirs()
+	if len(got) == 0 {
+		t.Fatal("canonical dirs empty")
+	}
+	join := strings.Join(got, "\n")
+	for _, d := range []string{"app/providers", "app/routes/web", "cmd/app", "bootstrap"} {
+		if !strings.Contains(join, d) {
+			t.Fatalf("missing canonical %s in %v", d, got)
+		}
+	}
+	for _, d := range OptionalWebScaffoldDirs() {
+		if strings.Contains(join, d) {
+			t.Fatalf("web-only dir %s must not be canonical", d)
+		}
 	}
 }

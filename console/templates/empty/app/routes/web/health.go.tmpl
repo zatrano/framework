@@ -1,0 +1,22 @@
+package web
+
+import (
+	"github.com/zatrano/framework/v2/kernel/http"
+	"github.com/zatrano/framework/v2/kernel/routing"
+)
+
+func init() {
+	routing.RegisterWeb(registerHealth)
+}
+
+func registerHealth(router *routing.Router) {
+	if router == nil {
+		return
+	}
+	router.Get("/up", func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"status": "ok"})
+	}).As("up")
+	router.Get("/health", func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"status": "ok"})
+	}).As("health")
+}

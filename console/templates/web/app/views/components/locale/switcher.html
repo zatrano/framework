@@ -1,0 +1,10 @@
+@props(['action' => '/locale'])
+<form method="POST" action="{{ $action }}" class="locale-switcher" onchange="this.submit()">
+    <input type="hidden" name="_token" value="{{ $_token }}">
+    <label for="locale-switcher">@lang('messages.language')</label>
+    <select id="locale-switcher" name="locale" aria-label="@lang('messages.language')">
+        @foreach($locales as $item)
+        <option value="{{ $code }}" @selected($selected)>{{ $label }}</option>
+        @endforeach
+    </select>
+</form>

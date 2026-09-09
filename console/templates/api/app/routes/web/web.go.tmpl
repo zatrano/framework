@@ -1,0 +1,20 @@
+package web
+
+import (
+	webctrl "__MODULE__/app/http/controllers/web"
+
+	"github.com/zatrano/framework/v2/kernel/routing"
+)
+
+func init() {
+	routing.RegisterWeb(registerWeb)
+}
+
+func registerWeb(router *routing.Router) {
+	if router == nil {
+		return
+	}
+	routing.Controller(router, &webctrl.HomeController{}, func(r routing.RouteRegistrar, c *webctrl.HomeController) {
+		r.Get("/", c.Index).As("home")
+	})
+}

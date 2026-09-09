@@ -1,20 +1,34 @@
 package console
 
 import (
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"unicode"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
-//go:embed all:templates
-var starterTemplates embed.FS
+const newHelp = `Create a new ZATRANO application
+
+Usage:
+  zatrano new <name> [--module path] [--replace /path/to/framework] [--web|--api|--full]
+
+Canonical profiles:
+  empty    zatrano new myapp          opinion-free application foundation
+  web      zatrano new myapp --web    full-capacity HTML presentation defaults
+  api      zatrano new myapp --api    full-capacity JSON/API presentation defaults
+  full     zatrano new myapp --full   web + API presentation composition
+
+empty is not a reduced platform. full is not every package.
+--web, --api and --full are mutually exclusive. --minimal is not a scaffold.
+
+add:web / add:api compose presentation onto an existing app and preserve the
+existing root handler. --full starts with HTML / plus JSON /api.
+`
 
 func registerNewCommand(console *Application, app *kernel.Application) {
 	console.Register(&NewCommand{app: app})
@@ -28,16 +42,17 @@ type NewCommand struct {
 func (c *NewCommand) Name() string        { return "new" }
 func (c *NewCommand) Description() string { return "Create a new ZATRANO application" }
 func (c *NewCommand) Handle(args []string) error {
-	name, module, replace, minimal, err := parseNewArgs(args)
+	if hasHelpFlag(args) {
+		fmt.Print(newHelp)
+		return nil
+	}
+	name, module, replace, scaffold, err := parseNewArgs(args)
 	if err != nil {
 		return err
 	}
 	dest, err := filepath.Abs(name)
 	if err != nil {
 		return err
-	}
-	if _, err := os.Stat(dest); err == nil {
-		return fmt.Errorf("directory already exists: %s", dest)
 	}
 	ver := productVersion()
 	if c.app != nil {
@@ -46,59 +61,58 @@ func (c *NewCommand) Handle(args []string) error {
 		}
 	}
 	fwVer := frameworkGoModVersion(ver)
-	replaceLine := ""
-	if replace != "" {
-		replaceLine = "\nreplace github.com/zatrano/framework/v2 => " + replace + "\n"
-		if !minimal {
-			replaceLine += packagesReplaceLines(replace)
-		}
-	}
+	scaffoldVer := strings.TrimPrefix(fwVer, "v")
+	replaceLine := newReplaceLine(replace, scaffold)
 	subs := map[string]string{
 		"__MODULE__":            module,
 		"__APP_NAME__":          filepath.Base(name),
 		"__FRAMEWORK_VERSION__": fwVer,
 		"__REPLACE_LINE__":      replaceLine,
+		"__SCAFFOLD_NAME__":     scaffold,
+		"__SCAFFOLD_VERSION__":  scaffoldVer,
 	}
-	err = fs.WalkDir(starterTemplates, "templates", func(path string, d fs.DirEntry, err error) error {
+	switch scaffold {
+	case generator.ScaffoldFull:
+		if err := generator.Apply(generator.Request{
+			FS:               starterTemplates,
+			Root:             "templates/web",
+			Dest:             dest,
+			ScaffoldName:     generator.ScaffoldFull,
+			ScaffoldVersion:  scaffoldVer,
+			SkipScaffoldMeta: true,
+			Substitutions:    subs,
+		}); err != nil {
+			return err
+		}
+		if _, _, err := overlayPresentation(dest, generator.ScaffoldAPI, subs, false); err != nil {
+			return err
+		}
+		webDig, err := generator.Digest(starterTemplates, "templates/web")
 		if err != nil {
 			return err
 		}
-		rel := strings.TrimPrefix(filepath.ToSlash(path), "templates/")
-		if rel == "" || rel == "templates" || path == "templates" {
-			return nil
-		}
-		rel = renameTemplatePath(rel)
-		out := filepath.Join(dest, filepath.FromSlash(rel))
-		if d.IsDir() {
-			return os.MkdirAll(out, 0o755)
-		}
-		raw, err := starterTemplates.ReadFile(path)
+		apiDig, err := generator.Digest(starterTemplates, "templates/api")
 		if err != nil {
 			return err
 		}
-		body := string(raw)
-		for old, neu := range subs {
-			body = strings.ReplaceAll(body, old, neu)
-		}
-		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		if err := generator.WriteScaffoldMeta(dest, generator.ScaffoldFull, scaffoldVer, generator.CombinedDigest(webDig, apiDig)); err != nil {
 			return err
 		}
-		mode := os.FileMode(0o644)
-		if strings.HasSuffix(rel, ".sh") {
-			mode = 0o755
+	default:
+		err = generator.Apply(generator.Request{
+			FS:              starterTemplates,
+			Root:            "templates/" + scaffold,
+			Dest:            dest,
+			ScaffoldName:    scaffold,
+			ScaffoldVersion: scaffoldVer,
+			Substitutions:   subs,
+		})
+		if err != nil {
+			return err
 		}
-		return os.WriteFile(out, []byte(body), mode)
-	})
-	if err != nil {
-		return err
 	}
 	if _, err := WriteAgentsMarkdown(dest); err != nil {
 		return err
-	}
-	if minimal {
-		if err := applyMinimalScaffold(dest, module, filepath.Base(name)); err != nil {
-			return err
-		}
 	}
 	if replace != "" {
 		tidy := exec.Command("go", "mod", "tidy")
@@ -109,7 +123,7 @@ func (c *NewCommand) Handle(args []string) error {
 			return fmt.Errorf("go mod tidy: %w", err)
 		}
 	}
-	fmt.Printf("Created %s (module %s)\n", dest, module)
+	fmt.Printf("Created %s (module %s, profile %s)\n", dest, module, scaffold)
 	fmt.Println("Next:")
 	fmt.Printf("  cd %s\n", filepath.Base(dest))
 	if replace == "" {
@@ -120,43 +134,88 @@ func (c *NewCommand) Handle(args []string) error {
 	return nil
 }
 
-func parseNewArgs(args []string) (dir, module, replace string, minimal bool, err error) {
+func newReplaceLine(replace, scaffold string) string {
+	if replace == "" {
+		return ""
+	}
+	line := "\nreplace github.com/zatrano/framework/v2 => " + replace + "\n"
+	if scaffold != generator.ScaffoldEmpty {
+		line += packagesReplaceLines(replace)
+	}
+	return line
+}
+
+func parseNewArgs(args []string) (dir, module, replace, scaffold string, err error) {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return "", "", "", false, fmt.Errorf("usage: zatrano new <name> [--module path] [--replace /path/to/framework] [--minimal]")
+		return "", "", "", "", fmt.Errorf("%s", strings.TrimSpace(newHelp))
 	}
 	dir = strings.TrimSpace(args[0])
 	if dir == "" || strings.Contains(dir, "..") {
-		return "", "", "", false, fmt.Errorf("invalid project name")
+		return "", "", "", "", fmt.Errorf("invalid project name")
 	}
 	module = sanitizeModule(dir)
+	scaffold = generator.ScaffoldEmpty
+	var profile string
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--module":
 			if i+1 >= len(args) {
-				return "", "", "", false, fmt.Errorf("--module requires a path")
+				return "", "", "", "", fmt.Errorf("--module requires a path")
 			}
 			i++
 			module = strings.TrimSpace(args[i])
 		case "--replace":
 			if i+1 >= len(args) {
-				return "", "", "", false, fmt.Errorf("--replace requires a path")
+				return "", "", "", "", fmt.Errorf("--replace requires a path")
 			}
 			i++
 			abs, aerr := filepath.Abs(args[i])
 			if aerr != nil {
-				return "", "", "", false, aerr
+				return "", "", "", "", aerr
 			}
 			replace = filepath.ToSlash(abs)
+		case "--web":
+			if err := setNewProfile(&profile, generator.ScaffoldWeb); err != nil {
+				return "", "", "", "", err
+			}
+			scaffold = generator.ScaffoldWeb
+		case "--api":
+			if err := setNewProfile(&profile, generator.ScaffoldAPI); err != nil {
+				return "", "", "", "", err
+			}
+			scaffold = generator.ScaffoldAPI
+		case "--full":
+			if err := setNewProfile(&profile, generator.ScaffoldFull); err != nil {
+				return "", "", "", "", err
+			}
+			scaffold = generator.ScaffoldFull
 		case "--minimal":
-			minimal = true
+			return "", "", "", "", fmt.Errorf("--minimal is no longer a supported scaffold profile; use --api, --web, --full, or no profile")
 		default:
-			return "", "", "", false, fmt.Errorf("unknown flag %s", args[i])
+			return "", "", "", "", fmt.Errorf("unknown flag %s", args[i])
 		}
 	}
 	if module == "" {
-		return "", "", "", false, fmt.Errorf("empty module path")
+		return "", "", "", "", fmt.Errorf("empty module path")
 	}
-	return dir, module, replace, minimal, nil
+	return dir, module, replace, scaffold, nil
+}
+
+func setNewProfile(current *string, next string) error {
+	if *current != "" && *current != next {
+		return fmt.Errorf("--web, --api and --full are mutually exclusive")
+	}
+	*current = next
+	return nil
+}
+
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "--help" || a == "-h" {
+			return true
+		}
+	}
+	return false
 }
 
 // nestedPackagesModules are separate Go modules under the packages checkout.
@@ -201,220 +260,6 @@ func packagesReplaceLines(frameworkReplace string) string {
 	return b.String()
 }
 
-func applyMinimalScaffold(dest, module, appName string) error {
-	files := map[string]string{
-		filepath.Join("app", "providers", "app_service_provider.go"): `package providers
-
-import (
-	"github.com/zatrano/framework/v2/contracts"
-	"github.com/zatrano/framework/v2/kernel/middleware/csrf"
-	"github.com/zatrano/framework/v2/kernel/routing"
-)
-
-type AppServiceProvider struct{}
-
-func (p *AppServiceProvider) Register(app contracts.App) error { return nil }
-
-func (p *AppServiceProvider) Boot(app contracts.App) error {
-	if r := routing.From(app); r != nil {
-		r.Use(csrf.Except("/api"))
-	}
-	return nil
-}
-`,
-		filepath.Join("app", "providers", "providers.go"): `package providers
-
-import "github.com/zatrano/framework/v2/contracts"
-
-func All() []contracts.Provider {
-	return []contracts.Provider{
-		&AppServiceProvider{},
-		&RouteServiceProvider{},
-	}
-}
-`,
-		filepath.Join("app", "http", "controllers", "web", "home_controller.go"): `package web
-
-import "github.com/zatrano/framework/v2/kernel/http"
-
-type HomeController struct{}
-
-func (c *HomeController) Index(req *http.Request) *http.Response {
-	return http.HTML("<h1>` + appName + `</h1>")
-}
-`,
-		filepath.Join("app", "http", "controllers", "api", "home_controller.go"): `package api
-
-import "github.com/zatrano/framework/v2/kernel/http"
-
-type HomeController struct{}
-
-func (c *HomeController) Index(req *http.Request) *http.Response {
-	return http.JSON(map[string]any{"name": "` + appName + `"})
-}
-`,
-		filepath.Join("app", "routes", "web", "web.go"): `package web
-
-import (
-	webctrl "` + module + `/app/http/controllers/web"
-
-	"github.com/zatrano/framework/v2/kernel/routing"
-)
-
-func init() {
-	routing.RegisterWeb(registerWeb)
-}
-
-func registerWeb(router *routing.Router) {
-	if router == nil {
-		return
-	}
-	routing.Controller(router, &webctrl.HomeController{}, func(r routing.RouteRegistrar, c *webctrl.HomeController) {
-		r.Get("/", c.Index).As("home")
-	})
-}
-`,
-		filepath.Join("app", "routes", "web", "health.go"): `package web
-
-import (
-	"github.com/zatrano/framework/v2/kernel/http"
-	"github.com/zatrano/framework/v2/kernel/routing"
-)
-
-func init() {
-	routing.RegisterWeb(registerHealth)
-}
-
-func registerHealth(router *routing.Router) {
-	if router == nil {
-		return
-	}
-	router.Get("/up", func(req *http.Request) *http.Response {
-		return http.JSON(map[string]any{"status": "ok"})
-	}).As("up")
-	router.Get("/health", func(req *http.Request) *http.Response {
-		return http.JSON(map[string]any{"status": "ok"})
-	}).As("health")
-}
-`,
-		filepath.Join("app", "database", "migrations", "migrations.go"): `package migrations
-
-func All() any { return nil }
-`,
-		filepath.Join("app", "database", "seeders", "database_seeder.go"): `package seeders
-
-func All() any { return nil }
-`,
-		filepath.Join("tests", "feature_test.go"): `package tests
-
-import (
-	"context"
-	"encoding/json"
-	"io"
-	stdhttp "net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-
-	"` + module + `/app/providers"
-	_ "` + module + `/bootstrap"
-
-	"github.com/zatrano/framework/v2/bootstrap"
-)
-
-func doGet(t *testing.T, path string, acceptJSON bool) *stdhttp.Response {
-	t.Helper()
-	t.Setenv("APP_ENV", "local")
-	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
-	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
-	if err := app.Bootstrap(); err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(stdhttp.MethodGet, path, nil)
-	if acceptJSON {
-		req.Header.Set("Accept", "application/json")
-	}
-	rec := httptest.NewRecorder()
-	app.ServeHTTP(rec, req)
-	return rec.Result()
-}
-
-func TestHealthEndpoint(t *testing.T) {
-	for _, path := range []string{"/health", "/up"} {
-		resp := doGet(t, path, true)
-		defer resp.Body.Close()
-		if resp.StatusCode != stdhttp.StatusOK {
-			t.Fatalf("%s: status %d", path, resp.StatusCode)
-		}
-		raw, _ := io.ReadAll(resp.Body)
-		var body map[string]any
-		if err := json.Unmarshal(raw, &body); err != nil {
-			t.Fatalf("%s: json: %v body=%s", path, err, raw)
-		}
-		if body["status"] != "ok" {
-			t.Fatalf("%s: expected status ok, got %#v", path, body)
-		}
-	}
-}
-
-func TestLifecycleStartStopWithoutInfrastructure(t *testing.T) {
-	t.Setenv("APP_ENV", "local")
-	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
-	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
-	if err := app.Bootstrap(); err != nil {
-		t.Fatal(err)
-	}
-	if err := app.Start(); err != nil {
-		t.Fatal(err)
-	}
-	if err := app.Stop(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWelcomeUsesLayout(t *testing.T) {
-	resp := doGet(t, "/", false)
-	defer resp.Body.Close()
-	if resp.StatusCode != stdhttp.StatusOK {
-		t.Fatalf("status %d", resp.StatusCode)
-	}
-	raw, _ := io.ReadAll(resp.Body)
-	body := string(raw)
-	if !strings.Contains(body, "` + appName + `") {
-		t.Fatalf("expected brand in welcome page, got %s", body)
-	}
-}
-`,
-	}
-	for rel, body := range files {
-		path := filepath.Join(dest, rel)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-			return err
-		}
-	}
-	migDir := filepath.Join(dest, "app", "database", "migrations")
-	entries, err := os.ReadDir(migDir)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if name == "migrations.go" || e.IsDir() {
-			continue
-		}
-		if err := os.Remove(filepath.Join(migDir, name)); err != nil {
-			return err
-		}
-	}
-	if err := writeEnabledAddons(filepath.Join(dest, "bootstrap", "enabled.go"), nil); err != nil {
-		return err
-	}
-	return nil
-}
-
 func sanitizeModule(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, "\\", "/")
@@ -447,8 +292,4 @@ func frameworkGoModVersion(product string) string {
 		return "v" + v
 	}
 	return "v" + v
-}
-
-func renameTemplatePath(rel string) string {
-	return strings.TrimSuffix(rel, ".tmpl")
 }

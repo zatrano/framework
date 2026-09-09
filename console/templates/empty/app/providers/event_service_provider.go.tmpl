@@ -1,0 +1,14 @@
+package providers
+
+import "github.com/zatrano/framework/v2/contracts"
+
+// EventServiceProvider registers application events and listeners.
+type EventServiceProvider struct{}
+
+func (p *EventServiceProvider) Register(app contracts.App) error {
+	return nil
+}
+
+func (p *EventServiceProvider) Boot(app contracts.App) error {
+	return nil
+}

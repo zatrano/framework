@@ -15,8 +15,8 @@ func BootProfiles() []string {
 }
 
 // ResolveProfile normalizes an APP_BOOT value.
-// Former api/web/minimal/core/kernel names still resolve; App() is always kernel
-// plus whatever the process blank-imported.
+// Legacy runtime aliases (api/web/minimal/core/kernel) still resolve to "app".
+// APP_BOOT=minimal is not a scaffold profile and is not related to zatrano new.
 func ResolveProfile(name string) (string, error) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	switch name {

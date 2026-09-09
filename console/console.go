@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -43,8 +44,6 @@ func New(app *kernel.Application) *Application {
 		&VersionCommand{},
 	)
 	registerCacheCommands(console, app)
-	registerRequestCommands(console, app)
-	registerRuleCommands(console, app)
 	registerStorageCommands(console, app)
 	registerMakeProviderCommand(console, app)
 	registerServiceCommands(console, app)
@@ -55,6 +54,7 @@ func New(app *kernel.Application) *Application {
 	registerMakeCommand(console, app)
 	registerPackageCommands(console, app)
 	registerNewCommand(console, app)
+	registerAddCommands(console, app)
 	registerDescribeCommand(console, app)
 	registerDoctorCommand(console, app)
 	registerAgentsCommand(console, app)
@@ -83,9 +83,25 @@ func (c *Application) Run(args []string) error {
 	}
 	command, ok := c.commands[name]
 	if !ok {
-		return fmt.Errorf("command [%s] not defined\nNext: run zatrano --help (or list) for available commands", name)
+		return unknownCommandError(name)
 	}
 	return command.Handle(args[1:])
+}
+
+// packageOwnedCLI maps kernel-absent commands to catalog package names.
+// The CLI process does not import those packages; this is a catalog hint only.
+var packageOwnedCLI = map[string]string{
+	"make:request": "validation",
+	"make:rule":    "validation",
+}
+
+func unknownCommandError(name string) error {
+	if pkg, ok := packageOwnedCLI[name]; ok {
+		if _, exists := catalogLookup(pkg); exists {
+			return fmt.Errorf("%s requires the %s package, which is not imported in this process.\nKernel CLI does not import packages. From an application that imports %s:\n  go run ./cmd/app %s\nEnable with: go run ./cmd/app package:enable %s", name, pkg, pkg, name, pkg)
+		}
+	}
+	return fmt.Errorf("command [%s] not defined\nNext: run zatrano --help (or list) for available commands", name)
 }
 
 // Commands returns registered commands.
@@ -236,14 +252,7 @@ func (c *MakeControllerCommand) Handle(args []string) error {
 		return fmt.Errorf("controller name required")
 	}
 	name := strings.TrimSuffix(nameArgs[0], "Controller") + "Controller"
-	dir := c.app.BasePath("app", "http", "controllers", pkg)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+".go")
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("controller already exists: %s", path)
-	}
+	path := filepath.Join(c.app.BasePath("app", "http", "controllers", pkg), toSnake(name)+".go")
 	content := fmt.Sprintf(`package %s
 
 import . "github.com/zatrano/framework/v2/kernel/http"
@@ -256,7 +265,10 @@ func (c *%s) Index(req *Request) *Response {
 	})
 }
 `, pkg, name, name, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteExclusive(path, content); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("controller already exists: %s", path)
+		}
 		return err
 	}
 	fmt.Printf("Created: %s\n", path)
@@ -274,14 +286,7 @@ func (c *MakeMiddlewareCommand) Handle(args []string) error {
 		return fmt.Errorf("middleware name required")
 	}
 	name := args[0]
-	dir := c.app.BasePath("app", "http", "middleware")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+".go")
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("middleware already exists: %s", path)
-	}
+	path := filepath.Join(c.app.BasePath("app", "http", "middleware"), toSnake(name)+".go")
 	content := fmt.Sprintf(`package middleware
 
 import (
@@ -296,7 +301,13 @@ func %s(next HandlerFunc) HandlerFunc {
 	}
 }
 `, name)
-	return os.WriteFile(path, []byte(content), 0o644)
+	if err := generator.WriteExclusive(path, content); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("middleware already exists: %s", path)
+		}
+		return err
+	}
+	return nil
 }
 
 func toSnake(name string) string {

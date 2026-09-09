@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -28,15 +29,7 @@ func (c *MakeCommandCommand) Handle(args []string) error {
 	structName := strings.TrimSuffix(raw, "Command") + "Command"
 	signature := toCommandSignature(raw)
 	mod := consumerModule(c.app)
-	dir := c.app.BasePath("app", "console", "commands")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(structName)+".go")
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("command already exists: %s", path)
-	}
-
+	path := filepath.Join(c.app.BasePath("app", "console", "commands"), toSnake(structName)+".go")
 	content := fmt.Sprintf(`package commands
 
 import (
@@ -61,7 +54,10 @@ func (c *%s) Handle(args []string) error {
 }
 `, structName, structName, structName, signature, structName, signature, structName, signature)
 
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteExclusive(path, content); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("command already exists: %s", path)
+		}
 		return err
 	}
 
@@ -82,7 +78,7 @@ func Register(cli *coreconsole.Application, app contracts.App) {
 	)
 }
 `, mod, structName)
-		if err := os.WriteFile(kernel, []byte(kernelContent), 0o644); err != nil {
+		if err := generator.WriteFile(kernel, kernelContent); err != nil {
 			return err
 		}
 		fmt.Printf("created %s\n", path)

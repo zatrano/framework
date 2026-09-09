@@ -1,0 +1,24 @@
+package tests
+
+import (
+	"encoding/json"
+	"io"
+	stdhttp "net/http"
+	"testing"
+)
+
+func TestAPIRootJSON(t *testing.T) {
+	resp := doGet(t, "/api", true)
+	defer resp.Body.Close()
+	if resp.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatalf("json: %v body=%s", err, raw)
+	}
+	if body["name"] != "__APP_NAME__" {
+		t.Fatalf("expected name, got %#v", body)
+	}
+}

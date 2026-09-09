@@ -1,0 +1,2 @@
+@props(['type' => 'info'])
+<div {{ $attributes }} class="alert alert-{{ $type }}">@isset($message)<span class="msg">{{ $message }}</span>@endisset{{ $slot }}</div>

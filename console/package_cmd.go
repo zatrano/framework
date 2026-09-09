@@ -11,7 +11,6 @@ import (
 
 	"github.com/zatrano/framework/v2/bootstrap"
 	"github.com/zatrano/framework/v2/bootstrap/addons"
-	"github.com/zatrano/framework/v2/bootstrap/stubs"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -67,7 +66,7 @@ func (c *PackageListCommand) Handle(args []string) error {
 			heavy = "yes"
 		}
 		stub := ""
-		if len(stubs.ForPackage(m.Name)) > 0 {
+		if len(m.ConfigFiles) > 0 {
 			stub = "yes"
 		}
 		desc := m.Description
@@ -533,26 +532,26 @@ func disablePackage(app *kernel.Application, name string) (bool, error) {
 }
 
 func publishPackage(app *kernel.Application, name string, force bool) error {
-	if _, ok := addons.Lookup(name); !ok {
+	meta, ok := addons.Lookup(name)
+	if !ok {
 		return fmt.Errorf("unknown package %q (see package:list)", name)
 	}
-	files := stubs.ForPackage(name)
-	if len(files) == 0 {
+	if len(meta.ConfigFiles) == 0 {
 		fmt.Printf("Package %s has no config stubs to publish.\n", name)
 		return nil
 	}
-	_, _, err := publishStubFiles(app, files, force, true)
+	_, _, err := publishConfigFiles(app, meta.ConfigFiles, force, true)
 	return err
 }
 
 // publishPackagesQuiet publishes stubs for packages that have them (no "no stubs" noise).
 func publishPackagesQuiet(app *kernel.Application, names []string, force bool) (published, skipped int, err error) {
 	for _, name := range names {
-		files := stubs.ForPackage(name)
-		if len(files) == 0 {
+		meta, ok := addons.Lookup(name)
+		if !ok || len(meta.ConfigFiles) == 0 {
 			continue
 		}
-		p, s, err := publishStubFiles(app, files, force, true)
+		p, s, err := publishConfigFiles(app, meta.ConfigFiles, force, true)
 		if err != nil {
 			return published, skipped, err
 		}
@@ -562,13 +561,14 @@ func publishPackagesQuiet(app *kernel.Application, names []string, force bool) (
 	return published, skipped, nil
 }
 
-func publishStubFiles(app *kernel.Application, files []string, force, verbose bool) (published, skipped int, err error) {
+func publishConfigFiles(app *kernel.Application, files map[string]string, force, verbose bool) (published, skipped int, err error) {
 	dir := app.BasePath("config")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return 0, 0, err
 	}
-	for _, file := range files {
-		body, ok := stubs.Files[file]
+	names := addons.ConfigFileNames(addons.Meta{ConfigFiles: files})
+	for _, file := range names {
+		body, ok := files[file]
 		if !ok {
 			continue
 		}

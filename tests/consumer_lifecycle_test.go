@@ -40,7 +40,7 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	newCmd := exec.CommandContext(ctx, "go", "run", "./cmd/zatrano", "new", dest, "--module", "example.com/freshapp", "--minimal", "--replace", root)
+	newCmd := exec.CommandContext(ctx, "go", "run", "./cmd/zatrano", "new", dest, "--module", "example.com/freshapp", "--replace", root)
 	newCmd.Dir = root
 	newCmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	out, err := newCmd.CombinedOutput()
@@ -62,8 +62,8 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v2 v2.0.28") {
-		t.Fatalf("generated go.mod must require v2.0.28:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v2 v2.1.0") {
+		t.Fatalf("generated go.mod must require v2.1.0:\n%s", mod)
 	}
 
 	build := exec.CommandContext(ctx, "go", "build", "./...")

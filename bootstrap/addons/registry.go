@@ -32,6 +32,9 @@ type Meta struct {
 	// packages/<name>/.env.example file; this field is a fallback when the
 	// CLI process already imported the addon and the file is not on disk.
 	EnvExample string
+	// ConfigFiles maps published config filename -> contents for package:publish.
+	// Package-owned configuration policy lives here, not in the framework.
+	ConfigFiles map[string]string
 	// FrameworkMin is the lowest github.com/zatrano/framework/v2 version this
 	// addon claims to support (semver, optional "v" prefix). Empty means
 	// unspecified — the runtime does not infer a default. package:doctor
@@ -107,6 +110,23 @@ func Lookup(name string) (Meta, bool) {
 		}
 	}
 	return Meta{}, false
+}
+
+// ConfigFileNames returns sorted package:publish filenames owned by the addon.
+func ConfigFileNames(m Meta) []string {
+	if len(m.ConfigFiles) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(m.ConfigFiles))
+	for name := range m.ConfigFiles {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Names returns all registered addon names.

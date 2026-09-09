@@ -2,10 +2,10 @@ package console
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -27,11 +27,7 @@ func (c *MakeServiceCommand) Handle(args []string) error {
 	if !strings.HasSuffix(name, "Service") {
 		name += "Service"
 	}
-	dir := c.app.BasePath("app", "services")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+".go")
+	path := filepath.Join(c.app.BasePath("app", "services"), toSnake(name)+".go")
 	content := fmt.Sprintf(`package services
 
 // %s encapsulates application business logic.
@@ -48,7 +44,7 @@ func (s *%s) Handle() error {
 	return nil
 }
 `, name, name, name, name, name, name, name, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteFile(path, content); err != nil {
 		return err
 	}
 	fmt.Printf("Service created: %s\n", path)

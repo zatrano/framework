@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/dirs"
 )
 
 func registerAgentsCommand(console *Application, app *kernel.Application) {
@@ -181,15 +182,5 @@ func RenderAgentsMarkdown(doc *DescribeDocument) string {
 }
 
 func routeLayoutDirs() []string {
-	dirs, err := requiredStarterAppDirs()
-	if err != nil {
-		return nil
-	}
-	var out []string
-	for _, d := range dirs {
-		if strings.Contains(d, "routes/") || strings.HasSuffix(d, "routes") {
-			out = append(out, d)
-		}
-	}
-	return out
+	return append([]string{}, dirs.CanonicalRouteDirs()...)
 }

@@ -2,10 +2,10 @@ package console
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -25,14 +25,7 @@ func (c *MakeProviderCommand) Handle(args []string) error {
 	if !strings.HasSuffix(name, "ServiceProvider") {
 		name += "ServiceProvider"
 	}
-	dir := c.app.BasePath("app", "providers")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+".go")
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("provider already exists: %s", path)
-	}
+	path := filepath.Join(c.app.BasePath("app", "providers"), toSnake(name)+".go")
 	content := fmt.Sprintf(`package providers
 
 import "github.com/zatrano/framework/v2/contracts"
@@ -48,7 +41,10 @@ func (p *%s) Boot(app contracts.App) error {
 	return nil
 }
 `, name, name, name, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteExclusive(path, content); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("provider already exists: %s", path)
+		}
 		return err
 	}
 	fmt.Printf("Provider created: %s\n", path)

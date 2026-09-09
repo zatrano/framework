@@ -1,0 +1,16 @@
+@extends('layouts.app')
+
+@section('title')
+@lang('messages.welcome_title')
+@endsection
+
+@section('content')
+@if($langPublished)
+<x-locale.switcher />
+@endif
+<p>@lang('messages.welcome_message')</p>
+@if($flash.success)
+<p class="flash">{{ $flash.success }}</p>
+@endif
+<p class="hint">@lang('messages.welcome_hint')</p>
+@endsection

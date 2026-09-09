@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zatrano/framework/v2/kernel/dirs"
 )
 
 func TestDoctorMisplacedRoute(t *testing.T) {
@@ -139,5 +141,22 @@ func writeDoctorFile(t *testing.T, root, rel, body string) {
 	}
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRequiredStarterAppDirsAreCanonical(t *testing.T) {
+	got, err := requiredStarterAppDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := dirs.CanonicalConsumerDirs()
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("got %v want %v", got, want)
+	}
+	join := strings.Join(got, "\n")
+	for _, d := range dirs.OptionalWebScaffoldDirs() {
+		if strings.Contains(join, d) {
+			t.Fatalf("optional web dir %s leaked into doctor required dirs", d)
+		}
 	}
 }

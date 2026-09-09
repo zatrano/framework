@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -63,33 +64,33 @@ func (c *MakeTestCommand) Handle(args []string) error {
 		return fmt.Errorf("test name required")
 	}
 	name := args[0]
-	dir := c.app.BasePath("tests")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(name)+"_test.go")
+	path := filepath.Join(c.app.BasePath("tests"), toSnake(name)+"_test.go")
 	content := fmt.Sprintf(`package tests
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/zatrano/framework/v2/bootstrap"
-	testkit "github.com/zatrano/packages/testing"
 )
 
 func Test%s(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
 	app := bootstrap.App()
-	tc, err := testkit.New(app)
-	if err != nil {
+	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
-
-	tc.AcceptJSON().Get("/api/health").
-		AssertOK().
-		AssertJSONContains("status", "ok")
+	req := httptest.NewRequest(http.MethodGet, "/up", nil)
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /up: status %%d", rec.Code)
+	}
 }
 `, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteFile(path, content); err != nil {
 		return err
 	}
 	fmt.Printf("Test created: %s\n", path)

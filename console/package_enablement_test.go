@@ -439,16 +439,48 @@ func TestPackageDoctorFrameworkVersion(t *testing.T) {
 	app := kernel.NewApplication(t.TempDir())
 	findings := runPackageDoctor(app)
 	found := false
+	appOK := false
 	for _, f := range findings {
 		if f.Code == "framework.version" {
 			found = true
-			if f.Level != "WARN" && f.Level != "OK" {
-				t.Fatalf("framework.version level=%s", f.Level)
+			if f.Level != "WARN" {
+				t.Fatalf("framework.version without identity must WARN, got %s %q", f.Level, f.Message)
 			}
+		}
+		if f.Code == "app.version" && f.Level == "OK" && strings.Contains(f.Message, "optional") {
+			appOK = true
 		}
 	}
 	if !found {
 		t.Fatalf("expected framework.version, got %#v", findings)
+	}
+	if !appOK {
+		t.Fatalf("expected app.version OK for missing VERSION, got %#v", findings)
+	}
+}
+
+func TestPackageDoctorFrameworkVersionFromGoMod(t *testing.T) {
+	dir := t.TempDir()
+	mod := "module example.com/app\n\nrequire github.com/zatrano/framework/v2 v" + currentRelease + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app := kernel.NewApplication(dir)
+	findings := runPackageDoctor(app)
+	var fw, appVer doctorFinding
+	for _, f := range findings {
+		switch f.Code {
+		case "framework.version":
+			fw = f
+		case "app.version":
+			appVer = f
+		}
+	}
+	if fw.Level != "OK" || !strings.Contains(fw.Message, currentRelease) || !strings.Contains(fw.Message, "go.mod") {
+		t.Fatalf("framework.version=%#v", fw)
+	}
+	if appVer.Level != "OK" || !strings.Contains(appVer.Message, "optional") {
+		t.Fatalf("app.version=%#v", appVer)
 	}
 }
 

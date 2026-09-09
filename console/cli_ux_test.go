@@ -27,7 +27,7 @@ func TestCLIHelpAndVersionFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "2.0.28") {
+	if !strings.Contains(buf.String(), currentRelease) {
 		t.Fatalf("version=%q", buf.String())
 	}
 

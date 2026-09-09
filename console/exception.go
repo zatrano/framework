@@ -2,10 +2,10 @@ package console
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -31,11 +31,7 @@ func (c *MakeExceptionCommand) Handle(args []string) error {
 		structName += "Exception"
 	}
 	status := 422
-	dir := c.app.BasePath("app", "exceptions")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, toSnake(structName)+".go")
+	path := filepath.Join(c.app.BasePath("app", "exceptions"), toSnake(structName)+".go")
 	content := fmt.Sprintf(`package exceptions
 
 import (
@@ -71,7 +67,7 @@ func Register%s(h *exceptions.Handler) {
 	})
 }
 `, structName, structName, structName, structName, structName, status, structName, status, structName, status, status, status)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := generator.WriteFile(path, content); err != nil {
 		return err
 	}
 	fmt.Printf("Exception created: %s\n", path)

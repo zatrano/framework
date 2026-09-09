@@ -1,0 +1,10 @@
+package providers
+
+import "github.com/zatrano/framework/v2/contracts"
+
+func All() []contracts.Provider {
+	return []contracts.Provider{
+		&AppServiceProvider{},
+		&RouteServiceProvider{},
+	}
+}

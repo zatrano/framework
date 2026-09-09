@@ -5,14 +5,13 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/dirs"
 )
 
 var doctorRouteCalls = map[string]bool{
@@ -269,7 +268,7 @@ func checkAppLayout(root string) ([]Finding, error) {
 				Severity: "warning",
 				File:     dir,
 				Found:    "missing directory " + dir,
-				Why:      "zatrano new places application code in this tree; agents and doctor assume it.",
+				Why:      "canonical application layout requires this directory (kernel/dirs.CanonicalConsumerDirs).",
 				How:      "Create " + dir + " (or regenerate the app with zatrano new) and keep types in the starter locations.",
 			})
 		}
@@ -301,36 +300,11 @@ func checkAppLayout(root string) ([]Finding, error) {
 }
 
 func requiredStarterAppDirs() ([]string, error) {
-	seen := map[string]bool{}
-	var dirs []string
-	err := fs.WalkDir(starterTemplates, "templates/app", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		name := d.Name()
-		if name == ".gitkeep" {
-			return nil
-		}
-		rel := strings.TrimPrefix(filepath.ToSlash(path), "templates/")
-		dir := filepath.ToSlash(filepath.Dir(rel))
-		if dir == "." || seen[dir] {
-			return nil
-		}
-		seen[dir] = true
-		dirs = append(dirs, dir)
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	out := append([]string{}, dirs.CanonicalConsumerDirs()...)
+	if len(out) == 0 {
+		return nil, fmt.Errorf("console: canonical consumer dirs are empty")
 	}
-	if len(dirs) == 0 {
-		return nil, fmt.Errorf("console: no starter app directories in templates")
-	}
-	sort.Strings(dirs)
-	return dirs, nil
+	return out, nil
 }
 
 func checkProviders(root string) ([]Finding, error) {

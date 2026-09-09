@@ -1,0 +1,14 @@
+package api
+
+import "github.com/zatrano/framework/v2/kernel/http"
+
+// HomeController serves API root information.
+type HomeController struct{}
+
+// Index returns application name and scaffold framework pin.
+func (c *HomeController) Index(req *http.Request) *http.Response {
+	return http.JSON(map[string]any{
+		"name":    "__APP_NAME__",
+		"version": "__FRAMEWORK_VERSION__",
+	})
+}

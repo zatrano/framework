@@ -9,7 +9,7 @@ import (
 // currentRelease is the fallback product version when VERSION cannot be read
 // (for example a generated app with no VERSION file). Keep in sync with the
 // repository VERSION file.
-const currentRelease = "2.0.28"
+const currentRelease = "2.1.0"
 
 func productVersion() string {
 	root, err := frameworkModuleRoot()

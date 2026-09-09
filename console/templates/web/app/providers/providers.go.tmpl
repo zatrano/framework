@@ -1,0 +1,14 @@
+package providers
+
+import "github.com/zatrano/framework/v2/contracts"
+
+// All returns application-layer providers registered with bootstrap.WithProviders.
+func All() []contracts.Provider {
+	return []contracts.Provider{
+		&AppServiceProvider{},
+		&RouteServiceProvider{},
+		&DatabaseServiceProvider{},
+		&EventServiceProvider{},
+		&ScheduleServiceProvider{},
+	}
+}

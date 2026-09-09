@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.0.28-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.1.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -81,7 +81,17 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, and CLI. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
+This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and first-party application scaffolds (`empty`, `web`, `api`, and `full`). It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
+
+ZATRANO is an application platform, not merely a web toolkit.
+
+```text
+framework   runtime, contracts, CLI, generator engine, first-party scaffolds
+packages    optional capabilities, package-owned make:*, stubs, config, .env fragments
+examples    runnable reference applications — not templates
+```
+
+Start empty, then choose Web, API, or both. Scaffold type is presentation, not platform capacity. `zatrano new myapp` generates an **empty** application (kernel, layout, tests; no packages enabled). `--web`, `--api`, and `--full` add presentation defaults. `add:web` / `add:api` compose the other profile onto an existing app without overwriting user source. First-party scaffolds are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
 
 ## Architecture
 
@@ -176,7 +186,7 @@ Packages
   └── …
 ```
 
-A minimal application does not pay for capabilities it does not use.
+An empty application does not pay for capabilities it does not use.
 
 ## Two modules
 
@@ -231,7 +241,18 @@ myapp/
 └── go.mod
 ```
 
-Default `zatrano new` is not kernel-only: it enables `assets`, `health`, `localization`, and `view`, and the generated templates import those packages. `--minimal` drops the package ecosystem.
+Default `zatrano new` generates an **empty** application: the canonical layout and kernel HTTP, with no packages enabled.
+
+| Profile | Command | Meaning |
+| --- | --- | --- |
+| Empty | `zatrano new myapp` | Opinion-free application foundation. No packages. |
+| Web | `zatrano new myapp --web` | Full-capacity application with HTML presentation defaults. `GET /` is HTML. |
+| API | `zatrano new myapp --api` | Full-capacity application with JSON/API presentation defaults. `GET /` is JSON. |
+| Full | `zatrano new myapp --full` | Web + API presentation composition. HTML `/` and JSON `/api`. Not every package. |
+
+`--web`, `--api`, and `--full` are mutually exclusive. `--minimal` is not a scaffold and is rejected.
+
+`add:web` and `add:api` compose presentation onto an existing app without regenerating it. They preserve the existing root handler: API-first then `add:web` keeps JSON `/`; Web-first then `add:api` keeps HTML `/`. That is state-preserving composition, not the same as `--full`. Enablement can match `--full` while the original `/` stays. You never need to recreate an application because you first chose Web instead of API, or API instead of Web. A framework upgrade does not regenerate application source (G-001). Generated apps record scaffold name, version, and digest in `bootstrap/scaffold.go` at `zatrano new` time only; `add:*` does not rewrite that metadata.
 
 ## Quick start
 
@@ -240,7 +261,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@v2.0.28
+go install github.com/zatrano/framework/v2/cmd/zatrano@v2.1.0
 zatrano new myapp
 cd myapp
 
@@ -254,7 +275,7 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@v2.0.28
+go get github.com/zatrano/framework/v2@v2.1.0
 go get github.com/zatrano/packages@v1.7.1
 ```
 
@@ -274,10 +295,18 @@ go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
 
-Kernel-only scaffold (no package ecosystem):
+Empty application (default; no packages enabled):
 
 ```bash
-go run ./cmd/zatrano new lite --minimal --replace "$PWD"
+go run ./cmd/zatrano new myapp --replace "$PWD"
+```
+
+Web, API, or both:
+
+```bash
+go run ./cmd/zatrano new myweb --web --replace "$PWD"
+go run ./cmd/zatrano new myapi --api --replace "$PWD"
+go run ./cmd/zatrano new myfull --full --replace "$PWD"
 ```
 
 `zatrano new` does not accept `..` in the project name. Put the app next to this clone with an absolute destination, or create it as a subdirectory as above.
@@ -545,12 +574,14 @@ zatrano package:disable
 zatrano package:doctor
 zatrano make:controller
 zatrano make:middleware
-zatrano make:request
-zatrano make:rule
+zatrano make:provider
+zatrano make:command
+zatrano make:service
+zatrano make:exception
 zatrano make:test
 ```
 
-`db:setup`, `migrate`, `queue:work`, `make:auth`, and similar commands register only when their package is imported. They are not part of a kernel-only CLI.
+`make:request` and `make:rule` register when the validation package is imported. `db:setup`, `migrate`, `queue:work`, `make:auth`, and similar commands register only when their package is imported. They are not part of a kernel-only CLI.
 
 Process exit codes are classified at the CLI boundary (`cmd/zatrano` via `console.CodeFromError`). Acquisition and runtime use different tables.
 
@@ -603,6 +634,8 @@ kernel/            Application + primitives
 contracts/         Public dependency-neutral ABI
 bootstrap/         Application boot and package registry
 console/           Platform CLI commands
+console/generator/ Generator engine (templates, placeholders, filesystem)
+console/templates/ Embedded first-party scaffolds (`empty`, `web`, `api`) plus `overlays` for add:*
 cmd/zatrano/       CLI entrypoint
 distribution/      Package manifest, registry index, acquisition plan
 tests/             Architecture, compatibility, boot, and fuzz tests
@@ -652,7 +685,7 @@ Framework contracts / kernel
 
 ### Frozen invariants
 
-These are the public architectural baseline after Framework `v2.0.28` and Packages `v1.7.1`. Do not reopen them for convenience.
+These are the public architectural baseline after Framework `v2.1.0` and Packages `v1.7.1`. Do not reopen them for convenience.
 
 - Framework does not depend on Packages. Packages depend on Framework. Applications may import both.
 - `contracts` remains dependency-neutral. Kernel owns runtime lifecycle. Capabilities are not `App` methods; typed facades (`From(app)`) live beside implementations.
@@ -664,13 +697,13 @@ These are the public architectural baseline after Framework `v2.0.28` and Packag
 
 ## v2
 
-**Framework `v2.0.28`** is the current public kernel. **Packages `v1.7.1`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
+**Framework `v2.1.0`** is the current public kernel. **Packages `v1.7.1`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
 Framework
   module: github.com/zatrano/framework/v2
   major:  v2
-  current: v2.0.28
+  current: v2.1.0
 
 Packages
   module: github.com/zatrano/packages
@@ -686,7 +719,7 @@ Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do no
 
 | Line | Meaning |
 | --- | --- |
-| Framework `v2.0.28` | Current kernel / CLI / contracts |
+| Framework `v2.1.0` | Current kernel / CLI / contracts |
 | Packages `v1.7.1` | Current official package ecosystem |
 | Framework `v1.x` | Previous tagged kernel line |
 

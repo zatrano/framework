@@ -1,0 +1,9 @@
+package web
+
+import "github.com/zatrano/framework/v2/kernel/http"
+
+type HomeController struct{}
+
+func (c *HomeController) Index(req *http.Request) *http.Response {
+	return http.HTML("<h1>__APP_NAME__</h1>")
+}

@@ -4,17 +4,33 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-Documentation and CLI catalog alignment with the published ecosystem: Framework `v2.0.28` and Packages `v1.7.1`. Public README/PACKAGES.md install pins, registry SPEC (packages is a tagged v1.x module), and first-time `package:enable` wiring use `github.com/zatrano/packages@v1.7.1` instead of `@main`. Catalog `redisx` remains `KindLibrary`. No kernel ABI, acquisition Apply, or module-path change. VERSION stays `2.0.28`.
+## 2.1.0 - 2026-09-09
 
-Example applications moved to [`github.com/zatrano/examples`](https://github.com/zatrano/examples). The framework module no longer contains `examples/`. VERSION stays `2.0.28`.
+### Breaking / DX
 
-Public API documentation: no API or lifecycle behavior change. Godoc/README clarify that `bootstrap.App`/`Boot` construct and register providers without calling `Application.Bootstrap`, and that `env.GetInt` is silent-fallback while `env.IntOr` fails closed. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+Default `zatrano new myapp` now generates an **empty** application: canonical layout, kernel HTTP/CLI, bootstrap, tests, and storage, with `EnabledAddons=[]` and no `github.com/zatrano/packages` dependency. Previous default was Web-oriented. This is a deliberate DX break and the reason for the 2.1.0 minor boundary under the pre-3.0 compatibility policy.
 
-In-tree reference application (`examples/reference`): a consumer-shaped HTTP API that exercises Register → Boot → Start → Stop, `kernel/env` configuration (including sensitive values), `/up` vs `/api/v1/status`, a `LifecycleProvider` worker, in-memory persistence boundary, and failure injection. No framework architectural change. VERSION stays `2.0.28`. Public module-proxy consumption of `v2.0.28` remains pending.
+`--minimal` is removed as a user-facing scaffold. It fails loudly; it is not an alias to empty or API. `APP_BOOT=minimal` remains a legacy runtime boot alias only.
 
-Application ergonomics: `zatrano --help` / `--version` (reports 2.0.28), deterministic `list` order, invalid `APP_PORT` / `serve --port` fail with named type errors (secrets not echoed), provider/phase errors preserved through `serve`/`Run`, generated `--minimal` `/up` + lifecycle tests, cancellation/Stop safety tests, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
+### New
 
-Consumer diagnostics: fresh-consumer lifecycle coverage (`zatrano new` → build → search → acquire → enable → doctor → boot), actionable package CLI errors (acquisition exit codes 0–7 unchanged; JSON contract unchanged), `package:doctor` framework/import/Requires-closure diagnostics, deterministic search/library list ordering, provider+phase identification on Register/Boot/Start failures, and architecture guards. Public module-proxy consumption of `v2.0.28` remains pending. No `func Apply`. VERSION stays `2.0.28`.
+- `zatrano new myapp --web` — full-capacity HTML presentation defaults (`assets`, `health`, `localization`, `view`). `GET /` is HTML.
+- `zatrano new myapp --api` — full-capacity JSON/API presentation defaults (`health`, `validation`). `GET /` is JSON.
+- `zatrano new myapp --full` — Web + API presentation composition (not database, auth, queue, notifications, AI, RAG, agents, or every package). Canonical starter: HTML `/` and JSON `/api`.
+- `zatrano add:web` / `zatrano add:api` — composable presentation overlays. Idempotent, non-destructive, conflict-aware; exact empty-stub replacement via `bytes.Equal` only. They preserve the original root: `new --web` then `add:api` keeps HTML `/`; `new --api` then `add:web` keeps JSON `/`. That is intentional and different from `--full`.
+
+`--web`, `--api`, and `--full` are mutually exclusive.
+
+### Architecture
+
+- Empty / Web / API / Full are explicit profiles. Web and API are full-capacity; Full is presentation composition (Web Apply + API Overlay).
+- Generator remains Apply + Overlay. Overlay may write a missing file, treat an identical file as present, replace an exact known empty stub, or skip a user-modified file. No fuzzy matching.
+- G-001 preserved: `zatrano upgrade` does not invoke `add:web` / `add:api` or regenerate application source. `add:*` does not rewrite `bootstrap/scaffold.go`.
+- Framework does not depend on `github.com/zatrano/packages`. Empty generated applications also do not.
+- `add:web` / `add:api` stay presentation composition. `package:enable` stays capability activation. `package:preset` stays empty and unwired.
+- `package:doctor` distinguishes optional application `VERSION` (generated apps omit it) from framework identity (`go.mod` require, or `VERSION` in the framework tree). Generated API JSON no longer imports `packages/version` as an unenabled service.
+
+Documentation and CLI catalog remain aligned with Packages `v1.7.1`. Install with `go get github.com/zatrano/framework/v2@v2.1.0`. Public module-proxy consumption of `v2.1.0` is pending until this tag is published.
 
 ## 2.0.28 - 2026-09-08
 
