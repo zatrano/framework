@@ -36,7 +36,7 @@ Status values:
 | Index filters | `{Resource}IndexRequest` | ad-hoc `req.Query` without request type when query exists | FORBIDDEN (SEMANTIC if no Rules()) | §E | Docs; APP-REQ-001 if misnamed Rules() |
 | Show/Destroy input | `req.Param` + Policy | `DeleteRequest` / DTO | FORBIDDEN unless bulk body | §E | Docs |
 | Validation package | `packages/validation` only | ORM/service re-validation of the same rules | FORBIDDEN | §F | APP-REQ-002 in service/model |
-| unique/exists | Literal rules + `database` enabled | Concatenated strings; no database | Structural vs SEMANTIC | ADR-0010 | APP-VAL-001 literals only |
+| unique/exists | Literal rules + `database` enabled; lookup fail-closed | Concatenated strings; `exists` as AuthZ | Structural vs SEMANTIC | ADR-0010 | APP-VAL-001 literals; runtime Phase 4.5 |
 | Authorization | Gate/Policy | `role ==` dashboard stubs | FORBIDDEN as AuthZ | ADR-0006 | SEMANTIC (no doctor role scan) |
 | Persistence | `orm.Query[T]()` | Concrete repository | INTENTIONAL ALTERNATIVE | ADR-0003 optional | APP-REP-001 forbids interfaces/generic |
 | Repository interfaces | Do not create | `PostRepository interface`, `BaseRepository` | FORBIDDEN | Phase 3.5 | APP-REP-001 |

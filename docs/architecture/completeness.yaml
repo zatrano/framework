@@ -5,7 +5,7 @@
 version: "0.4.0"
 status: frozen
 phase: 4
-evidence: framework v2.1.0, packages v1.7.1, doctor catalog 24 IDs
+evidence: framework v2.1.0, packages v1.7.1, doctor catalog 24 IDs; Phase 4.5 unique/exists fail-closed at runtime
 
 # defined: STANDARD names canonical/forbidden/semantic/not_provided
 # canonical_example: golden.md section or generator artifact
@@ -155,7 +155,7 @@ concerns:
     generator: none
     doctor_rule: APP-VAL-001
     CI_enforced: YES
-    runtime_enforced: NO
+    runtime_enforced: YES
     semantic_only: PARTIAL
     not_provided: NO
   - id: authorization

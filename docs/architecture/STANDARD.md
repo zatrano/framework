@@ -291,7 +291,7 @@ if err != nil {
 - Rules: string map `field → "required|email|min:3"`. Custom rules via `make:rule` (`app/rules`).
 - Cross-field: `confirmed`, `same`, `different` (package rules). Domain invariants are **not** validation rules — they belong in the service after validation.
 - Nested: dotted keys. True nested-object graphs are **PARTIAL**.
-- Database-aware: `unique`, `exists` require a PresenceChecker (ADR-0010). **Without a checker they pass silently (fail-open).** If a checker returns an error, the rule fails. This is a **documented limitation** and a **correctness** problem — not a security control and not authorization. Applications that use these rules MUST enable `database`. Never use `exists:` as IDOR protection.
+- Database-aware: `unique`, `exists` require a PresenceChecker (ADR-0010). **Without a checker, or if the checker/query cannot complete, the rule MUST NOT pass (fail-closed).** A completed lookup still passes or fails according to the rule (unique: absent passes; exists: present passes). This is a **correctness** invariant — not a security control and not authorization. Applications that use these rules MUST enable `database`. Never use `exists:` as IDOR protection.
 - Localization: validation messages via FormRequest `Messages()` and lang files when localization is enabled.
 - Errors: `ValidationException` → API 422 JSON `{message, errors}` or web flash + `RedirectBack`.
 - Precognitive: `IsPrecognitive` uses JSON 422.
@@ -898,4 +898,4 @@ HTMX / fragment architecture · browser E2E package · first-party `mail` packag
 | 5 | Unused FormRequest; concatenated `unique`; `internal` Make wrapper | SEMANTIC | Call `ValidateForm`; literal rules; enable `database` |
 | 6 | `*Entity` in models + concrete repos as default access | SEMANTIC (repos optional) | ORM models; `orm.Query[T]()` default |
 
-Doctor must not grow fragile heuristics merely to drive this table to zero. Runtime correctness that remains: ADR-0010 `unique`/`exists` fail-open (RUNTIME HARDENING REQUIRED — validation package ADR, not this freeze).
+Doctor must not grow fragile heuristics merely to drive this table to zero. Runtime `unique`/`exists` is fail-closed (Phase 4.5, ADR-0010). Doctor still does not prove SQL.

@@ -1,47 +1,99 @@
-# ADR-0010 — `unique` / `exists` fail-open without a PresenceChecker
+# ADR-0010 — Database-backed `unique` / `exists` must fail closed
 
-- **Status:** Accepted
+- **Status:** Accepted (amended Phase 4.5)
 - **Date:** 2026-09-10
+- **Amendment:** 2026-09-10 (Phase 4.5)
 
-## Context
+The filename `0010-unique-exists-fail-open.md` is historical. Fail-open is **not** current behavior.
 
-`packages/validation` implements `unique` and `exists` via `PresenceChecker`. If neither the validator nor `SetDefaultPresenceChecker` has a checker, `checkPresence` **returns true** (the rule passes). If a checker is set and it returns an error, the rule **fails**.
+## Historical context (Phase 2)
 
-This is existing package behavior. Phase 2 does **not** change the runtime.
+`packages/validation` implements `unique` and `exists` via `PresenceChecker`. Through Phase 4, if neither the validator nor `SetDefaultPresenceChecker` had a checker, `checkPresence` **returned true** (the rule passed). Malformed `unique:users` (no column) also returned true. If a checker was set and it returned an error, the rule already **failed**.
+
+Phase 2 classified that as a documented limitation and a correctness problem, not a security control and not authorization. Doctor (Phase 3) added **error** APP-VAL-001 when those rule names appear as string literals and `database` is not enabled. Concatenated strings remain a documented SEMANTIC bypass of the doctor check. The runtime was intentionally left unchanged until this validation-package amendment.
 
 ## Problem
 
-Applications can ship `unique:users,email` or `exists:posts,id` and believe they have uniqueness or IDOR protection while `database` is disabled. Duplicate rows insert. Client-supplied ids “exist.”
+Applications could ship `unique:users,email` or `exists:posts,id` and believe they had uniqueness or existence protection while the required database fact could not be established. Duplicate rows could insert. Client-supplied ids could “exist.” A database error is not the same as “record not found.”
+
+## Root cause
+
+Fail-open was introduced in `packages/validation` `checkPresence`:
+
+1. `checker == nil` (instance and default) → `return true`
+2. `len(parts) < 2` (missing table or column) → `return true`
+
+A second path existed in `packages/database` `boot()`: empty table or column returned `(false, nil)`, which made `unique` succeed (`!exists`). Checker errors already failed the rule.
 
 ## Decision
 
-Classify the behavior as a **documented limitation** and a **correctness problem**. It is **not** a substitute for authorization.
+Database-backed validation **cannot succeed** when the required database fact cannot be established.
 
-| Situation | Rule result | Application duty |
-|---|---|---|
-| No PresenceChecker | pass (fail-open) | Do not rely on unique/exists |
-| Checker error | fail | Treat as validation failure |
-| `database` enabled, checker bound | real lookup | Required for these rules |
-| Ownership / IDOR | Policy + `Find` | **Never** `exists:` as AuthZ |
+Invariant:
 
-Applications that declare `unique` or `exists` **MUST** enable `database` (and therefore the checker the package binds). Doctor (Phase 3): **error** APP-VAL-001 when those rule names appear as string literals and `database` is not enabled. Concatenated strings are a documented SEMANTIC bypass.
+> A `unique` or `exists` validation rule MUST NEVER report success when its required database check could not be reliably completed.
 
-Do **not** change `checkPresence` in this phase. A fail-closed default would be a validation-package ADR, not an application-layer workaround.
+This includes a missing checker, a checker error, an ORM/query/connection failure, and an incomplete `table,column` rule.
 
-## Why
+No new public validation API. `RuleFunc` still returns `bool`. Infrastructure failure is represented as a validation failure (`Fails()` / `ValidationException`), using the existing unique/exists messages. That is fail-closed, not a new error hierarchy.
 
-Fail-open is surprising but changing it is an ABI/behavior break for apps that validate without a database in unit tests. Documentation + doctor is the Phase 2/3 path.
+| Situation | Rule result |
+|---|---|
+| Lookup succeeds, unique value absent | PASS |
+| Lookup succeeds, unique value present | VALIDATION FAILURE |
+| Lookup succeeds, exists value present | PASS |
+| Lookup succeeds, exists value absent | VALIDATION FAILURE |
+| No PresenceChecker | MUST NOT PASS |
+| Checker / query / connection error | MUST NOT PASS |
+| Malformed rule (no column, empty table/column) | MUST NOT PASS |
+| Empty value without `required` | skip (unchanged; combine with `required`) |
+| Extra CSV parts (`unique:users,email,id,5`) | still table+column+value only (ignore-ID was not implemented) |
 
-## Rejected alternatives
+`database` still binds `SetDefaultPresenceChecker` at boot. Applications that declare `unique` or `exists` MUST enable `database`. Empty table/column in that checker now returns an error, not `(false, nil)`.
 
-- Silently treat this as “intentional and fine” — it is a correctness hole.
-- Invent app-level uniqueness checks in services that duplicate the rule — two ways.
-- Use `exists:posts,id` instead of Policy — IDOR-adjacent; forbidden.
+Never use `exists:` as IDOR protection. Ownership remains Policy + `Find`.
+
+## Fail-closed semantics
+
+```text
+                 Database fact
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+       established             unknown
+          │                       │
+      evaluate rule            REJECT
+```
+
+Uncertain → reject. Not: everything → reject. Successful lookups still pass or fail according to the rule.
+
+## Error propagation
+
+`checkPresence` does not ignore checker errors, default a missing checker to pass, or treat an incomplete rule as pass. `ValidateForm` → `Make` → `Fails()` uses the same path. `sql.ErrNoRows` in the database checker remains `(false, nil)`: that is an established “not found,” not an infrastructure failure.
+
+## Security / correctness rationale
+
+Fail-open converted “we could not look this up” into “this value is unique / this id exists.” Fail-closed converts uncertainty into a 422 validation error. That is conservative under uncertainty. It is still not authorization.
+
+## Compatibility
+
+- Kernel, contracts, ORM public API, FormRequest taxonomy, doctor catalog: unchanged.
+- `PresenceChecker` / `SetPresenceChecker` / `SetDefaultPresenceChecker`: unchanged signatures.
+- Behavior change: apps or tests that asserted `unique`/`exists` **pass** with no checker will now fail. That was the hole.
+- APP-VAL-001 remains a **structural** CI check (literals + `database` enabled). Doctor does not prove runtime SQL. Without `database`, those rules now fail closed at runtime (always-fail), which is why the doctor rule stays useful.
+
+## Tests
+
+`packages/validation` `presence_test.go` and FormRequest `ValidateForm` tests cover unique/exists present, absent, checker error, checker unavailable, malformed rules, and the HTTP FormRequest path.
+
+`go test -race` was not runnable on this Windows host (`CGO_ENABLED=1` requires gcc, which is not on PATH). Focused `go test ./validation` passed. `SetDefaultPresenceChecker` remains the pre-existing package-level var; tests do not use `t.Parallel()` when mutating it.
 
 ## Consequences
 
-Product and Order golden scenarios that use `exists:products,id` assume `database` is enabled. Tests that call `ValidateForm` without a checker must not assert uniqueness.
+Product and Order golden scenarios that use `exists:products,id` still require `database` enabled and a working checker. Tests that call `ValidateForm` without a checker must not expect uniqueness or existence to pass.
 
 ## Enforcement
 
-`package:doctor` / architecture doctor: `unique`/`exists` in FormRequest `Rules()` ⇒ `database` in `EnabledAddons`.
+- Runtime: `checkPresence` fail-closed; database default checker errors on empty table/column.
+- Doctor: APP-VAL-001 unchanged structurally (`unique`/`exists` literals ⇒ `database` in `EnabledAddons`).
+- Report: [phase4.5.md](../phase4.5.md).

@@ -23,7 +23,7 @@ Do not mark **CI / doctor** as YES if the rule is documentation-only.
 | FormRequest | YES | Store/Update | `PostForm`, `Make` | `make:request` | APP-REQ-* | YES | NO | PARTIAL | NO |
 | Request taxonomy | YES | `--store/--index` | `CreatePostRequest` | `make:request` | APP-REQ-001 | YES | NO | NO | NO |
 | Validation | YES | `ValidateForm` | rules in ORM | `make:rule` | APP-REQ-002 | YES | YES | PARTIAL | NO |
-| unique/exists | YES | + database | fail-open as AuthZ | none | APP-VAL-001 | YES | NO | PARTIAL | NO |
+| unique/exists | YES | + database | exists as IDOR; unique without completing lookup | none | APP-VAL-001 | YES | YES | PARTIAL | NO |
 | Authorization | YES | Gate/Policy | `role ==` | `make:policy` | — | PARTIAL | YES | YES | NO |
 | Models | YES | `orm.Model` | Entity layer | `make:model` | — | YES | YES | YES | NO |
 | ORM access | YES | `Query[T]()` | sql in controller | none | — | YES | YES | YES | NO |

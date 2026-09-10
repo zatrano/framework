@@ -60,7 +60,7 @@ These are **test/CI**, not `zatrano doctor` (doctor inspects consumer apps).
 | APP-REQ-003 | Store/Update that persist must `ValidateForm` when validation is enabled | AST + EnabledAddons | error | Index-only stubs | `orm.Create` in Store without ValidateForm | persist via another package is not attributed |
 | APP-REP-001 | No repository *interfaces* or generic repository bases | AST | error | concrete `PostRepository` struct | `type PostRepository interface` | does **not** require repositories |
 | APP-ORM-001 | No `orm…With("relation")` string eager | AST string arg on orm call chain | error | `With(orm.EagerHasMany[...])` | `Query[T]().With("comments")` | `q.With("…")` after assignment is a known bypass; non-orm `With` is ignored |
-| APP-VAL-001 | `unique`/`exists` require `database` enabled | Rules strings + enabled.go | error | unique + database | unique without database | string scan, not full rule parser; concatenated strings bypass |
+| APP-VAL-001 | `unique`/`exists` require `database` enabled | Rules strings + enabled.go | error | unique + database | unique without database | string scan, not full rule parser; concatenated strings bypass. Runtime is fail-closed (Phase 4.5); doctor does not prove SQL |
 
 ---
 

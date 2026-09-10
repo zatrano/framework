@@ -17,7 +17,7 @@ A competent human or AI can still ask whether a second layout, UseCase-shaped se
 
 - One canonical implementation path per concern, with explicit decision tables where a choice is intentionally valid (simple CRUD vs service; optional concrete repository).
 - Phase 3.5’s six doctor-PASS stacks remain **documented SEMANTIC boundaries**, not silent holes and not a mandate to add fragile AST rules.
-- Kernel / contracts / ORM public API / ABI stay frozen. Runtime fail-open `unique`/`exists` stays ADR-0010 until a validation-package ADR.
+- Kernel / contracts / ORM public API / ABI stay frozen. Runtime fail-open `unique`/`exists` stayed ADR-0010 until the validation-package amendment (completed Phase 4.5; STANDARD freeze unchanged).
 
 Supersedes informal “PROPOSED” language in STANDARD where the decision was already accepted (transaction helper, jobs after commit, bootstrapped `APP_ENV`).
 

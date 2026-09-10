@@ -37,12 +37,11 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Decision:** ADR-0006 — Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 - **Enforcement:** SEMANTIC. Doctor does not scan `role ==` (false positives). Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 
-### G-H3 — `unique` / `exists` silent pass — **classified (ADR-0010)**
+### G-H3 — `unique` / `exists` silent pass — **RESOLVED (Phase 4.5)**
 
-- **Evidence:** `checkPresence` returns true when no PresenceChecker; checker errors fail the rule.
-- **Classification:** documented limitation + **correctness** problem. Not a security control. Not authorization.
-- **Decision:** apps that use these rules MUST enable `database`. Never use `exists:` as IDOR protection. Runtime unchanged this phase.
-- **Enforcement:** Phase 3 doctor: unique/exists in Rules() ⇒ database enabled.
+- **Evidence (was):** `checkPresence` returned true when no PresenceChecker; malformed `unique:users` also passed. Checker errors already failed the rule.
+- **Now:** fail-closed. Missing checker, checker/query error, and incomplete table/column MUST NOT pass. Successful lookups still evaluate unique/exists as before. ADR-0010 amended. Report: [phase4.5.md](phase4.5.md).
+- **Remaining:** APP-VAL-001 is still **structural** (literals + `database` enabled). Concatenated strings bypass doctor. `exists:` is not IDOR protection. Ignore-ID extra CSV parts remain unimplemented (not a fail-open path).
 
 ### G-P2 — `authorization.ResponseFor` is JSON-only
 

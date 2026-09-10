@@ -78,7 +78,7 @@ Documentation gaps are **not** listed here.
 
 | ID | Problem | Impact | Current | Expected | Recommended fix |
 |---|---|---|---|---|---|
-| ADR-0010 | `unique`/`exists` pass when no PresenceChecker | Duplicate rows; fake existence | Fail-open | Fail-closed or hard error without checker | Validation-package ADR; do not fake in apps |
+| ADR-0010 | `unique`/`exists` pass when no PresenceChecker | Duplicate rows; fake existence | **RESOLVED (Phase 4.5)** fail-closed | Fail-closed | Runtime in `packages/validation`; see [phase4.5.md](phase4.5.md) |
 | G-M6 | ORM query has no `context.Context` | Cancelled requests may still hit SQL | No ctx | Package ADR | ORM package, not app workaround |
 | Nested TX | `NOT SUPPORTED` | Panic / wrong rollback if nested | Documented | Keep unsupported or package ADR | Do not invent savepoints in apps |
 | Jobs inside TX | No outbox | Side effects after rollback | SEMANTIC | Enqueue after nil return | App discipline; no UnitOfWork |
@@ -111,6 +111,6 @@ Remaining tension (documented, not contradictory): JSON in `controllers/web` is 
 
 **FROZEN.**
 
-Blockers for freeze: none that are documentation/architecture. Runtime fail-open unique/exists is classified, not a freeze blocker.
+Blockers for freeze: none that are documentation/architecture. Runtime fail-open unique/exists was classified here and **resolved in Phase 4.5** ([phase4.5.md](phase4.5.md); ADR-0010 amended).
 
-Next work (not this phase): validation-package ADR for fail-closed unique/exists; optional examples repo; do not grow doctor heuristics for the six SEMANTIC stacks.
+Next work (not this freeze): optional examples repo; do not grow doctor heuristics for the six SEMANTIC stacks.

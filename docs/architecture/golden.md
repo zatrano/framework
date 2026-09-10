@@ -15,7 +15,7 @@ Route → Middleware → FormRequest → Controller
 
 Rejected: UseCase, Action, DTO, Entity, DomainService, mandatory Repository, Handler, UnitOfWork, HTMX, WebService/ApiService.
 
-ADRs: 0001–0008 (Phase 0) plus **0009** (dual controllers) and **0010** (`unique`/`exists` fail-open).
+ADRs: 0001–0008 (Phase 0) plus **0009** (dual controllers) and **0010** (`unique`/`exists` fail-closed as of Phase 4.5; historically documented as fail-open).
 
 ---
 
@@ -476,4 +476,4 @@ No browser E2E package.
 | File upload with ownership | **YES** | UploadRequest; filesystem; metadata model; Policy |
 | API equivalent of Post CRUD | **YES** | `controllers/api`; JSON; same requests/policies |
 
-Ambiguities closed by this document + ADR-0009/0010: Policy fluent vs method-style; IndexRequest when only `page`; Web/API mix; unique fail-open; auth stub exception.
+Ambiguities closed by this document + ADR-0009/0010: Policy fluent vs method-style; IndexRequest when only `page`; Web/API mix; unique/exists database-backed semantics (fail-closed, Phase 4.5); auth stub exception.

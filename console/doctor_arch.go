@@ -559,7 +559,7 @@ func checkValidationArchitecture(root string) ([]Finding, error) {
 			Severity: "error",
 			File:     "bootstrap/enabled.go",
 			Found:    "unique/exists rules without database enabled",
-			Why:      "unique/exists fail-open without a PresenceChecker (ADR-0010).",
+			Why:      "unique/exists cannot establish a database fact without the database package (ADR-0010).",
 			How:      "Enable the database package before relying on unique/exists, or remove those rules.",
 			See:      "docs/architecture/decisions/0010-unique-exists-fail-open.md",
 		}}, nil
@@ -584,7 +584,7 @@ func checkValidationArchitecture(root string) ([]Finding, error) {
 				File:     rel,
 				Line:     fset.Position(lit.Pos()).Line,
 				Found:    s,
-				Why:      "unique/exists pass silently when database is not enabled (ADR-0010).",
+				Why:      "unique/exists fail closed when the PresenceChecker is unbound; enable database so lookups can run (ADR-0010).",
 				How:      "Enable database in bootstrap/enabled.go, or drop unique/exists until the checker is bound.",
 				See:      "docs/architecture/decisions/0010-unique-exists-fail-open.md",
 			})

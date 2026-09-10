@@ -40,8 +40,11 @@ Done. See git history (`chore: align generators with application standard`).
 - `func Apply` / acquire redesign / `contracts.App` growth / HTMX kernel helpers.
 - Mandatory repositories or UseCase generators.
 - Automatic enable after acquire.
-- Fail-closed `unique`/`exists` without a validation-package ADR.
 - Speculative doctor heuristics to drive phase 3.5 bypasses to zero.
+
+## Phase 4.5 — Validation runtime correctness
+
+**Done.** `unique` / `exists` fail closed when the database fact cannot be established ([phase4.5.md](phase4.5.md), ADR-0010 amended). No new doctor rule. Kernel/ORM/API untouched.
 
 ## Phase 5 — Examples repo (optional)
 
@@ -61,4 +64,5 @@ Done. See git history (`chore: align generators with application standard`).
 7. ADR-0007 controller generator  
 8. ADR-0008 JSON vs jsonapi  
 9. ADR-0009 dual controllers  
+10. ADR-0010 unique/exists (fail-closed, Phase 4.5)  
 11. ADR-0011 STANDARD freeze
