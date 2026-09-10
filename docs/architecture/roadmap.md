@@ -46,7 +46,11 @@ Done. See git history (`chore: align generators with application standard`).
 
 **Done.** `unique` / `exists` fail closed when the database fact cannot be established ([phase4.5.md](phase4.5.md), ADR-0010 amended). No new doctor rule. Kernel/ORM/API untouched.
 
-## Phase 5 — Examples repo (optional)
+## Phase 5 — Full platform conformance & release audit
+
+**Done.** Forensic audit of framework + packages HEAD: [phase5.md](phase5.md). Recommendation **GO WITH CONDITIONS** (next public tag must not reuse `v2.1.0`; packages fail-closed must be tagged; dirty packages WIP must not ship). Architecture not redesigned.
+
+## Phase 6 — Examples repo (optional)
 
 - One golden app per flow in `github.com/zatrano/examples`, built **only** with accepted STANDARD + golden.md.
 - Not a second architecture.

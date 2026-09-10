@@ -20,6 +20,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [phase3.5.md](phase3.5.md) | Phase 3.5 adversarial verification — enforcement boundary |
 | [phase4.md](phase4.md) | Phase 4 freeze report |
 | [phase4.5.md](phase4.5.md) | Phase 4.5 fail-closed unique/exists runtime |
+| [phase5.md](phase5.md) | Phase 5 platform conformance & release audit |
 | [no-second-way.md](no-second-way.md) | Ambiguity audit — one path per concern |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
@@ -33,7 +34,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 
 ## Status
 
-**Phase: 4 frozen (Application Engineering Standard).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0011 Accepted (ADR-0010 amended fail-closed in Phase 4.5). Spec: [STANDARD.md](STANDARD.md). Boundary: [phase3.5.md](phase3.5.md). Audit: [no-second-way.md](no-second-way.md). Runtime unique/exists: [phase4.5.md](phase4.5.md).
+**Phase: 4 frozen (Application Engineering Standard).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0011 Accepted (ADR-0010 amended fail-closed in Phase 4.5). Spec: [STANDARD.md](STANDARD.md). Boundary: [phase3.5.md](phase3.5.md). Audit: [no-second-way.md](no-second-way.md). Runtime unique/exists: [phase4.5.md](phase4.5.md). Release audit: [phase5.md](phase5.md).
 
 Rules are tagged:
 
