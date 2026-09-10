@@ -51,8 +51,13 @@ A consumer CI should run `zatrano doctor` after tests. Architecture errors must 
 - That a multi-write *must* use a transaction
 - CSRF / cookie / CORS configuration completeness
 - Fillable lists vs mass-assignment intent
-- Relationship API signatures beyond banning `With("name")`
+- Relationship API signatures beyond banning `orm…With("name")` on an orm call chain
 - HTMX
+- Whole-program ownership (controller calling another package that starts a transaction)
+- Unused FormRequest pairing, concatenated `unique`/`exists` strings
+- Extra directories that are not in the forbidden list (`app/core`, `app/workflows`, …)
+
+Adversarial report: [phase3.5.md](phase3.5.md).
 
 ---
 

@@ -145,7 +145,7 @@ Do **not** create `CreateRequest` as a global type. Do **not** create DTO packag
 
 `--minimal` **fails**. `APP_BOOT=minimal` is legacy runtime only.
 
-**Forbidden directories:** `domain/`, `internal/usecase/`, `internal/entity/`, `handlers/` (instead of controllers), `dtos/`.
+**Forbidden directories:** `domain/`, `internal/usecase/`, `internal/entity/`, `handlers/` (instead of controllers), `dtos/`, `interactors/`, `app/application/` (Clean Architecture application layer). `app/core` is not a forbidden name by itself.
 
 Empty / web / api share this **tree**. Difference is file **content** and enablement, not a second layout.
 

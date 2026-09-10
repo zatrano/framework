@@ -26,6 +26,10 @@ Done. See git history (`chore: align generators with application standard`).
 
 **Done.** Extend `zatrano doctor` (not a second CLI). Errors exit 1. `--json` / `--strict`. Catalog: [rules.md](rules.md). Report: [phase3.md](phase3.md).
 
+## Phase 3.5 — Adversarial verification
+
+**Done.** Prove bypasses vs false positives. Analyzer-only closures: [phase3.5.md](phase3.5.md). Kernel/ORM/API untouched. Known remaining PASS paths are documented limitations, not silent bugs.
+
 ## Phase 4 — Do **not** do
 
 - Nested transactions, cursor pagination, typed ErrModelNotFound, query context — those are **ORM package** ADRs, not app-standard patches.

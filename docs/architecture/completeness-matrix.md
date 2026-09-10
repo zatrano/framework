@@ -25,7 +25,7 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | Index/Filter request | YES | STANDARD E | golden Product/Post | `make:request --index` | NO | NO | YES | YES |
 | Nested validation | PARTIAL | STANDARD F | dotted keys | NO | NO | PARTIAL | gaps | PARTIAL |
 | Domain Entity/VO | NOT SUPPORTED | STANDARD I | — | NO | NO | NO | STANDARD I | NO |
-| Repository | PARTIAL | ADR-0003 | make:repository | `make:repository` | NO | NO | STANDARD J | NO |
+| Repository | PARTIAL | ADR-0003 | make:repository | `make:repository` | doctor APP-REP-001 | YES | STANDARD J | YES |
 | ORM models | YES | STANDARD K | orm.Model | `make:model` | NO | orm tests | STANDARD K | YES |
 | ORM query API | YES | STANDARD K | Querier | NOT APPLICABLE | NO | YES | STANDARD K | YES |
 | Cursor pagination | NOT SUPPORTED | STANDARD K | — | NO | NO | NO | STANDARD K | NO |
@@ -72,5 +72,9 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | unique/exists vs database | YES | YES | n/a | YES | YES |
 | Framework ↛ packages | YES | n/a | n/a | YES (test) | YES |
 | Authorization semantics | YES | YES | PARTIAL | NO | tests only |
-| Repository optional | YES | YES | YES | NO (must not require) | NO |
+| Repository optional | YES | YES | YES | YES (must not require; interfaces FAIL) | YES |
 | HTMX | YES (unsupported) | n/a | n/a | NO (intentionally) | NO |
+
+## Phase 3.5 — Adversarial boundary
+
+Doctor cannot prove whole-program ownership. Six realistic PASS stacks remain; see [phase3.5.md](phase3.5.md). Repositories stay optional. Services stay conditional.

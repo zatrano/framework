@@ -17,6 +17,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [rules.md](rules.md) | Phase 3 machine-enforced rule catalog |
 | [rules.yaml](rules.yaml) | Machine-readable catalog |
 | [phase3.md](phase3.md) | Phase 3 enforcement report |
+| [phase3.5.md](phase3.5.md) | Phase 3.5 adversarial verification — enforcement boundary |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
 | [completeness-matrix.md](completeness-matrix.md) | Human matrix |
@@ -29,7 +30,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 
 ## Status
 
-**Phase: 3 complete (machine-enforced architecture via `zatrano doctor`).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted.
+**Phase: 3.5 complete (adversarial verification of `zatrano doctor`).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted. Enforcement boundary: [phase3.5.md](phase3.5.md).
 
 Rules are tagged:
 

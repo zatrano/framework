@@ -3,8 +3,8 @@
 # Standard: docs/architecture/STANDARD.md
 # Evidence: framework v2.1.0, packages v1.7.1
 
-version: "0.3.0"
-status: phase3_enforcement
+version: "0.3.5"
+status: phase3.5_adversarial
 concerns:
   - id: bootstrap
     exists: YES
@@ -58,8 +58,8 @@ concerns:
     exists: YES
     canonical: ADR-0002
     cli: make_request
-    static: NO
-    ci: PARTIAL
+    static: doctor_APP-REQ
+    ci: YES
     docs: YES
     test: YES
   - id: index_filter_request
@@ -90,18 +90,18 @@ concerns:
     exists: NOT_SUPPORTED
     canonical: ADR-0001
     cli: NO
-    static: NO
-    ci: NO
+    static: doctor_APP-LAY
+    ci: YES
     docs: YES
-    test: NO
+    test: YES
   - id: repository
     exists: PARTIAL
     canonical: ADR-0003
     cli: make_repository
-    static: NO
-    ci: NO
+    static: doctor_APP-REP-001
+    ci: YES
     docs: YES
-    test: NO
+    test: YES
   - id: orm
     exists: YES
     canonical: STANDARD.K

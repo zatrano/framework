@@ -22,14 +22,23 @@ var forbiddenLayerDirs = []string{
 	"usecase",
 	"app/usecases",
 	"app/usecase",
+	"interactors",
+	"interactor",
+	"app/interactors",
+	"app/interactor",
+	"app/application",
 	"handlers",
 	"app/handlers",
+	"app/http/handlers",
 	"actions",
 	"app/actions",
+	"app/http/actions",
 	"entities",
 	"app/entities",
 	"internal/usecase",
 	"internal/usecases",
+	"internal/interactor",
+	"internal/interactors",
 	"internal/entity",
 	"internal/entities",
 	"internal/dto",
@@ -38,7 +47,9 @@ var forbiddenLayerDirs = []string{
 
 var forbiddenPackageNames = map[string]bool{
 	"usecase": true, "usecases": true,
+	"interactor": true, "interactors": true,
 	"dto": true, "dtos": true,
+	"handlers": true, "actions": true, "entities": true,
 }
 
 func checkForbiddenLayers(root string) ([]Finding, error) {
@@ -53,7 +64,7 @@ func checkForbiddenLayers(root string) ([]Finding, error) {
 			Severity: "error",
 			File:     dir,
 			Found:    "forbidden architectural directory " + dir,
-			Why:      "STANDARD rejects domain/usecase/dto/handler/action/entity layers as application architecture.",
+			Why:      "STANDARD rejects domain/usecase/interactor/dto/handler/action/entity layers as application architecture.",
 			How:      "Delete this directory and keep Controller → FormRequest → optional Service → ORM / From(app).",
 			See:      archSee + " §B · ADR-0001",
 		})
@@ -68,23 +79,43 @@ func checkForbiddenLayers(root string) ([]Finding, error) {
 				File:     rel,
 				Line:     fset.Position(file.Name.Pos()).Line,
 				Found:    "package " + pkg,
-				Why:      "Package names usecase/dto/domain are a second architecture, not a ZATRANO application package.",
+				Why:      "Package names usecase/interactor/dto/handlers/actions/entities/domain are a second architecture, not a ZATRANO application package.",
 				How:      "Move types into app/services, app/models, or app/http/requests with canonical names.",
 				See:      archSee + " §B · ADR-0001",
 			})
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSpec)
-			if !ok || ts.Name == nil {
+			if !ok || ts.Name == nil || !ts.Name.IsExported() {
+				return true
+			}
+			name := ts.Name.Name
+			if _, ok := ts.Type.(*ast.InterfaceType); ok && strings.HasSuffix(name, "Repository") {
+				out = append(out, Finding{
+					Rule:     "APP-REP-001",
+					Check:    "layers",
+					Severity: "error",
+					File:     rel,
+					Line:     fset.Position(ts.Pos()).Line,
+					Found:    "type " + name + " interface",
+					Why:      "Repository interfaces are not required and must not become a second architecture (ADR-0003).",
+					How:      "Delete the interface. Use orm.Query[T]() or an optional concrete struct wrapper.",
+					See:      archSee + " §J · ADR-0003",
+				})
 				return true
 			}
 			if _, isStruct := ts.Type.(*ast.StructType); !isStruct {
 				return true
 			}
-			name := ts.Name.Name
 			rule, why := forbiddenLayerType(name)
 			if rule == "" {
 				return true
+			}
+			how := "Use a controller, FormRequest, or named application service verb (Place, Publish). Do not add UseCase/DTO/WebService types."
+			see := archSee + " §B · ADR-0001 · ADR-0009"
+			if rule == "APP-REP-001" {
+				how = "Delete the generic repository abstraction. Optional concrete *Repository structs wrapping ORM are allowed."
+				see = archSee + " §J · ADR-0003"
 			}
 			out = append(out, Finding{
 				Rule:     rule,
@@ -94,8 +125,8 @@ func checkForbiddenLayers(root string) ([]Finding, error) {
 				Line:     fset.Position(ts.Pos()).Line,
 				Found:    "type " + name,
 				Why:      why,
-				How:      "Use a controller, FormRequest, or named application service verb (Place, Publish). Do not add UseCase/DTO/WebService types.",
-				See:      archSee + " §B · ADR-0001 · ADR-0009",
+				How:      how,
+				See:      see,
 			})
 			return true
 		})
@@ -112,12 +143,16 @@ func forbiddenLayerType(name string) (rule, why string) {
 	switch {
 	case strings.HasSuffix(name, "UseCase"), strings.HasSuffix(name, "Usecase"):
 		return "APP-LAY-003", "UseCase types are not a ZATRANO application layer."
+	case strings.HasSuffix(name, "Interactor"):
+		return "APP-LAY-003", "Interactor types are a UseCase synonym, not a ZATRANO application layer."
 	case strings.HasSuffix(name, "DTO"), strings.HasSuffix(name, "Dto"):
 		return "APP-LAY-003", "DTO types are not a ZATRANO application layer; use FormRequest."
 	case name == "WebService" || name == "ApiService" || strings.HasSuffix(name, "WebService") || strings.HasSuffix(name, "ApiService"):
 		return "APP-LAY-003", "Transport-specific services are forbidden (ADR-0009). Share one optional service, two controllers."
 	case strings.HasSuffix(name, "WebUseCase") || strings.HasSuffix(name, "ApiUseCase"):
 		return "APP-LAY-003", "WebUseCase/ApiUseCase are forbidden (ADR-0009)."
+	case name == "BaseRepository" || name == "GenericRepository" || strings.HasSuffix(name, "RepositoryFactory"):
+		return "APP-REP-001", "Generic repository abstractions are not ZATRANO architecture (ADR-0003). Optional concrete *Repository structs wrapping ORM are allowed."
 	default:
 		return "", ""
 	}
@@ -164,6 +199,20 @@ func checkControllers(root string) ([]Finding, error) {
 				continue
 			}
 			recv := recvTypeName(fn.Recv)
+			if fn.Name.IsExported() && !strings.HasSuffix(recv, "Controller") && isHTTPControllerMethod(fn, imports) {
+				out = append(out, Finding{
+					Rule:     "APP-CTL-001",
+					Check:    "controllers",
+					Severity: "error",
+					File:     rel,
+					Line:     fset.Position(fn.Pos()).Line,
+					Found:    recv + "." + fn.Name.Name + " is an HTTP entry but " + recv + " is not a *Controller",
+					Why:      "HTTP methods belong on *Controller types in app/http/controllers/{web,api,admin}. Handler/Action types are not a second HTTP layer.",
+					How:      "Rename the type to {Resource}Controller and keep it under the canonical controller package.",
+					See:      archSee + " §G · ADR-0001",
+				})
+				continue
+			}
 			if !strings.HasSuffix(recv, "Controller") {
 				continue
 			}
@@ -208,19 +257,6 @@ func checkControllers(root string) ([]Finding, error) {
 					See:      archSee + " §G · ADR-0009",
 				})
 			}
-			if controllerDirKind(rel) != "" && funcCallsORM(fn, imports, "Transaction", "QueryTx") {
-				out = append(out, Finding{
-					Rule:     "APP-CTL-005",
-					Check:    "controllers",
-					Severity: "error",
-					File:     rel,
-					Line:     fset.Position(fn.Pos()).Line,
-					Found:    recv + "." + fn.Name.Name + " calls orm.Transaction or orm.QueryTx",
-					Why:      "Controllers must not own transactions. The application service starts orm.Transaction.",
-					How:      "Move the transaction into app/services and call that service from the controller.",
-					See:      archSee + " §H · §M · ADR-0004",
-				})
-			}
 			if validationEnabled(root) && (fn.Name.Name == "Store" || fn.Name.Name == "Update") &&
 				controllerDirKind(rel) != "" &&
 				funcCallsORM(fn, imports, "Create", "Update", "InsertMany", "Upsert", "Delete") &&
@@ -251,8 +287,42 @@ func checkControllers(root string) ([]Finding, error) {
 				})
 			}
 		}
+		if controllerDirKind(rel) != "" {
+			out = append(out, controllerFileTransactions(rel, fset, file)...)
+		}
 	})
 	return out, err
+}
+
+func controllerFileTransactions(rel string, fset *token.FileSet, file *ast.File) []Finding {
+	imports := importPathByName(file)
+	var out []Finding
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		name := callSelName(call.Fun)
+		if name != "Transaction" && name != "QueryTx" {
+			return true
+		}
+		if !ormCall(call.Fun, imports) {
+			return true
+		}
+		out = append(out, Finding{
+			Rule:     "APP-CTL-005",
+			Check:    "controllers",
+			Severity: "error",
+			File:     rel,
+			Line:     fset.Position(call.Pos()).Line,
+			Found:    "orm." + name + " in a controller file",
+			Why:      "Controllers must not own transactions. The application service starts orm.Transaction.",
+			How:      "Move the transaction into app/services and call that service from the controller.",
+			See:      archSee + " §H · §M · ADR-0004",
+		})
+		return true
+	})
+	return out
 }
 
 func controllerPathAllowed(rel string) bool {
@@ -278,15 +348,28 @@ func controllerDirKind(rel string) string {
 
 func isAuthControllerFile(rel string, types map[string]token.Pos) bool {
 	base := strings.ToLower(filepath.Base(rel))
-	if strings.Contains(base, "auth") {
+	if base == "auth_controller.go" || base == "social_auth_controller.go" {
 		return true
 	}
 	for name := range types {
-		if strings.Contains(name, "AuthController") {
+		if name == "AuthController" || name == "SocialAuthController" {
 			return true
 		}
 	}
 	return false
+}
+
+func isHTTPControllerMethod(fn *ast.FuncDecl, imports map[string]string) bool {
+	if fn.Type.Params == nil || len(fn.Type.Params.List) == 0 {
+		return false
+	}
+	if !isHTTPNamedType(fn.Type.Params.List[0].Type, imports, "Request") {
+		return false
+	}
+	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+		return false
+	}
+	return isHTTPNamedType(fn.Type.Results.List[0].Type, imports, "Response")
 }
 
 func controllerSignatureViolation(fn *ast.FuncDecl, imports map[string]string, fset *token.FileSet) (string, int) {
@@ -326,41 +409,86 @@ func isHTTPNamedType(expr ast.Expr, imports map[string]string, name string) bool
 
 func checkRequests(root string) ([]Finding, error) {
 	var out []Finding
-	dir := filepath.Join(root, "app", "http", "requests")
-	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
-		return nil, nil
-	}
-	err := walkDirGo(dir, root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
-		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Name == nil || fn.Name.Name != "Rules" {
-				continue
-			}
-			recv := recvTypeName(fn.Recv)
-			if recv == "" {
-				continue
-			}
-			if badRequestName(recv) {
+	err := walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		imports := importPathByName(file)
+		if misplacedValidationMakePath(rel) {
+			ast.Inspect(file, func(n ast.Node) bool {
+				fn, ok := n.(*ast.FuncDecl)
+				if !ok {
+					return true
+				}
+				if !funcCallsValidation(fn, imports, "Make") {
+					return true
+				}
 				out = append(out, Finding{
-					Rule:     "APP-REQ-001",
+					Rule:     "APP-REQ-002",
 					Check:    "requests",
 					Severity: "error",
 					File:     rel,
 					Line:     fset.Position(fn.Pos()).Line,
-					Found:    "type " + recv,
-					Why:      "Mutating/index FormRequests are named {Resource}StoreRequest, UpdateRequest, or IndexRequest — not a bare {Resource}Request.",
-					How:      "Rename to PostStoreRequest / PostUpdateRequest / PostIndexRequest (or an allowed {Action}Request).",
-					See:      archSee + " §E",
+					Found:    "validation.Make in " + rel,
+					Why:      "Inline validation.Make is not the application path; keep rules on FormRequest and call ValidateForm from HTTP.",
+					How:      "Move rules to app/http/requests and call validation.ValidateForm from the controller.",
+					See:      archSee + " §E · ADR-0002",
 				})
+				return false
+			})
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || !isFormRequestRules(fn) {
+				continue
 			}
+			recv := recvTypeName(fn.Recv)
+			if recv == "" || !badFormRequestName(recv) {
+				continue
+			}
+			out = append(out, Finding{
+				Rule:     "APP-REQ-001",
+				Check:    "requests",
+				Severity: "error",
+				File:     rel,
+				Line:     fset.Position(fn.Pos()).Line,
+				Found:    "type " + recv,
+				Why:      "FormRequest types are named {Resource}StoreRequest, UpdateRequest, or IndexRequest — not a bare {Resource}Request, Form, DTO, or Input.",
+				How:      "Rename to PostStoreRequest / PostUpdateRequest / PostIndexRequest (or an allowed {Action}Request).",
+				See:      archSee + " §E",
+			})
 		}
 	})
 	return out, err
 }
 
-func badRequestName(name string) bool {
-	if !strings.HasSuffix(name, "Request") {
+func misplacedValidationMakePath(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	return strings.HasPrefix(rel, "app/services/") ||
+		strings.HasPrefix(rel, "app/models/") ||
+		strings.HasPrefix(rel, "app/repositories/")
+}
+
+func isFormRequestRules(fn *ast.FuncDecl) bool {
+	if fn == nil || fn.Name == nil || fn.Name.Name != "Rules" || fn.Recv == nil {
 		return false
+	}
+	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+		return false
+	}
+	return isMapStringString(fn.Type.Results.List[0].Type)
+}
+
+func isMapStringString(expr ast.Expr) bool {
+	m, ok := expr.(*ast.MapType)
+	if !ok {
+		return false
+	}
+	k, ok1 := m.Key.(*ast.Ident)
+	v, ok2 := m.Value.(*ast.Ident)
+	return ok1 && ok2 && k.Name == "string" && v.Name == "string"
+}
+
+func badFormRequestName(name string) bool {
+	if !strings.HasSuffix(name, "Request") {
+		return true
 	}
 	stem := strings.TrimSuffix(name, "Request")
 	allow := []string{
@@ -389,6 +517,9 @@ func checkORMArchitecture(root string) ([]Finding, error) {
 				return true
 			}
 			if callSelName(call.Fun) != "With" || len(call.Args) == 0 {
+				return true
+			}
+			if !ormCall(call.Fun, imports) {
 				return true
 			}
 			lit, ok := call.Args[0].(*ast.BasicLit)
@@ -557,11 +688,15 @@ func hasDotImport(imports map[string]string, suffix string) bool {
 
 func importsORM(imports map[string]string) bool {
 	for _, p := range imports {
-		if p == "github.com/zatrano/packages/orm" || strings.HasSuffix(p, "/orm") && strings.Contains(p, "zatrano/packages") {
+		if ormImportPath(p) {
 			return true
 		}
 	}
 	return false
+}
+
+func ormImportPath(p string) bool {
+	return p == "github.com/zatrano/packages/orm" || (strings.HasSuffix(p, "/orm") && strings.Contains(p, "zatrano/packages"))
 }
 
 func funcCallsHTTP(fn *ast.FuncDecl, imports map[string]string, name string) bool {

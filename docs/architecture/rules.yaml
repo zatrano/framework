@@ -71,6 +71,11 @@ doctor:
     severity: warning
     method: AST
     check: providers
+  - id: APP-PROV-002
+    name: Apps do not load addon config maps
+    severity: warning
+    method: AST
+    check: providers
   - id: APP-CTL-001
     name: Controller package placement
     severity: error
@@ -111,6 +116,11 @@ doctor:
     severity: error
     method: AST
     check: requests
+  - id: APP-REP-001
+    name: No repository interfaces or generic bases
+    severity: error
+    method: AST
+    check: layers
   - id: APP-ORM-001
     name: No string eager load
     severity: error

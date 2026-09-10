@@ -8,16 +8,16 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 
 ## CRITICAL
 
-### G-C1 — Application layer is not compiler-enforced — **reduced (Phase 3)**
+### G-C1 — Application layer is not compiler-enforced — **reduced (Phase 3 / 3.5)**
 
-- **Now:** `zatrano doctor` fails (exit 1) on forbidden directories/types, controller transactions, mixed View/JSON, string eager loads, bare `{Resource}Request`, `validation.Make` in controllers, persist-without-ValidateForm, unique/exists without database. Generated empty/web/api/full apps doctor-PASS. CI runs doctor on scaffold smoke.
-- **Remaining:** Go still compiles a second architecture if doctor/CI is skipped. Phase 3 does not make the compiler reject UseCase packages.
+- **Now:** `zatrano doctor` fails (exit 1) on forbidden directories/types (including interactors / `app/application`), HTTP Handler entries, controller-file transactions, mixed View/JSON (narrow auth exception), string eager loads on orm call chains, non-canonical FormRequest names (`PostForm`, `CreatePostRequest`), `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository interfaces/generic bases, unique/exists without database. Generated empty/web/api/full apps doctor-PASS. CI runs doctor on scaffold smoke. Adversarial boundary: [phase3.5.md](phase3.5.md).
+- **Remaining:** Go still compiles a second architecture if doctor/CI is skipped. Six realistic doctor-PASS stacks remain (unbanned dirs, UseCase-shaped names in services, cross-package ownership hiding, transport collapse, FormRequest theater, DDD-lite in legal folders). Phase 3.5 does not make the compiler reject UseCase packages.
 
 ### G-C2 — Request taxonomy undefined in generators — **addressed (generator)**
 
 - **Evidence (was):** generic `make:request`; auth used `validation.Make`.
 - **Now:** `make:request --store|--update|--index`; `make:auth` writes FormRequests and `ValidateForm`.
-- **Remaining:** dashboard stubs still call `validation.Make`; no doctor heuristic yet.
+- **Remaining:** dashboard stubs still call `validation.Make`; doctor flags copies into controllers, services, models, and repositories. Wrappers outside those paths remain a Phase 3.5 limitation.
 
 ---
 
@@ -28,7 +28,7 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Evidence:** `orm.Transaction` is a free function. Services are empty stubs.
 - **Problem:** Controllers or random helpers start TX; nested calls blow up (`NOT SUPPORTED`).
 - **Decision:** ADR-0004 — service owns TX; `QueryTx` inside; enqueue jobs after commit.
-- **Enforcement:** forbid `orm.Transaction` outside `app/services` and `app/console`.
+- **Enforcement:** doctor: `orm.Transaction` / `QueryTx` in controller files (APP-CTL-005). Cross-package helpers remain a documented limitation (phase3.5).
 
 ### G-H2 — Authorization split (Gate vs dashboard RBAC stubs)
 

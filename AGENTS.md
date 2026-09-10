@@ -13,7 +13,7 @@ Authoritative specification:
 
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **ADRs 0001–0010 accepted. Phase 3 doctor enforces high-confidence STANDARD rules.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
+Status of this standard: **ADRs 0001–0010 accepted. Phase 3 doctor enforces high-confidence STANDARD rules. Phase 3.5 records the adversarial enforcement boundary.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
 
 ---
 

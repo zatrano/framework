@@ -458,6 +458,7 @@ func walkConsumerGo(root string, fn func(rel, abs string, fset *token.FileSet, f
 	roots := []string{
 		"app", "cmd", "bootstrap", "routes", "application", "internal",
 		"domain", "handlers", "dtos", "dto", "usecases", "usecase", "entities", "actions",
+		"interactors", "interactor",
 	}
 	for _, name := range roots {
 		dir := filepath.Join(root, name)
