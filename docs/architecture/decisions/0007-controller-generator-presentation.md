@@ -15,8 +15,6 @@ New web controllers look like API controllers. Agents copy JSON.
 
 `make:controller` without `--api` emits a View (or Redirect) stub. `--api` emits JSON. `--admin` follows web unless later specified.
 
-Until implemented, humans/AI **overwrite** the stub; the JSON web stub is a known non-canonical artifact.
-
 ## Why
 
 `zatrano new --web|--api|--full` presentation contract.
@@ -28,8 +26,8 @@ Until implemented, humans/AI **overwrite** the stub; the JSON web stub is a know
 
 ## Consequences
 
-Generator change in implementation phase (no kernel ABI).
+Implemented (Phase 1). `make:controller` emits View when `view` is enabled; JSON for `--api` and for the API scaffold’s web package home.
 
 ## Enforcement
 
-Template tests after the generator fix.
+Generator tests (`TestNewWeb` / `TestNewAPI` / controller stub presentation).

@@ -6,6 +6,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Architecture
 
+- Application Engineering Standard **frozen** (Phase 4, ADR-0011): one canonical path per concern, completeness matrix, [no-second-way.md](docs/architecture/no-second-way.md). Kernel/ORM/API unchanged. Phase 3.5 semantic bypasses remain documented, not silently closed.
 - `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository *interfaces*, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: `docs/architecture/rules.md`. Adversarial boundary: `docs/architecture/phase3.5.md`.
 
 ## 2.1.0 - 2026-09-09

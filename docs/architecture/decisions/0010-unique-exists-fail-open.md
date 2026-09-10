@@ -24,7 +24,7 @@ Classify the behavior as a **documented limitation** and a **correctness problem
 | `database` enabled, checker bound | real lookup | Required for these rules |
 | Ownership / IDOR | Policy + `Find` | **Never** `exists:` as AuthZ |
 
-Applications that declare `unique` or `exists` **MUST** enable `database` (and therefore the checker the package binds). Doctor (Phase 3) warns when those rule names appear and `database` is not enabled.
+Applications that declare `unique` or `exists` **MUST** enable `database` (and therefore the checker the package binds). Doctor (Phase 3): **error** APP-VAL-001 when those rule names appear as string literals and `database` is not enabled. Concatenated strings are a documented SEMANTIC bypass.
 
 Do **not** change `checkPresence` in this phase. A fail-closed default would be a validation-package ADR, not an application-layer workaround.
 

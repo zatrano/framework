@@ -30,4 +30,4 @@ Controllers/services may import `packages/orm`. That is allowed.
 
 ## Enforcement
 
-No check requiring repositories. Optional check forbidding empty pass-through repositories (later).
+Doctor: no rule *requires* repositories. APP-REP-001 **errors** on exported `*Repository` interfaces and `BaseRepository` / `GenericRepository` / `*RepositoryFactory`. Concrete structs PASS.

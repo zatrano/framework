@@ -45,4 +45,4 @@ Golden Post CRUD always has two controller files when both transports exist. API
 
 ## Enforcement
 
-Doctor (Phase 3): `http.View` and `http.JSON` in the same method is a violation except files matching generated auth controllers.
+Doctor (Phase 3): `http.View` and `http.JSON` in the same method is a violation except `auth_controller.go` / `social_auth_controller.go` and types `AuthController` / `SocialAuthController`.

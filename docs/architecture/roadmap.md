@@ -30,13 +30,18 @@ Done. See git history (`chore: align generators with application standard`).
 
 **Done.** Prove bypasses vs false positives. Analyzer-only closures: [phase3.5.md](phase3.5.md). Kernel/ORM/API untouched. Known remaining PASS paths are documented limitations, not silent bugs.
 
-## Phase 4 — Do **not** do
+## Phase 4 — Standard freeze
+
+**Done.** [STANDARD.md](STANDARD.md) is frozen ([ADR-0011](decisions/0011-application-engineering-standard-freeze.md)). Completeness: [completeness-matrix.md](completeness-matrix.md). Ambiguity audit: [no-second-way.md](no-second-way.md). Report: [phase4.md](phase4.md).
+
+**Still do not:**
 
 - Nested transactions, cursor pagination, typed ErrModelNotFound, query context — those are **ORM package** ADRs, not app-standard patches.
 - `func Apply` / acquire redesign / `contracts.App` growth / HTMX kernel helpers.
 - Mandatory repositories or UseCase generators.
 - Automatic enable after acquire.
 - Fail-closed `unique`/`exists` without a validation-package ADR.
+- Speculative doctor heuristics to drive phase 3.5 bypasses to zero.
 
 ## Phase 5 — Examples repo (optional)
 
@@ -56,4 +61,4 @@ Done. See git history (`chore: align generators with application standard`).
 7. ADR-0007 controller generator  
 8. ADR-0008 JSON vs jsonapi  
 9. ADR-0009 dual controllers  
-10. ADR-0010 unique/exists fail-open
+11. ADR-0011 STANDARD freeze

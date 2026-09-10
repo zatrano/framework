@@ -37,4 +37,4 @@ One owner, no nesting, matches ORM API.
 
 ## Enforcement
 
-AST: `orm.Transaction` only in `app/services` and `app/console`.
+Doctor (HIGH-CONFIDENCE): `orm.Transaction` / `QueryTx` in files under `app/http/controllers/{web,api,admin}` (APP-CTL-005), including helpers in those files. Cross-package helpers called from a controller are **SEMANTIC** (phase 3.5). Console commands may start a transaction. Controllers must not.

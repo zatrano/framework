@@ -57,7 +57,7 @@ A consumer CI should run `zatrano doctor` after tests. Architecture errors must 
 - Unused FormRequest pairing, concatenated `unique`/`exists` strings
 - Extra directories that are not in the forbidden list (`app/core`, `app/workflows`, …)
 
-Adversarial report: [phase3.5.md](phase3.5.md).
+Adversarial report: [phase3.5.md](phase3.5.md). Freeze: [phase4.md](phase4.md) · [no-second-way.md](no-second-way.md).
 
 ---
 

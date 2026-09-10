@@ -5,7 +5,7 @@ Machine-enforced subset of the Application Engineering STANDARD. If a rule is no
 Analyzer: `zatrano doctor` (`console/doctor.go`, `console/doctor_arch.go`).
 Framework package boundaries: `tests/architecture_test.go`, `contracts/import_test.go`.
 
-HTMX is **not** analyzed (ADR-0005; no implementation). Repositories are **not** required (ADR-0003). Adversarial boundary: [phase3.5.md](phase3.5.md).
+HTMX is **not** analyzed (ADR-0005; no implementation). Repositories are **not** required (ADR-0003). Adversarial boundary: [phase3.5.md](phase3.5.md). Freeze: [STANDARD.md](STANDARD.md) · [ADR-0011](decisions/0011-application-engineering-standard-freeze.md).
 
 ---
 

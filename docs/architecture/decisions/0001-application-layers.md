@@ -39,4 +39,4 @@ AI must not create `app/domain`. Simple CRUD may skip services.
 
 ## Enforcement
 
-Doctor directory allowlist; no `make:usecase`.
+Doctor directory/package/type checks (APP-LAY-001/002/003), including `interactors/` and `app/application/`. `app/core` names are SEMANTIC (phase 3.5). No `make:usecase`.

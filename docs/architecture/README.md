@@ -18,19 +18,21 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [rules.yaml](rules.yaml) | Machine-readable catalog |
 | [phase3.md](phase3.md) | Phase 3 enforcement report |
 | [phase3.5.md](phase3.5.md) | Phase 3.5 adversarial verification — enforcement boundary |
+| [phase4.md](phase4.md) | Phase 4 freeze report |
+| [no-second-way.md](no-second-way.md) | Ambiguity audit — one path per concern |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
 | [completeness-matrix.md](completeness-matrix.md) | Human matrix |
 | [completeness.yaml](completeness.yaml) | Machine-readable matrix |
 | [enforcement.md](enforcement.md) | Documentation vs tooling vs CI |
 | [roadmap.md](roadmap.md) | Implementation phases after review |
-| [decisions/](decisions/) | ADRs 0001–0010 — Accepted |
+| [decisions/](decisions/) | ADRs 0001–0011 — Accepted |
 | [laravel-similarity.md](laravel-similarity.md) | Familiar folders vs copied behavior |
 | [scans.md](scans.md) | Second/third forensic passes |
 
 ## Status
 
-**Phase: 3.5 complete (adversarial verification of `zatrano doctor`).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted. Enforcement boundary: [phase3.5.md](phase3.5.md).
+**Phase: 4 frozen (Application Engineering Standard).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0011 Accepted. Spec: [STANDARD.md](STANDARD.md). Boundary: [phase3.5.md](phase3.5.md). Audit: [no-second-way.md](no-second-way.md).
 
 Rules are tagged:
 

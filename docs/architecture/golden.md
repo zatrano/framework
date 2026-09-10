@@ -1,6 +1,6 @@
 # Golden application scenarios
 
-Phase 2 evidence: these scenarios prove the accepted STANDARD is sufficient to build realistic ZATRANO applications. They are **test domains**, not new framework features.
+Phase 2 evidence: these scenarios prove the accepted STANDARD is sufficient to build realistic ZATRANO applications. They are **test domains**, not new framework features. They remain the canonical examples under the Phase 4 freeze.
 
 Do not implement a demo app inside the framework tree. Copy this shape into a consumer created by `zatrano new --full`.
 

@@ -35,7 +35,7 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Evidence:** `packages/authorization` is Gate/Policy. Dashboard stubs contain roles/permissions files not wired as the package API. Gate binds in **auth** boot.
 - **Problem:** Controllers may check string roles.
 - **Decision:** ADR-0006 — Policy/Gate only. Dashboard stubs are UI, not AuthZ.
-- **Enforcement:** doctor: `role ==` in controllers.
+- **Enforcement:** SEMANTIC. Doctor does not scan `role ==` (false positives). Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 
 ### G-H3 — `unique` / `exists` silent pass — **classified (ADR-0010)**
 

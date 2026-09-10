@@ -13,7 +13,7 @@ Authoritative specification:
 
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **ADRs 0001–0010 accepted. Phase 3 doctor enforces high-confidence STANDARD rules. Phase 3.5 records the adversarial enforcement boundary.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
+Status of this standard: **FROZEN (Phase 4, ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Phase 3.5 records the adversarial boundary. Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
 
 ---
 
@@ -35,15 +35,16 @@ Status of this standard: **ADRs 0001–0010 accepted. Phase 3 doctor enforces hi
 Before writing application code:
 
 1. This file.
-2. [`docs/architecture/STANDARD.md`](docs/architecture/STANDARD.md) — the A–Z language.
+2. [`docs/architecture/STANDARD.md`](docs/architecture/STANDARD.md) — the A–Z language (**authoritative**).
 3. [`docs/architecture/golden.md`](docs/architecture/golden.md) — exact files, verbs, Policy API, tests.
 4. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
 5. The relevant package public API (`From`, `Register`/`Boot`, tests).
 6. [`docs/architecture/examples.md`](docs/architecture/examples.md) for short sketches (`golden.md` wins on conflict).
-7. [`docs/architecture/conflicts.md`](docs/architecture/conflicts.md) if two patterns appear in the tree.
-8. [`docs/architecture/gaps.md`](docs/architecture/gaps.md) if the feature has no canonical home.
+7. [`docs/architecture/no-second-way.md`](docs/architecture/no-second-way.md) if a second implementation looks tempting.
+8. [`docs/architecture/conflicts.md`](docs/architecture/conflicts.md) if two patterns appear in the tree.
+9. [`docs/architecture/gaps.md`](docs/architecture/gaps.md) if the feature has no canonical home.
 
-Then use the generator. Then write tests. Then run doctor and tests.
+Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 
 ---
 
@@ -99,21 +100,22 @@ Then use the generator. Then write tests. Then run doctor and tests.
 | Test | STANDARD §Y · golden.md §17 |
 | Generate | STANDARD §Z |
 | See if it is missing | `gaps.md` |
-| See if two ways exist | `conflicts.md` |
-| Phase 2 report | `phase2.md` |
-| See if CI can prove it | `enforcement.md` · `rules.md` |
+| See if two ways exist | `no-second-way.md` · `conflicts.md` |
+| Frozen spec | STANDARD.md · ADR-0011 · phase4.md |
+| See if CI can prove it | `enforcement.md` · `rules.md` · `phase3.5.md` |
 
 ---
 
 ## 6. Implementation workflow
 
 1. Identify the golden flow (CRUD, relationship, filter, auth, authz, transaction, file, async, AI).
-2. Enable the required packages (`package:enable`). Do not fake APIs that are not enabled.
-3. Run the canonical generator (`make:controller`, `make:request`, `make:model`, …).
-4. Edit generated files to match STANDARD. Do not leave `Handle() error` stubs as the architecture.
-5. Wire routes in the matching route file. Add middleware in route groups, not ad-hoc inside controllers.
-6. Add tests next to the convention in STANDARD §Y.
-7. If a rule is missing, stop and record a gap. Do not invent a second architecture.
+2. Inspect the relevant canonical example in `golden.md` and neighboring application code.
+3. Enable the required packages (`package:enable`). Do not fake APIs that are not enabled.
+4. Run the canonical generator (`make:controller`, `make:request`, `make:model`, …).
+5. Edit generated files to match STANDARD. Do not leave `Handle() error` stubs as the architecture. Do not invent layers.
+6. Wire routes in the matching route file. Add middleware in route groups, not ad-hoc inside controllers.
+7. Add tests next to the convention in STANDARD §Y.
+8. If a rule is missing, stop and record a gap. Do not invent a second architecture.
 
 ---
 
@@ -125,7 +127,7 @@ go vet ./...
 zatrano doctor
 ```
 
-Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md).
+Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md). Semantic gaps (phase 3.5) are not doctor-proven — see [`docs/architecture/phase3.5.md`](docs/architecture/phase3.5.md).
 
 ---
 
@@ -136,4 +138,4 @@ If neighboring code contradicts STANDARD:
 1. Do not copy the violation.
 2. Follow STANDARD.
 3. Name the conflict (file + pattern vs rule).
-4. Point to `docs/architecture/conflicts.md`.
+4. Point to `docs/architecture/conflicts.md` and `docs/architecture/no-second-way.md`.

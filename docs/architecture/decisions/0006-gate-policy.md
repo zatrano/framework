@@ -33,4 +33,4 @@ Golden “authorization” domain uses Policy, not role tables, unless a future 
 
 ## Enforcement
 
-Review/doctor: role string compares in `app/http/controllers`.
+SEMANTIC / review: `role ==` in controllers is non-compliant. Doctor does **not** scan role strings (false-positive risk). Gate/Policy remains the API.

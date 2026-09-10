@@ -1,80 +1,55 @@
 # Completeness matrix
 
-Values: `YES` · `NO` · `PARTIAL` · `NOT APPLICABLE` · `NOT SUPPORTED`
+Frozen with [STANDARD.md](STANDARD.md) (Phase 4 / ADR-0011). Machine twin: [completeness.yaml](completeness.yaml).
 
-Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are current reality, not the roadmap.
+Values: `YES` · `NO` · `PARTIAL` · `n/a`
 
-| Concern | Exists | Canonical Rule | Example | CLI Generator | Static Check | CI Check | Documentation | Test |
-|---|---|---|---|---|---|---|---|---|
-| Application bootstrap | YES | STANDARD A | scaffold `cmd/app` | `zatrano new` | doctor layout | architecture_test | PACKAGES.md | boot_test |
-| Enabled ∩ Imported | YES | STANDARD A | addons.go + enabled.go | package:enable | doctor imported.disabled | YES | PACKAGES.md | YES |
-| contracts.App freeze | YES | kernel freeze | — | NOT APPLICABLE | architecture tests | YES | rules | YES |
-| Directory layout | YES | STANDARD C | CanonicalConsumerDirs | `zatrano new` | doctor | PARTIAL | STANDARD C | dirs tests |
-| Forbidden extra layers | NO | ADR-0001 | — | NO | doctor APP-LAY-* | YES | STANDARD B | YES |
-| Controller shape | YES | STANDARD G | HomeController | `make:controller` | doctor APP-CTL-* | YES | STANDARD G | YES |
-| Controller JSON-vs-View | YES | ADR-0007 + 0009 | dual controllers | `make:controller` | doctor APP-CTL-003/004 | YES | STANDARD G | YES |
-| FormRequest | YES | STANDARD E–F ADR-0002 | validation.FormRequest | `make:request` | doctor APP-REQ-* | YES | STANDARD E | YES |
-| unique/exists | PARTIAL | ADR-0010 | PresenceChecker fail-open | NO | doctor APP-VAL-001 | YES | STANDARD F | YES |
-| Service layer | YES | STANDARD H ADR-0001 | OrderPlacementService | `make:service` | doctor APP-CTL-005 (TX location) | YES | STANDARD H | YES |
-| UseCase/Action/DTO | NOT SUPPORTED | ADR-0001 | — | NO | doctor APP-LAY-003 | YES | STANDARD B | YES |
-| String eager load | NOT SUPPORTED | STANDARD L | — | NO | doctor APP-ORM-001 | YES | STANDARD L | YES |
-| Transactions | YES | STANDARD M ADR-0004 | orm.Transaction | NO | doctor APP-CTL-005 | YES | STANDARD M | YES |
-| Routes web/api | YES | STANDARD N | RegisterWeb | new templates | doctor APP-ROUTE-* | YES | STANDARD N | YES |
-| Architecture doctor | YES | enforcement.md | zatrano doctor | doctor | YES | YES | rules.md | YES |
-| Web vs API vs full | YES | STANDARD C | templates | `new --web/--api/--full` | NO | scaffold tests | README | YES |
-| Index/Filter request | YES | STANDARD E | golden Product/Post | `make:request --index` | NO | NO | YES | YES |
-| Nested validation | PARTIAL | STANDARD F | dotted keys | NO | NO | PARTIAL | gaps | PARTIAL |
-| Domain Entity/VO | NOT SUPPORTED | STANDARD I | — | NO | NO | NO | STANDARD I | NO |
-| Repository | PARTIAL | ADR-0003 | make:repository | `make:repository` | doctor APP-REP-001 | YES | STANDARD J | YES |
-| ORM models | YES | STANDARD K | orm.Model | `make:model` | NO | orm tests | STANDARD K | YES |
-| ORM query API | YES | STANDARD K | Querier | NOT APPLICABLE | NO | YES | STANDARD K | YES |
-| Cursor pagination | NOT SUPPORTED | STANDARD K | — | NO | NO | NO | STANDARD K | NO |
-| Relationships | YES | STANDARD L | EagerHasMany | NO | NO | YES | STANDARD L | YES |
-| Nested TX | NOT SUPPORTED | STANDARD M | — | NO | NO | NO | STANDARD M | NO |
-| Query context.Context | NOT SUPPORTED | G-M6 | — | NO | NO | NO | gaps | NO |
-| routing.From vs contracts.Router | YES | conflicts C5 | — | NO | doctor APP-ROUTE-002 | YES | STANDARD N | NO |
-| Kernel middleware order | YES | STANDARD O | application.go | NOT APPLICABLE | NO | YES | STANDARD O | YES |
-| CSRF | YES | STANDARD O,R | Except /api | generated provider | NO | YES | STANDARD R | YES |
-| Authentication | YES | STANDARD P | make:auth | `make:auth` | NO | pkg tests | STANDARD P | YES |
-| MFA | YES | STANDARD P | auth twofactor | via auth | NO | pkg tests | STANDARD P | YES |
-| API tokens | YES | STANDARD P | apitoken | package:enable | NO | pkg | STANDARD P | YES |
-| Gate/Policy | YES | STANDARD Q ADR-0006 | make:policy | `make:policy` | NO | pkg | STANDARD Q | YES |
-| Roles/permissions package API | NOT SUPPORTED | ADR-0006 | dashboard stubs only | dashboard | NO | NO | STANDARD Q | NO |
-| Views | YES | STANDARD S | http.View | `make:view` | NO | pkg | STANDARD S | PARTIAL |
-| HTMX | NOT SUPPORTED | ADR-0005 | — | NO | NO | NO | STANDARD S | NO |
-| Validation errors web/API | YES | STANDARD F,T | ResponseFor | NOT APPLICABLE | NO | YES | STANDARD F | YES |
-| Find/not-found | PARTIAL | STANDARD T | sql.ErrNoRows | NO | NO | PARTIAL | STANDARD K | YES |
-| Events/listeners | YES | STANDARD U | make:event | make:event/listener | NO | PARTIAL | STANDARD U | PARTIAL |
-| Jobs/queue | YES | STANDARD U | make:job | make:job | NO | PARTIAL | STANDARD U | PARTIAL |
-| Notifications/mail | YES | STANDARD U | Channels mail | make:notification | NO | PARTIAL | STANDARD U | PARTIAL |
-| Command bus | YES | ADR-0001 optional | packages/bus | NO | NO | PARTIAL | STANDARD H | PARTIAL |
-| Filesystem/uploads | YES | STANDARD V | filesystem | package:enable | NO | PARTIAL | STANDARD V | PARTIAL |
-| Image processing | NOT SUPPORTED | STANDARD V | — | NO | NO | NO | STANDARD V | NO |
-| Config/env | YES | STANDARD W | .env.example | new + package:enable | doctor | YES | STANDARD W | YES |
-| Logging/request id | YES | STANDARD X | RequestID | kernel | NO | YES | STANDARD X | YES |
-| Health | YES | STANDARD X | /up + health pkg | new --web/--api | doctor | YES | STANDARD X | YES |
-| Metrics/tracing | PARTIAL | STANDARD X | optional MW | package | NO | PARTIAL | STANDARD X | PARTIAL |
-| HTTP tests | YES | STANDARD Y | packages/testing | make:test | NO | PARTIAL | STANDARD Y | YES |
-| E2E browser tests | NOT SUPPORTED | STANDARD Y | — | NO | NO | NO | STANDARD Y | NO |
-| AI constitution | YES | AGENTS.md + golden.md | phase2 | agents:generate | NO | NO | AGENTS.md | NO |
-| Completeness matrix | YES | this file | yaml twin | NOT APPLICABLE | NO | NO | YES | NO |
+Do not mark **CI / doctor** as YES if the rule is documentation-only.
 
-## Phase 3 — Defined / Golden / Generator / Machine / CI
+**Inventory:** 57 concerns defined · 48 with a canonical example · 30 generator-supported · 23 doctor/FW-static · 28 CI-enforced · 30 semantic-only · 12 not provided.
 
-| Concern | Defined | Golden | Generator | Machine | CI |
-|---|---|---|---|---|---|
-| Controller structure | YES | YES | YES | YES | YES |
-| Forbidden layers | YES | YES | YES (absence) | YES | YES |
-| FormRequest writes | YES | YES | YES | YES (persist heuristic) | YES |
-| Transactions in controllers | YES | YES | YES | YES | YES |
-| Web/API mix in one method | YES | YES | YES | YES | YES |
-| String eager load | YES | YES | YES | YES | YES |
-| unique/exists vs database | YES | YES | n/a | YES | YES |
-| Framework ↛ packages | YES | n/a | n/a | YES (test) | YES |
-| Authorization semantics | YES | YES | PARTIAL | NO | tests only |
-| Repository optional | YES | YES | YES | YES (must not require; interfaces FAIL) | YES |
-| HTMX | YES (unsupported) | n/a | n/a | NO (intentionally) | NO |
+| Concern | Defined | Canonical example | Forbidden example | Generator | Doctor | CI | Runtime | Semantic only | Not provided |
+|---|---|---|---|---|---|---|---|---|---|
+| Bootstrap | YES | `bootstrap.App` | custom kernel boot | `zatrano new` | APP-LAY-004 | YES | YES | NO | NO |
+| Enablement | YES | Enabled ∩ Imported | blank-import only | `package:enable` | — | YES | YES | NO | NO |
+| Directory layout | YES | §C.1 | `app/usecases` | `zatrano new` | APP-LAY-001/004/005 | YES | NO | NO | NO |
+| Extra layers | YES | absence | UseCase | none | APP-LAY-* | YES | NO | PARTIAL | NO |
+| Routes | YES | `app/routes/web` | routes in services | `zatrano new` | APP-ROUTE-001 | YES | NO | NO | NO |
+| REST verbs | YES | `routing.From` | `app.Router().Put` | none | APP-ROUTE-002 | YES | NO | PARTIAL | NO |
+| Middleware | YES | kernel + `make:middleware` | authz-in-controller | `make:middleware` | — | PARTIAL | YES | YES | NO |
+| Controllers | YES | `*Controller` | HTTP `*Handler` | `make:controller` | APP-CTL-001/002 | YES | NO | NO | NO |
+| Web controllers | YES | View/Redirect | JSON as HTML CRUD | `make:controller` | APP-CTL-003 | YES | NO | PARTIAL | NO |
+| API controllers | YES | JSON | View | `--api` | APP-CTL-004 | YES | NO | NO | NO |
+| FormRequest | YES | Store/Update | `PostForm`, `Make` | `make:request` | APP-REQ-* | YES | NO | PARTIAL | NO |
+| Request taxonomy | YES | `--store/--index` | `CreatePostRequest` | `make:request` | APP-REQ-001 | YES | NO | NO | NO |
+| Validation | YES | `ValidateForm` | rules in ORM | `make:rule` | APP-REQ-002 | YES | YES | PARTIAL | NO |
+| unique/exists | YES | + database | fail-open as AuthZ | none | APP-VAL-001 | YES | NO | PARTIAL | NO |
+| Authorization | YES | Gate/Policy | `role ==` | `make:policy` | — | PARTIAL | YES | YES | NO |
+| Models | YES | `orm.Model` | Entity layer | `make:model` | — | YES | YES | YES | NO |
+| ORM access | YES | `Query[T]()` | sql in controller | none | — | YES | YES | YES | NO |
+| Relationships | YES | typed `With` | `With("comments")` | none | APP-ORM-001 | YES | YES | PARTIAL | NO |
+| Repositories | YES | optional concrete | interface / BaseRepository | `make:repository` | APP-REP-001 | YES | NO | PARTIAL | NO |
+| Services | YES | §H table | ritual / UseCase | `make:service` | APP-LAY-003 | YES | NO | PARTIAL | NO |
+| Transactions | YES | service TX | controller-file TX | none | APP-CTL-005 | YES | YES | PARTIAL | NO |
+| Views | YES | `http.View` | HTMX API | `make:view` | APP-CTL-004 | PARTIAL | YES | PARTIAL | NO |
+| Auth | YES | `make:auth` | `app.Auth()` | `make:auth` | AUTH exception | PARTIAL | YES | PARTIAL | NO |
+| Files | YES | golden File | unsanitized paths | none | — | PARTIAL | YES | YES | NO |
+| Notifications / jobs | YES | From(app) after commit | mail package; TX dispatch | `make:notification` / `make:job` | — | PARTIAL | YES | YES | NO |
+| Config / env | YES | boot `APP_ENV` snapshot | live re-parse for security | `zatrano new` | APP-PROV-002 | YES | YES | PARTIAL | NO |
+| Testing | YES | `testing.TestCase` | E2E as platform | `make:test` | — | PARTIAL | NO | YES | NO |
+| AI | YES | `ai.From(app)` | `App.AI()` | none | — | PARTIAL | YES | YES | NO |
+| Package From(app) | YES | `pkg.From` | App package methods | `package:enable` | APP-CON-001 | YES | YES | PARTIAL | NO |
+| FW ↛ packages | YES | architecture tests | packages import | none | FW-DEP-* | YES | NO | NO | NO |
+| HTMX | YES | — | fragment architecture | none | — | NO | NO | YES | **YES** |
+| Browser E2E | YES | — | Playwright-as-platform | none | — | NO | NO | YES | **YES** |
+| Mail package | YES | notification channel | `packages/mail` | none | — | NO | NO | YES | **YES** |
+| Outbox / UoW | YES | — | Outbox types | none | — | NO | NO | YES | **YES** |
+| Cursor pages | YES | — | keyset API | none | — | NO | NO | YES | **YES** |
+| Nested TX | YES | — | nested Transaction | none | — | NO | YES | NO | **YES** |
+| Query context | YES | — | fake ctx API | none | — | NO | NO | YES | **YES** |
+| Typed not-found | YES | `sql.ErrNoRows` | `ErrModelNotFound` | none | — | NO | NO | YES | **YES** |
+| Tenancy app layer | YES | `tenancy.From` | `app/tenants` | none | — | NO | YES | YES | **YES** |
+| Reflection DI | YES | `NewX()` | autowire | none | — | NO | YES | YES | **YES** |
+| RBAC package API | YES | — | dashboard as Gate | dashboard stubs | — | NO | NO | YES | **YES** |
 
-## Phase 3.5 — Adversarial boundary
-
-Doctor cannot prove whole-program ownership. Six realistic PASS stacks remain; see [phase3.5.md](phase3.5.md). Repositories stay optional. Services stay conditional.
+Phase 3.5 six SEMANTIC stacks: [phase3.5.md](phase3.5.md) · [no-second-way.md](no-second-way.md).

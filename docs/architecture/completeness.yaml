@@ -1,264 +1,590 @@
 # ZATRANO application engineering completeness
-# Values: YES | NO | PARTIAL | NOT_APPLICABLE | NOT_SUPPORTED
+# Frozen schema (Phase 4). Values: YES | NO | PARTIAL | n/a
 # Standard: docs/architecture/STANDARD.md
-# Evidence: framework v2.1.0, packages v1.7.1
 
-version: "0.3.5"
-status: phase3.5_adversarial
+version: "0.4.0"
+status: frozen
+phase: 4
+evidence: framework v2.1.0, packages v1.7.1, doctor catalog 24 IDs
+
+# defined: STANDARD names canonical/forbidden/semantic/not_provided
+# canonical_example: golden.md section or generator artifact
+# forbidden_example: named anti-pattern
+# generator: CLI or none
+# doctor_rule: IDs or none
+# CI_enforced: go test / doctor fixtures
+# runtime_enforced: kernel/package behavior (not doctor)
+# semantic_only: YES means doctor must not claim proof
+# not_provided: YES means do not invent
+
 concerns:
   - id: bootstrap
-    exists: YES
-    canonical: STANDARD.A
-    cli: zatrano_new
-    static: doctor_layout
-    ci: YES
-    docs: YES
-    test: YES
+    defined: YES
+    canonical_example: cmd/app + bootstrap.App
+    forbidden_example: custom kernel boot
+    generator: zatrano_new
+    doctor_rule: APP-LAY-004
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: NO
+    not_provided: NO
   - id: enablement
-    exists: YES
-    canonical: STANDARD.A
-    cli: package_enable
-    static: doctor_imported
-    ci: YES
-    docs: YES
-    test: YES
+    defined: YES
+    canonical_example: EnabledAddons ∩ addons.go
+    forbidden_example: blank-import without enable
+    generator: package_enable
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: NO
+    not_provided: NO
   - id: directory_layout
-    exists: YES
-    canonical: STANDARD.C
-    cli: zatrano_new
-    static: doctor
-    ci: PARTIAL
-    docs: YES
-    test: YES
-  - id: extra_layers_banned
-    exists: NO
-    canonical: ADR-0001
-    cli: NO
-    static: doctor_APP-LAY
-    ci: YES
-    docs: YES
-    test: YES
-  - id: controller
-    exists: YES
-    canonical: STANDARD.G
-    cli: make_controller
-    static: doctor_APP-CTL
-    ci: YES
-    docs: YES
-    test: YES
-  - id: controller_web_vs_json
-    exists: YES
-    canonical: ADR-0007+0009
-    cli: make_controller
-    static: doctor_APP-CTL-003
-    ci: YES
-    docs: YES
-    test: YES
-  - id: form_request
-    exists: YES
-    canonical: ADR-0002
-    cli: make_request
-    static: doctor_APP-REQ
-    ci: YES
-    docs: YES
-    test: YES
-  - id: index_filter_request
-    exists: YES
-    canonical: STANDARD.E
-    cli: make_request_index
-    static: NO
-    ci: NO
-    docs: YES
-    test: YES
-  - id: unique_exists_silent_pass
-    exists: PARTIAL
-    canonical: ADR-0010
-    cli: NO
-    static: doctor_APP-VAL-001
-    ci: YES
-    docs: YES
-    test: YES
-  - id: service
-    exists: YES
-    canonical: ADR-0001
-    cli: make_service
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
-  - id: usecase_action_dto
-    exists: NOT_SUPPORTED
-    canonical: ADR-0001
-    cli: NO
-    static: doctor_APP-LAY
-    ci: YES
-    docs: YES
-    test: YES
-  - id: repository
-    exists: PARTIAL
-    canonical: ADR-0003
-    cli: make_repository
-    static: doctor_APP-REP-001
-    ci: YES
-    docs: YES
-    test: YES
-  - id: orm
-    exists: YES
-    canonical: STANDARD.K
-    cli: make_model
-    static: NO
-    ci: YES
-    docs: YES
-    test: YES
-  - id: cursor_pagination
-    exists: NOT_SUPPORTED
-    canonical: STANDARD.K
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
-  - id: relationships
-    exists: YES
-    canonical: STANDARD.L
-    cli: NO
-    static: NO
-    ci: YES
-    docs: YES
-    test: YES
-  - id: string_eager
-    exists: NOT_SUPPORTED
-    canonical: STANDARD.L
-    cli: NO
-    static: doctor_APP-ORM-001
-    ci: YES
-    docs: YES
-    test: YES
-  - id: transactions
-    exists: YES
-    canonical: ADR-0004
-    cli: NO
-    static: doctor_APP-CTL-005
-    ci: YES
-    docs: YES
-    test: YES
-  - id: nested_transactions
-    exists: NOT_SUPPORTED
-    canonical: STANDARD.M
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
-  - id: query_context
-    exists: NOT_SUPPORTED
-    canonical: G-M6
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
+    defined: YES
+    canonical_example: STANDARD §C.1
+    forbidden_example: app/usecases
+    generator: zatrano_new
+    doctor_rule: APP-LAY-001,APP-LAY-004,APP-LAY-005
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: extra_layers
+    defined: YES
+    canonical_example: none (absence)
+    forbidden_example: UseCase, app/application
+    generator: none
+    doctor_rule: APP-LAY-001,APP-LAY-002,APP-LAY-003
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
   - id: routes
-    exists: YES
-    canonical: STANDARD.N
-    cli: zatrano_new
-    static: doctor
-    ci: YES
-    docs: YES
-    test: YES
-  - id: csrf
-    exists: YES
-    canonical: STANDARD.O
-    cli: generated_provider
-    static: NO
-    ci: YES
-    docs: YES
-    test: YES
-  - id: authentication
-    exists: YES
-    canonical: STANDARD.P
-    cli: make_auth
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: YES
-  - id: authorization_gate
-    exists: YES
-    canonical: ADR-0006
-    cli: make_policy
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: YES
-  - id: rbac_package
-    exists: NOT_SUPPORTED
-    canonical: ADR-0006
-    cli: dashboard_stubs
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
+    defined: YES
+    canonical_example: app/routes/web
+    forbidden_example: router.Get in services
+    generator: zatrano_new
+    doctor_rule: APP-ROUTE-001
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: route_verbs
+    defined: YES
+    canonical_example: routing.From(app).Put
+    forbidden_example: app.Router().Put
+    generator: none
+    doctor_rule: APP-ROUTE-002
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: middleware
+    defined: YES
+    canonical_example: kernel order + make:middleware
+    forbidden_example: authz inside controller as MW substitute
+    generator: make_middleware
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: controllers
+    defined: YES
+    canonical_example: HomeController
+    forbidden_example: HTTP Handler type
+    generator: make_controller
+    doctor_rule: APP-CTL-001,APP-CTL-002
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: web_controllers
+    defined: YES
+    canonical_example: http.View
+    forbidden_example: resource JSON as HTML architecture
+    generator: make_controller
+    doctor_rule: APP-CTL-003
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: api_controllers
+    defined: YES
+    canonical_example: http.JSON
+    forbidden_example: http.View in api
+    generator: make_controller --api
+    doctor_rule: APP-CTL-004
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: form_requests
+    defined: YES
+    canonical_example: PostStoreRequest
+    forbidden_example: PostForm, validation.Make
+    generator: make_request
+    doctor_rule: APP-REQ-001,APP-REQ-002,APP-REQ-003
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: request_taxonomy
+    defined: YES
+    canonical_example: Store/Update/Index
+    forbidden_example: CreatePostRequest
+    generator: make_request --store|--update|--index
+    doctor_rule: APP-REQ-001
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: validation
+    defined: YES
+    canonical_example: ValidateForm
+    forbidden_example: rules in ORM
+    generator: make_request, make_rule
+    doctor_rule: APP-REQ-002
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: unique_exists
+    defined: YES
+    canonical_example: unique + database
+    forbidden_example: unique without database; exists as IDOR
+    generator: none
+    doctor_rule: APP-VAL-001
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: authorization
+    defined: YES
+    canonical_example: gate.Authorize
+    forbidden_example: role == admin
+    generator: make_policy
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: policies
+    defined: YES
+    canonical_example: NewPostPolicy
+    forbidden_example: PostPolicy.Update methods
+    generator: make_policy
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: models
+    defined: YES
+    canonical_example: orm.Model + Fillable
+    forbidden_example: DDD Entity layer
+    generator: make_model
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: orm_access
+    defined: YES
+    canonical_example: orm.Query[T]()
+    forbidden_example: database/sql in controller when ORM enabled
+    generator: none
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: relationships
+    defined: YES
+    canonical_example: EagerHasMany FK
+    forbidden_example: With("comments")
+    generator: none
+    doctor_rule: APP-ORM-001
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: repositories
+    defined: YES
+    canonical_example: optional concrete struct
+    forbidden_example: repository interface, BaseRepository
+    generator: make_repository
+    doctor_rule: APP-REP-001
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: services
+    defined: YES
+    canonical_example: OrderPlacementService.Place
+    forbidden_example: ritual service; CreatePostUseCase
+    generator: make_service
+    doctor_rule: APP-LAY-003
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: transactions
+    defined: YES
+    canonical_example: orm.Transaction in service
+    forbidden_example: controller-file TX
+    generator: none
+    doctor_rule: APP-CTL-005
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
   - id: views
-    exists: YES
-    canonical: STANDARD.S
-    cli: make_view
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: PARTIAL
-  - id: htmx
-    exists: NOT_SUPPORTED
-    canonical: ADR-0005
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
+    defined: YES
+    canonical_example: http.View
+    forbidden_example: HTMX fragments as API
+    generator: make_view
+    doctor_rule: APP-CTL-004
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: redirects
+    defined: YES
+    canonical_example: Redirect + flash
+    forbidden_example: API redirect as architecture
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: json_responses
+    defined: YES
+    canonical_example: http.JSON
+    forbidden_example: mandatory jsonapi
+    generator: none
+    doctor_rule: APP-CTL-003
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: authentication
+    defined: YES
+    canonical_example: make:auth
+    forbidden_example: app.Auth(); invented JWT
+    generator: make_auth
+    doctor_rule: APP-CTL-003 exception
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: mfa
+    defined: YES
+    canonical_example: auth two-factor stubs
+    forbidden_example: second MFA stack
+    generator: make_auth
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: files
+    defined: YES
+    canonical_example: golden File
+    forbidden_example: user path join
+    generator: none
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
   - id: notifications
-    exists: YES
-    canonical: STANDARD.U
-    cli: make_notification
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: PARTIAL
-  - id: mail_package
-    exists: NOT_SUPPORTED
-    canonical: STANDARD.U
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
-  - id: filesystem
-    exists: YES
-    canonical: STANDARD.V
-    cli: package_enable
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: PARTIAL
-  - id: http_tests
-    exists: YES
-    canonical: STANDARD.Y
-    cli: make_test
-    static: NO
-    ci: PARTIAL
-    docs: YES
-    test: YES
+    defined: YES
+    canonical_example: notification.From after commit
+    forbidden_example: SMTP in app
+    generator: make_notification
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: events
+    defined: YES
+    canonical_example: make:event
+    forbidden_example: workflow engine dir
+    generator: make_event
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: jobs_queues
+    defined: YES
+    canonical_example: make:job after commit
+    forbidden_example: dispatch inside TX
+    generator: make_job
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: configuration
+    defined: YES
+    canonical_example: .env + ConfigRepository
+    forbidden_example: second env parser
+    generator: zatrano_new
+    doctor_rule: APP-PROV-002
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: environment
+    defined: YES
+    canonical_example: bootstrapped APP_ENV snapshot
+    forbidden_example: live APP_ENV re-parse for security
+    generator: none
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: NO
+    not_provided: NO
+  - id: logging_request_id
+    defined: YES
+    canonical_example: kernel logger + RequestID
+    forbidden_example: log secrets
+    generator: none
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: error_handling
+    defined: YES
+    canonical_example: STANDARD §T
+    forbidden_example: DomainError hierarchy
+    generator: make_exception
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: security
+    defined: YES
+    canonical_example: CSRF, Fillable, Policy, headers
+    forbidden_example: exists as IDOR
+    generator: generated CSRF Except
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: pagination_filter_sort
+    defined: YES
+    canonical_example: IndexRequest + Paginate
+    forbidden_example: cursor page API
+    generator: make_request --index
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: testing
+    defined: YES
+    canonical_example: packages/testing.TestCase
+    forbidden_example: top-level test/ tree
+    generator: make_test
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: NO
+  - id: factories
+    defined: YES
+    canonical_example: app/database/factories
+    forbidden_example: second fixture framework
+    generator: make_factory
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: ai
+    defined: YES
+    canonical_example: ai.From(app)
+    forbidden_example: App.AI(), AIService
+    generator: none
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: package_consumption
+    defined: YES
+    canonical_example: pkg.From(app)
+    forbidden_example: app.Auth()
+    generator: package_enable
+    doctor_rule: APP-CON-001
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: dependency_boundaries
+    defined: YES
+    canonical_example: framework never imports packages
+    forbidden_example: import github.com/zatrano/packages
+    generator: none
+    doctor_rule: FW-DEP-001,FW-DEP-002,FW-DEP-003
+    CI_enforced: YES
+    runtime_enforced: NO
+    semantic_only: NO
+    not_provided: NO
+  - id: public_api_freeze
+    defined: YES
+    canonical_example: contracts.App
+    forbidden_example: App.Queue()
+    generator: none
+    doctor_rule: architecture_test
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: NO
+    not_provided: NO
+  - id: observability
+    defined: YES
+    canonical_example: logs, RequestID, /up
+    forbidden_example: required APM layer
+    generator: none
+    doctor_rule: none
+    CI_enforced: PARTIAL
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: NO
+  - id: deployment
+    defined: YES
+    canonical_example: production secrets, APP_DEBUG false
+    forbidden_example: empty APP_KEY in production
+    generator: none
+    doctor_rule: none
+    CI_enforced: YES
+    runtime_enforced: YES
+    semantic_only: PARTIAL
+    not_provided: NO
+  - id: htmx
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: hx- architecture
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
   - id: e2e_browser
-    exists: NOT_SUPPORTED
-    canonical: STANDARD.Y
-    cli: NO
-    static: NO
-    ci: NO
-    docs: YES
-    test: NO
-  - id: app_architecture_analyzer
-    exists: YES
-    canonical: enforcement.md
-    cli: zatrano_doctor
-    static: YES
-    ci: YES
-    docs: YES
-    test: YES
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: claiming Playwright as platform
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: mail_package
+    defined: YES
+    canonical_example: notification Channels mail
+    forbidden_example: packages/mail
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: outbox
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: UnitOfWork/outbox types
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: cursor_pagination
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: keyset page API
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: nested_transactions
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: nested orm.Transaction
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: YES
+    semantic_only: NO
+    not_provided: YES
+  - id: query_context
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: fake ctx wrappers
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: typed_not_found
+    defined: YES
+    canonical_example: sql.ErrNoRows
+    forbidden_example: ErrModelNotFound
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: unit_of_work
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: UoW type
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
+  - id: tenancy_app_layer
+    defined: YES
+    canonical_example: tenancy.From(app) only
+    forbidden_example: app/tenants
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: YES
+  - id: reflection_di
+    defined: YES
+    canonical_example: NewX() / From(app)
+    forbidden_example: autowire
+    generator: none
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: YES
+    semantic_only: YES
+    not_provided: YES
+  - id: rbac_package
+    defined: YES
+    canonical_example: n/a
+    forbidden_example: dashboard roles as Gate
+    generator: dashboard stubs
+    doctor_rule: none
+    CI_enforced: NO
+    runtime_enforced: NO
+    semantic_only: YES
+    not_provided: YES
