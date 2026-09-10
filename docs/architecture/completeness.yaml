@@ -3,8 +3,8 @@
 # Standard: docs/architecture/STANDARD.md
 # Evidence: framework v2.1.0, packages v1.7.1
 
-version: "0.1.0"
-status: forensic_extraction
+version: "0.2.0"
+status: phase2_hardening
 concerns:
   - id: bootstrap
     exists: YES
@@ -47,13 +47,13 @@ concerns:
     docs: YES
     test: PARTIAL
   - id: controller_web_vs_json
-    exists: PARTIAL
-    canonical: ADR-0007
-    cli: INCONSISTENT
+    exists: YES
+    canonical: ADR-0007+0009
+    cli: make_controller
     static: NO
     ci: NO
     docs: YES
-    test: NO
+    test: PARTIAL
   - id: form_request
     exists: YES
     canonical: ADR-0002
@@ -63,7 +63,7 @@ concerns:
     docs: YES
     test: YES
   - id: index_filter_request
-    exists: PARTIAL
+    exists: YES
     canonical: STANDARD.E
     cli: make_request_index
     static: NO
@@ -72,14 +72,14 @@ concerns:
     test: YES
   - id: unique_exists_silent_pass
     exists: PARTIAL
-    canonical: G-H3
+    canonical: ADR-0010
     cli: NO
     static: NO
     ci: NO
     docs: YES
     test: PARTIAL
   - id: service
-    exists: PARTIAL
+    exists: YES
     canonical: ADR-0001
     cli: make_service
     static: NO

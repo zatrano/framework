@@ -12,20 +12,22 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 |---|---|
 | [AGENTS.md](../../AGENTS.md) | AI constitution and reading order (entry) |
 | [STANDARD.md](STANDARD.md) | A–Z deterministic language |
-| [examples.md](examples.md) | Canonical flow sketches (not demo apps) |
+| [examples.md](examples.md) | Short sketches; **golden.md wins** on conflict |
+| [golden.md](golden.md) | Phase 2 golden scenarios — exact files, verbs, tests |
+| [phase2.md](phase2.md) | Phase 2 conformance report |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
 | [completeness-matrix.md](completeness-matrix.md) | Human matrix |
 | [completeness.yaml](completeness.yaml) | Machine-readable matrix |
 | [enforcement.md](enforcement.md) | Documentation vs tooling vs CI |
 | [roadmap.md](roadmap.md) | Implementation phases after review |
-| [decisions/](decisions/) | ADRs — proposed canonical choices |
+| [decisions/](decisions/) | ADRs 0001–0010 — Accepted |
 | [laravel-similarity.md](laravel-similarity.md) | Familiar folders vs copied behavior |
 | [scans.md](scans.md) | Second/third forensic passes |
 
 ## Status
 
-**Phase: forensic extraction.** No public APIs, ORM, generators, or application layouts were changed to produce this standard.
+**Phase: 2 complete (golden conformance + STANDARD hardening).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted.
 
 Rules are tagged:
 

@@ -41,7 +41,9 @@ Route → Middleware → FormRequest (Authorize + Validate)
      → Response
 ```
 
-Rejected as application layers: UseCase, Action, Domain Service, Entity (DDD), Value Object, DTO (separate from FormRequest), Handler (instead of Controller), mandatory Repository.
+Rejected as application layers: UseCase, Action, Domain Service, Entity (DDD), Value Object, DTO (separate from FormRequest), Handler (instead of Controller), mandatory Repository, UnitOfWork, WebService/ApiService.
+
+Golden scenarios (exact files, verbs, tests): [golden.md](golden.md). Phase 2 report: [phase2.md](phase2.md).
 
 ---
 
@@ -75,7 +77,7 @@ Rejected as application layers: UseCase, Action, Domain Service, Entity (DDD), V
 | Update (full) | `{Resource}UpdateRequest` | `BlogUpdateRequest` |
 | Partial | `{Resource}UpdateRequest` | same type; no PatchRequest type |
 | Destroy | none | route + policy only |
-| Index filters | `{Resource}IndexRequest` | query string rules |
+| Index filters | `{Resource}IndexRequest` | **required** when the index accepts any query (`page`, `q`, `sort`, filters) |
 | Login / register | `{Action}Request` | `LoginRequest` |
 | Upload | `{Resource}UploadRequest` | `FileUploadRequest` |
 | Bulk | `{Resource}BulkRequest` | only if the endpoint is bulk |
@@ -199,7 +201,7 @@ framework             →  NEVER github.com/zatrano/packages   (ENFORCED)
 | POST/PUT/PATCH body (web or API) | `{Resource}{Intent}Request` FormRequest | YES if `validation` enabled |
 | Login / register / password | `{Action}Request` FormRequest | YES |
 | File upload | `{Resource}UploadRequest` | YES — rules include file constraints |
-| Index query (filter/sort/page) | `{Resource}IndexRequest` | YES when more than `page`/`q` |
+| Index query (`page` / `q` / `sort` / filters) | `{Resource}IndexRequest` | YES whenever the index accepts a query string. Skip only a static list with no query params |
 | Path id only (show/destroy) | none | Policy + `req.Param` |
 | Headers / cookies | `req` primitives | no FormRequest |
 | Nested JSON objects | **weak today** — flatten keys (`address.city`) | GAP: nested object validation |
@@ -219,7 +221,7 @@ if err != nil {
 // pass validated map or bind into service input — not the raw Request for writes
 ```
 
-**AI decision:** mutating HTTP → FormRequest in `app/http/requests`. Read-only with only path id → no request type. Read-only with filters → IndexRequest.
+**AI decision:** mutating HTTP → FormRequest in `app/http/requests`. Read-only with only path id → no request type. Index with `page`/`q`/`sort`/filters → IndexRequest. PUT and PATCH → the same UpdateRequest. No PatchRequest. No DeleteRequest unless the body carries bulk ids.
 
 ---
 
@@ -231,7 +233,7 @@ if err != nil {
 - Rules: string map `field → "required|email|min:3"`. Custom rules via `make:rule` (`app/rules`).
 - Cross-field: `confirmed`, `same`, `different` (package rules). Domain invariants are **not** validation rules — they belong in the service after validation.
 - Nested: dotted keys. True nested-object graphs are **PARTIAL**.
-- Database-aware: `unique`, `exists` require a PresenceChecker. **Without a database they pass silently.** `HIGH` gap — applications MUST enable database before relying on these rules.
+- Database-aware: `unique`, `exists` require a PresenceChecker (ADR-0010). **Without a checker they pass silently (fail-open).** If a checker returns an error, the rule fails. This is a **documented limitation** and a **correctness** problem — not a security control and not authorization. Applications that use these rules MUST enable `database`. Never use `exists:` as IDOR protection.
 - Localization: validation messages via FormRequest `Messages()` and lang files when localization is enabled.
 - Errors: `ValidationException` → API 422 JSON `{message, errors}` or web flash + `RedirectBack`.
 - Precognitive: `IsPrecognitive` uses JSON 422.
@@ -266,7 +268,7 @@ func (c *BlogController) Index(req *http.Request) *http.Response { ... }
 | Constructor | empty struct **or** fields set at route registration (`BlogController{Posts: NewPostService()}`). No container autowire. |
 | Methods | `Index Show Create Store Edit Update Destroy` as needed. Extra actions are extra methods, not a second controller. |
 | Signature | `(req *http.Request) *http.Response` |
-| Web vs API | Web: `http.View` when `view` is enabled, else kernel `http.HTML` (empty profile). API / `--api`: `http.JSON`. `make:controller` follows this (ADR-0007). |
+| Web vs API | **Two controller types** (ADR-0009): `controllers/web` returns View/Redirect; `controllers/api` returns JSON. Do not mix View and JSON in one **resource** method. Do not create WebService/ApiService. Share an application service only when §H requires one. `make:auth` may reuse `AuthController` + `WantsJSON()` — that exception is not the resource CRUD pattern. |
 
 **MUST NOT contain:** query builders beyond `Find`/`Query` one-liners delegated immediately; `Rules()` maps; `orm.Transaction`; template string building; Gate `Define`; password hashing loops.
 
@@ -274,7 +276,7 @@ func (c *BlogController) Index(req *http.Request) *http.Response { ... }
 
 **HTMX:** `NOT SUPPORTED`. No special controller branch.
 
-**Errors:** return `validation.ResponseFor`; `http.Abort(404)` / `FindOrFail` mapped to 404; unexpected errors return and let exception middleware report.
+**Errors:** `validation.ResponseFor` for 422; `http.Abort(404)` / FindOrFail mapped to 404; Gate deny → web `http.Abort(403, err.Error())`, API `authorization.ResponseFor(err)` (JSON-only helper — do not use it for HTML); unexpected errors return and let exception middleware report.
 
 ---
 
@@ -282,12 +284,18 @@ func (c *BlogController) Index(req *http.Request) *http.Response { ... }
 
 `IMPLEMENTED` generator: `app/services/{name}_service.go` with `NewX()` and a named verb (no canonical `Handle()`).
 
-**ACCEPTED (ADR-0001):** a service exists when any of these is true:
+**ACCEPTED (ADR-0001):** a service is **mandatory** when any of these is true, and **forbidden as a ritual layer** otherwise:
 
-- more than one model write
-- explicit transaction
-- reusable application operation (used by HTTP and console/job)
-- orchestration of packages (auth + notification + orm)
+| Condition | Service |
+|---|---|
+| More than one model write | **Mandatory** |
+| Explicit `orm.Transaction` | **Mandatory** (controller MUST NOT start TX) |
+| Same operation used by HTTP and console/job | **Mandatory** |
+| Orchestration of several packages beyond one `From(app)` call | **Mandatory** |
+| Single-model Index/Show/Store/Update/Destroy | **No** — controller → ORM |
+| Project is “large” | **No** — size is not a criterion |
+
+Golden: Post CRUD has no service. Order placement is `OrderPlacementService.Place`.
 
 Otherwise the controller calls ORM / `From(app)` directly after validation.
 
@@ -336,7 +344,7 @@ Invariants that are not input rules live in the service (and optionally ORM even
 
 **ACCEPTED (ADR-0003):**
 
-- Default: **no repository**. Controllers/services call `orm.Query[T]()`.
+- Default: **no repository**. Controllers/services call `orm.Query[T]()`. Golden scenarios never require a repository.
 - Add a repository only as a test seam or to hide a stable query that is used in many places.
 - Do not create `BlogRepositoryInterface`.
 - Do not put authorization or validation in repositories.
@@ -375,8 +383,11 @@ func (Post) Fillable() []string { return []string{"title", "user_id"} }
 | arrays / PG arrays | NOT a dedicated API |
 | enums | application `app/enums`, not ORM types |
 | custom casts | `make:cast` + casts package |
+| `Defaults() map[string]any` (`HasDefaults`) | SUPPORTED — applied on Create when missing |
+| UUID / ULID keys | SUPPORTED via `UsesUUIDKeys` / `UsesULIDKeys` |
+| unique / indexes on the struct | **NOT** — declare in **migrations** |
 
-Nullable: pointer fields (`*time.Time`, `*string`).
+Nullable: pointer fields (`*time.Time`, `*string`). Unique constraints and indexes live in `app/database/migrations`, not on the model type.
 
 ### Lifecycle — `IMPLEMENTED`
 
@@ -386,9 +397,9 @@ Create / update / delete / restore (soft). Events via dispatcher: `creating`, `c
 
 ### Query API — include only what exists
 
-Entry: `orm.Query[T]()`, `orm.Where[T]`, `orm.Find`, `orm.FindOrFail`, `orm.All`, `orm.Create`.
+Entry: `orm.Query[T]()`, `orm.Where[T]`, `orm.Find`, `orm.FindOrFail`, `orm.All`, `orm.Create`, `orm.InsertMany`, `orm.Upsert`.
 
-`Querier` includes: Where / OrWhere / WhereAny / WhereAll / WhereIn / WhereNotIn / WhereBetween / WhereNotBetween / WhereDate / WhereMonth / WhereYear / WhereDay / WhereTime / WhereDayOfWeek / WhereHour / WhereNull / WhereNotNull / WhereColumn / WhereRaw / WhereExists / WhereLike; OrderBy / OrderByDesc / Latest / Oldest / Reorder; Select / Distinct; GroupBy / Having; Join / LeftJoin / RightJoin / CrossJoin; Limit / Offset / Take / Skip / ForPage; Union; locks (`LockForUpdate`, `ForUpdate`, `SharedLock`, `SkipLocked`, `NoWait`); WithTrashed / OnlyTrashed; Get / First / Sole; Count / Sum / Avg / Min / Max; Value / Pluck; Paginate / SimplePaginate; With(loader funcs); Clone.
+`Querier` includes: Where / OrWhere / WhereAny / WhereAll / WhereIn / WhereNotIn / WhereBetween / WhereNotBetween / WhereDate / WhereMonth / WhereYear / WhereDay / WhereTime / WhereDayOfWeek / WhereHour / WhereNull / WhereNotNull / WhereColumn / WhereRaw / WhereExists / WhereLike; OrderBy / OrderByDesc / Latest / Oldest / Reorder; Select / Distinct; GroupBy / Having; Join / LeftJoin / RightJoin / CrossJoin; Limit / Offset / Take / Skip / ForPage; Union; locks (`LockForUpdate`, `ForUpdate`, `SharedLock`, `SkipLocked`, `NoWait`); WithTrashed / OnlyTrashed; Get / First / Sole; Count / Sum / Avg / Min / Max; Value / Pluck; Paginate / SimplePaginate; With(loader funcs); Clone; **Update(attrs)**; **Delete()**.
 
 **NOT SUPPORTED:** cursor pagination (there is a `Cursor` iterator, not keyset pages); `WhereNot` as a named method (use `Where` with operators / `WhereNotIn` / `WhereNotNull`); query `context.Context`; typed `ErrModelNotFound`.
 
@@ -440,6 +451,8 @@ orm.Query[models.Post]().With(
 ```
 
 FK is always explicit in application code. Do not invent magic `HasMany("comments")`.
+
+**Create through a relationship:** there is no association `Create`. Set the foreign key and call `orm.Create`. BelongsToMany uses `Attach` / `Detach` / `Sync` / `Toggle` only.
 
 Pivot extras: `Attach` `extra ...map[string]any`.
 
@@ -544,7 +557,9 @@ Canonical:
 
 Logout / session invalidation: auth manager methods on the generated controllers.
 
-Registration / password reset: generated by `make:auth` when that flow is enabled — follow those stubs, migrate them onto FormRequests (conflict: stubs may use `validation.Make`).
+Registration / password reset / MFA / profile: generated by `make:auth`. Follow those stubs (`RegisterAuthWeb`, `RegisterAuthAPI`, `web.AuthController`). FormRequests + `ValidateForm` are canonical after Phase 1.
+
+**ADR-0009 exception:** `RegisterAuthAPI` reuses `web.AuthController` and `WantsJSON()`. Do **not** copy that mixing into Post/Product/Order/File CRUD — those use two controllers.
 
 ---
 
@@ -554,20 +569,35 @@ Registration / password reset: generated by `make:auth` when that flow is enable
 
 Gate is bound during **auth boot**, not by authorization’s empty provider.
 
+`make:policy` emits a constructor, not methods on a `PostPolicy` struct:
+
 ```go
-gate.Define("post.update", func(user Authenticatable, arguments ...any) bool { ... })
-// or Policy on a resource type
+func NewPostPolicy() *authorization.Policy {
+    return authorization.NewPolicy().
+        Define("view", ...).
+        Define("create", ...). // add; generator ships view/update/delete
+        Define("update", ...).
+        Define("delete", ...)
+}
+
+gate := authorization.From(app)
+gate.Policy("post", policies.NewPostPolicy())
+err := gate.Authorize(user, "post.update", post) // (user, ability, args...)
 ```
+
+Ability names are `{policyName}.{ability}` (`splitAbility` on `.`). Do not write `PostPolicy.Update` as the application type — that is not what the generator or Gate API owns.
 
 **ACCEPTED (ADR-0006):**
 
 - Resource actions → Policy in `app/policies` (`make:policy`).
-- Check **before** `orm.Find` that would leak existence only when the product requires 404 vs 403 consistently: default **403** when authenticated but forbidden, **401** when guest, **404** when the resource does not exist (authorize after find for ownership, or use Gate that accepts id).
-- Ownership: policy compares `user.AuthID()` to resource user id.
+- Who / where / when: authenticated user; FormRequest `Authorize` then `gate.Authorize` **after Find** for ownership; before mutate and before leaking private rows.
+- Default HTTP: **401** guest (auth middleware), **404** missing row, **403** authenticated but forbidden.
+- Ownership: policy compares `user.AuthID()` to `post.UserID` / `order.UserID`. Never trust body `user_id`.
 - **Dashboard role/permission stubs are not the authorization API.** Do not check `role == "admin"` in controllers.
-- FormRequest `Authorize` is the HTTP-layer check (coarse). Policy is the resource-layer check. For Store: FormRequest + Gate `create`. For Update: load model, `gate.Authorize("update", user, post)`.
+- Web 403: `http.Abort(403, err.Error())`. API 403: `authorization.ResponseFor(err)` (always JSON).
+- FormRequest `Authorize` is coarse HTTP access. Policy is the resource-layer check. Store: `post.create`. Update/Destroy: Find then `post.update` / `post.delete`.
 
-Route middleware may call Gate for ability names; it does not replace Policy.
+Route middleware may call Gate for ability names; it does not replace Policy. There is no third authorization system.
 
 ---
 
@@ -589,7 +619,7 @@ Route middleware may call Gate for ability names; it does not replace Policy.
 | Rate limit | `packages/ratelimit` | enable and group on login and API writes |
 | Secrets | `.env`, never commit | `ensureProductionSecrets` |
 | Error disclosure | exception handler | production hides stacks |
-| unique/exists silent pass | validation gap | enable database |
+| unique/exists silent pass | ADR-0010 limitation | enable `database`; never as AuthZ |
 
 **EncryptCookies** not default — do not assume cookie payload encryption unless the session/encrypt stack is enabled.
 
@@ -653,22 +683,31 @@ Retry / dead-letter: follow `queue` package configuration — do not reimplement
 
 Dispatch jobs **after** commit (from the service, post-transaction). Dispatching inside a TX that rolls back is a gap (no outbox). **PROPOSED:** enqueue after `orm.Transaction` returns nil.
 
+### AI (when `ai` is enabled)
+
+```text
+Application → ai.From(app) → Manager.Chat(ctx, ChatRequest)
+```
+
+`rag` and `agent` are import-only libraries (no addon `Register`). Do not invent workflow/orchestration types. Tests use the package fake provider. If `ai` is not enabled, the feature is out of scope — do not copy HTTP clients into `app/`. See [golden.md](golden.md) §10.
+
 ---
 
 ## V. Storage / Files
 
 `packages/filesystem` (and `storage` layout under `storage/app`).
 
-Canonical upload:
+Canonical upload ([golden.md](golden.md) §6):
 
-1. `FileUploadRequest` validates size/mime.
-2. Policy: who may upload.
-3. Store via filesystem disk API (local default).
-4. Persist metadata on a model (`path`, `disk`, `mime`, `size`, `user_id`).
-5. Download: authorized controller; never expose raw `storage/` via public for private files.
-6. Public files: `storage/app/public` + documented link, or `public/`.
+1. `{Resource}UploadRequest` / `FileUploadRequest` validates size/mime.
+2. Policy `file.create` (owner from `auth`, not the body).
+3. `filesystem.From(app)` — `Put` / `PutFile` on disk `local` / `public` / `s3`; kernel `safepath` (do not concatenate user paths).
+4. Persist metadata on `models.File` (`path`, `disk`, `mime`, `size`, `user_id`). Generated object name, never the raw user filename as the disk path.
+5. Download: Policy then `Get`; private disks are not served from `public/`.
+6. Delete: Policy then disk `Delete` then ORM Delete.
+7. Replace: two writes; no distributed TX — document possible disk orphans; do not invent UnitOfWork.
 
-Image processing: not a kernel API. **NOT SUPPORTED** unless a package exists for it — do not invent.
+Image processing: **NOT SUPPORTED**. Do not invent extra storage abstractions.
 
 ---
 
@@ -701,14 +740,15 @@ Application convention: log action + resource id + request id; never secrets.
 
 | Kind | Location | Tool |
 |---|---|---|
-| HTTP feature | `tests/feature_test.go` and `tests/*_test.go` | `packages/testing.TestCase` (Get/Post/JSON asserts) |
+| HTTP feature | `tests/http/{resource}_test.go` | `packages/testing.TestCase` (Get/Post/JSON asserts) |
+| Workflow / TX | `tests/services/{name}_test.go` | only when a service exists |
+| Policy | `tests/policies/{resource}_policy_test.go` | `Allows` / `Denies` |
+| FormRequest | same HTTP tests or request unit | ValidateForm |
 | Package unit | next to package | `testing` |
-| ORM | packages/orm tests; app may use sqlite in tests | Configure test DB |
+| ORM | packages/orm tests; app sqlite | Configure test DB |
 | Factories | `app/database/factories` + `packages/factory` | not ORM |
-| Policy | unit tests on policy funcs | no HTTP required |
-| FormRequest | ValidateForm with a fake Request | |
 
-**PROPOSED names:** `tests/http/{resource}_test.go` for HTTP, `tests/services/{name}_test.go` for workflows. Scaffold currently ships `tests/feature_test.go` — keep a feature test; add files rather than a new top-level `test/` tree.
+Scaffold still ships `tests/feature_test.go` — keep it; add `tests/http/` rather than a second top-level `test/` tree. Golden map: [golden.md](golden.md) §17.
 
 Mocks: hand-written fakes. No mandated mock codegen.
 
@@ -740,11 +780,13 @@ Invent layers; copy `make:controller` JSON into web apps; treat HTMX as built-in
 
 ### Generator defects to treat as non-canonical (do not copy)
 
-1. `make:controller` always JSON.
-2. `make:service` empty `Handle() error`.
-3. `RouteRegistrar` Get/Post only vs REST verbs.
-4. `factory` `make:resource` may be unregistered from the command list — verify before teaching AI to run it.
-5. Web `addons.go.tmpl` blank-imports every default-enabled addon (same contract as API).
+1. ~~`make:controller` always JSON~~ — **addressed** (ADR-0007 / Phase 1).
+2. ~~`make:service` empty `Handle() error`~~ — **addressed** (Phase 1).
+3. `RouteRegistrar` Get/Post only vs REST verbs — register Put/Patch/Delete on `*Router`.
+4. `factory` `make:resource` may be unregistered — verify before teaching AI to run it.
+5. ~~Web `addons.go` blank-import gap~~ — **addressed**.
+6. `make:auth` shared `AuthController` + `WantsJSON()` — **do not copy** for resource CRUD (ADR-0009).
+7. Dashboard stubs may still call `validation.Make` — do not spread that.
 
 ### Versioning of this standard
 

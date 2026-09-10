@@ -43,12 +43,18 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Decision:** ADR-0006 — Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 - **Enforcement:** doctor: `role ==` in controllers.
 
-### G-H3 — `unique` / `exists` silent pass
+### G-H3 — `unique` / `exists` silent pass — **classified (ADR-0010)**
 
-- **Evidence:** validation PresenceChecker; without database the rule passes.
-- **Problem:** Duplicate rows and IDOR-looking ids validate as OK.
-- **Decision:** applications that use these rules MUST enable `database`. Doctor warns when rules contain unique/exists but database is not enabled.
-- **Enforcement:** `package:doctor` / validation boot check.
+- **Evidence:** `checkPresence` returns true when no PresenceChecker; checker errors fail the rule.
+- **Classification:** documented limitation + **correctness** problem. Not a security control. Not authorization.
+- **Decision:** apps that use these rules MUST enable `database`. Never use `exists:` as IDOR protection. Runtime unchanged this phase.
+- **Enforcement:** Phase 3 doctor: unique/exists in Rules() ⇒ database enabled.
+
+### G-P2 — `authorization.ResponseFor` is JSON-only
+
+- **Evidence:** `gate.go` always returns `http.JSON` 403.
+- **Decision:** API uses `ResponseFor`; web uses `http.Abort(403)`. Do not mix.
+- **Enforcement:** doctor later; STANDARD §Q now.
 
 ### G-H4 — HTMX assumed by some product language, absent in code
 
@@ -101,11 +107,15 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Evidence:** `sql.ErrNoRows` and formatted `FindOrFail`.
 - **Decision:** HTTP maps `sql.ErrNoRows` and FindOrFail to 404. Do not invent `ErrModelNotFound` in apps.
 
-### G-M8 — Generated application `AGENTS.md` is a describe dump
+### G-M8 — Generated application `AGENTS.md` is a describe dump — **addressed (preamble)**
 
-- **Evidence:** `console/agents.go` — “do not edit by hand”.
-- **Problem:** Application AIs never see this STANDARD.
-- **Decision:** `agents:generate` should prepend a pointer to the framework STANDARD (or embed constitution). Roadmap.
+- **Now:** `agents:generate` prepends the application constitution. Describe dump remains below. Architecture source of truth is still framework `AGENTS.md` + `docs/architecture`.
+
+### G-M9 — Tenancy package has no application STANDARD
+
+- **Evidence:** `packages/tenancy` exists (`From(app)`, header/domain resolver). Phase 0 scan understated this.
+- **Decision:** optional addon. Golden scenarios do not use it. Do not invent `app/tenants` or a tenant layer until a dedicated ADR. Same rule as other packages: `tenancy.From(app)`.
+- **Enforcement:** documentation only until a product wants multi-tenant golden coverage.
 
 ---
 
@@ -129,4 +139,12 @@ Verify command is actually registered before documenting as required CLI.
 
 ### G-L5 — No `zatrano check` / architecture doctor for app layer
 
-Capability defined in `enforcement.md`. Name TBD.
+Capability defined in `enforcement.md`. Name TBD. Phase 3.
+
+### G-L6 — Phase 2 directory audit
+
+Golden scenarios fit STANDARD §C. **No CRITICAL gap** for undocumented directories.
+
+### G-L7 — Disk + DB file replace has no distributed transaction
+
+Documented limitation. Do not invent UnitOfWork. Possible disk orphans.

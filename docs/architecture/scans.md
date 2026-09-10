@@ -61,4 +61,45 @@ Those are package/CLI reviews, not an excuse for a second application architectu
 - [x] Laravel similarity audited
 - [x] Golden domains tested against the language
 - [x] Second and third scans folded in
-- [ ] Implementation of generators/doctor — **explicitly out of this phase**
+- [x] Phase 2 fourth scan (concept delta vs STANDARD)
+- [ ] Implementation of generators/doctor — Phase 3; kernel/ORM remain frozen
+
+## Phase 2 fourth scan — concept vs STANDARD
+
+Independent pass over framework + packages source (2026-09-10). Classification: canonical · optional · forbidden · unsupported · undocumented.
+
+| Concept | Source | Classification |
+|---|---|---|
+| Controller | generators, scaffolds | **canonical** — `{web,api,admin}` |
+| Handler | kernel `HandlerFunc` | **canonical as route func**; **forbidden** as `app/handlers` type |
+| Request / FormRequest | `packages/validation` | **canonical** for writes + Index query |
+| Validate / Validation | same | **canonical** at HTTP boundary |
+| Service | `make:service` | **canonical when §H**; not mandatory |
+| UseCase / Action / DTO / Entity / UnitOfWork | zero application types | **forbidden** |
+| Repository | `make:repository` | **optional** concrete; not in golden |
+| Model | `packages/orm` | **canonical** |
+| Route / Middleware | kernel + `app/routes` | **canonical** |
+| Auth / Guard / Session | `packages/auth` | **canonical** |
+| Policy / Gate | `packages/authorization` | **canonical** AuthZ |
+| Permission / Role tables | dashboard stubs | **not the API** (ADR-0006) |
+| Cookie / CSRF | kernel | **canonical** |
+| View / Template | `packages/view` | **canonical** web |
+| HTMX | zero matches | **unsupported** |
+| Resource (`make:resource` / jsonapi) | packages | **optional** |
+| Error / Exception | kernel + validation + authorization | **canonical** mapping §T |
+| Transaction | `orm.Transaction` | **canonical** in service |
+| Database / Migration / Seeder / Factory | packages + CLI | **canonical** persistence tooling |
+| Job / Queue / Event / Listener | packages | **optional** packages; after-commit |
+| Notification / Mail | notification (SMTP inside) | **canonical** notify; **no** mail addon |
+| Storage / File | `packages/filesystem` | **canonical** upload path |
+| Command | `app/console` | **canonical** CLI |
+| Config / Environment / Logger | kernel | **canonical** |
+| Metric / Trace | observability / inspector | **optional** |
+| Test / Mock / Fake / Fixture | `packages/testing`, hand fakes | **canonical** TestCase; no E2E |
+| AI / Agent | `packages/ai`; agent/rag libraries | **optional**; Chat is the integration |
+| Workflow | no engine | **unsupported** |
+| Tenancy | `packages/tenancy` (`From(app)`) | **optional package**; **undocumented** at app-STANDARD layer — do not invent `app/tenants` until a tenancy ADR |
+| Webhooks / search / sitemap / … | other addons | **optional**; same `From(app)` rule; not golden |
+
+**Delta vs Phase 0:** tenancy is a real addon (previous extraction said “out of scope / not found” too strongly). It is still **not** a golden-scenario layer. Fail-open unique/exists confirmed in `checkPresence`. Policy is fluent `*authorization.Policy`, not method-style. `authorization.ResponseFor` is JSON-only. `make:auth` dual-transport controller is an exception (ADR-0009).
+

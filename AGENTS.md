@@ -13,7 +13,7 @@ Authoritative specification:
 
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **ADRs 0001–0008 accepted.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution and `docs/architecture/STANDARD.md`.
+Status of this standard: **ADRs 0001–0010 accepted. Phase 2 golden scenarios documented.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
 
 ---
 
@@ -36,11 +36,12 @@ Before writing application code:
 
 1. This file.
 2. [`docs/architecture/STANDARD.md`](docs/architecture/STANDARD.md) — the A–Z language.
-3. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
-4. The relevant package public API (`From`, `Register`/`Boot`, tests).
-5. [`docs/architecture/examples.md`](docs/architecture/examples.md) for the matching flow.
-6. [`docs/architecture/conflicts.md`](docs/architecture/conflicts.md) if two patterns appear in the tree.
-7. [`docs/architecture/gaps.md`](docs/architecture/gaps.md) if the feature has no canonical home.
+3. [`docs/architecture/golden.md`](docs/architecture/golden.md) — exact files, verbs, Policy API, tests.
+4. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
+5. The relevant package public API (`From`, `Register`/`Boot`, tests).
+6. [`docs/architecture/examples.md`](docs/architecture/examples.md) for short sketches (`golden.md` wins on conflict).
+7. [`docs/architecture/conflicts.md`](docs/architecture/conflicts.md) if two patterns appear in the tree.
+8. [`docs/architecture/gaps.md`](docs/architecture/gaps.md) if the feature has no canonical home.
 
 Then use the generator. Then write tests. Then run doctor and tests.
 
@@ -54,12 +55,12 @@ Then use the generator. Then write tests. Then run doctor and tests.
 | Routes | `app/routes/web` and `app/routes/api`. Register via `RouteServiceProvider` → `ApplyWeb` / `ApplyAPI`. Use `routing.From(app)` for Put/Patch/Delete/Resource. |
 | Controllers | `app/http/controllers/{web,api,admin}`. Methods: `(req *http.Request) *http.Response`. |
 | Input (writes) | `validation.FormRequest` in `app/http/requests`. `ValidateForm` then controller. |
-| Input (reads) | Query/path via `req` helpers. Optional FormRequest when filters are non-trivial. |
+| Input (reads) | `{Resource}IndexRequest` when the index accepts any query (`page`, `q`, `sort`, filters). Path-only Show/Destroy: `req.Param` + Policy. |
 | Validation | `packages/validation` only. Do not re-validate the same rules in the ORM or service. |
 | Authorization | Gate/Policy (`packages/authorization`) **before** data access. Dashboard role stubs are not the API. |
 | Persistence | `orm.Query[T]()`, `Find`, `Create`, `With(loader funcs)`. |
 | Transactions | `orm.Transaction` inside an application service. Controllers do not start transactions. |
-| Services | `app/services` only when there is more than one write, a workflow, or a reusable application operation. |
+| Services | `app/services` only when more than one model write, an explicit transaction, or reuse from HTTP and console/job. Size of the project is not a reason. |
 | Repositories | Optional thin wrappers. Not mandatory. Do not invent interfaces for every model. |
 | Responses | Web: `http.View` / `Redirect`. API: `http.JSON`. Do not mix in one method. |
 | Packages | `pkg.From(app)`. Never `app.Auth()`. |
@@ -70,7 +71,7 @@ Then use the generator. Then write tests. Then run doctor and tests.
 ## 4. Forbidden behavior
 
 - Invent directories, layers, or parallel implementations.
-- Copy a local violation because it already exists (`make:controller` always emits JSON; auth stubs may call `validation.Make` inline — do not spread those).
+- Copy a local violation because it already exists (dashboard stubs may call `validation.Make`; `make:auth` may mix View/JSON — do not spread those into resource CRUD).
 - Put ORM query chains, rule maps, or Gate definitions in controllers (controllers may *call* Gate and FormRequest).
 - Use `bus.Dispatch` as the default application layer (optional package, not the CRUD path).
 - Treat `jsonapi` or `make:resource` as required API shape (optional helpers).
@@ -87,16 +88,19 @@ Then use the generator. Then write tests. Then run doctor and tests.
 
 | I need to… | Read |
 |---|---|
-| Place a file | STANDARD §C |
+| Place a file | STANDARD §C · golden.md |
 | Name a type | STANDARD §B, §E, §G |
-| Validate input | STANDARD §F |
-| Query / relate / transact | STANDARD §K–M |
-| Authenticate / authorize | STANDARD §P–Q |
+| Validate input | STANDARD §F · ADR-0010 |
+| Query / relate / transact | STANDARD §K–M · golden.md |
+| Authenticate / authorize | STANDARD §P–Q · ADR-0006 |
+| Web vs API | ADR-0009 · two controllers |
 | Render HTML | STANDARD §S |
-| Test | STANDARD §Y |
+| Upload files | STANDARD §V · golden.md §6 |
+| Test | STANDARD §Y · golden.md §17 |
 | Generate | STANDARD §Z |
 | See if it is missing | `gaps.md` |
 | See if two ways exist | `conflicts.md` |
+| Phase 2 report | `phase2.md` |
 | See if CI can prove it | `enforcement.md` |
 
 ---

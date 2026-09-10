@@ -15,7 +15,7 @@ Choice criteria: architecture, public API stability, safety, simplicity, compile
 **Winner:** A for web, B for `--api` / `controllers/api`.  
 **Loser:** JSON-in-web from the generator.  
 **Why:** Scaffold presentation is the product contract (`--web` HTML, `--api` JSON, `--full` both).  
-**ADR:** 0007.
+**ADR:** 0007, **0009** (resource CRUD is two controllers; auth stub may mix).
 
 ---
 
@@ -135,10 +135,32 @@ Choice criteria: architecture, public API stability, safety, simplicity, compile
 | `agents:generate` describe dump | Framework `AGENTS.md` + `docs/architecture` |
 
 **Winner:** B for architecture. A remains a live routing/catalog snapshot. They must link, not compete.  
-**Roadmap:** prepend constitution pointer in generated file.
+**Now:** `agents:generate` prepends the constitution (Phase 1).
 
 ---
 
 ## C13 — Laravel-shaped folders vs Laravel behavior
 
 Familiar names (`controllers`, `requests`, `providers`) are **intentional ergonomics**. Eloquent, Artisan, Blade, HTMX Livewire, Facades-on-App, `app.Auth()` are **not** ZATRANO. Do not copy Laravel internals because a folder looks similar. Do not rename folders just to look unlike Laravel.
+
+---
+
+## C14 — One resource controller vs two vs transport services
+
+| A | B | C |
+|---|---|---|
+| `web` + `api` controllers, same requests | One controller + `WantsJSON()` | WebService / ApiService |
+
+**Winner:** A for application resources (ADR-0009).  
+**Loser:** C always. B only for generated `make:auth`.  
+
+---
+
+## C15 — Policy methods vs fluent `NewPolicy().Define`
+
+| A | B |
+|---|---|
+| `NewPostPolicy() *authorization.Policy` | `func (PostPolicy) Update(...)` |
+
+**Winner:** A — this is what `make:policy` and Gate `Policy(name, *Policy)` implement. Ability `"post.update"`.  
+**Loser:** B as the documented application type.

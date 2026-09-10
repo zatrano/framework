@@ -13,12 +13,12 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | Forbidden extra layers | NO | ADR-0001 | — | NO | NO | NO | STANDARD B | NO |
 | Web vs API vs full | YES | STANDARD C | templates | `new --web/--api/--full` | NO | scaffold tests | README | YES |
 | Controller shape | YES | STANDARD G | HomeController | `make:controller` | NO | NO | STANDARD G | PARTIAL |
-| Controller JSON-vs-View | PARTIAL | ADR-0007 | web home vs make | INCONSISTENT | NO | NO | conflicts C1 | NO |
+| Controller JSON-vs-View | YES | ADR-0007 + 0009 | dual controllers | `make:controller` | NO | NO | STANDARD G | PARTIAL |
 | FormRequest | YES | STANDARD E–F ADR-0002 | validation.FormRequest | `make:request` | NO | package tests | STANDARD E | YES (pkg) |
-| Index/Filter request | PARTIAL | STANDARD E | examples.md | `make:request --index` | NO | NO | YES | YES |
+| Index/Filter request | YES | STANDARD E | golden Product/Post | `make:request --index` | NO | NO | YES | YES |
 | Nested validation | PARTIAL | STANDARD F | dotted keys | NO | NO | PARTIAL | gaps | PARTIAL |
-| unique/exists | PARTIAL | G-H3 | PresenceChecker | NO | NO | NO | gaps | PARTIAL |
-| Service layer | PARTIAL | STANDARD H ADR-0001 | make:service stub | `make:service` | NO | NO | STANDARD H | NO |
+| unique/exists | PARTIAL | ADR-0010 | PresenceChecker fail-open | NO | NO | NO | STANDARD F | PARTIAL |
+| Service layer | YES | STANDARD H ADR-0001 | OrderPlacementService | `make:service` | NO | NO | STANDARD H | NO |
 | UseCase/Action/DTO | NOT SUPPORTED | ADR-0001 | — | NO | NO | NO | STANDARD B | NO |
 | Domain Entity/VO | NOT SUPPORTED | STANDARD I | — | NO | NO | NO | STANDARD I | NO |
 | Repository | PARTIAL | ADR-0003 | make:repository | `make:repository` | NO | NO | STANDARD J | NO |
@@ -55,6 +55,6 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | Metrics/tracing | PARTIAL | STANDARD X | optional MW | package | NO | PARTIAL | STANDARD X | PARTIAL |
 | HTTP tests | YES | STANDARD Y | packages/testing | make:test | NO | PARTIAL | STANDARD Y | YES |
 | E2E browser tests | NOT SUPPORTED | STANDARD Y | — | NO | NO | NO | STANDARD Y | NO |
-| AI constitution | PARTIAL | AGENTS.md | this repo | agents:generate (dump) | NO | NO | AGENTS.md | NO |
+| AI constitution | YES | AGENTS.md + golden.md | phase2 | agents:generate | NO | NO | AGENTS.md | NO |
 | Architecture doctor | NO | enforcement.md | — | NO | NO | NO | enforcement | NO |
 | Completeness matrix | YES | this file | yaml twin | NOT APPLICABLE | NO | NO | YES | NO |
