@@ -1,0 +1,264 @@
+# ZATRANO application engineering completeness
+# Values: YES | NO | PARTIAL | NOT_APPLICABLE | NOT_SUPPORTED
+# Standard: docs/architecture/STANDARD.md
+# Evidence: framework v2.1.0, packages v1.7.1
+
+version: "0.1.0"
+status: forensic_extraction
+concerns:
+  - id: bootstrap
+    exists: YES
+    canonical: STANDARD.A
+    cli: zatrano_new
+    static: doctor_layout
+    ci: YES
+    docs: YES
+    test: YES
+  - id: enablement
+    exists: YES
+    canonical: STANDARD.A
+    cli: package_enable
+    static: doctor_imported
+    ci: YES
+    docs: YES
+    test: YES
+  - id: directory_layout
+    exists: YES
+    canonical: STANDARD.C
+    cli: zatrano_new
+    static: doctor
+    ci: PARTIAL
+    docs: YES
+    test: YES
+  - id: extra_layers_banned
+    exists: NO
+    canonical: ADR-0001
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: controller
+    exists: YES
+    canonical: STANDARD.G
+    cli: make_controller
+    static: NO
+    ci: NO
+    docs: YES
+    test: PARTIAL
+  - id: controller_web_vs_json
+    exists: PARTIAL
+    canonical: ADR-0007
+    cli: INCONSISTENT
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: form_request
+    exists: YES
+    canonical: ADR-0002
+    cli: make_request
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: YES
+  - id: index_filter_request
+    exists: PARTIAL
+    canonical: STANDARD.E
+    cli: make_request_index
+    static: NO
+    ci: NO
+    docs: YES
+    test: YES
+  - id: unique_exists_silent_pass
+    exists: PARTIAL
+    canonical: G-H3
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: PARTIAL
+  - id: service
+    exists: PARTIAL
+    canonical: ADR-0001
+    cli: make_service
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: usecase_action_dto
+    exists: NOT_SUPPORTED
+    canonical: ADR-0001
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: repository
+    exists: PARTIAL
+    canonical: ADR-0003
+    cli: make_repository
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: orm
+    exists: YES
+    canonical: STANDARD.K
+    cli: make_model
+    static: NO
+    ci: YES
+    docs: YES
+    test: YES
+  - id: cursor_pagination
+    exists: NOT_SUPPORTED
+    canonical: STANDARD.K
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: relationships
+    exists: YES
+    canonical: STANDARD.L
+    cli: NO
+    static: NO
+    ci: YES
+    docs: YES
+    test: YES
+  - id: string_eager
+    exists: NOT_SUPPORTED
+    canonical: STANDARD.L
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: transactions
+    exists: YES
+    canonical: ADR-0004
+    cli: NO
+    static: NO
+    ci: YES
+    docs: YES
+    test: YES
+  - id: nested_transactions
+    exists: NOT_SUPPORTED
+    canonical: STANDARD.M
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: query_context
+    exists: NOT_SUPPORTED
+    canonical: G-M6
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: routes
+    exists: YES
+    canonical: STANDARD.N
+    cli: zatrano_new
+    static: doctor
+    ci: YES
+    docs: YES
+    test: YES
+  - id: csrf
+    exists: YES
+    canonical: STANDARD.O
+    cli: generated_provider
+    static: NO
+    ci: YES
+    docs: YES
+    test: YES
+  - id: authentication
+    exists: YES
+    canonical: STANDARD.P
+    cli: make_auth
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: YES
+  - id: authorization_gate
+    exists: YES
+    canonical: ADR-0006
+    cli: make_policy
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: YES
+  - id: rbac_package
+    exists: NOT_SUPPORTED
+    canonical: ADR-0006
+    cli: dashboard_stubs
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: views
+    exists: YES
+    canonical: STANDARD.S
+    cli: make_view
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: PARTIAL
+  - id: htmx
+    exists: NOT_SUPPORTED
+    canonical: ADR-0005
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: notifications
+    exists: YES
+    canonical: STANDARD.U
+    cli: make_notification
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: PARTIAL
+  - id: mail_package
+    exists: NOT_SUPPORTED
+    canonical: STANDARD.U
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: filesystem
+    exists: YES
+    canonical: STANDARD.V
+    cli: package_enable
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: PARTIAL
+  - id: http_tests
+    exists: YES
+    canonical: STANDARD.Y
+    cli: make_test
+    static: NO
+    ci: PARTIAL
+    docs: YES
+    test: YES
+  - id: e2e_browser
+    exists: NOT_SUPPORTED
+    canonical: STANDARD.Y
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO
+  - id: app_architecture_analyzer
+    exists: NO
+    canonical: enforcement.md
+    cli: NO
+    static: NO
+    ci: NO
+    docs: YES
+    test: NO

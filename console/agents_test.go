@@ -36,6 +36,9 @@ func TestRenderAgentsIncludesDescribeContracts(t *testing.T) {
 	if !strings.Contains(md, "zatrano doctor") {
 		t.Fatal("doctor mention missing")
 	}
+	if !strings.Contains(md, "FormRequest") || !strings.Contains(md, "one way") {
+		t.Fatalf("constitution missing:\n%s", md)
+	}
 	for _, check := range []string{"routes", "concrete", "layout", "providers"} {
 		if !strings.Contains(md, "`"+check+"`") {
 			t.Fatalf("doctor check %s missing", check)

@@ -111,6 +111,21 @@ func TestNewWebApplication(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "bootstrap", "addons.go")); err != nil {
 		t.Fatalf("expected bootstrap/addons.go: %v", err)
 	}
+	addonsBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "addons.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	addonsText := string(addonsBody)
+	for _, pkg := range []string{
+		`"github.com/zatrano/packages/assets"`,
+		`"github.com/zatrano/packages/health"`,
+		`"github.com/zatrano/packages/localization"`,
+		`"github.com/zatrano/packages/view"`,
+	} {
+		if !strings.Contains(addonsText, pkg) {
+			t.Fatalf("web addons.go must blank-import %s:\n%s", pkg, addonsText)
+		}
+	}
 	scaffoldMeta, err := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
 	if err != nil {
 		t.Fatalf("expected bootstrap/scaffold.go: %v", err)

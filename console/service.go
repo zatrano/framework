@@ -30,20 +30,16 @@ func (c *MakeServiceCommand) Handle(args []string) error {
 	path := filepath.Join(c.app.BasePath("app", "services"), toSnake(name)+".go")
 	content := fmt.Sprintf(`package services
 
-// %s encapsulates application business logic.
+// %s is an optional application workflow.
+// Add this type only for multiple writes, orm.Transaction, or reuse
+// from HTTP and console. Simple CRUD uses orm.Query[T]() from the controller.
 type %s struct{}
 
 // New%s creates a %s.
 func New%s() *%s {
 	return &%s{}
 }
-
-// Handle performs the primary service action.
-func (s *%s) Handle() error {
-	// TODO: implement service logic
-	return nil
-}
-`, name, name, name, name, name, name, name, name)
+`, name, name, name, name, name, name, name)
 	if err := generator.WriteFile(path, content); err != nil {
 		return err
 	}

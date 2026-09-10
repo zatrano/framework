@@ -253,18 +253,7 @@ func (c *MakeControllerCommand) Handle(args []string) error {
 	}
 	name := strings.TrimSuffix(nameArgs[0], "Controller") + "Controller"
 	path := filepath.Join(c.app.BasePath("app", "http", "controllers", pkg), toSnake(name)+".go")
-	content := fmt.Sprintf(`package %s
-
-import . "github.com/zatrano/framework/v2/kernel/http"
-
-type %s struct{}
-
-func (c *%s) Index(req *Request) *Response {
-	return JSON(map[string]any{
-		"message": "%s",
-	})
-}
-`, pkg, name, name, name)
+	content := controllerStub(pkg, name, controllerPresentation(c.app, pkg))
 	if err := generator.WriteExclusive(path, content); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			return fmt.Errorf("controller already exists: %s", path)
@@ -308,6 +297,106 @@ func %s(next HandlerFunc) HandlerFunc {
 		return err
 	}
 	return nil
+}
+
+type controllerPresentationKind int
+
+const (
+	controllerJSON controllerPresentationKind = iota
+	controllerView
+	controllerHTML
+)
+
+func controllerPresentation(app *kernel.Application, pkg string) controllerPresentationKind {
+	if pkg == "api" {
+		return controllerJSON
+	}
+	if consumerHasEnabledAddon(app, "view") {
+		return controllerView
+	}
+	if consumerScaffoldName(app) == "api" {
+		return controllerJSON
+	}
+	return controllerHTML
+}
+
+func consumerHasEnabledAddon(app *kernel.Application, name string) bool {
+	if app == nil {
+		return false
+	}
+	body, err := os.ReadFile(app.BasePath("bootstrap", "enabled.go"))
+	if err != nil {
+		return false
+	}
+	for _, n := range parseEnabledAddons(string(body)) {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
+func consumerScaffoldName(app *kernel.Application) string {
+	if app == nil {
+		return ""
+	}
+	body, err := os.ReadFile(app.BasePath("bootstrap", "scaffold.go"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		trim := strings.TrimSpace(line)
+		if !strings.HasPrefix(trim, "ScaffoldName") {
+			continue
+		}
+		_, val, ok := strings.Cut(trim, "=")
+		if !ok {
+			return ""
+		}
+		return strings.Trim(strings.TrimSpace(val), `"`)
+	}
+	return ""
+}
+
+func controllerStub(pkg, name string, kind controllerPresentationKind) string {
+	switch kind {
+	case controllerJSON:
+		return fmt.Sprintf(`package %s
+
+import . "github.com/zatrano/framework/v2/kernel/http"
+
+type %s struct{}
+
+func (c *%s) Index(req *Request) *Response {
+	return JSON(map[string]any{
+		"message": %q,
+	})
+}
+`, pkg, name, name, name)
+	case controllerView:
+		view := toSnake(strings.TrimSuffix(name, "Controller")) + ".index"
+		return fmt.Sprintf(`package %s
+
+import . "github.com/zatrano/framework/v2/kernel/http"
+
+type %s struct{}
+
+func (c *%s) Index(req *Request) *Response {
+	return View(%q, map[string]any{})
+}
+`, pkg, name, name, view)
+	default:
+		return fmt.Sprintf(`package %s
+
+import . "github.com/zatrano/framework/v2/kernel/http"
+
+type %s struct{}
+
+func (c *%s) Index(req *Request) *Response {
+	return HTML("<h1>%s</h1>")
+}
+`, pkg, name, name, name)
+	}
 }
 
 func toSnake(name string) string {

@@ -46,7 +46,8 @@ tests/database/*.sqlite
 storage/framework/schedule/*
 !storage/framework/schedule/.gitkeep
 # Local Stage A/B/C notes — keep on disk, do not publish
-/docs/
+/docs/*
+!/docs/architecture/
 # v1 in-tree leftovers — the kernel module has neither of these
 /core/
 /packages/
