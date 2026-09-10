@@ -117,7 +117,7 @@ func TestDoctorCleanStarterHasNoRouteOrConcrete(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range findings {
-		if f.Check == "routes" || f.Check == "concrete" || f.Check == "providers" {
+		if f.Severity == "error" || f.Check == "routes" || f.Check == "concrete" || f.Check == "providers" {
 			t.Fatalf("starter should be clean for %s: %+v\n%s", f.Check, f, FormatDoctorText(dest, findings))
 		}
 	}

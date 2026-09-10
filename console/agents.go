@@ -101,7 +101,6 @@ Forbidden: a second architecture, Clean Architecture folders, copying validation
 
 `
 
-
 // RenderAgentsMarkdown turns a describe document into AGENTS.md (deterministic).
 func RenderAgentsMarkdown(doc *DescribeDocument) string {
 	if doc == nil {
@@ -196,11 +195,11 @@ func RenderAgentsMarkdown(doc *DescribeDocument) string {
 	}
 
 	b.WriteString("## Doctor\n\n")
-	b.WriteString("Run `zatrano doctor` from an application root (`app/` present). It reports warnings (not build errors) for:\n\n")
+	b.WriteString("Run `zatrano doctor` from an application root (`app/` present). Errors exit 1 (CI-fail). Warnings do not, unless `--strict`. Checks:\n\n")
 	for _, check := range DoctorChecks() {
 		fmt.Fprintf(&b, "- `%s`\n", check.Name)
 	}
-	b.WriteString("\nEach finding includes **found**, **why**, and **how** to fix. There is no `--fix` flag.\n")
+	b.WriteString("\nEach finding includes **rule ID**, **found**, **why**, and **how** to fix. `--json` prints a machine-readable report. There is no `--fix` flag.\n")
 	return b.String()
 }
 

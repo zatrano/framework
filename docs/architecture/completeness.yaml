@@ -3,8 +3,8 @@
 # Standard: docs/architecture/STANDARD.md
 # Evidence: framework v2.1.0, packages v1.7.1
 
-version: "0.2.0"
-status: phase2_hardening
+version: "0.3.0"
+status: phase3_enforcement
 concerns:
   - id: bootstrap
     exists: YES
@@ -34,26 +34,26 @@ concerns:
     exists: NO
     canonical: ADR-0001
     cli: NO
-    static: NO
-    ci: NO
+    static: doctor_APP-LAY
+    ci: YES
     docs: YES
-    test: NO
+    test: YES
   - id: controller
     exists: YES
     canonical: STANDARD.G
     cli: make_controller
-    static: NO
-    ci: NO
+    static: doctor_APP-CTL
+    ci: YES
     docs: YES
-    test: PARTIAL
+    test: YES
   - id: controller_web_vs_json
     exists: YES
     canonical: ADR-0007+0009
     cli: make_controller
-    static: NO
-    ci: NO
+    static: doctor_APP-CTL-003
+    ci: YES
     docs: YES
-    test: PARTIAL
+    test: YES
   - id: form_request
     exists: YES
     canonical: ADR-0002
@@ -74,10 +74,10 @@ concerns:
     exists: PARTIAL
     canonical: ADR-0010
     cli: NO
-    static: NO
-    ci: NO
+    static: doctor_APP-VAL-001
+    ci: YES
     docs: YES
-    test: PARTIAL
+    test: YES
   - id: service
     exists: YES
     canonical: ADR-0001
@@ -130,15 +130,15 @@ concerns:
     exists: NOT_SUPPORTED
     canonical: STANDARD.L
     cli: NO
-    static: NO
-    ci: NO
+    static: doctor_APP-ORM-001
+    ci: YES
     docs: YES
-    test: NO
+    test: YES
   - id: transactions
     exists: YES
     canonical: ADR-0004
     cli: NO
-    static: NO
+    static: doctor_APP-CTL-005
     ci: YES
     docs: YES
     test: YES
@@ -255,10 +255,10 @@ concerns:
     docs: YES
     test: NO
   - id: app_architecture_analyzer
-    exists: NO
+    exists: YES
     canonical: enforcement.md
-    cli: NO
-    static: NO
-    ci: NO
+    cli: zatrano_doctor
+    static: YES
+    ci: YES
     docs: YES
-    test: NO
+    test: YES

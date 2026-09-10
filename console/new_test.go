@@ -227,6 +227,7 @@ func TestNewWebApplication(t *testing.T) {
 		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
 	}
 	assertNoPackagesVersionImport(t, dest)
+	assertDoctorPass(t, dest)
 }
 
 func TestNewEmptyApplication(t *testing.T) {
@@ -289,6 +290,7 @@ func TestNewEmptyApplication(t *testing.T) {
 	if testOut, err := testCmd.CombinedOutput(); err != nil {
 		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
 	}
+	assertDoctorPass(t, dest)
 }
 
 func TestNewFullApplication(t *testing.T) {
@@ -339,6 +341,7 @@ func TestNewFullApplication(t *testing.T) {
 	if testOut, err := testCmd.CombinedOutput(); err != nil {
 		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
 	}
+	assertDoctorPass(t, dest)
 }
 
 func TestNewAPIApplication(t *testing.T) {
@@ -419,6 +422,7 @@ func TestNewAPIApplication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
 	}
+	assertDoctorPass(t, dest)
 }
 
 func TestFrameworkGoModVersion(t *testing.T) {
@@ -430,6 +434,19 @@ func TestFrameworkGoModVersion(t *testing.T) {
 	}
 	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
 		t.Fatalf("1.6.6: got %q", got)
+	}
+}
+
+func assertDoctorPass(t *testing.T, dest string) {
+	t.Helper()
+	findings, err := RunDoctor(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range findings {
+		if f.Severity == "error" {
+			t.Fatalf("generated app architecture error %s: %+v\n%s", f.Rule, f, FormatDoctorText(dest, findings))
+		}
 	}
 }
 

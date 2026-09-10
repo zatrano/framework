@@ -408,6 +408,10 @@ func callSelName(fun ast.Expr) string {
 		return x.Name
 	case *ast.SelectorExpr:
 		return x.Sel.Name
+	case *ast.IndexExpr:
+		return callSelName(x.X)
+	case *ast.IndexListExpr:
+		return callSelName(x.X)
 	default:
 		return ""
 	}

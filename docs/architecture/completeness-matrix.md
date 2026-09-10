@@ -10,28 +10,29 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | Enabled ∩ Imported | YES | STANDARD A | addons.go + enabled.go | package:enable | doctor imported.disabled | YES | PACKAGES.md | YES |
 | contracts.App freeze | YES | kernel freeze | — | NOT APPLICABLE | architecture tests | YES | rules | YES |
 | Directory layout | YES | STANDARD C | CanonicalConsumerDirs | `zatrano new` | doctor | PARTIAL | STANDARD C | dirs tests |
-| Forbidden extra layers | NO | ADR-0001 | — | NO | NO | NO | STANDARD B | NO |
+| Forbidden extra layers | NO | ADR-0001 | — | NO | doctor APP-LAY-* | YES | STANDARD B | YES |
+| Controller shape | YES | STANDARD G | HomeController | `make:controller` | doctor APP-CTL-* | YES | STANDARD G | YES |
+| Controller JSON-vs-View | YES | ADR-0007 + 0009 | dual controllers | `make:controller` | doctor APP-CTL-003/004 | YES | STANDARD G | YES |
+| FormRequest | YES | STANDARD E–F ADR-0002 | validation.FormRequest | `make:request` | doctor APP-REQ-* | YES | STANDARD E | YES |
+| unique/exists | PARTIAL | ADR-0010 | PresenceChecker fail-open | NO | doctor APP-VAL-001 | YES | STANDARD F | YES |
+| Service layer | YES | STANDARD H ADR-0001 | OrderPlacementService | `make:service` | doctor APP-CTL-005 (TX location) | YES | STANDARD H | YES |
+| UseCase/Action/DTO | NOT SUPPORTED | ADR-0001 | — | NO | doctor APP-LAY-003 | YES | STANDARD B | YES |
+| String eager load | NOT SUPPORTED | STANDARD L | — | NO | doctor APP-ORM-001 | YES | STANDARD L | YES |
+| Transactions | YES | STANDARD M ADR-0004 | orm.Transaction | NO | doctor APP-CTL-005 | YES | STANDARD M | YES |
+| Routes web/api | YES | STANDARD N | RegisterWeb | new templates | doctor APP-ROUTE-* | YES | STANDARD N | YES |
+| Architecture doctor | YES | enforcement.md | zatrano doctor | doctor | YES | YES | rules.md | YES |
 | Web vs API vs full | YES | STANDARD C | templates | `new --web/--api/--full` | NO | scaffold tests | README | YES |
-| Controller shape | YES | STANDARD G | HomeController | `make:controller` | NO | NO | STANDARD G | PARTIAL |
-| Controller JSON-vs-View | YES | ADR-0007 + 0009 | dual controllers | `make:controller` | NO | NO | STANDARD G | PARTIAL |
-| FormRequest | YES | STANDARD E–F ADR-0002 | validation.FormRequest | `make:request` | NO | package tests | STANDARD E | YES (pkg) |
 | Index/Filter request | YES | STANDARD E | golden Product/Post | `make:request --index` | NO | NO | YES | YES |
 | Nested validation | PARTIAL | STANDARD F | dotted keys | NO | NO | PARTIAL | gaps | PARTIAL |
-| unique/exists | PARTIAL | ADR-0010 | PresenceChecker fail-open | NO | NO | NO | STANDARD F | PARTIAL |
-| Service layer | YES | STANDARD H ADR-0001 | OrderPlacementService | `make:service` | NO | NO | STANDARD H | NO |
-| UseCase/Action/DTO | NOT SUPPORTED | ADR-0001 | — | NO | NO | NO | STANDARD B | NO |
 | Domain Entity/VO | NOT SUPPORTED | STANDARD I | — | NO | NO | NO | STANDARD I | NO |
 | Repository | PARTIAL | ADR-0003 | make:repository | `make:repository` | NO | NO | STANDARD J | NO |
 | ORM models | YES | STANDARD K | orm.Model | `make:model` | NO | orm tests | STANDARD K | YES |
 | ORM query API | YES | STANDARD K | Querier | NOT APPLICABLE | NO | YES | STANDARD K | YES |
 | Cursor pagination | NOT SUPPORTED | STANDARD K | — | NO | NO | NO | STANDARD K | NO |
 | Relationships | YES | STANDARD L | EagerHasMany | NO | NO | YES | STANDARD L | YES |
-| String eager load | NOT SUPPORTED | STANDARD L | — | NO | NO | NO | STANDARD L | NO |
-| Transactions | YES | STANDARD M ADR-0004 | orm.Transaction | NO | NO | YES | STANDARD M | YES |
 | Nested TX | NOT SUPPORTED | STANDARD M | — | NO | NO | NO | STANDARD M | NO |
 | Query context.Context | NOT SUPPORTED | G-M6 | — | NO | NO | NO | gaps | NO |
-| Routes web/api | YES | STANDARD N | RegisterWeb | new templates | doctor | YES | STANDARD N | YES |
-| routing.From vs contracts.Router | YES | conflicts C5 | — | NO | NO | NO | STANDARD N | NO |
+| routing.From vs contracts.Router | YES | conflicts C5 | — | NO | doctor APP-ROUTE-002 | YES | STANDARD N | NO |
 | Kernel middleware order | YES | STANDARD O | application.go | NOT APPLICABLE | NO | YES | STANDARD O | YES |
 | CSRF | YES | STANDARD O,R | Except /api | generated provider | NO | YES | STANDARD R | YES |
 | Authentication | YES | STANDARD P | make:auth | `make:auth` | NO | pkg tests | STANDARD P | YES |
@@ -56,5 +57,20 @@ Canonical Rule column points at STANDARD sections or ADRs. CLI / static / CI are
 | HTTP tests | YES | STANDARD Y | packages/testing | make:test | NO | PARTIAL | STANDARD Y | YES |
 | E2E browser tests | NOT SUPPORTED | STANDARD Y | — | NO | NO | NO | STANDARD Y | NO |
 | AI constitution | YES | AGENTS.md + golden.md | phase2 | agents:generate | NO | NO | AGENTS.md | NO |
-| Architecture doctor | NO | enforcement.md | — | NO | NO | NO | enforcement | NO |
 | Completeness matrix | YES | this file | yaml twin | NOT APPLICABLE | NO | NO | YES | NO |
+
+## Phase 3 — Defined / Golden / Generator / Machine / CI
+
+| Concern | Defined | Golden | Generator | Machine | CI |
+|---|---|---|---|---|---|
+| Controller structure | YES | YES | YES | YES | YES |
+| Forbidden layers | YES | YES | YES (absence) | YES | YES |
+| FormRequest writes | YES | YES | YES | YES (persist heuristic) | YES |
+| Transactions in controllers | YES | YES | YES | YES | YES |
+| Web/API mix in one method | YES | YES | YES | YES | YES |
+| String eager load | YES | YES | YES | YES | YES |
+| unique/exists vs database | YES | YES | n/a | YES | YES |
+| Framework ↛ packages | YES | n/a | n/a | YES (test) | YES |
+| Authorization semantics | YES | YES | PARTIAL | NO | tests only |
+| Repository optional | YES | YES | YES | NO (must not require) | NO |
+| HTMX | YES (unsupported) | n/a | n/a | NO (intentionally) | NO |

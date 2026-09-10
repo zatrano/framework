@@ -8,16 +8,10 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 
 ## CRITICAL
 
-### G-C1 — Application layer is not compiler-enforced
+### G-C1 — Application layer is not compiler-enforced — **reduced (Phase 3)**
 
-- **Evidence:** No architecture test forbids controller transactions or extra layers. Generators no longer emit `Handle()` or JSON web stubs.
-- **Current:** A competent engineer can still put queries in controllers, or invent UseCases, and still compile.
-- **Problem:** Two ZATRANO apps can still diverge until doctor architecture lands (Phase 3).
-- **Current:** A competent engineer can put queries in controllers, or invent UseCases, and still compile.
-- **Problem:** Two ZATRANO apps will not look the same.
-- **Impact:** AI and humans diverge; STANDARD is documentation-only.
-- **Decision:** STANDARD §G–J (Controller → optional Service → ORM). Repositories optional.
-- **Enforcement:** AST checks (roadmap): ban `orm.Transaction` in `app/http/controllers`; ban new `usecase`/`dto` directories.
+- **Now:** `zatrano doctor` fails (exit 1) on forbidden directories/types, controller transactions, mixed View/JSON, string eager loads, bare `{Resource}Request`, `validation.Make` in controllers, persist-without-ValidateForm, unique/exists without database. Generated empty/web/api/full apps doctor-PASS. CI runs doctor on scaffold smoke.
+- **Remaining:** Go still compiles a second architecture if doctor/CI is skipped. Phase 3 does not make the compiler reject UseCase packages.
 
 ### G-C2 — Request taxonomy undefined in generators — **addressed (generator)**
 
@@ -137,9 +131,9 @@ Canonical examples in this spec are sketches, not that repo.
 
 Verify command is actually registered before documenting as required CLI.
 
-### G-L5 — No `zatrano check` / architecture doctor for app layer
+### G-L5 — Application architecture doctor — **addressed (Phase 3)**
 
-Capability defined in `enforcement.md`. Name TBD. Phase 3.
+`zatrano doctor` encodes STANDARD high-confidence rules. Exit 1 on errors. Catalog: `docs/architecture/rules.md`. `--fix` is still absent.
 
 ### G-L6 — Phase 2 directory audit
 

@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Architecture
+
+- `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers, persist-without-ValidateForm, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: `docs/architecture/rules.md`.
+
 ## 2.1.0 - 2026-09-09
 
 ### Breaking / DX

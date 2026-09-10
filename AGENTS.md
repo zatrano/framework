@@ -13,7 +13,7 @@ Authoritative specification:
 
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **ADRs 0001–0010 accepted. Phase 2 golden scenarios documented.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
+Status of this standard: **ADRs 0001–0010 accepted. Phase 3 doctor enforces high-confidence STANDARD rules.** Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
 
 ---
 
@@ -101,7 +101,7 @@ Then use the generator. Then write tests. Then run doctor and tests.
 | See if it is missing | `gaps.md` |
 | See if two ways exist | `conflicts.md` |
 | Phase 2 report | `phase2.md` |
-| See if CI can prove it | `enforcement.md` |
+| See if CI can prove it | `enforcement.md` · `rules.md` |
 
 ---
 
@@ -125,7 +125,7 @@ go vet ./...
 zatrano doctor
 ```
 
-Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. They do **not** yet enforce application-layer STANDARD rules. Until enforcement ships, humans and AI must follow the spec anyway.
+Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md).
 
 ---
 

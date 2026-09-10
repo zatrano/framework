@@ -24,6 +24,7 @@ var doctorRouteCalls = map[string]bool{
 func checkRouteLocation(root string) ([]Finding, error) {
 	var out []Finding
 	err := walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		imports := importPathByName(file)
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
@@ -46,16 +47,19 @@ func checkRouteLocation(root string) ([]Finding, error) {
 				how = "Keep ApplyWeb/ApplyAPI in an app/providers RouteServiceProvider Boot method."
 			}
 			out = append(out, Finding{
+				Rule:     "APP-ROUTE-001",
 				Check:    "routes",
-				Severity: "warning",
+				Severity: "error",
 				File:     rel,
 				Line:     fset.Position(call.Pos()).Line,
 				Found:    found + " outside app/routes/{web,api}",
 				Why:      "HTTP routes belong in self-registered web/api groups, not scattered through the app.",
 				How:      how,
+				See:      "docs/architecture/STANDARD.md §N",
 			})
 			return true
 		})
+		out = append(out, routerVerbOnAppRouter(rel, fset, file, imports)...)
 	})
 	return out, err
 }
@@ -122,6 +126,7 @@ func checkConcreteLeak(root string) ([]Finding, error) {
 			}
 			line := fset.Position(spec.Pos()).Line
 			out = append(out, Finding{
+				Rule:     "APP-CON-001",
 				Check:    "concrete",
 				Severity: "warning",
 				File:     rel,
@@ -264,36 +269,41 @@ func checkAppLayout(root string) ([]Finding, error) {
 	for _, dir := range required {
 		if st, err := os.Stat(filepath.Join(root, filepath.FromSlash(dir))); err != nil || !st.IsDir() {
 			out = append(out, Finding{
+				Rule:     "APP-LAY-004",
 				Check:    "layout",
 				Severity: "warning",
 				File:     dir,
 				Found:    "missing directory " + dir,
 				Why:      "canonical application layout requires this directory (kernel/dirs.CanonicalConsumerDirs).",
 				How:      "Create " + dir + " (or regenerate the app with zatrano new) and keep types in the starter locations.",
+				See:      "docs/architecture/STANDARD.md §C",
 			})
 		}
 	}
 	unexpected := []struct {
-		path string
-		why  string
-		how  string
+		path     string
+		severity string
+		why      string
+		how      string
 	}{
-		{"application", "Legacy application/ trees are not the V2 consumer layout.", "Move code into app/ (http/controllers, services, providers) and delete application/."},
-		{"routes", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api}.", "Move route files into app/routes/web and app/routes/api with RegisterWeb/RegisterAPI."},
-		{"app/controllers", "Controllers belong under app/http/controllers, not app/controllers.", "Move files into app/http/controllers/{web,api}."},
-		{"app/config", "Application config is not an app/config tree; framework config lives in kernel/config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
+		{"application", "error", "Legacy application/ trees are not the V2 consumer layout.", "Move code into app/ (http/controllers, services, providers) and delete application/."},
+		{"routes", "error", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api}.", "Move route files into app/routes/web and app/routes/api with RegisterWeb/RegisterAPI."},
+		{"app/controllers", "error", "Controllers belong under app/http/controllers, not app/controllers.", "Move files into app/http/controllers/{web,api}."},
+		{"app/config", "warning", "Application config is not an app/config tree; framework config lives in kernel/config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
 	}
 	for _, u := range unexpected {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(u.path))); err != nil {
 			continue
 		}
 		out = append(out, Finding{
+			Rule:     "APP-LAY-005",
 			Check:    "layout",
-			Severity: "warning",
+			Severity: u.severity,
 			File:     u.path,
 			Found:    "unexpected path " + u.path,
 			Why:      u.why,
 			How:      u.how,
+			See:      "docs/architecture/STANDARD.md §C",
 		})
 	}
 	return out, nil
@@ -338,6 +348,7 @@ func checkProviders(root string) ([]Finding, error) {
 			missing = "Register and Boot"
 		}
 		out = append(out, Finding{
+			Rule:     "APP-PROV-001",
 			Check:    "providers",
 			Severity: "warning",
 			File:     file,
@@ -366,6 +377,7 @@ func checkProviders(root string) ([]Finding, error) {
 				return true
 			}
 			out = append(out, Finding{
+				Rule:     "APP-PROV-002",
 				Check:    "providers",
 				Severity: "warning",
 				File:     rel,
@@ -443,7 +455,10 @@ func recvTypeName(recv *ast.FieldList) string {
 }
 
 func walkConsumerGo(root string, fn func(rel, abs string, fset *token.FileSet, file *ast.File)) error {
-	roots := []string{"app", "cmd", "bootstrap", "routes", "application"}
+	roots := []string{
+		"app", "cmd", "bootstrap", "routes", "application", "internal",
+		"domain", "handlers", "dtos", "dto", "usecases", "usecase", "entities", "actions",
+	}
 	for _, name := range roots {
 		dir := filepath.Join(root, name)
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {

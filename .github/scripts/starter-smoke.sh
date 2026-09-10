@@ -57,6 +57,7 @@ cp "$DEST/.env.example" "$DEST/.env"
 (cd "$DEST" && go mod tidy)
 (cd "$DEST" && go run ./cmd/app key:generate)
 (cd "$DEST" && go test ./...)
+(cd "$FRAMEWORK" && go run ./cmd/zatrano doctor "$DEST")
 
 (cd "$DEST" && go run ./cmd/app serve --port 18080) &
 pid=$!

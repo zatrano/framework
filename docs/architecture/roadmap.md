@@ -22,15 +22,9 @@ Done. See git history (`chore: align generators with application standard`).
 - No kernel / contracts / ORM / generator changes.
 - No consumer demo app in this repository.
 
-## Phase 3 — Doctor architecture group
+## Phase 3 — Machine-enforced architecture
 
-- Allowlist directories.
-- Transaction location (`orm.Transaction` only in `app/services` / console).
-- ValidateForm on Store/Update when validation enabled.
-- unique/exists ⇒ database enabled.
-- `http.View` + `http.JSON` in the same **resource** method (except generated auth).
-
-Exit code policy: warn vs fail — product decision.
+**Done.** Extend `zatrano doctor` (not a second CLI). Errors exit 1. `--json` / `--strict`. Catalog: [rules.md](rules.md). Report: [phase3.md](phase3.md).
 
 ## Phase 4 — Do **not** do
 

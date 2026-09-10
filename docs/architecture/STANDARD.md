@@ -790,6 +790,8 @@ Invent layers; copy `make:controller` JSON into web apps; treat HTMX as built-in
 
 ### Versioning of this standard
 
+Machine enforcement of the high-confidence subset: `zatrano doctor` and [rules.md](rules.md). Doctor does not replace this STANDARD; it fails CI when structural drift is detectable.
+
 - Standard version tracks framework minor when rules change (`docs/architecture` + CHANGELOG entry).
 - Additive rules: new section, not silent reinterpretation.
 - Breaking architectural changes require an ADR that supersedes the previous one.

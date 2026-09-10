@@ -14,7 +14,9 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [STANDARD.md](STANDARD.md) | A–Z deterministic language |
 | [examples.md](examples.md) | Short sketches; **golden.md wins** on conflict |
 | [golden.md](golden.md) | Phase 2 golden scenarios — exact files, verbs, tests |
-| [phase2.md](phase2.md) | Phase 2 conformance report |
+| [rules.md](rules.md) | Phase 3 machine-enforced rule catalog |
+| [rules.yaml](rules.yaml) | Machine-readable catalog |
+| [phase3.md](phase3.md) | Phase 3 enforcement report |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
 | [completeness-matrix.md](completeness-matrix.md) | Human matrix |
@@ -27,7 +29,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 
 ## Status
 
-**Phase: 2 complete (golden conformance + STANDARD hardening).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted.
+**Phase: 3 complete (machine-enforced architecture via `zatrano doctor`).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0010 Accepted.
 
 Rules are tagged:
 

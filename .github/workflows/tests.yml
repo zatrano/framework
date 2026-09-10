@@ -57,6 +57,7 @@ jobs:
         env:
           PACKAGES_DIR: ${{ github.workspace }}/packages
         run: go test ./...
+        # Includes zatrano doctor architecture fixtures and generated-app PASS checks.
 
       - name: Acquisition E2E
         env:
