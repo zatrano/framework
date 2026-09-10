@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.1.0" {
-		t.Fatalf("VERSION=%q want 2.1.0", version)
+	if version != "2.2.0" {
+		t.Fatalf("VERSION=%q want 2.2.0", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))

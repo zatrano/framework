@@ -22,13 +22,13 @@ This package does not import `bootstrap/addons`. The process-global addon regist
 | Kind / layer / heavy | Manifest (frozen v1) |
 | Integrity | Optional SHA-256 of the manifest document bytes |
 
-Many official packages share `github.com/zatrano/packages` and therefore share one version stream: that module is **v1.x** (current public tag `v1.7.1`). It is not a `packages/v2` module and must not be tagged `v2.x`. Heavy packages (`mongo`, `webauthn`, `qr`) and SQL drivers have their own module path and their own tags (path-relative, e.g. `database/driver/sqlite/v1.0.0`). `console` versions with `github.com/zatrano/framework/v2`.
+Many official packages share `github.com/zatrano/packages` and therefore share one version stream: that module is **v1.x** (current public tag `v1.7.2`). It is not a `packages/v2` module and must not be tagged `v2.x`. Heavy packages (`mongo`, `webauthn`, `qr`) and SQL drivers have their own module path and their own tags (path-relative, e.g. `database/driver/sqlite/v1.0.0`). `console` versions with `github.com/zatrano/framework/v2`.
 
 Go modules remain authoritative. This registry does not download, `go get`, or replace the Go toolchain. Do not invent a second semver field on the package name.
 
 ## Channels vs published versions
 
-`channel: main` is the **source/development stream** of a Go module (typically the default git branch). It is **not** a published release version. A marketplace or UI “Latest / stable” label must show a tagged version (for official packages, currently `v1.7.1`) — never present `main` as a release.
+`channel: main` is the **source/development stream** of a Go module (typically the default git branch). It is **not** a published release version. A marketplace or UI “Latest / stable” label must show a tagged version (for official packages, currently `v1.7.2`) — never present `main` as a release.
 
 `latest` is a **resolve selector**, not a channel:
 
@@ -38,7 +38,7 @@ latest
   └─ no compatible tag     → main (source channel, if present and compatible)
 ```
 
-The in-memory CLI index may still list channel `main` as a known source stream for shared-module names. That is Resolve input, not the published packages tag. `session@main` means “this module’s source channel”, not “the current stable release”. Consume published code with `go get github.com/zatrano/packages@v1.7.1`.
+The in-memory CLI index may still list channel `main` as a known source stream for shared-module names. That is Resolve input, not the published packages tag. `session@main` means “this module’s source channel”, not “the current stable release”. Consume published code with `go get github.com/zatrano/packages@v1.7.2`.
 
 ## Index document (`zatrano.registry/v1`)
 

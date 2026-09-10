@@ -4,12 +4,21 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.2.0 - 2026-09-10
+
+Minor release after `v2.1.0`. Kernel ABI, contracts, and ORM public API are unchanged. The new work is application-architecture enforcement, documentation freeze, and pairing with Packages `v1.7.2`.
+
+### New
+
+- `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository *interfaces*, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: `docs/architecture/rules.md`. Adversarial boundary: `docs/architecture/phase3.5.md`.
+
 ### Architecture
 
 - Application Engineering Standard **frozen** (Phase 4, ADR-0011): one canonical path per concern, completeness matrix, [no-second-way.md](docs/architecture/no-second-way.md). Kernel/ORM/API unchanged. Phase 3.5 semantic bypasses remain documented, not silently closed.
-- Phase 4.5: `unique` / `exists` fail closed when the PresenceChecker is missing or the database lookup cannot complete (ADR-0010 amended). Runtime lives in `github.com/zatrano/packages`. Kernel/ORM/doctor catalog unchanged. Report: [docs/architecture/phase4.5.md](docs/architecture/phase4.5.md).
-- Phase 5 platform conformance audit: [docs/architecture/phase5.md](docs/architecture/phase5.md). Recommendation GO WITH CONDITIONS (tag hygiene; packages fail-closed unpublished). No architecture redesign.
-- `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository *interfaces*, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: `docs/architecture/rules.md`. Adversarial boundary: `docs/architecture/phase3.5.md`.
+- Phase 4.5 documents fail-closed `unique` / `exists` (ADR-0010 amended). Runtime is Packages `v1.7.2`: those rules no longer silently succeed when the database checker or required infrastructure cannot determine the result.
+- Phase 5 platform conformance audit: [docs/architecture/phase5.md](docs/architecture/phase5.md).
+
+Install with `go get github.com/zatrano/framework/v2@v2.2.0` and `go get github.com/zatrano/packages@v1.7.2`. Public module-proxy consumption of these tags is pending until they are pushed.
 
 ## 2.1.0 - 2026-09-09
 

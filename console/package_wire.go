@@ -17,7 +17,7 @@ import (
 // packagesModuleGetArg is the first-time enablement pin when go.mod has no
 // github.com/zatrano/packages require. It is the current stable packages tag,
 // not a lockfile and not registry Resolve. Existing requires are left alone.
-const packagesModuleGetArg = "github.com/zatrano/packages@v1.7.1"
+const packagesModuleGetArg = "github.com/zatrano/packages@v1.7.2"
 
 func addonImportPath(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))

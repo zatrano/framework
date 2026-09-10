@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.1.0-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.2.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -261,7 +261,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@v2.1.0
+go install github.com/zatrano/framework/v2/cmd/zatrano@v2.2.0
 zatrano new myapp
 cd myapp
 
@@ -275,8 +275,8 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@v2.1.0
-go get github.com/zatrano/packages@v1.7.1
+go get github.com/zatrano/framework/v2@v2.2.0
+go get github.com/zatrano/packages@v1.7.2
 ```
 
 These are the **current stable public releases**. The two modules version independently; later applications may pin newer compatible tags. There is no monolithic `zatrano@x.y.z` version.
@@ -341,7 +341,7 @@ Prefer the CLI, which writes both sides:
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.7.1` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.7.2` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
 
 To add a module that is not yet in `go.mod`, acquire first (enablement is separate; default acquire does not enable):
 
@@ -549,7 +549,7 @@ Disable   = remove persistent enablement + that package’s blank-import
 
 Disable does not remove Go modules, config stubs, `.env` keys, or database state. Unused module cleanup is Go/user-owned (`go get` / `go mod tidy` are not run automatically).
 
-Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.7.1` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
+Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.7.2` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
 
 Upgrade is `package:acquire name@version`. There is no `package:upgrade` or `package:uninstall` command.
 
@@ -697,30 +697,30 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 
 ## v2
 
-**Framework `v2.1.0`** is the current public kernel. **Packages `v1.7.1`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
+**Framework `v2.2.0`** is the current public kernel. **Packages `v1.7.2`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
 Framework
   module: github.com/zatrano/framework/v2
   major:  v2
-  current: v2.1.0
+  current: v2.2.0
 
 Packages
   module: github.com/zatrano/packages
   major:  v1
-  current: v1.7.1
+  current: v1.7.2
 ```
 
 The two modules release independently. Framework does not import Packages. Packages pins a compatible Framework release. Applications do not need a single ZATRANO-wide version.
 
-Nested modules (SQL drivers, `mongo`, `webauthn`, `qr`) are separately versioned Go modules. Their tags follow the nested path (`database/driver/sqlite/v1.0.0`), not a `packages/` prefix. Nested publication is a separate release operation. Root `packages@v1.7.1` does not require those drivers.
+Nested modules (SQL drivers, `mongo`, `webauthn`, `qr`) are separately versioned Go modules. Their tags follow the nested path (`database/driver/sqlite/v1.0.0`), not a `packages/` prefix. Nested publication is a separate release operation. Root `packages@v1.7.2` does not require those drivers.
 
-Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do not retag it. New apps use `v1.7.1`.
+Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do not retag it. New apps use `v1.7.2`.
 
 | Line | Meaning |
 | --- | --- |
-| Framework `v2.1.0` | Current kernel / CLI / contracts |
-| Packages `v1.7.1` | Current official package ecosystem |
+| Framework `v2.2.0` | Current kernel / CLI / contracts |
+| Packages `v1.7.2` | Current official package ecosystem |
 | Framework `v1.x` | Previous tagged kernel line |
 
 Each module follows Go semantic versioning on its own path. Install current stables with the `go get` commands above.

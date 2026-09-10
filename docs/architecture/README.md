@@ -2,7 +2,7 @@
 
 Canonical engineering language for ZATRANO applications.
 
-Evidence freeze: `github.com/zatrano/framework/v2` **v2.1.0**, `github.com/zatrano/packages` **v1.7.1**, generated scaffolds (`empty` / `web` / `api` / `full`).
+Evidence freeze: `github.com/zatrano/framework/v2` **v2.2.0**, `github.com/zatrano/packages` **v1.7.2**, generated scaffolds (`empty` / `web` / `api` / `full`).
 
 This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 
@@ -21,6 +21,7 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [phase4.md](phase4.md) | Phase 4 freeze report |
 | [phase4.5.md](phase4.5.md) | Phase 4.5 fail-closed unique/exists runtime |
 | [phase5.md](phase5.md) | Phase 5 platform conformance & release audit |
+| [release-candidate.md](release-candidate.md) | Phase 5 conditions closure / release candidate |
 | [no-second-way.md](no-second-way.md) | Ambiguity audit — one path per concern |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |

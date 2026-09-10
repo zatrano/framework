@@ -1,6 +1,6 @@
 # ZATRANO A–Z Application Engineering Standard
 
-Evidence: framework v2.1.0, packages v1.7.1, `zatrano new` scaffolds, CLI generators, package tests.
+Evidence: framework v2.2.0, packages v1.7.2, `zatrano new` scaffolds, CLI generators, package tests.
 
 Legend: `IMPLEMENTED` · `ACCEPTED` · `NOT SUPPORTED` · `INCONSISTENT` · `SEMANTIC`
 
