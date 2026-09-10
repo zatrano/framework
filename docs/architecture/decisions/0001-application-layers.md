@@ -9,7 +9,7 @@ ZATRANO generates controllers, optional services, optional repositories, FormReq
 
 ## Problem
 
-Engineers can still introduce Clean Architecture / CQRS folders and claim compliance.
+Engineers can still introduce invented domain or command/query folders and claim compliance.
 
 ## Decision
 
@@ -39,4 +39,4 @@ AI must not create `app/domain`. Simple CRUD may skip services.
 
 ## Enforcement
 
-Doctor directory/package/type checks (APP-LAY-001/002/003), including `interactors/` and `app/application/`. `app/core` names are SEMANTIC (phase 3.5). No `make:usecase`.
+Doctor directory/package/type checks (APP-LAY-001/002/003), including `interactors/` and `app/application/`. `app/core` names are SEMANTIC (doctor boundary). No `make:usecase`.

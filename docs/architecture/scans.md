@@ -6,7 +6,7 @@ Kernel/contracts/bootstrap, CLI scaffolds, packages catalog, ORM querier, valida
 
 ## Second pass (source patterns)
 
-Searched Controller, Handler, Request, DTO, Validate, Service, UseCase, Action, Repository, Model, Entity, Route, Middleware, Guard, Policy, Auth, Session, CSRF, View, HTMX, Resource, Transaction, Job, Queue, Event, Notification, Mail, Storage, AI, Agent, Workflow, Provider.
+Searched Controller, Handler, Request, DTO, Validate, Service, UseCase, Action, Repository, Model, Entity, Route, Middleware, Guard, Policy, Auth, Session, CSRF, View, fragments, Resource, Transaction, Job, Queue, Event, Notification, Mail, Storage, AI, Agent, Workflow, Provider.
 
 **Newly incorporated:**
 
@@ -14,7 +14,7 @@ Searched Controller, Handler, Request, DTO, Validate, Service, UseCase, Action, 
 - `packages/jsonapi` + `make:resource` — optional; default JSON (ADR-0008).
 - `routing.Controller` / `RouteRegistrar` Get+Post only vs REST verbs (G-M4).
 - `make:controller` JSON-only (ADR-0007).
-- HTMX: zero hits (ADR-0005).
+- Fragments: zero hits (ADR-0005).
 - `FindOrFail` formatted error vs `sql.ErrNoRows`.
 - ORM events are dispatcher names, not struct methods.
 - Gate bound in **auth** boot.
@@ -32,7 +32,7 @@ Searched Controller, Handler, Request, DTO, Validate, Service, UseCase, Action, 
 | Repository? | Optional |
 | How to eager load? | Loader funcs, explicit FK |
 | Where is TX? | Service |
-| HTMX errors? | N/A — not supported |
+| Fragment-view errors? | N/A — not supported |
 | JSON:API? | Opt-in |
 | Roles? | Not the API — Policy |
 | Bus vs service? | Service |
@@ -45,7 +45,7 @@ Remaining **product** decisions (not silently invented):
 - Doctor architecture: warn vs fail.
 - Whether to widen `RouteRegistrar` (kernel API review).
 - Whether `exists`/`unique` should fail closed without PresenceChecker (validation package behavior change).
-- Official HTMX addon (would supersede ADR-0005).
+- Official fragment addon (would supersede ADR-0005).
 
 Those are package/CLI reviews, not an excuse for a second application architecture.
 
@@ -58,13 +58,13 @@ Those are package/CLI reviews, not an excuse for a second application architectu
 - [x] ORM + relationships mapped with NOT SUPPORTED called out
 - [x] Requests/validation/controllers/services/repos standardized (PROPOSED where code was silent)
 - [x] Conflicts, gaps, matrix, ADRs, examples, enforcement, roadmap
-- [x] Laravel similarity audited
+- [x] Familiar-names audit
 - [x] Golden domains tested against the language
 - [x] Second and third scans folded in
-- [x] Phase 2 fourth scan (concept delta vs STANDARD)
-- [ ] Implementation of generators/doctor — Phase 3; kernel/ORM remain frozen
+- [x] golden scenarios fourth scan (concept delta vs STANDARD)
+- [ ] Implementation of generators/doctor — doctor; kernel/ORM remain frozen
 
-## Phase 2 fourth scan — concept vs STANDARD
+## golden scenarios fourth scan — concept vs STANDARD
 
 Independent pass over framework + packages source (2026-09-10). Classification: canonical · optional · forbidden · unsupported · undocumented.
 
@@ -84,7 +84,7 @@ Independent pass over framework + packages source (2026-09-10). Classification: 
 | Permission / Role tables | dashboard stubs | **not the API** (ADR-0006) |
 | Cookie / CSRF | kernel | **canonical** |
 | View / Template | `packages/view` | **canonical** web |
-| HTMX | zero matches | **unsupported** |
+| Fragments | zero matches | **unsupported** |
 | Resource (`make:resource` / jsonapi) | packages | **optional** |
 | Error / Exception | kernel + validation + authorization | **canonical** mapping §T |
 | Transaction | `orm.Transaction` | **canonical** in service |
@@ -101,5 +101,5 @@ Independent pass over framework + packages source (2026-09-10). Classification: 
 | Tenancy | `packages/tenancy` (`From(app)`) | **optional package**; **undocumented** at app-STANDARD layer — do not invent `app/tenants` until a tenancy ADR |
 | Webhooks / search / sitemap / … | other addons | **optional**; same `From(app)` rule; not golden |
 
-**Delta vs Phase 0:** tenancy is a real addon (previous extraction said “out of scope / not found” too strongly). It is still **not** a golden-scenario layer. Fail-open unique/exists confirmed in `checkPresence`. Policy is fluent `*authorization.Policy`, not method-style. `authorization.ResponseFor` is JSON-only. `make:auth` dual-transport controller is an exception (ADR-0009).
+**Delta vs review:** tenancy is a real addon (previous extraction said “out of scope / not found” too strongly). It is still **not** a golden-scenario layer. Fail-open unique/exists confirmed in `checkPresence`. Policy is fluent `*authorization.Policy`, not method-style. `authorization.ResponseFor` is JSON-only. `make:auth` dual-transport controller is an exception (ADR-0009).
 

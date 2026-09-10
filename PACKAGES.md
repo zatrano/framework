@@ -107,7 +107,7 @@ database.Migrator(app)
 | SQL + models | `database` + `orm` | [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) |
 | Send email / SMS | `notification` | [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://zatrano.com/docs/mail) |
 | Background jobs | `queue` | [Queues](https://zatrano.com/docs/queues) |
-| Social login | `social` | [Socialite](https://zatrano.com/docs/socialite) |
+| Social login | `social` | [Social](https://zatrano.com/docs/social) |
 | OAuth **server** | `oauth` | [OAuth](https://zatrano.com/docs/oauth) |
 | API Bearer tokens | `apitoken` | [API Tokens](https://zatrano.com/docs/api-tokens) |
 | Redis | `cache` (owns client; `redisx` is a library) | [Redis](https://zatrano.com/docs/redis) |
@@ -551,8 +551,8 @@ Docs: [Health](https://zatrano.com/docs/health)
 |---------|-----|------------|
 | `observability` | Metrics collection | [Observability](https://zatrano.com/docs/observability) |
 | `maintenance` | Downtime page (`down` / `up`) | [Maintenance](https://zatrano.com/docs/maintenance-mode) |
-| `assets` | Vite/Mix manifest URLs in views | [Assets](https://zatrano.com/docs/assets) |
-| `console` | `cmd/zatrano` CLI | [CLI](https://zatrano.com/docs/artisan) |
+| `assets` | Asset manifest URLs in views | [Assets](https://zatrano.com/docs/assets) |
+| `console` | `cmd/zatrano` CLI | [CLI](https://zatrano.com/docs/cli) |
 | `version` | Framework version helper | — |
 | `apitoken` | Personal access tokens | [API Tokens](https://zatrano.com/docs/api-tokens) |
 
@@ -578,7 +578,7 @@ go run ./cmd/zatrano package:disable NAME
 
 Enablement is not acquisition. Disable is not runtime Stop. Unused `github.com/zatrano/packages` requirements stay in go.mod until the developer removes them with Go tooling.
 
-### `social` (docs: Socialite)
+### `social`
 
 **For:** GitHub/Google OAuth **client** login.  
 **Use:**
@@ -590,7 +590,7 @@ user, err := mgr.User("github", code)
 res, err := social.Persist(store, user)
 ```
 
-Docs: [Socialite](https://zatrano.com/docs/socialite)
+Docs: [Social](https://zatrano.com/docs/social)
 
 ### `oauth`
 

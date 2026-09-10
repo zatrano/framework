@@ -2,7 +2,7 @@
 
 Two patterns exist in the ecosystem. STANDARD picks **one**. Copying the loser is a violation even if it compiles.
 
-Choice criteria: architecture, public API stability, safety, simplicity, compiler enforceability, tooling, consistency, maintainability — not popularity, not Laravel, not generic Go.
+Choice criteria: architecture, public API stability, safety, simplicity, compiler enforceability, tooling, consistency, maintainability — not popularity, not generic Go.
 
 ---
 
@@ -135,13 +135,13 @@ Choice criteria: architecture, public API stability, safety, simplicity, compile
 | `agents:generate` describe dump | Framework `AGENTS.md` + `docs/architecture` |
 
 **Winner:** B for architecture. A remains a live routing/catalog snapshot. They must link, not compete.  
-**Now:** `agents:generate` prepends the constitution (Phase 1).
+**Now:** `agents:generate` prepends the constitution (generator alignment).
 
 ---
 
-## C13 — Laravel-shaped folders vs Laravel behavior
+## C13 — Familiar folders vs copied behavior
 
-Familiar names (`controllers`, `requests`, `providers`) are **intentional ergonomics**. Eloquent, Artisan, Blade, HTMX Livewire, Facades-on-App, `app.Auth()` are **not** ZATRANO. Do not copy Laravel internals because a folder looks similar. Do not rename folders just to look unlike Laravel.
+Familiar names (`controllers`, `requests`, `providers`) are **intentional ergonomics**. Those names do not import another product's internals. Do not copy foreign behavior because a folder looks similar. Do not rename folders just to look unfamiliar.
 
 ---
 

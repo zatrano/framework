@@ -4,7 +4,7 @@ Canonical engineering language for ZATRANO applications.
 
 Evidence freeze: `github.com/zatrano/framework/v2` **v2.2.0**, `github.com/zatrano/packages` **v1.7.2**, generated scaffolds (`empty` / `web` / `api` / `full`).
 
-This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
+This is **not** a Blog architecture and not a port of another platform.
 
 ## Documents
 
@@ -13,29 +13,29 @@ This is **not** a Blog architecture, a Laravel port, or Clean Architecture.
 | [AGENTS.md](../../AGENTS.md) | AI constitution and reading order (entry) |
 | [STANDARD.md](STANDARD.md) | A–Z deterministic language |
 | [examples.md](examples.md) | Short sketches; **golden.md wins** on conflict |
-| [golden.md](golden.md) | Phase 2 golden scenarios — exact files, verbs, tests |
-| [rules.md](rules.md) | Phase 3 machine-enforced rule catalog |
+| [golden.md](golden.md) | Golden scenarios — exact files, verbs, tests |
+| [rules.md](rules.md) | Machine-enforced rule catalog |
 | [rules.yaml](rules.yaml) | Machine-readable catalog |
-| [phase3.md](phase3.md) | Phase 3 enforcement report |
-| [phase3.5.md](phase3.5.md) | Phase 3.5 adversarial verification — enforcement boundary |
-| [phase4.md](phase4.md) | Phase 4 freeze report |
-| [phase4.5.md](phase4.5.md) | Phase 4.5 fail-closed unique/exists runtime |
-| [phase5.md](phase5.md) | Phase 5 platform conformance & release audit |
-| [release-candidate.md](release-candidate.md) | Phase 5 conditions closure / release candidate |
+| [doctor-report.md](doctor-report.md) | Doctor enforcement report |
+| [doctor-boundary.md](doctor-boundary.md) | Adversarial verification — enforcement boundary |
+| [freeze-report.md](freeze-report.md) | STANDARD freeze report |
+| [unique-exists-runtime.md](unique-exists-runtime.md) | Fail-closed unique/exists runtime |
+| [platform-audit.md](platform-audit.md) | Platform conformance and release audit |
+| [release-candidate.md](release-candidate.md) | Release-candidate conditions |
 | [no-second-way.md](no-second-way.md) | Ambiguity audit — one path per concern |
 | [gaps.md](gaps.md) | Architectural gap report |
 | [conflicts.md](conflicts.md) | Contradictory patterns and the chosen way |
 | [completeness-matrix.md](completeness-matrix.md) | Human matrix |
 | [completeness.yaml](completeness.yaml) | Machine-readable matrix |
 | [enforcement.md](enforcement.md) | Documentation vs tooling vs CI |
-| [roadmap.md](roadmap.md) | Implementation phases after review |
+| [roadmap.md](roadmap.md) | Implementation status after review |
 | [decisions/](decisions/) | ADRs 0001–0011 — Accepted |
-| [laravel-similarity.md](laravel-similarity.md) | Familiar folders vs copied behavior |
+| [familiar-names.md](familiar-names.md) | Familiar folders vs copied behavior |
 | [scans.md](scans.md) | Second/third forensic passes |
 
 ## Status
 
-**Phase: 4 frozen (Application Engineering Standard).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0011 Accepted (ADR-0010 amended fail-closed in Phase 4.5). Spec: [STANDARD.md](STANDARD.md). Boundary: [phase3.5.md](phase3.5.md). Audit: [no-second-way.md](no-second-way.md). Runtime unique/exists: [phase4.5.md](phase4.5.md). Release audit: [phase5.md](phase5.md).
+**FROZEN (Application Engineering Standard, ADR-0011).** Kernel, contracts, ORM, and public API remain frozen. ADRs 0001–0011 Accepted (ADR-0010 amended fail-closed). Spec: [STANDARD.md](STANDARD.md). Boundary: [doctor-boundary.md](doctor-boundary.md). Audit: [no-second-way.md](no-second-way.md). Runtime unique/exists: [unique-exists-runtime.md](unique-exists-runtime.md). Release audit: [platform-audit.md](platform-audit.md).
 
 Rules are tagged:
 

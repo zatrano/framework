@@ -1,8 +1,8 @@
 # ZATRANO Release Candidate
 
-Phase 5 conditions closure. Architecture is not redesigned. This report records whether Framework `v2.2.0` and Packages `v1.7.2` are ready to tag.
+Release-candidate conditions closure. Architecture is not redesigned. This report records whether Framework `v2.2.0` and Packages `v1.7.2` are ready to tag.
 
-Inspected 2026-09-10. Repository state is authoritative. Phase 5 audit history in [phase5.md](phase5.md) is not rewritten.
+Inspected 2026-09-10. Repository state is authoritative. platform audit history in [platform-audit.md](platform-audit.md) is not rewritten.
 
 ## Source State
 
@@ -35,11 +35,11 @@ Local packages working tree remains dirty with unrelated WIP. That WIP is **not*
 
 Canonical Framework identity is the `VERSION` file (runtime fallback `console/version.go` `currentRelease`). Both are `2.2.0`. Historical tag `v2.1.0` already exists and must not be moved.
 
-Post-`v2.1.0` on main is application-architecture enforcement (`zatrano doctor`), generator STANDARD alignment, Phase 4 freeze, Phase 4.5 docs, and Phase 5 audit. Kernel ABI, `contracts`, and ORM public API are unchanged. Under the existing pre-3.0 policy, that is a **MINOR** (`2.2.0`), not a patch (the surface is more than a bugfix) and not a major (no kernel/contract break).
+Post-`v2.1.0` on main is application-architecture enforcement (`zatrano doctor`), generator STANDARD alignment, STANDARD freeze, fail-closed unique/exists docs, and platform audit. Kernel ABI, `contracts`, and ORM public API are unchanged. Under the existing pre-3.0 policy, that is a **MINOR** (`2.2.0`), not a patch (the surface is more than a bugfix) and not a major (no kernel/contract break).
 
 Packages `v1.7.1` still fail-opens `unique`/`exists` when no checker is bound or the rule is malformed. HEAD `288bb2f` (included in `a2c0c66`) fail-closes those paths. Same correction family as `v1.7.1` (fail-closed Redis). **PATCH** `v1.7.2`. The module pin stays `framework v2.0.28`; fail-closed does not need newer kernel APIs.
 
-## P5-H1
+## AUDIT-H1
 
 ```text
 Status: CLOSED
@@ -47,7 +47,7 @@ Status: CLOSED
 
 `VERSION`, `currentRelease`, README badge, CHANGELOG `## 2.2.0 - 2026-09-10`, PACKAGES.md current pair, first-time enablement pin, and current-version tests now agree on **2.2.0** / packages **v1.7.2**. Historical `v2.1.0` / `v1.7.1` headings and the frozen-invariants baseline sentence remain. Public tag `v2.1.0` is not reused.
 
-## P5-H2
+## AUDIT-H2
 
 ```text
 Status: CLOSED
@@ -59,7 +59,7 @@ HEAD / candidate `v1.7.2` `checkPresence`: no checker → `false`; missing table
 
 Tests: `validation/presence_test.go` (unique/exists existing, absent, database error, checker unavailable) and `validation/form_request_test.go` (`ValidateForm` unique unavailable/error/existing/absent; exists existing/absent). `go test ./validation` PASS on `a2c0c66`.
 
-## P5-H3
+## AUDIT-H3
 
 ```text
 Status: CLOSED
@@ -74,7 +74,7 @@ Unrelated WIP left untouched in the packages working tree. Not committed. Not ta
 | `bootutil/cli.go` | UNRELATED WIP | Removes `ConsoleStubsDir` / `goModReplace` |
 | `auth/stubs.go` | UNRELATED WIP | Embed-only stubs; drops `ConsoleStubsDir` fallback |
 
-None of this is fail-closed validation, Phase 5, or required by `v1.7.2`. Production `a2c0c66` still has `ConsoleStubsDir`. Including it would ship an unfinished stub/config experiment.
+None of this is fail-closed validation, the platform audit, or required by `v1.7.2`. Production `a2c0c66` still has `ConsoleStubsDir`. Including it would ship an unfinished stub/config experiment.
 
 ## Verification
 
@@ -122,7 +122,7 @@ The packages `replace` to `../framework` is unchanged from `v1.7.1` (local devel
 ## Remaining Conditions
 
 ```text
-No outstanding Phase 5 release conditions.
+No outstanding release-candidate conditions.
 ```
 
 Push and GitHub Release creation are **not** part of this candidate. They remain operator steps after review.

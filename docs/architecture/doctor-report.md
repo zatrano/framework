@@ -1,4 +1,4 @@
-# Phase 3 report — Machine-enforced application architecture
+# Doctor report — machine-enforced application architecture
 
 Date: 2026-09-10
 
@@ -18,7 +18,7 @@ Canonical tool: **extend `zatrano doctor`** (already the consumer architecture C
 | Filesystem-enforced | 3 (LAY-001 dirs, LAY-004, LAY-005) |
 | Package/test-enforced (framework) | 3 (FW-DEP-*) |
 | Generator-enforced | scaffolds must doctor-PASS (tests) |
-| Documentation-only | AuthZ semantics, TX necessity, Fillable completeness, HTMX, repositories-as-optional, CSRF completeness |
+| Documentation-only | AuthZ semantics, TX necessity, Fillable completeness, fragment views, repositories-as-optional, CSRF completeness |
 
 ---
 

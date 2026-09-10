@@ -4,7 +4,7 @@ Evidence: framework v2.2.0, packages v1.7.2, `zatrano new` scaffolds, CLI genera
 
 Legend: `IMPLEMENTED` · `ACCEPTED` · `NOT SUPPORTED` · `INCONSISTENT` · `SEMANTIC`
 
-**Status: FROZEN (Phase 4).** Kernel, contracts, ORM public API, and ABI stay frozen. This document is the authoritative specification for building ZATRANO applications. Additive architectural rules require an ADR that supersedes a previous decision ([ADR-0011](decisions/0011-application-engineering-standard-freeze.md)). Golden scenarios: [golden.md](golden.md). Machine subset: [rules.md](rules.md). Ambiguity audit: [no-second-way.md](no-second-way.md). Doctor boundary: [phase3.5.md](phase3.5.md).
+**Status: FROZEN.** Kernel, contracts, ORM public API, and ABI stay frozen. This document is the authoritative specification for building ZATRANO applications. Additive architectural rules require an ADR that supersedes a previous decision ([ADR-0011](decisions/0011-application-engineering-standard-freeze.md)). Golden scenarios: [golden.md](golden.md). Machine subset: [rules.md](rules.md). Ambiguity audit: [no-second-way.md](no-second-way.md). Doctor boundary: [doctor-boundary.md](doctor-boundary.md).
 
 There is one canonical way. “It depends” is not an answer unless this document names the exact decision table.
 
@@ -34,7 +34,7 @@ Kernel (github.com/zatrano/framework/v2)
     contracts.App · container · config · router · HTTP · lifecycle · CLI
 ```
 
-An application is not a DDD project and not a Laravel clone. It is a **provider-booted HTTP (and console) consumer**:
+An application is not a DDD project and not a clone of another platform. It is a **provider-booted HTTP (and console) consumer**:
 
 1. `bootstrap.App` selects addons (`EnabledAddons` ∩ blank-imports).
 2. Providers `Register` then the kernel installs global middleware, then providers `Boot`, then the container **freezes**.
@@ -53,7 +53,7 @@ Route → Middleware → FormRequest (Authorize + Validate)
 
 Rejected as application layers: UseCase, Action, Domain Service, Entity (DDD), Value Object, DTO (separate from FormRequest), Handler (instead of Controller), mandatory Repository, UnitOfWork, WebService/ApiService.
 
-Golden scenarios (exact files, verbs, tests): [golden.md](golden.md). Phase 2 report: [phase2.md](phase2.md).
+Golden scenarios (exact files, verbs, tests): [golden.md](golden.md). Golden report: [golden-report.md](golden-report.md).
 
 ---
 
@@ -155,7 +155,7 @@ Do **not** create `CreateRequest` as a global type. Do **not** create DTO packag
 
 `--minimal` **fails**. `APP_BOOT=minimal` is legacy runtime only.
 
-**Forbidden directories (HIGH-CONFIDENCE STRUCTURAL — APP-LAY-001):** `domain/`, `internal/usecase/`, `internal/entity/`, `handlers/` (instead of controllers), `dtos/`, `interactors/`, `app/application/` (Clean Architecture application layer), `app/http/handlers`, `app/http/actions`, `entities/`, `actions/`.
+**Forbidden directories (HIGH-CONFIDENCE STRUCTURAL — APP-LAY-001):** `domain/`, `internal/usecase/`, `internal/entity/`, `handlers/` (instead of controllers), `dtos/`, `interactors/`, `app/application/` (invented application layer), `app/http/handlers`, `app/http/actions`, `entities/`, `actions/`.
 
 **Not a forbidden *name*, still not a ZATRANO layer (SEMANTIC):** `app/core`, `app/workflows`, `app/processors`, `app/orchestration`. Doctor does not auto-ban these names (business words / false positives). Using them as a second application architecture is **non-compliant**. Put code in §C.1 directories.
 
@@ -196,8 +196,8 @@ Every path is one of: **CANONICAL** (always present / required), **CONDITIONAL**
 | `tests/` | CANONICAL (scaffold) | App tests | `tests` | `make:test` | — |
 | `public/` · `storage/` | CANONICAL (scaffold) | Assets / local disks | — | `zatrano new` | — |
 | `domain/` · `app/domain/` · `usecases/` · `interactors/` · `dtos/` · `handlers/` · `actions/` · `entities/` · `app/application/` | FORBIDDEN | Second architecture | — | none | APP-LAY-001/002 |
-| `app/core` · `app/workflows` · `app/processors` · `app/orchestration` | NOT CANONICAL | SEMANTIC-forbidden as layers | — | none | limitation (phase 3.5) |
-| HTMX fragment dirs, `app/usecases`, Outbox, UnitOfWork | NOT PROVIDED | Do not invent | — | none | — |
+| `app/core` · `app/workflows` · `app/processors` · `app/orchestration` | NOT CANONICAL | SEMANTIC-forbidden as layers | — | none | limitation (doctor boundary) |
+| fragment-view dirs, `app/usecases`, Outbox, UnitOfWork | NOT PROVIDED | Do not invent | — | none | — |
 
 **Allowed contents** of a canonical dir: types that belong to that row. **Forbidden contents:** HTTP controllers outside `controllers/{web,api,admin}`; FormRequest `Rules()` outside `app/http/requests` (APP-REQ-001 still flags the type anywhere); `orm.Transaction` in controller files.
 
@@ -257,14 +257,14 @@ framework             →  NEVER github.com/zatrano/packages   (ENFORCED)
 | File upload | `{Resource}UploadRequest` | YES — rules include file constraints |
 | Index query (`page` / `q` / `sort` / filters) | `{Resource}IndexRequest` | YES whenever the index accepts a query string. Skip only a static list with no query params |
 
-**IndexRequest is the only filter/sort/search API.** Pagination is `Query[T]().Paginate(page, perPage)` / `SimplePaginate` (ORM). There is no cursor-page application API. Do not invent `FilterRequest`, query-object packages, or HTMX search endpoints.
+**IndexRequest is the only filter/sort/search API.** Pagination is `Query[T]().Paginate(page, perPage)` / `SimplePaginate` (ORM). There is no cursor-page application API. Do not invent `FilterRequest`, query-object packages, or fragment search endpoints.
 | Path id only (show/destroy) | none | Policy + `req.Param` |
 | Headers / cookies | `req` primitives | no FormRequest |
 | Nested JSON objects | **weak today** — flatten keys (`address.city`) | GAP: nested object validation |
 
 **PROHIBITED names (HIGH-CONFIDENCE when they declare `Rules() map[string]string` — APP-REQ-001):** `PostRequest`, `CreatePostRequest`, `PostCreateRequest`, `PostForm`, `PostDTO`, `PostInput`, `PostPayload`, `PostCommand`. Canonical names are the table above. `PostIndexRequest` / `LoginRequest` remain valid.
 
-**PROHIBITED APIs:** `validation.Make` in controllers, services, models, or repositories (APP-REQ-002). Dashboard stubs may still call `Make` — do not copy that into resource CRUD. Wrappers under `internal/` are SEMANTIC (phase 3.5). Unused canonical FormRequests while Store persists without `ValidateForm` is APP-REQ-003 when persist is in the same controller method; unused types without persist are SEMANTIC.
+**PROHIBITED APIs:** `validation.Make` in controllers, services, models, or repositories (APP-REQ-002). Dashboard stubs may still call `Make` — do not copy that into resource CRUD. Wrappers under `internal/` are SEMANTIC (doctor boundary). Unused canonical FormRequests while Store persists without `ValidateForm` is APP-REQ-003 when persist is in the same controller method; unused types without persist are SEMANTIC.
 
 **Binding:** `req.All()` feeds the validator. Normalization belongs in `PrepareForValidation`. Defaults belong there or in rules (`required` vs `nullable`).
 
@@ -348,7 +348,7 @@ func (c *BlogController) Index(req *http.Request) *http.Response { ... }
 
 **MAY:** call `ValidateForm`, `authorization` Allow/Deny, `auth.From`, one `orm.Find`, invoke a service, return View/JSON/Redirect.
 
-**HTMX:** `NOT SUPPORTED`. No special controller branch.
+**Fragments:** `NOT SUPPORTED`. No special controller branch.
 
 **Errors:** `validation.ResponseFor` for 422; `http.Abort(404)` / FindOrFail mapped to 404; Gate deny → web `http.Abort(403, err.Error())`, API `authorization.ResponseFor(err)` (JSON-only helper — do not use it for HTML); unexpected errors return and let exception middleware report.
 
@@ -368,7 +368,7 @@ func (c *BlogController) Index(req *http.Request) *http.Response { ... }
 
 **Constructor:** `New{Name}()` returning `*{Name}`. Generator: `make:service` → `app/services/{name}_service.go`, type `{Name}Service`, `New{Name}Service()`. Method names are verbs (`Place`, `Publish`, `Register`). **No** canonical `Handle()`.
 
-**Forbidden as services:** UseCase types, Action types, Interactor types, DomainService types, HTTP `*Handler` types, injecting `contracts.App` into every service (pass `From(app)` results or concrete deps at `New`). `CreatePostHandler.Handle` inside `app/services` is **SEMANTIC-forbidden** (doctor may PASS — phase 3.5).
+**Forbidden as services:** UseCase types, Action types, Interactor types, DomainService types, HTTP `*Handler` types, injecting `contracts.App` into every service (pass `From(app)` results or concrete deps at `New`). `CreatePostHandler.Handle` inside `app/services` is **SEMANTIC-forbidden** (doctor may PASS — doctor boundary).
 
 Otherwise the controller calls ORM / `From(app)` directly after validation.
 
@@ -413,7 +413,7 @@ Invariants that are not input rules live in the service (and optionally ORM even
 
 `IMPLEMENTED`: `make:repository` emits a **concrete** struct wrapping `orm.All` / `Find` / `Create`. No interface. Kernel CLI does not register `make:repository` — it is a **package** generator when the ORM/database tooling is enabled.
 
-**ACCEPTED (ADR-0003) + Phase 3.5:**
+**ACCEPTED (ADR-0003) + doctor boundary:**
 
 | Pattern | Class |
 |---|---|
@@ -424,7 +424,7 @@ Invariants that are not input rules live in the service (and optionally ORM even
 | Repository per model “because architecture” | MUST NOT |
 | Validation or Gate inside a repository | MUST NOT |
 
-Golden scenarios never require a repository. Using concrete repositories as the **default** access path for every model is SEMANTIC drift (phase 3.5 bypass 6) — still optional, never mandatory.
+Golden scenarios never require a repository. Using concrete repositories as the **default** access path for every model is SEMANTIC drift (doctor boundary bypass 6) — still optional, never mandatory.
 
 ---
 
@@ -541,7 +541,7 @@ Pivot extras: `Attach` `extra ...map[string]any`.
 
 | Rule | Canonical |
 |---|---|
-| Owner | Application service (or a single console command). **Never the controller file** (APP-CTL-005). Cross-package `txutil` called from a controller is SEMANTIC-forbidden (phase 3.5). |
+| Owner | Application service (or a single console command). **Never the controller file** (APP-CTL-005). Cross-package `txutil` called from a controller is SEMANTIC-forbidden (doctor boundary). |
 | Start | `orm.Transaction` at the start of the multi-write operation |
 | Inside | `orm.QueryTx[T](tx)` / `QueryOn` only — default `Query[T]()` will **not** see the tx |
 | Commit | implicit on nil error |
@@ -586,7 +586,7 @@ func RegisterWeb(r *routing.Router) {
 
 Named routes when a name will be used in redirects/views. Resource helper is allowed when it matches this verb map.
 
-**HTMX routes:** `NOT SUPPORTED` as a class. Same web routes.
+**Fragment routes:** `NOT SUPPORTED` as a class. Same web routes.
 
 ---
 
@@ -635,7 +635,7 @@ Canonical:
 
 Logout / session invalidation: auth manager methods on the generated controllers.
 
-Registration / password reset / MFA / profile: generated by `make:auth`. Follow those stubs (`RegisterAuthWeb`, `RegisterAuthAPI`, `web.AuthController`). FormRequests + `ValidateForm` are canonical after Phase 1.
+Registration / password reset / MFA / profile: generated by `make:auth`. Follow those stubs (`RegisterAuthWeb`, `RegisterAuthAPI`, `web.AuthController`). FormRequests + `ValidateForm` are canonical after generator alignment.
 
 **ADR-0009 exception:** `RegisterAuthAPI` reuses `web.AuthController` and `WantsJSON()`. Do **not** copy that mixing into Post/Product/Order/File CRUD — those use two controllers.
 
@@ -703,11 +703,11 @@ Route middleware may call Gate for ability names; it does not replace Policy. Th
 
 ---
 
-## S. Views / HTMX
+## S. Views
 
 `IMPLEMENTED`: `packages/view`, `http.View`, layouts `@yield`, components, localization in generated web welcome.
 
-**HTMX: NOT SUPPORTED** as a framework or package API (zero matches in framework/packages source). Do not add `hx-` conventions to the standard. Progressive enhancement with plain forms + Redirect + flash is the web model.
+**HTML fragments: NOT SUPPORTED** as a framework or package API (zero matches in framework/packages source). Do not add fragment-swap conventions to the standard. Progressive enhancement with plain forms + Redirect + flash is the web model.
 
 Canonical web cycle:
 
@@ -848,7 +848,7 @@ request, rule, model, migration, seeder, repository, observer, scope, cast, job,
 
 ### Missing generators (do not fake types)
 
-UseCase, Action, DTO, Entity, ValueObject, Mail, HTMX fragment, FilterRequest as a distinct command (`make:request` is enough).
+UseCase, Action, DTO, Entity, ValueObject, Mail, HTML fragment, FilterRequest as a distinct command (`make:request` is enough).
 
 ### AI MUST
 
@@ -856,12 +856,12 @@ Follow [AGENTS.md](../../AGENTS.md). Use generators. Match this STANDARD. Run do
 
 ### AI MUST NOT
 
-Invent layers; copy `make:controller` JSON into web apps; treat HTMX as built-in; treat dashboard RBAC stubs as Gate; nest transactions; add `zatrano.lock`.
+Invent layers; copy `make:controller` JSON into web apps; treat fragment views as built-in; treat dashboard RBAC stubs as Gate; nest transactions; add `zatrano.lock`.
 
 ### Generator defects to treat as non-canonical (do not copy)
 
-1. ~~`make:controller` always JSON~~ — **addressed** (ADR-0007 / Phase 1).
-2. ~~`make:service` empty `Handle() error`~~ — **addressed** (Phase 1).
+1. ~~`make:controller` always JSON~~ — **addressed** (ADR-0007 / generator alignment).
+2. ~~`make:service` empty `Handle() error`~~ — **addressed**.
 3. `RouteRegistrar` Get/Post only vs REST verbs — register Put/Patch/Delete on `*Router`.
 4. `factory` `make:resource` may be unregistered — verify before teaching AI to run it.
 5. ~~Web `addons.go` blank-import gap~~ — **addressed**.
@@ -885,9 +885,9 @@ This STANDARD is **frozen**. Completeness: [completeness-matrix.md](completeness
 
 ### NOT PROVIDED BY ZATRANO (do not invent)
 
-HTMX / fragment architecture · browser E2E package · first-party `mail` package (notifications use `Channels: ["mail"]`) · Outbox · UnitOfWork · nested transactions / savepoints · query `context.Context` · typed `ErrModelNotFound` · cursor/keyset pagination as a page API · `App.AI()` / `AIService` / `AIManager` · `app.Auth()` as a kernel method · reflection autowiring · mandatory repository interfaces · UseCase/Action/Interactor/DTO/Domain Entity layers · Nuxt/Fiber/GORM as application architecture · tenancy application directories (optional `tenancy.From(app)` only).
+Fragment architecture · browser E2E package · first-party `mail` package (notifications use `Channels: ["mail"]`) · Outbox · UnitOfWork · nested transactions / savepoints · query `context.Context` · typed `ErrModelNotFound` · cursor/keyset pagination as a page API · `App.AI()` / `AIService` / `AIManager` · `app.Auth()` as a kernel method · reflection autowiring · mandatory repository interfaces · UseCase/Action/Interactor/DTO/Domain Entity layers · third-party web/ORM stacks as application architecture · tenancy application directories (optional `tenancy.From(app)` only).
 
-### Phase 3.5 semantic bypasses (doctor may PASS; STANDARD still forbids as architecture)
+### Semantic doctor-PASS stacks (STANDARD still forbids as architecture)
 
 | # | Bypass | Class | Canonical prevention |
 |---|---|---|---|
@@ -898,4 +898,4 @@ HTMX / fragment architecture · browser E2E package · first-party `mail` packag
 | 5 | Unused FormRequest; concatenated `unique`; `internal` Make wrapper | SEMANTIC | Call `ValidateForm`; literal rules; enable `database` |
 | 6 | `*Entity` in models + concrete repos as default access | SEMANTIC (repos optional) | ORM models; `orm.Query[T]()` default |
 
-Doctor must not grow fragile heuristics merely to drive this table to zero. Runtime `unique`/`exists` is fail-closed (Phase 4.5, ADR-0010). Doctor still does not prove SQL.
+Doctor must not grow fragile heuristics merely to drive this table to zero. Runtime `unique`/`exists` is fail-closed (fail-closed unique/exists, ADR-0010). Doctor still does not prove SQL.

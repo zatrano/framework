@@ -1,16 +1,16 @@
 # ADR-0010 — Database-backed `unique` / `exists` must fail closed
 
-- **Status:** Accepted (amended Phase 4.5)
+- **Status:** Accepted (amended fail-closed unique/exists)
 - **Date:** 2026-09-10
-- **Amendment:** 2026-09-10 (Phase 4.5)
+- **Amendment:** 2026-09-10 (fail-closed unique/exists)
 
 The filename `0010-unique-exists-fail-open.md` is historical. Fail-open is **not** current behavior.
 
-## Historical context (Phase 2)
+## Historical context (golden scenarios)
 
-`packages/validation` implements `unique` and `exists` via `PresenceChecker`. Through Phase 4, if neither the validator nor `SetDefaultPresenceChecker` had a checker, `checkPresence` **returned true** (the rule passed). Malformed `unique:users` (no column) also returned true. If a checker was set and it returned an error, the rule already **failed**.
+`packages/validation` implements `unique` and `exists` via `PresenceChecker`. Until the STANDARD freeze, if neither the validator nor `SetDefaultPresenceChecker` had a checker, `checkPresence` **returned true** (the rule passed). Malformed `unique:users` (no column) also returned true. If a checker was set and it returned an error, the rule already **failed**.
 
-Phase 2 classified that as a documented limitation and a correctness problem, not a security control and not authorization. Doctor (Phase 3) added **error** APP-VAL-001 when those rule names appear as string literals and `database` is not enabled. Concatenated strings remain a documented SEMANTIC bypass of the doctor check. The runtime was intentionally left unchanged until this validation-package amendment.
+The golden report classified that as a documented limitation and a correctness problem, not a security control and not authorization. Doctor added **error** APP-VAL-001 when those rule names appear as string literals and `database` is not enabled. Concatenated strings remain a documented SEMANTIC bypass of the doctor check. The runtime was intentionally left unchanged until this validation-package amendment.
 
 ## Problem
 
@@ -89,7 +89,7 @@ Fail-open converted “we could not look this up” into “this value is unique
 
 `packages/validation` `presence_test.go` and FormRequest `ValidateForm` tests cover unique/exists present, absent, checker error, checker unavailable, malformed rules, extra CSV parts (table+column only; ignore-ID was not implemented), and the HTTP FormRequest path.
 
-Closure verification: [phase4.5.md](../phase4.5.md). `go test -race` is **NOT EXECUTABLE** in the recorded environment (GCC/CGO unavailable); that is not a repository failure.
+Closure verification: [unique-exists-runtime.md](../unique-exists-runtime.md). `go test -race` is **NOT EXECUTABLE** in the recorded environment (GCC/CGO unavailable); that is not a repository failure.
 
 ## Consequences
 
@@ -99,4 +99,4 @@ Product and Order golden scenarios that use `exists:products,id` still require `
 
 - Runtime: `checkPresence` fail-closed; database default checker errors on empty table/column.
 - Doctor: APP-VAL-001 unchanged structurally (`unique`/`exists` literals ⇒ `database` in `EnabledAddons`).
-- Report: [phase4.5.md](../phase4.5.md).
+- Report: [unique-exists-runtime.md](../unique-exists-runtime.md).

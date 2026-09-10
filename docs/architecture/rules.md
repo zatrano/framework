@@ -5,7 +5,7 @@ Machine-enforced subset of the Application Engineering STANDARD. If a rule is no
 Analyzer: `zatrano doctor` (`console/doctor.go`, `console/doctor_arch.go`).
 Framework package boundaries: `tests/architecture_test.go`, `contracts/import_test.go`.
 
-HTMX is **not** analyzed (ADR-0005; no implementation). Repositories are **not** required (ADR-0003). Adversarial boundary: [phase3.5.md](phase3.5.md). Freeze: [STANDARD.md](STANDARD.md) · [ADR-0011](decisions/0011-application-engineering-standard-freeze.md).
+Fragment views are **not** analyzed (ADR-0005; no implementation). Repositories are **not** required (ADR-0003). Adversarial boundary: [doctor-boundary.md](doctor-boundary.md). Freeze: [STANDARD.md](STANDARD.md) · [ADR-0011](decisions/0011-application-engineering-standard-freeze.md).
 
 ---
 
@@ -60,12 +60,12 @@ These are **test/CI**, not `zatrano doctor` (doctor inspects consumer apps).
 | APP-REQ-003 | Store/Update that persist must `ValidateForm` when validation is enabled | AST + EnabledAddons | error | Index-only stubs | `orm.Create` in Store without ValidateForm | persist via another package is not attributed |
 | APP-REP-001 | No repository *interfaces* or generic repository bases | AST | error | concrete `PostRepository` struct | `type PostRepository interface` | does **not** require repositories |
 | APP-ORM-001 | No `orm…With("relation")` string eager | AST string arg on orm call chain | error | `With(orm.EagerHasMany[...])` | `Query[T]().With("comments")` | `q.With("…")` after assignment is a known bypass; non-orm `With` is ignored |
-| APP-VAL-001 | `unique`/`exists` require `database` enabled | Rules strings + enabled.go | error | unique + database | unique without database | string scan, not full rule parser; concatenated strings bypass. Runtime is fail-closed (Phase 4.5); doctor does not prove SQL |
+| APP-VAL-001 | `unique`/`exists` require `database` enabled | Rules strings + enabled.go | error | unique + database | unique without database | string scan, not full rule parser; concatenated strings bypass. Runtime is fail-closed (fail-closed unique/exists); doctor does not prove SQL |
 
 ---
 
 ## Explicitly not machine-enforced
 
-Authorization *correctness*, IDOR semantics, CSRF presence, Fillable completeness, “this workflow needs a transaction”, mandatory repositories, HTMX, relationship signature checking, nested validation graphs, business Policy abilities.
+Authorization *correctness*, IDOR semantics, CSRF presence, Fillable completeness, “this workflow needs a transaction”, mandatory repositories, fragment views, relationship signature checking, nested validation graphs, business Policy abilities.
 
 Those remain tests + review. See [enforcement.md](enforcement.md).

@@ -1,6 +1,6 @@
 # Completeness matrix
 
-Frozen with [STANDARD.md](STANDARD.md) (Phase 4 / ADR-0011). Machine twin: [completeness.yaml](completeness.yaml).
+Frozen with [STANDARD.md](STANDARD.md) (ADR-0011). Machine twin: [completeness.yaml](completeness.yaml).
 
 Values: `YES` · `NO` · `PARTIAL` · `n/a`
 
@@ -31,7 +31,7 @@ Do not mark **CI / doctor** as YES if the rule is documentation-only.
 | Repositories | YES | optional concrete | interface / BaseRepository | `make:repository` | APP-REP-001 | YES | NO | PARTIAL | NO |
 | Services | YES | §H table | ritual / UseCase | `make:service` | APP-LAY-003 | YES | NO | PARTIAL | NO |
 | Transactions | YES | service TX | controller-file TX | none | APP-CTL-005 | YES | YES | PARTIAL | NO |
-| Views | YES | `http.View` | HTMX API | `make:view` | APP-CTL-004 | PARTIAL | YES | PARTIAL | NO |
+| Views | YES | `http.View` | fragment-view API | `make:view` | APP-CTL-004 | PARTIAL | YES | PARTIAL | NO |
 | Auth | YES | `make:auth` | `app.Auth()` | `make:auth` | AUTH exception | PARTIAL | YES | PARTIAL | NO |
 | Files | YES | golden File | unsanitized paths | none | — | PARTIAL | YES | YES | NO |
 | Notifications / jobs | YES | From(app) after commit | mail package; TX dispatch | `make:notification` / `make:job` | — | PARTIAL | YES | YES | NO |
@@ -40,8 +40,8 @@ Do not mark **CI / doctor** as YES if the rule is documentation-only.
 | AI | YES | `ai.From(app)` | `App.AI()` | none | — | PARTIAL | YES | YES | NO |
 | Package From(app) | YES | `pkg.From` | App package methods | `package:enable` | APP-CON-001 | YES | YES | PARTIAL | NO |
 | FW ↛ packages | YES | architecture tests | packages import | none | FW-DEP-* | YES | NO | NO | NO |
-| HTMX | YES | — | fragment architecture | none | — | NO | NO | YES | **YES** |
-| Browser E2E | YES | — | Playwright-as-platform | none | — | NO | NO | YES | **YES** |
+| Fragments | YES | — | fragment architecture | none | — | NO | NO | YES | **YES** |
+| Browser E2E | YES | — | browser E2E as platform | none | — | NO | NO | YES | **YES** |
 | Mail package | YES | notification channel | `packages/mail` | none | — | NO | NO | YES | **YES** |
 | Outbox / UoW | YES | — | Outbox types | none | — | NO | NO | YES | **YES** |
 | Cursor pages | YES | — | keyset API | none | — | NO | NO | YES | **YES** |
@@ -52,4 +52,4 @@ Do not mark **CI / doctor** as YES if the rule is documentation-only.
 | Reflection DI | YES | `NewX()` | autowire | none | — | NO | YES | YES | **YES** |
 | RBAC package API | YES | — | dashboard as Gate | dashboard stubs | — | NO | NO | YES | **YES** |
 
-Phase 3.5 six SEMANTIC stacks: [phase3.5.md](phase3.5.md) · [no-second-way.md](no-second-way.md).
+Doctor-boundary six SEMANTIC stacks: [doctor-boundary.md](doctor-boundary.md) · [no-second-way.md](no-second-way.md).

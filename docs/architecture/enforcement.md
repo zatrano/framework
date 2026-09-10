@@ -2,7 +2,7 @@
 
 STANDARD defines the architecture. `zatrano doctor` plus framework architecture tests prove the **high-confidence** subset. The rest stays documentation, generators, and application tests.
 
-HTMX is not analyzed (ADR-0005). Repositories are never required (ADR-0003).
+Fragment views are not analyzed (ADR-0005). Repositories are never required (ADR-0003).
 
 ---
 
@@ -52,14 +52,14 @@ A consumer CI should run `zatrano doctor` after tests. Architecture errors must 
 - CSRF / cookie / CORS configuration completeness
 - Fillable lists vs mass-assignment intent
 - Relationship API signatures beyond banning `orm…With("name")` on an orm call chain
-- HTMX
+- Fragment views
 - Whole-program ownership (controller calling another package that starts a transaction)
 - Unused FormRequest pairing, concatenated `unique`/`exists` strings
 - Extra directories that are not in the forbidden list (`app/core`, `app/workflows`, …)
 
-Runtime `unique`/`exists` is fail-closed (Phase 4.5, ADR-0010). Doctor still does not prove database lookups.
+Runtime `unique`/`exists` is fail-closed (fail-closed unique/exists, ADR-0010). Doctor still does not prove database lookups.
 
-Adversarial report: [phase3.5.md](phase3.5.md). Freeze: [phase4.md](phase4.md) · [no-second-way.md](no-second-way.md). Runtime: [phase4.5.md](phase4.5.md).
+Adversarial report: [doctor-boundary.md](doctor-boundary.md). Freeze: [freeze-report.md](freeze-report.md) · [no-second-way.md](no-second-way.md). Runtime: [unique-exists-runtime.md](unique-exists-runtime.md).
 
 ---
 

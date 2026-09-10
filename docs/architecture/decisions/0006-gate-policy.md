@@ -24,7 +24,7 @@ Only Gate/Policy is a real package surface with tests.
 
 ## Rejected alternatives
 
-- Spatie-style role package in the app — not shipped.
+- Dashboard role package in the app — not shipped.
 - Middleware-only abilities without policies — does not scale to ownership.
 
 ## Consequences

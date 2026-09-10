@@ -1,8 +1,8 @@
 # No second way
 
-Phase 4 audit: for every major application concern, one canonical path. Alternatives are **intentional**, **forbidden**, or **semantic** (doctor may not see them). Target: **zero undocumented architectural ambiguity** — not zero theoretical bypasses.
+Freeze audit: for every major application concern, one canonical path. Alternatives are **intentional**, **forbidden**, or **semantic** (doctor may not see them). Target: **zero undocumented architectural ambiguity** — not zero theoretical bypasses.
 
-Authoritative spec: [STANDARD.md](STANDARD.md). Doctor boundary: [phase3.5.md](phase3.5.md).
+Authoritative spec: [STANDARD.md](STANDARD.md). Doctor boundary: [doctor-boundary.md](doctor-boundary.md).
 
 Status values:
 
@@ -20,11 +20,11 @@ Status values:
 
 | Concern | Canonical way | Alternative | Status | Reason | Enforcement |
 |---|---|---|---|---|---|
-| Project tree | `dirs.CanonicalConsumerDirs()` + scaffold dirs in STANDARD §C.1 | Laravel `app/Http`, `internal/usecase`, Clean `app/application` | FORBIDDEN | ADR-0001 | APP-LAY-001/005 |
+| Project tree | `dirs.CanonicalConsumerDirs()` + scaffold dirs in STANDARD §C.1 | `internal/usecase`, invented `app/application` layers | FORBIDDEN | ADR-0001 | APP-LAY-001/005 |
 | Extra CA dirs with unbanned names | Do not use as layers | `app/core`, `workflows`, `processors`, `orchestration` | SEMANTIC | False-positive risk | Docs; doctor limitation |
 | Routes | `app/routes/{web,api}` + `RegisterWeb`/`ApplyWeb` | `app/http/routes`, `app/router`, service `router.Get` | FORBIDDEN | STANDARD §N | APP-ROUTE-001 |
 | REST verbs | `routing.From(app)` | `app.Router().Put` | FORBIDDEN | contracts.Router is narrow | APP-ROUTE-002 |
-| Assigned router | `routing.From(app).Put` | `r := app.Router(); r.Put` | SEMANTIC | AST shape | phase 3.5 |
+| Assigned router | `routing.From(app).Put` | `r := app.Router(); r.Put` | SEMANTIC | AST shape | doctor boundary |
 | Middleware | Kernel order + `app/http/middleware` on groups | Ad-hoc in controllers | FORBIDDEN | STANDARD §O | SEMANTIC / review |
 | Controller placement | `controllers/{web,api,admin}` `*Controller` | `app/services/PostController`, HTTP `*Handler` | FORBIDDEN | §G | APP-CTL-001 |
 | Controller signature | `(req *http.Request) *http.Response` | `Handle() error` as HTTP | FORBIDDEN | generators | APP-CTL-002 |
@@ -36,18 +36,18 @@ Status values:
 | Index filters | `{Resource}IndexRequest` | ad-hoc `req.Query` without request type when query exists | FORBIDDEN (SEMANTIC if no Rules()) | §E | Docs; APP-REQ-001 if misnamed Rules() |
 | Show/Destroy input | `req.Param` + Policy | `DeleteRequest` / DTO | FORBIDDEN unless bulk body | §E | Docs |
 | Validation package | `packages/validation` only | ORM/service re-validation of the same rules | FORBIDDEN | §F | APP-REQ-002 in service/model |
-| unique/exists | Literal rules + `database` enabled; lookup fail-closed | Concatenated strings; `exists` as AuthZ | Structural vs SEMANTIC | ADR-0010 | APP-VAL-001 literals; runtime Phase 4.5 |
+| unique/exists | Literal rules + `database` enabled; lookup fail-closed | Concatenated strings; `exists` as AuthZ | Structural vs SEMANTIC | ADR-0010 | APP-VAL-001 literals; runtime fail-closed unique/exists |
 | Authorization | Gate/Policy | `role ==` dashboard stubs | FORBIDDEN as AuthZ | ADR-0006 | SEMANTIC (no doctor role scan) |
 | Persistence | `orm.Query[T]()` | Concrete repository | INTENTIONAL ALTERNATIVE | ADR-0003 optional | APP-REP-001 forbids interfaces/generic |
-| Repository interfaces | Do not create | `PostRepository interface`, `BaseRepository` | FORBIDDEN | Phase 3.5 | APP-REP-001 |
+| Repository interfaces | Do not create | `PostRepository interface`, `BaseRepository` | FORBIDDEN | doctor boundary | APP-REP-001 |
 | Service | Only when §H MUST | Always / UseCase / Handler.Handle | MUST NOT / SEMANTIC | ADR-0001 | APP-LAY-003 suffixes; Handle() SEMANTIC |
 | Transactions | Service + `orm.Transaction` + `QueryTx` | Controller file TX | FORBIDDEN | ADR-0004 | APP-CTL-005 |
-| Cross-package TX | Service owns TX | `txutil` from controller | SEMANTIC | Whole-program | phase 3.5 |
+| Cross-package TX | Service owns TX | `txutil` from controller | SEMANTIC | Whole-program | doctor boundary |
 | Nested TX | Not supported | Savepoints / inner Transaction | NOT PROVIDED | ORM | Docs |
 | Relationships | Typed `With(loader)` + explicit FK | `With("comments")` | FORBIDDEN | §L | APP-ORM-001 (call chain) |
-| Assigned `q.With("…")` | Typed loader on the chain | Variable then string With | SEMANTIC | AST | phase 3.5 |
+| Assigned `q.With("…")` | Typed loader on the chain | Variable then string With | SEMANTIC | AST | doctor boundary |
 | Related create | `orm.Create` + FK | Association `Create` | NOT PROVIDED | ORM has no assoc Create | Docs |
-| Views | `http.View` + view package | HTMX fragments | NOT PROVIDED | ADR-0005 | Docs |
+| Views | `http.View` + view package | HTML fragments | NOT PROVIDED | ADR-0005 | Docs |
 | JSON body | `http.JSON` | jsonapi / Resource required | INTENTIONAL ALTERNATIVE (opt-in) | ADR-0008 | Docs |
 | Auth | `auth.From(app)` + `make:auth` | JWT invented in app; `app.Auth()` | FORBIDDEN | Kernel freeze | FW tests / docs |
 | MFA | Generated auth APIs | Second MFA package in app | FORBIDDEN | §P | Docs |
@@ -74,15 +74,15 @@ Status values:
 
 **Intentional alternatives:** optional concrete repository; optional jsonapi/resources; optional bus; optional tenancy package; `--api` web home JSON; `make:auth` View+JSON; service vs controller when §H says so.
 
-**Semantic bypasses:** the six phase 3.5 stacks plus assigned router/With, unused FormRequest, dynamic unique strings, role-string AuthZ, jobs inside TX.
+**Semantic bypasses:** the six doctor boundary stacks plus assigned router/With, unused FormRequest, dynamic unique strings, role-string AuthZ, jobs inside TX.
 
 ---
 
-## Phase 3.5 six stacks (preserved)
+## Doctor-boundary stacks (preserved)
 
 | Bypass | Why doctor can PASS | Static/semantic | Should doctor catch it? | Canonical prevention |
 |---|---|---|---|---|
-| 1 Unbanned CA directories | Names not in APP-LAY-001 | SEMANTIC | **No** (false positives) | STANDARD §C.1 — not a layer |
+| 1 Unbanned invented directories | Names not in APP-LAY-001 | SEMANTIC | **No** (false positives) | STANDARD §C.1 — not a layer |
 | 2 UseCase-shaped types in `app/services` | No suffix / no HTTP signature | SEMANTIC | **No** (Handler/Action names are legal business words) | Verb methods; no `Handle()` |
 | 3 Ownership hiding | No whole-program attribution | SEMANTIC | **No** | TX in service; mix in the method; Make on FormRequest |
 | 4 Transport collapse | No route graph; web JSON allowed for scaffold | SEMANTIC + scaffold exception | **No** for wiring; APP-CTL-004 only API View | ADR-0009 two controllers |

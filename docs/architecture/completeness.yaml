@@ -1,11 +1,11 @@
 # ZATRANO application engineering completeness
-# Frozen schema (Phase 4). Values: YES | NO | PARTIAL | n/a
+# Frozen schema (freeze). Values: YES | NO | PARTIAL | n/a
 # Standard: docs/architecture/STANDARD.md
 
 version: "0.4.0"
 status: frozen
 phase: 4
-evidence: framework v2.2.0, packages v1.7.2, doctor catalog 24 IDs; Phase 4.5 unique/exists fail-closed at runtime
+evidence: framework v2.2.0, packages v1.7.2, doctor catalog 24 IDs; fail-closed unique/exists unique/exists fail-closed at runtime
 
 # defined: STANDARD names canonical/forbidden/semantic/not_provided
 # canonical_example: golden.md section or generator artifact
@@ -241,7 +241,7 @@ concerns:
   - id: views
     defined: YES
     canonical_example: http.View
-    forbidden_example: HTMX fragments as API
+    forbidden_example: HTML fragments as API
     generator: make_view
     doctor_rule: APP-CTL-004
     CI_enforced: PARTIAL
@@ -468,10 +468,10 @@ concerns:
     runtime_enforced: YES
     semantic_only: PARTIAL
     not_provided: NO
-  - id: htmx
+  - id: fragments
     defined: YES
     canonical_example: n/a
-    forbidden_example: hx- architecture
+    forbidden_example: fragment-swap architecture
     generator: none
     doctor_rule: none
     CI_enforced: NO
@@ -481,7 +481,7 @@ concerns:
   - id: e2e_browser
     defined: YES
     canonical_example: n/a
-    forbidden_example: claiming Playwright as platform
+    forbidden_example: claiming a browser E2E runner as platform
     generator: none
     doctor_rule: none
     CI_enforced: NO

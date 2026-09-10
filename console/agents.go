@@ -92,12 +92,12 @@ Route → Middleware → FormRequest (writes) → Controller → optional Servic
 - Transactions: orm.Transaction in a service with QueryTx. Controllers do not start transactions.
 - Authorization: Gate / Policy. Dashboard role stubs are not the API.
 - Packages: From(app). Never app.Auth().
-- HTMX is not a ZATRANO API. Do not invent fragment helpers.
+- HTML fragment / partial-swap clients are not a ZATRANO API. Do not invent fragment helpers.
 - Do not invent domain/, dtos/, usecases/, or handlers/.
 - Use routing.From(app) for Put/Patch/Delete/Resource.
 - Authoritative spec: the framework docs/architecture/STANDARD.md (an application clone may not include it). Follow neighboring generated code.
 
-Forbidden: a second architecture, Clean Architecture folders, copying validation.Make into new write controllers, nested transactions, string eager loads (With("comments")).
+Forbidden: a second architecture, invented domain folders, copying validation.Make into new write controllers, nested transactions, string eager loads (With("comments")).
 
 `
 

@@ -26,7 +26,7 @@ New web controllers look like API controllers. Agents copy JSON.
 
 ## Consequences
 
-Implemented (Phase 1). `make:controller` emits View when `view` is enabled; JSON for `--api` and for the API scaffold’s web package home.
+Implemented. `make:controller` emits View when `view` is enabled; JSON for `--api` and for the API scaffold’s web package home.
 
 ## Enforcement
 

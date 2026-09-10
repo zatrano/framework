@@ -1,8 +1,8 @@
 # Canonical examples (sketches)
 
-These are **not** demo applications. Exact file names, verbs, Policy API, and tests live in **[golden.md](golden.md)**. Phase 2 report: **[phase2.md](phase2.md)**.
+These are **not** demo applications. Exact file names, verbs, Policy API, and tests live in **[golden.md](golden.md)**. Golden report: **[golden-report.md](golden-report.md)**.
 
-Copy the shape, not a Blog-only mindset. HTMX fragments are omitted: **NOT SUPPORTED**.
+Copy the shape, not a Blog-only mindset. HTML fragments are omitted: **NOT SUPPORTED**.
 
 ---
 
@@ -175,6 +175,6 @@ Mail: `Channels: ["mail"]`. No `packages/mail`.
 | Authorization | YES — Gate/Policy (not RBAC package) |
 | Notification | YES — notification package |
 | AI | YES **if** addon enabled; otherwise out of scope |
-| HTMX dashboards | **NO** — capability missing (ADR-0005) |
+| Fragment dashboards | **NO** — capability missing (ADR-0005) |
 
 If a future domain needs a new layer, that is a STANDARD/ADR change, not a local invention.

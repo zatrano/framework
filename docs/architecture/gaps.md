@@ -8,16 +8,16 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 
 ## CRITICAL
 
-### G-C1 — Application layer is not compiler-enforced — **reduced (Phase 3 / 3.5)**
+### G-C1 — Application layer is not compiler-enforced — **reduced (doctor / semantic boundary)**
 
-- **Now:** `zatrano doctor` fails (exit 1) on forbidden directories/types (including interactors / `app/application`), HTTP Handler entries, controller-file transactions, mixed View/JSON (narrow auth exception), string eager loads on orm call chains, non-canonical FormRequest names (`PostForm`, `CreatePostRequest`), `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository interfaces/generic bases, unique/exists without database. Generated empty/web/api/full apps doctor-PASS. CI runs doctor on scaffold smoke. Adversarial boundary: [phase3.5.md](phase3.5.md).
-- **Remaining:** Go still compiles a second architecture if doctor/CI is skipped. Six realistic doctor-PASS stacks remain (unbanned dirs, UseCase-shaped names in services, cross-package ownership hiding, transport collapse, FormRequest theater, DDD-lite in legal folders). Phase 3.5 does not make the compiler reject UseCase packages.
+- **Now:** `zatrano doctor` fails (exit 1) on forbidden directories/types (including interactors / `app/application`), HTTP Handler entries, controller-file transactions, mixed View/JSON (narrow auth exception), string eager loads on orm call chains, non-canonical FormRequest names (`PostForm`, `CreatePostRequest`), `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository interfaces/generic bases, unique/exists without database. Generated empty/web/api/full apps doctor-PASS. CI runs doctor on scaffold smoke. Adversarial boundary: [doctor-boundary.md](doctor-boundary.md).
+- **Remaining:** Go still compiles a second architecture if doctor/CI is skipped. Six realistic doctor-PASS stacks remain (unbanned dirs, UseCase-shaped names in services, cross-package ownership hiding, transport collapse, FormRequest theater, DDD-lite in legal folders). Doctor does not make the compiler reject UseCase packages.
 
 ### G-C2 — Request taxonomy undefined in generators — **addressed (generator)**
 
 - **Evidence (was):** generic `make:request`; auth used `validation.Make`.
 - **Now:** `make:request --store|--update|--index`; `make:auth` writes FormRequests and `ValidateForm`.
-- **Remaining:** dashboard stubs still call `validation.Make`; doctor flags copies into controllers, services, models, and repositories. Wrappers outside those paths remain a Phase 3.5 limitation.
+- **Remaining:** dashboard stubs still call `validation.Make`; doctor flags copies into controllers, services, models, and repositories. Wrappers outside those paths remain a doctor boundary limitation.
 
 ---
 
@@ -28,7 +28,7 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Evidence:** `orm.Transaction` is a free function. Services are empty stubs.
 - **Problem:** Controllers or random helpers start TX; nested calls blow up (`NOT SUPPORTED`).
 - **Decision:** ADR-0004 — service owns TX; `QueryTx` inside; enqueue jobs after commit.
-- **Enforcement:** doctor: `orm.Transaction` / `QueryTx` in controller files (APP-CTL-005). Cross-package helpers remain a documented limitation (phase3.5).
+- **Enforcement:** doctor: `orm.Transaction` / `QueryTx` in controller files (APP-CTL-005). Cross-package helpers remain a documented limitation ([doctor-boundary.md](doctor-boundary.md)).
 
 ### G-H2 — Authorization split (Gate vs dashboard RBAC stubs)
 
@@ -37,10 +37,10 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Decision:** ADR-0006 — Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 - **Enforcement:** SEMANTIC. Doctor does not scan `role ==` (false positives). Policy/Gate only. Dashboard stubs are UI, not AuthZ.
 
-### G-H3 — `unique` / `exists` silent pass — **RESOLVED (Phase 4.5)**
+### G-H3 — `unique` / `exists` silent pass — **RESOLVED (fail-closed unique/exists)**
 
 - **Evidence (was):** `checkPresence` returned true when no PresenceChecker; malformed `unique:users` also passed. Checker errors already failed the rule.
-- **Now:** fail-closed. Missing checker, checker/query error, and incomplete table/column MUST NOT pass. Successful lookups still evaluate unique/exists as before. ADR-0010 amended. Report: [phase4.5.md](phase4.5.md).
+- **Now:** fail-closed. Missing checker, checker/query error, and incomplete table/column MUST NOT pass. Successful lookups still evaluate unique/exists as before. ADR-0010 amended. Report: [unique-exists-runtime.md](unique-exists-runtime.md).
 - **Remaining:** APP-VAL-001 is still **structural** (literals + `database` enabled). Concatenated strings bypass doctor. `exists:` is not IDOR protection. Ignore-ID extra CSV parts remain unimplemented (not a fail-open path).
 
 ### G-P2 — `authorization.ResponseFor` is JSON-only
@@ -49,12 +49,12 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 - **Decision:** API uses `ResponseFor`; web uses `http.Abort(403)`. Do not mix.
 - **Enforcement:** doctor later; STANDARD §Q now.
 
-### G-H4 — HTMX assumed by some product language, absent in code
+### G-H4 — Fragment views assumed by some product language, absent in code
 
-- **Evidence:** zero `htmx` / `hx-` matches in framework and packages.
+- **Evidence:** zero fragment-swap helper matches in framework and packages.
 - **Problem:** Agents will invent fragment responses.
-- **Decision:** ADR-0005 — HTMX is `NOT SUPPORTED`. Views + Redirect + flash only.
-- **Enforcement:** architecture doc; later reject `hx-` helper packages unless an official addon lands.
+- **Decision:** ADR-0005 — HTML fragments are `NOT SUPPORTED`. Views + Redirect + flash only.
+- **Enforcement:** architecture doc; later reject fragment-swap helper packages unless an official addon lands.
 
 ### G-H5 — `make:controller` always JSON — **addressed**
 
@@ -106,7 +106,7 @@ No APIs were changed to close these gaps. Each item proposes a canonical decisio
 
 ### G-M9 — Tenancy package has no application STANDARD
 
-- **Evidence:** `packages/tenancy` exists (`From(app)`, header/domain resolver). Phase 0 scan understated this.
+- **Evidence:** `packages/tenancy` exists (`From(app)`, header/domain resolver). review scan understated this.
 - **Decision:** optional addon. Golden scenarios do not use it. Do not invent `app/tenants` or a tenant layer until a dedicated ADR. Same rule as other packages: `tenancy.From(app)`.
 - **Enforcement:** documentation only until a product wants multi-tenant golden coverage.
 
@@ -130,11 +130,11 @@ Canonical examples in this spec are sketches, not that repo.
 
 Verify command is actually registered before documenting as required CLI.
 
-### G-L5 — Application architecture doctor — **addressed (Phase 3)**
+### G-L5 — Application architecture doctor — **addressed (doctor)**
 
 `zatrano doctor` encodes STANDARD high-confidence rules. Exit 1 on errors. Catalog: `docs/architecture/rules.md`. `--fix` is still absent.
 
-### G-L6 — Phase 2 directory audit
+### G-L6 — golden scenarios directory audit
 
 Golden scenarios fit STANDARD §C. **No CRITICAL gap** for undocumented directories.
 

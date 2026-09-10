@@ -1,10 +1,10 @@
-# Phase 3.5 report — Adversarial architecture verification
+# Doctor boundary — adversarial architecture verification
 
 Date: 2026-09-10
 
 STANDARD was not redesigned. Kernel, contracts, ORM, public API, and ABI were not modified.
 
-This phase asks whether a competent developer or AI can ship a **second application architecture** while `zatrano doctor` still reports PASS.
+This report asks whether a competent developer or AI can ship a **second application architecture** while `zatrano doctor` still reports PASS.
 
 ```text
 STANDARD → doctor → real application → adversarial mutation → PASS / FAIL → known boundary
@@ -17,38 +17,38 @@ STANDARD → doctor → real application → adversarial mutation → PASS / FAI
 | Rule | Attack | Expected | Actual | Result |
 |---|---|---|---|---|
 | APP-LAY-001 | `app/usecases/` | FAIL | FAIL | closed |
-| APP-LAY-001 | `app/interactors/` | FAIL | FAIL | closed (3.5) |
-| APP-LAY-001 | `app/application/` (CA layer) | FAIL | FAIL | closed (3.5) |
-| APP-LAY-001 | `app/handlers/`, `app/http/handlers/` | FAIL | FAIL | closed (3.5) |
+| APP-LAY-001 | `app/interactors/` | FAIL | FAIL | closed |
+| APP-LAY-001 | `app/application/` (invented application layer) | FAIL | FAIL | closed |
+| APP-LAY-001 | `app/handlers/`, `app/http/handlers/` | FAIL | FAIL | closed |
 | APP-LAY-001 | `app/core/`, `app/workflows/`, `app/processors/`, `app/orchestration/` | not auto-forbidden | PASS | **acceptable limitation** (false-positive risk) |
 | APP-LAY-002 | `package usecases` / `interactors` / `handlers` | FAIL | FAIL | closed |
 | APP-LAY-003 | `CreatePostUseCase` / `*Interactor` / `*DTO` | FAIL | FAIL | closed |
 | APP-LAY-003 | `type Handler` / `Action` / `Entity` as business names | PASS | PASS | correct |
 | APP-LAY-003 | `CreatePostHandler` in `app/services` with `Handle()` (no HTTP) | FAIL if second layer | PASS | **acceptable limitation** |
-| APP-CTL-001 | HTTP `(req) *Response` on `*Handler` / `*Action` | FAIL | FAIL | closed (3.5) |
+| APP-CTL-001 | HTTP `(req) *Response` on `*Handler` / `*Action` | FAIL | FAIL | closed |
 | APP-CTL-003 | View+JSON in one controller method | FAIL | FAIL | closed |
-| APP-CTL-003 | mix in `author_controller.go` (substring `auth`) | FAIL | FAIL | closed (3.5; was false exception) |
+| APP-CTL-003 | mix in `author_controller.go` (substring `auth`) | FAIL | FAIL | closed (was false exception) |
 | APP-CTL-003 | documented `AuthController` / `auth_controller.go` | PASS | PASS | correct |
 | APP-CTL-003 | mix moved to `renderShow()` helper in same file | FAIL if detectable | PASS | **acceptable limitation** |
 | APP-CTL-004 | `http.View` in `controllers/api` | FAIL | FAIL | closed |
 | APP-CTL-004 | JSON-only method in `controllers/web` | PASS (scaffold) | PASS | documented (not dual-controller proof) |
 | APP-CTL-005 | `orm.Transaction` on `*Controller` method | FAIL | FAIL | closed |
-| APP-CTL-005 | `orm.Transaction` in controller-file helper | FAIL | FAIL | closed (3.5) |
+| APP-CTL-005 | `orm.Transaction` in controller-file helper | FAIL | FAIL | closed |
 | APP-CTL-005 | `orm.Transaction` in `app/txutil` called by controller | FAIL if ownership | PASS | **acceptable limitation** |
 | APP-CTL-005 | TX via interface / func var | semantic | PASS | **acceptable limitation** |
 | APP-REQ-001 | `PostRequest` | FAIL | FAIL | closed |
 | APP-REQ-001 | `CreatePostRequest` / `PostCreateRequest` | FAIL | FAIL | closed |
-| APP-REQ-001 | `PostForm` / `PostDTO` / `PostInput` with `Rules()` | FAIL | FAIL | closed (3.5) |
+| APP-REQ-001 | `PostForm` / `PostDTO` / `PostInput` with `Rules()` | FAIL | FAIL | closed |
 | APP-REQ-001 | unused `PostStoreRequest` while controller skips it | FAIL if detectable | PASS | **acceptable limitation** |
 | APP-REQ-002 | `validation.Make` in controller | FAIL | FAIL | closed |
-| APP-REQ-002 | `validation.Make` in service/model/repository | FAIL | FAIL | closed (3.5) |
+| APP-REQ-002 | `validation.Make` in service/model/repository | FAIL | FAIL | closed |
 | APP-REQ-002 | `Make` wrapped in `internal/validate` | FAIL if detectable | PASS | **acceptable limitation** |
 | APP-REQ-003 | Store + `orm.Create` without `ValidateForm` | FAIL | FAIL | closed |
-| APP-REP-001 | `type PostRepository interface` | FAIL | FAIL | closed (3.5) |
-| APP-REP-001 | `BaseRepository` / `GenericRepository` / `*RepositoryFactory` | FAIL | FAIL | closed (3.5) |
+| APP-REP-001 | `type PostRepository interface` | FAIL | FAIL | closed |
+| APP-REP-001 | `BaseRepository` / `GenericRepository` / `*RepositoryFactory` | FAIL | FAIL | closed |
 | APP-REP-001 | concrete `type PostRepository struct` + ORM | PASS | PASS | correct (ADR-0003) |
 | APP-ORM-001 | `orm.Query[T]().With("comments")` | FAIL | FAIL | closed |
-| APP-ORM-001 | `log.With("comments")` / `info("comments")` in an orm-importing file | PASS | PASS | closed false-positive (3.5) |
+| APP-ORM-001 | `log.With("comments")` / `info("comments")` in an orm-importing file | PASS | PASS | closed false-positive |
 | APP-ORM-001 | `q := orm.Query[T](); q.With("comments")` | FAIL if detectable | PASS | **acceptable limitation** |
 | APP-ROUTE-001 | `router.Get` in `app/http/routes` or `app/services` | FAIL | FAIL | closed (call-site, not dir name alone) |
 | APP-ROUTE-002 | `app.Router().Put` immediate | FAIL | FAIL | closed |
@@ -60,11 +60,11 @@ STANDARD → doctor → real application → adversarial mutation → PASS / FAI
 | FW-DEP-* | go.mod require without import | n/a | not scanned | **acceptable limitation** |
 | (none) | web route invoking API controller type | FAIL if graph | PASS | **acceptable limitation** |
 | (none) | CSRF / Policy correctness / Fillable / IDOR | not AST | not claimed | documentation-only |
-| (none) | HTMX helpers | unsupported | not scanned | ADR-0005 |
+| (none) | fragment helpers | unsupported | not scanned | ADR-0005 |
 
 ---
 
-## B. Bypasses (after 3.5 analyzer fixes)
+## B. Bypasses (after analyzer fixes)
 
 Successful bypasses that still doctor-PASS. Classification:
 
@@ -85,7 +85,7 @@ Successful bypasses that still doctor-PASS. Classification:
 13. **Framework test-only contracts imports** — `contracts/import_test.go` skips `*_test.go`.
 14. **Indirect module dependency** without a `.go` import.
 
-### Analyzer bug (closed this phase)
+### Analyzer bug (closed this report)
 
 - ORM `With("…")` flagged any `With` in a file that imported orm → now requires `ormCall`.
 - Controller TX only on `*Controller` methods → now any `orm.Transaction`/`QueryTx` in a controller file.
@@ -95,7 +95,7 @@ Successful bypasses that still doctor-PASS. Classification:
 
 ### Architecture gap
 
-None that require kernel/ORM/API changes. ADR-0010 runtime fail-open is unchanged (correctness, not this phase).
+None that require kernel/ORM/API changes. ADR-0010 runtime fail-open is unchanged (correctness, not this report).
 
 ### STANDARD ambiguity
 
@@ -126,15 +126,15 @@ No rule was widened in a way that forbids repositories or requires services.
 
 ## D. Rule quality
 
-Catalog after 3.5: **3** framework tests + **21** doctor IDs (**17** error + **4** warning), including **APP-REP-001** and documented **APP-PROV-002**.
+Catalog after analyzer fixes: **3** framework tests + **21** doctor IDs (**17** error + **4** warning), including **APP-REP-001** and documented **APP-PROV-002**.
 
 | Class | Count |
 |---|---|
 | Total catalog IDs | 24 |
 | Strong (PASS + FAIL + bounded FP) | 18 |
 | Weak (heuristic / scaffold exception) | 4 (ROUTE-001 receiver names, ROUTE-002 immediate call, CTL-004 web JSON allowed, REQ-003 same-function persist) |
-| Needs revision | 0 after 3.5 closures |
-| Documentation-only | AuthZ/IDOR/CSRF/Fillable completeness, TX *necessity*, HTMX, unused FormRequest pairing |
+| Needs revision | 0 after analyzer closures |
+| Documentation-only | AuthZ/IDOR/CSRF/Fillable completeness, TX *necessity*, fragment views, unused FormRequest pairing |
 
 Every error rule has a negative test. APP-REP-001, APP-LAY-001 interactors, APP-CTL-005 file-level TX, APP-REQ-001 Form/Create names, APP-ORM-001 non-orm `With` have explicit false-positive or limitation tests.
 
@@ -142,7 +142,7 @@ Every error rule has a negative test. APP-REP-001, APP-LAY-001 interactors, APP-
 
 ## E. Recommended changes
 
-### Analyzer-only (done this phase)
+### Analyzer-only (done this report)
 
 - Forbidden dirs/packages: interactors, `app/application`, `app/http/handlers|actions`.
 - `*Interactor`; HTTP methods on non-`*Controller` types (APP-CTL-001).
@@ -153,7 +153,7 @@ Every error rule has a negative test. APP-REP-001, APP-LAY-001 interactors, APP-
 - APP-REQ-002: `validation.Make` in services/models/repositories.
 - APP-ORM-001: `ormCall` chain, not “file imports orm”.
 
-### Documentation-only (done this phase)
+### Documentation-only (done this report)
 
 - This report, rules catalog, enforcement limits, completeness matrix, gaps G-C1 remainder.
 
@@ -184,7 +184,7 @@ Canonical PASS is the first two rows (and the third when the author opts into a 
 
 ## G. Golden mutation
 
-Replacing Order `OrderPlacementService` with `PlaceOrderUseCase` fails **APP-LAY-003**. Other golden mutations (bare `PostRequest`, controller TX, string `With`, API `View`, unique without database) remain FAIL as in Phase 3.
+Replacing Order `OrderPlacementService` with `PlaceOrderUseCase` fails **APP-LAY-003**. Other golden mutations (bare `PostRequest`, controller TX, string `With`, API `View`, unique without database) remain FAIL as in the doctor report.
 
 ---
 
@@ -204,7 +204,7 @@ Replacing Order `OrderPlacementService` with `PlaceOrderUseCase` fails **APP-LAY
 
 If a highly competent developer or AI **intentionally** implements a second application architecture without changing kernel/ORM/public API, **`zatrano doctor` still reports PASS in 6 realistic ways**:
 
-1. Clean Architecture **directories doctor does not ban** (`app/core`, `app/workflows`, `app/processors`, `app/orchestration`) filled with verb types that are not `*UseCase`/`*Interactor`/`*DTO`.
+1. Invented-layer **directories doctor does not ban** (`app/core`, `app/workflows`, `app/processors`, `app/orchestration`) filled with verb types that are not `*UseCase`/`*Interactor`/`*DTO`.
 2. **UseCase/Handler/Action behavior** inside `app/services` (or similar canonical dirs) without HTTP signatures and without banned suffixes.
 3. **Ownership hiding** — transactions, View/JSON mixing, or `validation.Make` moved to another package or helper the checker does not attribute to the controller.
 4. **Transport collapse** — JSON-only web controllers and/or web routes pointing at API controller types (no call graph).

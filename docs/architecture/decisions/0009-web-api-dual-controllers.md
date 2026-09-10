@@ -5,7 +5,7 @@
 
 ## Context
 
-Phase 2 golden scenarios need both HTML and JSON for the same resource (Post, Product, Order). STANDARD §G already forbids mixing `http.View` and `http.JSON` in one controller method. Generated `make:auth` nevertheless reuses `web.AuthController` for `/api/v1/auth` and branches with `WantsJSON()`.
+Golden scenarios need both HTML and JSON for the same resource (Post, Product, Order). STANDARD §G already forbids mixing `http.View` and `http.JSON` in one controller method. Generated `make:auth` nevertheless reuses `web.AuthController` for `/api/v1/auth` and branches with `WantsJSON()`.
 
 ## Problem
 
@@ -27,7 +27,7 @@ same FormRequests · same Policy abilities · same optional Service
 - Do **not** create `WebService` / `ApiService` / `WebUseCase` / `ApiUseCase`.
 - Share an application service **only** when STANDARD §H requires a service (multi-write, transaction, reuse). Simple CRUD duplicates thin controllers that both call ORM.
 
-**Exception (do not copy for resources):** `make:auth` generated `AuthController` may serve both web and API via `WantsJSON()`. That is the authentication generator’s stub, not the resource CRUD architecture. Do not redesign `make:auth` in this phase.
+**Exception (do not copy for resources):** `make:auth` generated `AuthController` may serve both web and API via `WantsJSON()`. That is the authentication generator’s stub, not the resource CRUD architecture. Do not redesign `make:auth` in this report.
 
 ## Why
 
@@ -45,4 +45,4 @@ Golden Post CRUD always has two controller files when both transports exist. API
 
 ## Enforcement
 
-Doctor (Phase 3): `http.View` and `http.JSON` in the same method is a violation except `auth_controller.go` / `social_auth_controller.go` and types `AuthController` / `SocialAuthController`.
+Doctor: `http.View` and `http.JSON` in the same method is a violation except `auth_controller.go` / `social_auth_controller.go` and types `AuthController` / `SocialAuthController`.

@@ -1,6 +1,6 @@
 # Golden application scenarios
 
-Phase 2 evidence: these scenarios prove the accepted STANDARD is sufficient to build realistic ZATRANO applications. They are **test domains**, not new framework features. They remain the canonical examples under the Phase 4 freeze.
+Golden evidence: these scenarios prove the accepted STANDARD is sufficient to build realistic ZATRANO applications. They are **test domains**, not new framework features. They remain the canonical examples under the freeze.
 
 Do not implement a demo app inside the framework tree. Copy this shape into a consumer created by `zatrano new --full`.
 
@@ -13,9 +13,9 @@ Route → Middleware → FormRequest → Controller
   → View | JSON | Redirect
 ```
 
-Rejected: UseCase, Action, DTO, Entity, DomainService, mandatory Repository, Handler, UnitOfWork, HTMX, WebService/ApiService.
+Rejected: UseCase, Action, DTO, Entity, DomainService, mandatory Repository, Handler, UnitOfWork, HTML fragments, WebService/ApiService.
 
-ADRs: 0001–0008 (Phase 0) plus **0009** (dual controllers) and **0010** (`unique`/`exists` fail-closed as of Phase 4.5; historically documented as fail-open).
+ADRs: 0001–0008 plus **0009** (dual controllers) and **0010** (`unique`/`exists` fail-closed as of fail-closed unique/exists; historically documented as fail-open).
 
 ---
 
@@ -191,7 +191,7 @@ Use only when the domain needs them. Do not invent wrappers.
 | Existence | `WhereHas`, `WhereDoesntHave` | Categories that have posts |
 | Counts | `WithCount`, `CountRelated` | `posts_count` on index |
 
-Unsupported as application architecture: inferred FK without arguments as the *documented* style (always pass FK); relation struct tags; Laravel-style association `Create`.
+Unsupported as application architecture: inferred FK without arguments as the *documented* style (always pass FK); relation struct tags; association `Create`.
 
 If STANDARD were silent on Attach/Sync, that would be a gap — it is specified in STANDARD §L. Application-level “create through HasMany” remains **Create with FK**, not a missing ORM method to invent.
 
@@ -270,7 +270,7 @@ Domain is **file metadata + disk bytes**, not image processing.
 | Failure | validation 422; authz 403; disk error 500 + report |
 | Tests | traversal rejected; unauthorized download 403; owner 200 |
 
-**NOT SUPPORTED:** image-processing pipeline, extra storage packages, HTMX upload widgets as architecture.
+**NOT SUPPORTED:** image-processing pipeline, extra storage packages, fragment upload widgets as architecture.
 
 Replacement without a transaction is acceptable when the product documents orphans; do not invent a UnitOfWork.
 
@@ -476,4 +476,4 @@ No browser E2E package.
 | File upload with ownership | **YES** | UploadRequest; filesystem; metadata model; Policy |
 | API equivalent of Post CRUD | **YES** | `controllers/api`; JSON; same requests/policies |
 
-Ambiguities closed by this document + ADR-0009/0010: Policy fluent vs method-style; IndexRequest when only `page`; Web/API mix; unique/exists database-backed semantics (fail-closed, Phase 4.5); auth stub exception.
+Ambiguities closed by this document + ADR-0009/0010: Policy fluent vs method-style; IndexRequest when only `page`; Web/API mix; unique/exists database-backed semantics (fail-closed, fail-closed unique/exists); auth stub exception.

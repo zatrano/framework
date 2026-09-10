@@ -13,7 +13,7 @@ Authoritative specification:
 
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **FROZEN (Phase 4, ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Phase 3.5 records the adversarial boundary. Phase 4.5 makes `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
+Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
 
 ---
 
@@ -22,9 +22,9 @@ Status of this standard: **FROZEN (Phase 4, ADR-0011).** ADRs 0001–0011 accept
 1. ZATRANO is a **kernel + packages** platform. The kernel is HTTP, container, config, routing, lifecycle, CLI. Packages bind with `From(app)` / `app.Make`. `contracts.App` does not grow package methods.
 2. An application is a **consumer**. Shape: Controller → optional FormRequest → optional application Service → `pkg.From(app)` / `orm.*`.
 3. There is **one canonical way**. If two approaches work, the standard already chose one. Do not preserve a second way.
-4. Repository evidence is authoritative. Do not copy Laravel, Rails, Nest, Clean Architecture, or generic Go layouts.
+4. Repository evidence is authoritative. Do not copy another product's folders, layers, or habits. Follow this repository.
 5. Do not invent layers that generators and packages do not own: UseCase, Action, DTO, DomainService, Entity-as-DDD, ValueObject, Handler-instead-of-Controller.
-6. HTMX is **not** a ZATRANO API. Web rendering is `http.View` + the `view` package. Do not invent fragment/HTMX architecture.
+6. HTML fragment / partial-swap clients are **not** a ZATRANO API. Web rendering is `http.View` + the `view` package. Do not invent a fragment architecture.
 7. Framework must never import `github.com/zatrano/packages`.
 8. Enablement is **Enabled ∩ Imported**. Blank-import without enablement does not boot. Enablement without import does not boot.
 
@@ -62,7 +62,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 | Persistence | `orm.Query[T]()`, `Find`, `Create`, `With(loader funcs)`. |
 | Transactions | `orm.Transaction` inside an application service. Controllers do not start transactions. |
 | Services | `app/services` only when more than one model write, an explicit transaction, or reuse from HTTP and console/job. Size of the project is not a reason. |
-| Repositories | Optional thin wrappers. Not mandatory. Do not invent interfaces for every model. |
+| Repositories | Optional thin wrappers. Do not invent interfaces for every model. |
 | Responses | Web: `http.View` / `Redirect`. API: `http.JSON`. Do not mix in one method. |
 | Packages | `pkg.From(app)`. Never `app.Auth()`. |
 | Tests | `tests/` + `packages/testing.TestCase` for HTTP. |
@@ -81,7 +81,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 - Invent cursor pagination, savepoints, or typed `ErrModelNotFound` (not in the ORM).
 - Introduce reflection autowiring or constructor injection magic. Construct services with `NewX()` or resolve packages with `From(app)`.
 - Enable packages automatically after `package:acquire` unless `--enable` was passed.
-- Put Cursor or any AI trailer in git commits.
+- Put AI-tool attribution trailers in git commits.
 
 ---
 
@@ -101,8 +101,8 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 | Generate | STANDARD §Z |
 | See if it is missing | `gaps.md` |
 | See if two ways exist | `no-second-way.md` · `conflicts.md` |
-| Frozen spec | STANDARD.md · ADR-0011 · phase4.md |
-| See if CI can prove it | `enforcement.md` · `rules.md` · `phase3.5.md` |
+| Frozen spec | STANDARD.md · ADR-0011 · freeze-report.md |
+| See if CI can prove it | `enforcement.md` · `rules.md` · `doctor-boundary.md` |
 
 ---
 
@@ -127,7 +127,7 @@ go vet ./...
 zatrano doctor
 ```
 
-Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md). Semantic gaps (phase 3.5) are not doctor-proven — see [`docs/architecture/phase3.5.md`](docs/architecture/phase3.5.md).
+Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md). Semantic gaps are not doctor-proven — see [`docs/architecture/doctor-boundary.md`](docs/architecture/doctor-boundary.md).
 
 ---
 

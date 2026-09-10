@@ -1,8 +1,8 @@
-# Phase 5 — Full Platform Conformance & Release Audit
+# Platform audit — full platform conformance and release audit
 
 Date: 2026-09-10
 
-This is a forensic pre-release audit of the **current checkouts**, not a redesign. Architecture remains frozen (ADR-0011). No kernel, contracts, ORM, generator, or doctor heuristic changes were made in this phase.
+This is a forensic pre-release audit of the **current checkouts**, not a redesign. Architecture remains frozen (ADR-0011). No kernel, contracts, ORM, generator, or doctor heuristic changes were made in this report.
 
 Evidence bases:
 
@@ -13,7 +13,7 @@ Evidence bases:
 
 Go: `go1.25.7 windows/amd64`, module `go 1.25.0`. `CGO_ENABLED=0`, `CC=gcc`, gcc not on PATH.
 
-Published tags (independent lines): framework **v2.1.0**, packages **v1.7.1**. Local main contains unreleased architecture freeze, doctor, Phase 4.5 fail-closed validation, and this audit.
+Published tags (independent lines): framework **v2.1.0**, packages **v1.7.1**. Local main contains unreleased architecture freeze, doctor, fail-closed unique/exists fail-closed validation, and this audit.
 
 ---
 
@@ -41,13 +41,13 @@ Scores are qualitative, from repository evidence. Not percentages.
 | Contracts / ABI | PASS | No kernel/packages imports; `App` has no package methods |
 | Framework / Packages boundary | PASS | FW-DEP-001/002/003 tests; framework `go.mod` has zero third-party requires |
 | Application Standard | PASS | STANDARD frozen; AGENTS.md routes to it |
-| Machine Enforcement | PARTIAL | 24 catalog IDs; six Phase 3.5 SEMANTIC bypasses remain by design |
+| Machine Enforcement | PARTIAL | 24 catalog IDs; six doctor-boundary SEMANTIC bypasses remain by design |
 | Generators | PASS | empty/web/api/full doctor-PASS in `console` tests this run |
 | Packages | PARTIAL | Enablement model coherent; ecosystem large; published v1.7.1 lacks fail-closed unique/exists; local packages tree dirty |
 | Security | PASS | TrustedProxy, HSTS-on-HTTPS, production `TRUSTED_PROXIES=*`, CSRF, Fillable, unique/exists fail-closed on HEAD |
 | Runtime Correctness | PASS | `go test ./...` both modules; fail-closed presence checks on packages HEAD |
 | Testing | PASS | Unit, architecture, golden compile, doctor fixtures; race CI-enforced |
-| Documentation | PARTIAL | STANDARD/ADRs coherent; freeze/4.5 still under CHANGELOG Unreleased while VERSION is 2.1.0 |
+| Documentation | PARTIAL | STANDARD/ADRs coherent; freeze and fail-closed unique/exists still under CHANGELOG Unreleased while VERSION is 2.1.0 |
 | CI | PARTIAL | tests + vet + race + starter-smoke; `doctor --strict` not a separate job; packages CI pins `framework@main` (origin) |
 | Upgrade Isolation | PASS | Consumers use public modules + generators; no `internal/` in framework; `zatrano upgrade` does not rewrite app architecture (G-001) |
 | Release Hygiene | PARTIAL | Independent version lines are intentional; HEAD ≠ last tag; packages pin `framework v2.0.28` |
@@ -62,7 +62,7 @@ Scores are qualitative, from repository evidence. Not percentages.
 - `VERSION`: `2.1.0` (identity test requires this string)
 - `go.mod`: no `require` block (zero third-party runtime dependencies)
 - Last tag: `v2.1.0` (`fc9047d`). Seven commits after tag on this HEAD.
-- Unreleased on this HEAD: generator STANDARD align is on origin or not (remote is 6 behind HEAD); doctor, freeze, unique/exists docs, Phase 4.5 closure are local-to-ahead.
+- Unreleased on this HEAD: generator STANDARD align is on origin or not (remote is 6 behind HEAD); doctor, freeze, unique/exists docs, fail-closed unique/exists closure are local-to-ahead.
 
 ### Packages
 
@@ -86,9 +86,9 @@ Scores are qualitative, from repository evidence. Not percentages.
 | Enabled ∩ Imported | YES | YES (bootstrap + enablement tests) |
 | unique/exists fail-closed | YES on HEAD / ADR-0010 | YES in packages HEAD; **NO** in published `v1.7.1` |
 | Evidence freeze “framework v2.1.0” | PARTIAL | Tag v2.1.0 predates doctor/STANDARD freeze commits |
-| Historical phase 2/3 reports still describe fail-open as then-current | YES (history) | YES — do not treat as current |
+| Historical golden/doctor reports still describe fail-open as then-current | YES (history) | YES — do not treat as current |
 | `package:preset` equals `--web` enablement | NO — G-M1 | Presets are empty slices (`bootstrap/presets.go`) |
-| Mail / HTMX / Outbox / cursor pages | NOT PROVIDED | Confirmed absent as platform APIs |
+| Mail / fragment views / Outbox / cursor pages | NOT PROVIDED | Confirmed absent as platform APIs |
 
 No undocumented second application architecture was found in generators. Optional packages (`bus`, `jsonapi`, `make:repository`) are named INTENTIONAL ALTERNATIVE in STANDARD / ADR-0001/0003/0008.
 
@@ -176,7 +176,7 @@ Executed this audit:
 | `zatrano doctor --strict` generated empty | PASS |
 | `go test ./console` | PASS (includes `assertDoctorPass` on empty/web/api/full) |
 
-Phase 3.5 six SEMANTIC stacks remain. Doctor does not prove SQL, IDOR, or Policy business correctness.
+Doctor-boundary six SEMANTIC stacks remain. Doctor does not prove SQL, IDOR, or Policy business correctness.
 
 ---
 
@@ -207,7 +207,7 @@ Catalog (`console/catalog.go` + `kernel.Catalog`) lists foundation services, int
 | `redisx` | Library; cache owns Redis | Documented |
 | Mail package | — | NOT PROVIDED (notification channels instead) |
 
-HEAD unique/exists: fail-closed. Published `v1.7.1`: still the pre-4.5 checker. Enablement remains Enabled ∩ Imported.
+HEAD unique/exists: fail-closed. Published `v1.7.1`: still the pre-fail-closed checker. Enablement remains Enabled ∩ Imported.
 
 `package:preset` api/web lists are **empty** (G-M1). Scaffolds `--web`/`--api` own enablement. INTENTIONAL limitation until aligned — not a generator STANDARD break (`zatrano new` is the canonical path).
 
@@ -279,7 +279,7 @@ They do not depend on a framework `internal/` package. `zatrano upgrade` does no
 | starter-smoke (`zatrano new` + doctor + HTTP) | not re-run as bash (Windows); covered by console tests | `starter_smoke` job |
 | packages live MySQL/Postgres | not run (no local services) | packages `tests.yml` linux |
 
-CI checks out the **sibling origin `main`**, not this unpushed HEAD. Unreleased doctor/4.5 is therefore **LOCAL + this clone** until push.
+CI checks out the **sibling origin `main`**, not this unpushed HEAD. Unreleased doctor and fail-closed unique/exists are therefore **LOCAL + this clone** until push.
 
 ---
 
@@ -287,15 +287,15 @@ CI checks out the **sibling origin `main`**, not this unpushed HEAD. Unreleased 
 
 | ID | Area | Finding | Severity | Evidence | Required Action | Release Blocking |
 |---|---|---|---|---|---|---|
-| P5-H1 | Release | VERSION/tag `2.1.0` while HEAD is `v2.1.0-7` (doctor, STANDARD freeze, 4.5 docs) | HIGH | `VERSION`, `git describe`, CHANGELOG Unreleased | Next public framework tag must bump version/CHANGELOG | NO (process) |
-| P5-H2 | Packages | Fail-closed unique/exists is packages HEAD `288bb2f`, not tag `v1.7.1` | HIGH | packages CHANGELOG Unreleased; `checkPresence` | Tag packages after 4.5 if the public story includes fail-closed | NO |
-| P5-H3 | Packages clone | Dirty unrelated `publish.go` / `bootutil` / stubs | HIGH | `git status` packages | Do not commit into the 4.5 packages tag | NO |
-| P5-M1 | CLI | `PresetAPI`/`PresetWeb` empty vs `--web`/`--api` enablement | MEDIUM | `bootstrap/presets.go`, G-M1 | Align later or document as non-canonical | NO |
-| P5-M2 | Pin | packages `go.mod` requires framework `v2.0.28` | MEDIUM | packages README / go.mod | Independent versioning is allowed; bump pin when tagging if desired | NO |
-| P5-M3 | CI | `doctor --strict` not a CI job; `assertDoctorPass` ignores warnings | MEDIUM | `console/new_test.go`, `tests.yml` | Optional CI addition | NO |
-| P5-M4 | Docs | completeness/README “evidence v2.1.0” predates freeze commits | MEDIUM | `docs/architecture/README.md` | Update evidence line at next tag | NO |
-| P5-L1 | Docs | Phase 2/3 reports still say fail-open as then-current | LOW | historical reports | Keep as history | NO |
-| P5-L2 | API | `contracts.Router` ⊂ typed router | LOW | contracts vs routing | INTENTIONAL (APP-ROUTE-002) | NO |
+| AUDIT-H1 | Release | VERSION/tag `2.1.0` while HEAD is `v2.1.0-7` (doctor, STANDARD freeze, fail-closed unique/exists docs) | HIGH | `VERSION`, `git describe`, CHANGELOG Unreleased | Next public framework tag must bump version/CHANGELOG | NO (process) |
+| AUDIT-H2 | Packages | Fail-closed unique/exists is packages HEAD `288bb2f`, not tag `v1.7.1` | HIGH | packages CHANGELOG Unreleased; `checkPresence` | Tag packages after fail-closed unique/exists if the public story includes fail-closed | NO |
+| AUDIT-H3 | Packages clone | Dirty unrelated `publish.go` / `bootutil` / stubs | HIGH | `git status` packages | Do not commit into the fail-closed unique/exists packages tag | NO |
+| AUDIT-M1 | CLI | `PresetAPI`/`PresetWeb` empty vs `--web`/`--api` enablement | MEDIUM | `bootstrap/presets.go`, G-M1 | Align later or document as non-canonical | NO |
+| AUDIT-M2 | Pin | packages `go.mod` requires framework `v2.0.28` | MEDIUM | packages README / go.mod | Independent versioning is allowed; bump pin when tagging if desired | NO |
+| AUDIT-M3 | CI | `doctor --strict` not a CI job; `assertDoctorPass` ignores warnings | MEDIUM | `console/new_test.go`, `tests.yml` | Optional CI addition | NO |
+| AUDIT-M4 | Docs | completeness/README “evidence v2.1.0” predates freeze commits | MEDIUM | `docs/architecture/README.md` | Update evidence line at next tag | NO |
+| AUDIT-L1 | Docs | golden/doctor reports still say fail-open as then-current | LOW | historical reports | Keep as history | NO |
+| AUDIT-L2 | API | `contracts.Router` ⊂ typed router | LOW | contracts vs routing | INTENTIONAL (APP-ROUTE-002) | NO |
 
 ---
 
@@ -311,10 +311,10 @@ CI checks out the **sibling origin `main`**, not this unpushed HEAD. Unreleased 
 | TX ownership | YES | YES | n/a | APP-CTL-005 | YES | YES | YES | PARTIAL (file-level) |
 | unique/exists | YES | HEAD fail-closed | n/a | APP-VAL-001 structural | YES | packages tests | YES | PASS on HEAD |
 | AuthZ Policy | YES | package | `make:policy` | none (SEMANTIC) | package | package | YES | SEMANTIC |
-| HTMX | NOT PROVIDED | absent | none | none | n/a | n/a | YES | INTENTIONAL |
+| Fragments | NOT PROVIDED | absent | none | none | n/a | n/a | YES | INTENTIONAL |
 | Nested TX | NOT PROVIDED | no savepoints | none | none | docs | n/a | YES | INTENTIONAL |
 | Query ctx | NOT PROVIDED | no ctx API | none | none | n/a | n/a | YES | INTENTIONAL |
-| Semantic doctor bypasses | documented | possible | n/a | 3.5 | adversarial tests | YES | YES | SEMANTIC |
+| Semantic doctor bypasses | documented | possible | n/a | doctor-boundary | adversarial tests | YES | YES | SEMANTIC |
 
 ---
 
@@ -349,7 +349,7 @@ For the **next public release pair** (not for using local HEAD in development):
 1. **Framework tag:** bump `VERSION`, `packages/version` fallback if shipped together, README badge, and CHANGELOG Unreleased → a new `vX.Y.Z` so doctor + STANDARD freeze are not silently hanging off the already-published `v2.1.0` tag.
 2. **Packages tag:** publish fail-closed unique/exists (`288bb2f` or successor) so public `unique`/`exists` matches ADR-0010. Do **not** include the dirty `publish.go` / `bootutil` WIP.
 3. **Evidence lines:** at tag time, set architecture README / completeness.yaml evidence to the new versions (today they still say v2.1.0 / v1.7.1).
-4. **Push/CI:** origin `main` does not yet contain this HEAD; CI on GitHub cannot validate unpushed commits. Push is out of scope for this phase but is required for CI to match the audit clone.
+4. **Push/CI:** origin `main` does not yet contain this HEAD; CI on GitHub cannot validate unpushed commits. Push is out of scope for this report but is required for CI to match the audit clone.
 
 These are verifiable. They do not require architecture changes.
 
@@ -368,8 +368,8 @@ Confirmed still true in source:
 - `package:preset` empty vs scaffold enablement (G-M1)
 - unique ignore-ID / extra WHERE not implemented (CSV extras ignored; not fail-open)
 - Concatenated `"uni"+"que:"` bypasses APP-VAL-001
-- Six Phase 3.5 semantic doctor-PASS stacks
-- HTMX, mail package, cursor pagination, typed `ErrModelNotFound` — NOT PROVIDED
+- Six doctor-boundary doctor-PASS stacks
+- fragment views, mail package, cursor pagination, typed `ErrModelNotFound` — NOT PROVIDED
 - `contracts.Router` narrower than typed router
 - Race testing **locally** NOT EXECUTABLE (GCC/CGO); CI Ubuntu still runs `-race`
 
@@ -403,4 +403,4 @@ Confirmed still true in source:
 
 Therefore not NO-GO. Not unconditional GO for “ship this tree as v2.1.0”. **GO WITH CONDITIONS** for the next coordinated tag.
 
-Phase 5 does not start an examples-repo implementation and does not unfreeze the kernel.
+The platform audit does not start an examples-repo implementation and does not unfreeze the kernel.

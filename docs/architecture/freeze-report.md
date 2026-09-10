@@ -1,4 +1,4 @@
-# Phase 4 report — Application Engineering Standard freeze
+# Freeze report — Application Engineering Standard freeze
 
 Date: 2026-09-10
 
@@ -31,7 +31,7 @@ Document: [no-second-way.md](no-second-way.md).
 | Class | Count |
 |---|---|
 | Intentional alternatives | 7 (optional repo, jsonapi/resources, bus, tenancy package, api-scaffold web JSON home, make:auth mix, service vs controller per §H) |
-| Semantic bypasses | 6 phase-3.5 stacks + assigned router/With + unused FormRequest + dynamic unique + role-string AuthZ |
+| Semantic bypasses | 6 doctor-boundary stacks + assigned router/With + unused FormRequest + dynamic unique + role-string AuthZ |
 | Undocumented ambiguity | **0** |
 
 ---
@@ -44,9 +44,9 @@ Document: [no-second-way.md](no-second-way.md).
 | Positive tests | generated empty/web/api/full + named PASS fixtures |
 | Negative tests | every error rule (`console/doctor_arch_test.go`, `doctor_adversarial_test.go`, `doctor_test.go`) |
 | False-positive tests | business names, `app/core`, concrete repo, AuthController, typed With, non-orm With |
-| Phase 3.5 bypasses | 6 stacks preserved; classified SEMANTIC |
+| Doctor-boundary bypasses | 6 stacks preserved; classified SEMANTIC |
 
-No new rules this phase.
+No new rules this report.
 
 ---
 
@@ -78,7 +78,7 @@ Documentation gaps are **not** listed here.
 
 | ID | Problem | Impact | Current | Expected | Recommended fix |
 |---|---|---|---|---|---|
-| ADR-0010 | `unique`/`exists` pass when no PresenceChecker | Duplicate rows; fake existence | **RESOLVED (Phase 4.5)** fail-closed | Fail-closed | Runtime in `packages/validation`; see [phase4.5.md](phase4.5.md) |
+| ADR-0010 | `unique`/`exists` pass when no PresenceChecker | Duplicate rows; fake existence | **RESOLVED** fail-closed | Fail-closed | Runtime in `packages/validation`; see [unique-exists-runtime.md](unique-exists-runtime.md) |
 | G-M6 | ORM query has no `context.Context` | Cancelled requests may still hit SQL | No ctx | Package ADR | ORM package, not app workaround |
 | Nested TX | `NOT SUPPORTED` | Panic / wrong rollback if nested | Documented | Keep unsupported or package ADR | Do not invent savepoints in apps |
 | Jobs inside TX | No outbox | Side effects after rollback | SEMANTIC | Enqueue after nil return | App discipline; no UnitOfWork |
@@ -90,13 +90,13 @@ Documentation gaps are **not** listed here.
 
 ---
 
-## F. Contradictions closed this phase
+## F. Contradictions closed this report
 
 | Was | Now |
 |---|---|
 | ADR-0004 “TX only in services/console” vs doctor (controllers only) | STANDARD + ADR-0004 enforcement = controller **files**; elsewhere SEMANTIC |
 | ADR-0006 “doctor role ==” vs no such rule | SEMANTIC; doctor does not scan |
-| ADR-0007 “until generator implemented” | Implemented Phase 1 |
+| ADR-0007 “until generator implemented” | Implemented generator alignment |
 | ADR-0010 “doctor warns” | APP-VAL-001 is **error** |
 | STANDARD “PROPOSED” orm.Transaction vs database TX | ACCEPTED: use orm.Transaction for models |
 | STANDARD “PROPOSED” jobs after commit | ACCEPTED |
@@ -111,6 +111,6 @@ Remaining tension (documented, not contradictory): JSON in `controllers/web` is 
 
 **FROZEN.**
 
-Blockers for freeze: none that are documentation/architecture. Runtime fail-open unique/exists was classified here and **resolved in Phase 4.5** ([phase4.5.md](phase4.5.md); ADR-0010 amended).
+Blockers for freeze: none that are documentation/architecture. Runtime fail-open unique/exists was classified here and **resolved** ([unique-exists-runtime.md](unique-exists-runtime.md); ADR-0010 amended).
 
 Next work (not this freeze): optional examples repo; do not grow doctor heuristics for the six SEMANTIC stacks.

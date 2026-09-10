@@ -1,8 +1,8 @@
-# Phase 2 report — Golden applications & architecture conformance
+# Golden report — applications and architecture conformance
 
 Date: 2026-09-10
 
-Scope: documentation and golden specification only. Kernel, contracts, ORM runtime, public API, and ABI were **not** modified. Generators were **not** modified in this phase.
+Scope: documentation and golden specification only. Kernel, contracts, ORM runtime, public API, and ABI were **not** modified. Generators were **not** modified in this report.
 
 ---
 
@@ -29,7 +29,7 @@ Exact file/class/method names: [golden.md](golden.md).
 
 ### Critical
 
-None newly opened by golden scenarios. Applications still compile if they invent UseCases (**G-C1**) until Phase 3 doctor. Directory audit: **PASS** — no undocumented folder is required.
+None newly opened by golden scenarios. Applications still compile if they invent UseCases (**G-C1**) until doctor. Directory audit: **PASS** — no undocumented folder is required.
 
 ### High
 
@@ -43,7 +43,7 @@ None newly opened by golden scenarios. Applications still compile if they invent
 
 | ID | Gap |
 |---|---|
-| G-M1 | Empty `PresetAPI`/`PresetWeb` vs scaffold enablement (kernel — out of Phase 2) |
+| G-M1 | Empty `PresetAPI`/`PresetWeb` vs scaffold enablement (kernel — out of the golden report) |
 | G-M4 | `routing.Controller` registrar Get/Post only |
 | G-M6 | ORM query has no `context.Context` |
 | Nested validation | dotted keys only — Order items are PARTIAL |
@@ -67,7 +67,7 @@ EncryptCookies not default-global; no browser E2E; `make:resource` still optiona
 | Service for CRUD | always vs never vs “large project” | size is not a criterion | **Decision table §H — Order yes, Post no** | STANDARD H |
 | unique/exists | security feature vs optional vs bug | silent pass | **Documented limitation + correctness (ADR-0010)** | validator.go |
 | 403 helper | always ResponseFor | JSON-only helper | **API: ResponseFor; Web: Abort(403)** | gate.go |
-| Create through HasMany | association Create vs FK Create | Laravel habit | **`orm.Create` with FK** | STANDARD L |
+| Create through HasMany | association Create vs FK Create | foreign ORM habit | **`orm.Create` with FK** | STANDARD L |
 | Repository | needed for “real” apps | optional generator | **None in golden; optional concrete wrapper only** | ADR-0003 |
 
 ---
@@ -80,7 +80,7 @@ Cursor/keyset pagination as a page API; query `context.Context`; nested TX/savep
 
 ### Not supported by kernel
 
-`contracts.App` package methods; HTMX; `contracts.Router` Put/Patch/Delete/Resource (use `routing.From`).
+`contracts.App` package methods; fragment views; `contracts.Router` Put/Patch/Delete/Resource (use `routing.From`).
 
 ### Not supported by packages
 
@@ -103,14 +103,14 @@ UseCase, Action, DTO, Entity, DomainService, Handler, UnitOfWork, mandatory Repo
 | Create a file upload with ownership | **YES** |
 | Create the API equivalent of Post CRUD | **YES** |
 
-Every former NO (Policy shape, IndexRequest, dual controllers, unique fail-open, auth exception) is now an explicit rule in STANDARD / golden.md / ADR-0009 / ADR-0010. Remaining non-determinism is **G-C1** (compiler does not yet reject a second way) — Phase 3.
+Every former NO (Policy shape, IndexRequest, dual controllers, unique fail-open, auth exception) is now an explicit rule in STANDARD / golden.md / ADR-0009 / ADR-0010. Remaining non-determinism is **G-C1** (compiler does not yet reject a second way) — doctor.
 
 ---
 
-## 6. STANDARD changes (this phase)
+## 6. STANDARD changes (this report)
 
 - `docs/architecture/golden.md` — exact placement, CRUD traces, taxonomies
-- `docs/architecture/phase2.md` — this report
+- `docs/architecture/golden-report.md` — this report
 - `docs/architecture/STANDARD.md` — §E IndexRequest, §F unique/exists, §G dual controllers + 403, §H service table, §K query extras, §P auth exception, §Q Policy API, §V files, §Y tests, §Z generator defects
 - `docs/architecture/examples.md` — pointer to golden.md
 - `docs/architecture/gaps.md` / `conflicts.md` / `completeness-*` / `scans.md` / `README.md` / `roadmap.md`

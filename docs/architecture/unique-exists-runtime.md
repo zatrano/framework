@@ -1,10 +1,10 @@
-# Phase 4.5 report — Validation runtime correctness (fail-closed unique/exists)
+# Fail-closed unique/exists — validation runtime correctness
 
 Date: 2026-09-10
 
-STANDARD remains **frozen**. Kernel, contracts, ORM public API, ABI, generators, and the doctor catalog were not redesigned. No new doctor rule. This phase hardens database-backed validation runtime in `github.com/zatrano/packages`.
+STANDARD remains **frozen**. Kernel, contracts, ORM public API, ABI, generators, and the doctor catalog were not redesigned. No new doctor rule. This report hardens database-backed validation runtime in `github.com/zatrano/packages`.
 
-**PHASE 4.5 STATUS: COMPLETE**
+**STATUS: COMPLETE**
 
 ---
 
@@ -100,7 +100,7 @@ No new public enum. Existing `RuleFunc bool` + `Fails()` / `ValidationException`
 
 Empty value without `required` still **skips** the lookup (combine `required|unique`). Extra CSV parts (`unique:users,email,id,5`) still use only table, column, and value; ignore-ID was not implemented and was not added.
 
-`SetDefaultPresenceChecker` remains the existing package-level binding. This phase does not add another global.
+`SetDefaultPresenceChecker` remains the existing package-level binding. This report does not add another global.
 
 ---
 
@@ -172,7 +172,7 @@ Behavior change only: missing checker and incomplete rules no longer pass.
 
 ## G. Remaining validation risks
 
-- Concatenated `"uni"+"que:…"` still bypasses APP-VAL-001 (Phase 3.5 SEMANTIC). Runtime of a real `unique`/`exists` rule is fail-closed.
+- Concatenated `"uni"+"que:…"` still bypasses APP-VAL-001 (doctor-boundary SEMANTIC). Runtime of a real `unique`/`exists` rule is fail-closed.
 - `exists:` is still not authorization / IDOR protection.
 - Ignore-ID / extra `WHERE` on `unique:users,email,id,5` remains unimplemented (extra CSV parts ignored). Not a fail-open hole.
 - `SetDefaultPresenceChecker` is process-global (pre-existing). Tests must not mutate it under `t.Parallel()`.
@@ -183,4 +183,4 @@ Behavior change only: missing checker and incomplete rules no longer pass.
 
 ## H. ADR status
 
-**ADR-0010: RESOLVED.** Runtime is fail-closed. Historical fail-open remains in the ADR as context. APP-VAL-001 remains the structural doctor check; it does not prove SQL. Phase 4.5 is **COMPLETE**.
+**ADR-0010: RESOLVED.** Runtime is fail-closed. Historical fail-open remains in the ADR as context. APP-VAL-001 remains the structural doctor check; it does not prove SQL. This report is **COMPLETE**.
