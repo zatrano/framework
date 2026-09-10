@@ -4,6 +4,67 @@ Date: 2026-09-10
 
 STANDARD remains **frozen**. Kernel, contracts, ORM public API, ABI, generators, and the doctor catalog were not redesigned. No new doctor rule. This phase hardens database-backed validation runtime in `github.com/zatrano/packages`.
 
+**PHASE 4.5 STATUS: COMPLETE**
+
+---
+
+## Objective
+
+Database-backed `unique` and `exists` validation must fail closed on infrastructure/checker failures.
+
+A database/checker/infrastructure failure must never produce a successful validation result.
+
+---
+
+## Result
+
+Objective is **complete**. Runtime in `packages/validation` `checkPresence` is fail-closed. Successful lookups still pass or fail according to the rule. Historical fail-open is documented in ADR-0010, not current behavior.
+
+---
+
+## Verification
+
+Executed 2026-09-10 on this Windows host. Only commands that were actually run are listed.
+
+```text
+go test ./...        PASS   (framework v2 and packages)
+go vet ./...         PASS   (framework v2 and packages)
+go test -race ./...  NOT EXECUTABLE — ENVIRONMENTAL LIMITATION
+```
+
+| Check | Result |
+|---|---|
+| `go test ./validation` unique/exists + FormRequest | PASS |
+| `go test ./...` (`github.com/zatrano/packages`) | PASS |
+| `go test ./...` (`github.com/zatrano/framework/v2`) | PASS |
+| `go vet ./...` (both modules) | PASS |
+| `go test -race ./validation` | NOT EXECUTABLE — ENVIRONMENTAL LIMITATION |
+| `zatrano doctor` generated empty app | PASS (0 errors, 0 warnings) |
+| `zatrano doctor --strict` generated empty app | PASS |
+| `zatrano doctor .` (framework tree) | PASS with 1 layout warning (`no app/`; doctor inspects consumer apps) |
+| `zatrano doctor . --strict` (framework tree) | FAIL expected: that warning is treated as error |
+| Golden (`go test ./tests/compatibility`) | PASS |
+| Generators (`go test ./console`, `zatrano new` empty) | PASS |
+
+`console` tests include `TestNewEmptyApplication`, `TestNewWebApplication`, `TestNewAPIApplication`, `TestNewFullApplication` with `assertDoctorPass`.
+
+---
+
+## Race limitation
+
+`go test -race ./...` could not be executed because GCC/CGO is unavailable in the current environment. This is an environmental/toolchain limitation and is not classified as a repository or test failure.
+
+Exact evidence:
+
+```text
+CGO_ENABLED=0
+CC=gcc
+where gcc → INFO: Could not find files for the given pattern(s).
+go test -race ./validation → go: -race requires cgo; enable cgo by setting CGO_ENABLED=1
+```
+
+This is **TEST NOT EXECUTABLE**, not **TEST FAILURE**. Race coverage was not claimed as PASS. No application code was changed to work around it.
+
 ---
 
 ## A. Current root cause
@@ -90,7 +151,7 @@ Empty value without `required` still **skips** the lookup (combine `required|uni
 - `TestValidateFormUniqueAbsentPassesExistingFails`
 - `TestValidateFormExistsExistingPassesAbsentFails`
 
-`go test -race` was not runnable here (Windows host, no gcc / cgo). Focused `go test ./validation` passed. No new shared mutable checker was added.
+Race: **NOT EXECUTABLE — ENVIRONMENTAL LIMITATION** (see Race limitation above). No new shared mutable checker was added.
 
 ---
 
@@ -122,4 +183,4 @@ Behavior change only: missing checker and incomplete rules no longer pass.
 
 ## H. ADR status
 
-**ADR-0010: RESOLVED** at runtime (fail-closed). Historical fail-open is retained as context in the ADR. APP-VAL-001 remains the structural doctor check; it does not prove SQL.
+**ADR-0010: RESOLVED.** Runtime is fail-closed. Historical fail-open remains in the ADR as context. APP-VAL-001 remains the structural doctor check; it does not prove SQL. Phase 4.5 is **COMPLETE**.

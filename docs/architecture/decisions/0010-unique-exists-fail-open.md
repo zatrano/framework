@@ -27,7 +27,10 @@ A second path existed in `packages/database` `boot()`: empty table or column ret
 
 ## Decision
 
-Database-backed validation **cannot succeed** when the required database fact cannot be established.
+Database-backed validation is fail-closed.
+
+A database/checker/infrastructure failure must never
+produce a successful validation result.
 
 Invariant:
 
@@ -84,9 +87,9 @@ Fail-open converted “we could not look this up” into “this value is unique
 
 ## Tests
 
-`packages/validation` `presence_test.go` and FormRequest `ValidateForm` tests cover unique/exists present, absent, checker error, checker unavailable, malformed rules, and the HTTP FormRequest path.
+`packages/validation` `presence_test.go` and FormRequest `ValidateForm` tests cover unique/exists present, absent, checker error, checker unavailable, malformed rules, extra CSV parts (table+column only; ignore-ID was not implemented), and the HTTP FormRequest path.
 
-`go test -race` was not runnable on this Windows host (`CGO_ENABLED=1` requires gcc, which is not on PATH). Focused `go test ./validation` passed. `SetDefaultPresenceChecker` remains the pre-existing package-level var; tests do not use `t.Parallel()` when mutating it.
+Closure verification: [phase4.5.md](../phase4.5.md). `go test -race` is **NOT EXECUTABLE** in the recorded environment (GCC/CGO unavailable); that is not a repository failure.
 
 ## Consequences
 
