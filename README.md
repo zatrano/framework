@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.2.1-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.3.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -252,7 +252,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@v2.2.1
+go install github.com/zatrano/framework/v2/cmd/zatrano@v2.3.0
 zatrano new myapp
 cd myapp
 go mod tidy
@@ -265,7 +265,7 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@v2.2.1
+go get github.com/zatrano/framework/v2@v2.3.0
 go get github.com/zatrano/packages@v1.7.2
 ```
 
@@ -672,13 +672,13 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 
 ## v2
 
-**Framework `v2.2.1`** is the current public kernel. **Packages `v1.7.2`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
+**Framework `v2.3.0`** is the current public kernel. **Packages `v1.7.2`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
 Framework
   module: github.com/zatrano/framework/v2
   major:  v2
-  current: v2.2.1
+  current: v2.3.0
 
 Packages
   module: github.com/zatrano/packages
@@ -694,7 +694,7 @@ Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do no
 
 | Line | Meaning |
 | --- | --- |
-| Framework `v2.2.1` | Current kernel / CLI / contracts |
+| Framework `v2.3.0` | Current kernel / CLI / contracts |
 | Packages `v1.7.2` | Current official package ecosystem |
 | Framework `v1.x` | Previous tagged kernel line |
 
