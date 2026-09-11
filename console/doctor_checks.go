@@ -55,7 +55,7 @@ func checkRouteLocation(root string) ([]Finding, error) {
 				Found:    found + " outside app/routes/{web,api}",
 				Why:      "HTTP routes belong in self-registered web/api groups, not scattered through the app.",
 				How:      how,
-				See:      "docs/architecture/STANDARD.md §N",
+				See:      "https://zatrano.com/docs/application-engineering/standard §N",
 			})
 			return true
 		})
@@ -276,7 +276,7 @@ func checkAppLayout(root string) ([]Finding, error) {
 				Found:    "missing directory " + dir,
 				Why:      "canonical application layout requires this directory (kernel/dirs.CanonicalConsumerDirs).",
 				How:      "Create " + dir + " (or regenerate the app with zatrano new) and keep types in the starter locations.",
-				See:      "docs/architecture/STANDARD.md §C",
+				See:      "https://zatrano.com/docs/application-engineering/standard §C",
 			})
 		}
 	}
@@ -303,7 +303,7 @@ func checkAppLayout(root string) ([]Finding, error) {
 			Found:    "unexpected path " + u.path,
 			Why:      u.why,
 			How:      u.how,
-			See:      "docs/architecture/STANDARD.md §C",
+			See:      "https://zatrano.com/docs/application-engineering/standard §C",
 		})
 	}
 	return out, nil

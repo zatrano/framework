@@ -194,6 +194,12 @@ type KeyGenerateCommand struct{ app *kernel.Application }
 func (c *KeyGenerateCommand) Name() string        { return "key:generate" }
 func (c *KeyGenerateCommand) Description() string { return "Set the application key" }
 func (c *KeyGenerateCommand) Handle(args []string) error {
+	if err := seedEnvFromExample(c.app.BasePath()); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(".env not found\nNext: copy .env.example to .env, then rerun key:generate")
+		}
+		return err
+	}
 	keyFile := c.app.BasePath(".env")
 	raw, err := os.ReadFile(keyFile)
 	if err != nil {

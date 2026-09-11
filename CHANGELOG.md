@@ -4,19 +4,31 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.2.1 - 2026-09-11
+
+Patch release. Kernel ABI, contracts, and ORM public API are unchanged.
+
+### DX
+
+- `zatrano new` seeds `.env` from `.env.example`. `key:generate` does the same when `.env` is missing, so the printed first-run steps no longer fail with "file not found".
+- Generated `AGENTS.md` and the API starter README state that applications do not ship a `docs/` tree, and that `--api` keeps shared placeholder dirs (`app/views`, …) without enabling the view package.
+- Application engineering spec moved to [zatrano.com/docs/application-engineering](https://zatrano.com/docs/application-engineering). This repository no longer has a `docs/` tree. Root `AGENTS.md` and `zatrano doctor` point at the site.
+
+Install with `go get github.com/zatrano/framework/v2@v2.2.1` and `go get github.com/zatrano/packages@v1.7.2`.
+
 ## 2.2.0 - 2026-09-10
 
 Minor release after `v2.1.0`. Kernel ABI, contracts, and ORM public API are unchanged. The new work is application-architecture enforcement, documentation freeze, and pairing with Packages `v1.7.2`.
 
 ### New
 
-- `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository *interfaces*, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: `docs/architecture/rules.md`. Adversarial boundary: `docs/architecture/doctor-boundary.md`.
+- `zatrano doctor` enforces the high-confidence Application Engineering STANDARD: forbidden layers, controller transaction ownership, View/JSON mixing (with `make:auth` exception), string eager loads, FormRequest naming, `validation.Make` in controllers/services/models, persist-without-ValidateForm, repository *interfaces*, and `unique`/`exists` without `database`. Errors exit 1. `--json` and `--strict` are supported. Catalog: [application-engineering/rules](https://zatrano.com/docs/application-engineering/rules). Adversarial boundary: [doctor-boundary](https://zatrano.com/docs/application-engineering/doctor-boundary).
 
 ### Architecture
 
-- Application Engineering Standard **frozen** (ADR-0011): one canonical path per concern, completeness matrix, [no-second-way.md](docs/architecture/no-second-way.md). Kernel/ORM/API unchanged. Semantic doctor-PASS stacks remain documented, not silently closed.
+- Application Engineering Standard **frozen** (ADR-0011): one canonical path per concern, completeness matrix, [no-second-way](https://zatrano.com/docs/application-engineering/no-second-way). Kernel/ORM/API unchanged. Semantic doctor-PASS stacks remain documented, not silently closed.
 - Fail-closed `unique` / `exists` (ADR-0010 amended). Runtime is Packages `v1.7.2`: those rules no longer silently succeed when the database checker or required infrastructure cannot determine the result.
-- Platform conformance audit: [docs/architecture/platform-audit.md](docs/architecture/platform-audit.md).
+- Platform conformance audit: [platform-audit](https://zatrano.com/docs/application-engineering/platform-audit).
 
 Install with `go get github.com/zatrano/framework/v2@v2.2.0` and `go get github.com/zatrano/packages@v1.7.2`. Public module-proxy consumption of these tags is pending until they are pushed.
 

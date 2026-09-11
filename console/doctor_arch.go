@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const archSee = "docs/architecture/STANDARD.md"
+const archSee = "https://zatrano.com/docs/application-engineering/standard"
 
 var forbiddenLayerDirs = []string{
 	"domain",
@@ -561,7 +561,7 @@ func checkValidationArchitecture(root string) ([]Finding, error) {
 			Found:    "unique/exists rules without database enabled",
 			Why:      "unique/exists cannot establish a database fact without the database package (ADR-0010).",
 			How:      "Enable the database package before relying on unique/exists, or remove those rules.",
-			See:      "docs/architecture/decisions/0010-unique-exists-fail-open.md",
+			See:      "https://zatrano.com/docs/application-engineering/adr-0010-unique-exists-fail-open",
 		}}, nil
 	}
 	err := walkDirGo(dir, root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
@@ -586,7 +586,7 @@ func checkValidationArchitecture(root string) ([]Finding, error) {
 				Found:    s,
 				Why:      "unique/exists fail closed when the PresenceChecker is unbound; enable database so lookups can run (ADR-0010).",
 				How:      "Enable database in bootstrap/enabled.go, or drop unique/exists until the checker is bound.",
-				See:      "docs/architecture/decisions/0010-unique-exists-fail-open.md",
+				See:      "https://zatrano.com/docs/application-engineering/adr-0010-unique-exists-fail-open",
 			})
 			return true
 		})

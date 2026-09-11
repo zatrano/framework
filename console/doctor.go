@@ -38,7 +38,7 @@ func (c *DoctorCommand) Handle(args []string) error {
 	if hasFlag(args, "--help", "-h") {
 		fmt.Fprintln(c.writer(), "Usage: zatrano doctor [path] [--json] [--strict]")
 		fmt.Fprintln(c.writer(), "Architecture errors exit 1. Warnings do not, unless --strict.")
-		fmt.Fprintln(c.writer(), "No --fix. See docs/architecture/rules.md")
+		fmt.Fprintln(c.writer(), "No --fix. See https://zatrano.com/docs/application-engineering/rules")
 		return nil
 	}
 	root, err := os.Getwd()

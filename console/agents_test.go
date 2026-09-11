@@ -39,6 +39,9 @@ func TestRenderAgentsIncludesDescribeContracts(t *testing.T) {
 	if !strings.Contains(md, "FormRequest") || !strings.Contains(md, "one way") {
 		t.Fatalf("constitution missing:\n%s", md)
 	}
+	if !strings.Contains(md, "do **not** include a `docs/` tree") || !strings.Contains(md, "zatrano.com/docs/application-engineering/standard") {
+		t.Fatalf("docs-are-not-copied note missing:\n%s", md)
+	}
 	for _, check := range []string{"routes", "concrete", "layout", "providers"} {
 		if !strings.Contains(md, "`"+check+"`") {
 			t.Fatalf("doctor check %s missing", check)

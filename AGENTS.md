@@ -2,18 +2,16 @@
 
 This file is the AI entry point for building **ZATRANO applications**.
 
-It is **not** the architecture specification.
+It is **not** the architecture specification. The specification is on the public site:
+
+- [Application engineering](https://zatrano.com/docs/application-engineering)
+- [Standard (A–Z)](https://zatrano.com/docs/application-engineering/standard)
 
 It is **not** the generated `AGENTS.md` that `zatrano agents:generate` writes into an application root (that file is a live describe dump: routing primitives, catalog, doctor checks). Do not confuse the two.
 
-Authoritative specification:
-
-- [`docs/architecture/README.md`](docs/architecture/README.md)
-- [`docs/architecture/STANDARD.md`](docs/architecture/STANDARD.md)
-
 Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, `docs/architecture/STANDARD.md`, and `docs/architecture/golden.md`.
+Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, the [Standard](https://zatrano.com/docs/application-engineering/standard), and [golden scenarios](https://zatrano.com/docs/application-engineering/golden).
 
 ---
 
@@ -35,14 +33,14 @@ Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatr
 Before writing application code:
 
 1. This file.
-2. [`docs/architecture/STANDARD.md`](docs/architecture/STANDARD.md) — the A–Z language (**authoritative**).
-3. [`docs/architecture/golden.md`](docs/architecture/golden.md) — exact files, verbs, Policy API, tests.
+2. [Standard](https://zatrano.com/docs/application-engineering/standard) — the A–Z language (**authoritative**).
+3. [Golden scenarios](https://zatrano.com/docs/application-engineering/golden) — exact files, verbs, Policy API, tests.
 4. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
 5. The relevant package public API (`From`, `Register`/`Boot`, tests).
-6. [`docs/architecture/examples.md`](docs/architecture/examples.md) for short sketches (`golden.md` wins on conflict).
-7. [`docs/architecture/no-second-way.md`](docs/architecture/no-second-way.md) if a second implementation looks tempting.
-8. [`docs/architecture/conflicts.md`](docs/architecture/conflicts.md) if two patterns appear in the tree.
-9. [`docs/architecture/gaps.md`](docs/architecture/gaps.md) if the feature has no canonical home.
+6. [Examples](https://zatrano.com/docs/application-engineering/examples) for short sketches (golden wins on conflict).
+7. [No second way](https://zatrano.com/docs/application-engineering/no-second-way) if a second implementation looks tempting.
+8. [Conflicts](https://zatrano.com/docs/application-engineering/conflicts) if two patterns appear in the tree.
+9. [Gaps](https://zatrano.com/docs/application-engineering/gaps) if the feature has no canonical home.
 
 Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 
@@ -89,32 +87,32 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 
 | I need to… | Read |
 |---|---|
-| Place a file | STANDARD §C · golden.md |
-| Name a type | STANDARD §B, §E, §G |
-| Validate input | STANDARD §F · ADR-0010 |
-| Query / relate / transact | STANDARD §K–M · golden.md |
-| Authenticate / authorize | STANDARD §P–Q · ADR-0006 |
-| Web vs API | ADR-0009 · two controllers |
-| Render HTML | STANDARD §S |
-| Upload files | STANDARD §V · golden.md §6 |
-| Test | STANDARD §Y · golden.md §17 |
-| Generate | STANDARD §Z |
-| See if it is missing | `gaps.md` |
-| See if two ways exist | `no-second-way.md` · `conflicts.md` |
-| Frozen spec | STANDARD.md · ADR-0011 · freeze-report.md |
-| See if CI can prove it | `enforcement.md` · `rules.md` · `doctor-boundary.md` |
+| Place a file | [Standard §C](https://zatrano.com/docs/application-engineering/standard) · [golden](https://zatrano.com/docs/application-engineering/golden) |
+| Name a type | Standard §B, §E, §G |
+| Validate input | Standard §F · [ADR-0010](https://zatrano.com/docs/application-engineering/adr-0010-unique-exists-fail-open) |
+| Query / relate / transact | Standard §K–M · golden |
+| Authenticate / authorize | Standard §P–Q · [ADR-0006](https://zatrano.com/docs/application-engineering/adr-0006-gate-policy) |
+| Web vs API | [ADR-0009](https://zatrano.com/docs/application-engineering/adr-0009-web-api-dual-controllers) · two controllers |
+| Render HTML | Standard §S |
+| Upload files | Standard §V · golden §6 |
+| Test | Standard §Y · golden §17 |
+| Generate | Standard §Z |
+| See if it is missing | [gaps](https://zatrano.com/docs/application-engineering/gaps) |
+| See if two ways exist | [no-second-way](https://zatrano.com/docs/application-engineering/no-second-way) · [conflicts](https://zatrano.com/docs/application-engineering/conflicts) |
+| Frozen spec | [Standard](https://zatrano.com/docs/application-engineering/standard) · [ADR-0011](https://zatrano.com/docs/application-engineering/adr-0011-application-engineering-standard-freeze) · [freeze report](https://zatrano.com/docs/application-engineering/freeze-report) |
+| See if CI can prove it | [enforcement](https://zatrano.com/docs/application-engineering/enforcement) · [rules](https://zatrano.com/docs/application-engineering/rules) · [doctor boundary](https://zatrano.com/docs/application-engineering/doctor-boundary) |
 
 ---
 
 ## 6. Implementation workflow
 
 1. Identify the golden flow (CRUD, relationship, filter, auth, authz, transaction, file, async, AI).
-2. Inspect the relevant canonical example in `golden.md` and neighboring application code.
+2. Inspect the relevant canonical example in [golden](https://zatrano.com/docs/application-engineering/golden) and neighboring application code.
 3. Enable the required packages (`package:enable`). Do not fake APIs that are not enabled.
 4. Run the canonical generator (`make:controller`, `make:request`, `make:model`, …).
-5. Edit generated files to match STANDARD. Do not leave `Handle() error` stubs as the architecture. Do not invent layers.
+5. Edit generated files to match the Standard. Do not leave `Handle() error` stubs as the architecture. Do not invent layers.
 6. Wire routes in the matching route file. Add middleware in route groups, not ad-hoc inside controllers.
-7. Add tests next to the convention in STANDARD §Y.
+7. Add tests next to the convention in Standard §Y.
 8. If a rule is missing, stop and record a gap. Do not invent a second architecture.
 
 ---
@@ -127,15 +125,15 @@ go vet ./...
 zatrano doctor
 ```
 
-Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [`docs/architecture/rules.md`](docs/architecture/rules.md). Semantic gaps are not doctor-proven — see [`docs/architecture/doctor-boundary.md`](docs/architecture/doctor-boundary.md).
+Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [rules](https://zatrano.com/docs/application-engineering/rules). Semantic gaps are not doctor-proven — see [doctor boundary](https://zatrano.com/docs/application-engineering/doctor-boundary).
 
 ---
 
 ## 8. Report conflicts
 
-If neighboring code contradicts STANDARD:
+If neighboring code contradicts the Standard:
 
 1. Do not copy the violation.
-2. Follow STANDARD.
+2. Follow the [Standard](https://zatrano.com/docs/application-engineering/standard).
 3. Name the conflict (file + pattern vs rule).
-4. Point to `docs/architecture/conflicts.md` and `docs/architecture/no-second-way.md`.
+4. Point to [conflicts](https://zatrano.com/docs/application-engineering/conflicts) and [no-second-way](https://zatrano.com/docs/application-engineering/no-second-way).

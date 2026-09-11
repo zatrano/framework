@@ -10,6 +10,14 @@ import (
 	"github.com/zatrano/framework/v2/console/generator"
 )
 
+func TestNewSeedsDotEnv(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "seeded")
+	if err := (&NewCommand{}).Handle([]string{dest}); err != nil {
+		t.Fatal(err)
+	}
+	assertSeededEnv(t, dest)
+}
+
 func TestParseNewArgs(t *testing.T) {
 	dir, mod, replace, scaffold, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
 	if err != nil {
@@ -102,6 +110,7 @@ func TestNewWebApplication(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "app", "views", "welcome.html")); err != nil {
 		t.Fatalf("expected app/views/welcome.html: %v", err)
 	}
+	assertSeededEnv(t, dest)
 	if _, err := os.Stat(filepath.Join(dest, "app", "database", "migrations", "migrations.go")); err != nil {
 		t.Fatalf("expected app/database/migrations: %v", err)
 	}
@@ -280,6 +289,7 @@ func TestNewEmptyApplication(t *testing.T) {
 	if strings.Contains(string(home), "http.View") {
 		t.Fatalf("empty home must not use view:\n%s", home)
 	}
+	assertSeededEnv(t, dest)
 	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "emptyapp.exe"), "./cmd/app")
 	build.Dir = dest
 	if bout, err := build.CombinedOutput(); err != nil {
@@ -410,6 +420,7 @@ func TestNewAPIApplication(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "app", "views", "welcome.html")); err != nil {
 		t.Fatal("api scaffold must keep view files so package:enable view works")
 	}
+	assertSeededEnv(t, dest)
 	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "apiapp.exe"), "./cmd/app")
 	build.Dir = dest
 	bout, err := build.CombinedOutput()
@@ -434,6 +445,21 @@ func TestFrameworkGoModVersion(t *testing.T) {
 	}
 	if got := frameworkGoModVersion("1.6.6"); got != "v1.6.6" {
 		t.Fatalf("1.6.6: got %q", got)
+	}
+}
+
+func assertSeededEnv(t *testing.T, dest string) {
+	t.Helper()
+	example, err := os.ReadFile(filepath.Join(dest, ".env.example"))
+	if err != nil {
+		t.Fatalf("expected .env.example: %v", err)
+	}
+	env, err := os.ReadFile(filepath.Join(dest, ".env"))
+	if err != nil {
+		t.Fatalf("zatrano new must seed .env from .env.example: %v", err)
+	}
+	if string(env) != string(example) {
+		t.Fatalf("seeded .env must match .env.example\n.env:\n%s\n.env.example:\n%s", env, example)
 	}
 }
 

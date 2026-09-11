@@ -10,6 +10,8 @@ go run ./cmd/app add:web
 
 This starter is a full-capacity platform application. Presentation packages such as `view` are not enabled by default; `add:web` or `package:enable view` adds them without recreating the app.
 
+Empty, web, and api share one directory tree (not a second layout). Folders such as `app/views`, `app/jobs`, and `app/localization` are canonical placeholders so later enablement does not invent paths. `--api` serves JSON; HTML views are unused until the view package is enabled. `AGENTS.md` is a describe dump for agents. Framework docs are not copied into the app.
+
 ```bash
 cp .env.example .env
 go run ./cmd/app key:generate
