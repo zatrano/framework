@@ -81,7 +81,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and first-party application scaffolds (`empty`, `web`, `api`, and `full`). It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
+This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and the embedded application starter. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
 
 ZATRANO is an application platform, not merely a web toolkit.
 
@@ -91,7 +91,7 @@ packages    optional capabilities, package-owned make:*, stubs, config, .env fra
 examples    runnable reference applications — not templates
 ```
 
-Start empty, then choose Web, API, or both. Scaffold type is presentation, not platform capacity. `zatrano new myapp` generates an **empty** application (kernel, layout, tests; no packages enabled). `--web`, `--api`, and `--full` add presentation defaults. `add:web` / `add:api` compose the other profile onto an existing app without overwriting user source. First-party scaffolds are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
+`zatrano new myapp` generates one application with HTML at `/` and JSON at `/api`. Use `http.View` or `http.JSON` per controller; `make:controller` and `make:controller --api` pick the tree. Presentation packages (`assets`, `health`, `localization`, `view`, `validation`) are enabled. Other capabilities stay opt-in via `package:enable`. First-party templates are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
 
 ## Architecture
 
@@ -186,7 +186,7 @@ Packages
   └── …
 ```
 
-An empty application does not pay for capabilities it does not use.
+An application does not pay for capabilities it does not enable. Database, auth, queue, and similar packages stay off until `package:enable`.
 
 ## Two modules
 
@@ -241,18 +241,9 @@ myapp/
 └── go.mod
 ```
 
-Default `zatrano new` generates an **empty** application: the canonical layout and kernel HTTP, with no packages enabled.
+Default `zatrano new` generates one application: HTML at `/`, JSON at `/api`, and presentation packages `assets`, `health`, `localization`, `view`, and `validation`. Database, auth, queue, and other capabilities stay opt-in.
 
-| Profile | Command | Meaning |
-| --- | --- | --- |
-| Empty | `zatrano new myapp` | Opinion-free application foundation. No packages. |
-| Web | `zatrano new myapp --web` | Full-capacity application with HTML presentation defaults. `GET /` is HTML. |
-| API | `zatrano new myapp --api` | Full-capacity application with JSON/API presentation defaults. `GET /` is JSON. |
-| Full | `zatrano new myapp --full` | Web + API presentation composition. HTML `/` and JSON `/api`. Not every package. |
-
-`--web`, `--api`, and `--full` are mutually exclusive. `--minimal` is not a scaffold and is rejected.
-
-`add:web` and `add:api` compose presentation onto an existing app without regenerating it. They preserve the existing root handler: API-first then `add:web` keeps JSON `/`; Web-first then `add:api` keeps HTML `/`. That is state-preserving composition, not the same as `--full`. Enablement can match `--full` while the original `/` stays. You never need to recreate an application because you first chose Web instead of API, or API instead of Web. A framework upgrade does not regenerate application source (G-001). Generated apps record scaffold name, version, and digest in `bootstrap/scaffold.go` at `zatrano new` time only; `add:*` does not rewrite that metadata.
+`add:web` and `add:api` overlay HTML or JSON onto an existing app when that presentation is missing. They are idempotent. A framework upgrade does not regenerate application source (G-001). Generated apps record scaffold name, version, and digest in `bootstrap/scaffold.go` at `zatrano new` time only; `add:*` does not rewrite that metadata.
 
 ## Quick start
 
@@ -264,8 +255,7 @@ Create an application from the published modules:
 go install github.com/zatrano/framework/v2/cmd/zatrano@v2.2.1
 zatrano new myapp
 cd myapp
-
-cp .env.example .env
+go mod tidy
 go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
@@ -290,23 +280,8 @@ cd framework
 
 go run ./cmd/zatrano new myapp --replace "$PWD"
 cd myapp
-cp .env.example .env
 go run ./cmd/app key:generate
 go run ./cmd/app serve
-```
-
-Empty application (default; no packages enabled):
-
-```bash
-go run ./cmd/zatrano new myapp --replace "$PWD"
-```
-
-Web, API, or both:
-
-```bash
-go run ./cmd/zatrano new myweb --web --replace "$PWD"
-go run ./cmd/zatrano new myapi --api --replace "$PWD"
-go run ./cmd/zatrano new myfull --full --replace "$PWD"
 ```
 
 `zatrano new` does not accept `..` in the project name. Put the app next to this clone with an absolute destination, or create it as a subdirectory as above.
@@ -635,7 +610,7 @@ contracts/         Public dependency-neutral ABI
 bootstrap/         Application boot and package registry
 console/           Platform CLI commands
 console/generator/ Generator engine (templates, placeholders, filesystem)
-console/templates/ Embedded first-party scaffolds (`empty`, `web`, `api`) plus `overlays` for add:*
+console/templates/ Embedded application starter (`web` + API overlay) plus `empty`/`api`/`overlays` for add:*
 cmd/zatrano/       CLI entrypoint
 distribution/      Package manifest, registry index, acquisition plan
 tests/             Architecture, compatibility, boot, and fuzz tests

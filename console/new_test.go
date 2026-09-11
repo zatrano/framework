@@ -19,59 +19,25 @@ func TestNewSeedsDotEnv(t *testing.T) {
 }
 
 func TestParseNewArgs(t *testing.T) {
-	dir, mod, replace, scaffold, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
+	dir, mod, replace, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != "demo" || mod != "example.com/demo" || replace != "" || scaffold != generator.ScaffoldEmpty {
-		t.Fatalf("dir=%q mod=%q replace=%q scaffold=%q", dir, mod, replace, scaffold)
+	if dir != "demo" || mod != "example.com/demo" || replace != "" {
+		t.Fatalf("dir=%q mod=%q replace=%q", dir, mod, replace)
 	}
-	_, _, _, web, err := parseNewArgs([]string{"demo", "--web"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if web != generator.ScaffoldWeb {
-		t.Fatalf("expected --web, got %q", web)
-	}
-	_, _, _, api, err := parseNewArgs([]string{"demo", "--api"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if api != generator.ScaffoldAPI {
-		t.Fatalf("expected --api, got %q", api)
-	}
-	_, _, _, full, err := parseNewArgs([]string{"demo", "--full"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if full != generator.ScaffoldFull {
-		t.Fatalf("expected --full, got %q", full)
-	}
-	if _, _, _, _, err := parseNewArgs(nil); err == nil {
+	if _, _, _, err := parseNewArgs(nil); err == nil {
 		t.Fatal("expected usage error")
 	}
 }
 
-func TestNewRejectsMinimal(t *testing.T) {
-	_, _, _, _, err := parseNewArgs([]string{"demo", "--minimal"})
-	if err == nil || !strings.Contains(err.Error(), "no longer a supported scaffold profile") {
-		t.Fatalf("expected --minimal rejection, got %v", err)
+func TestNewHelpHasNoProfileFlags(t *testing.T) {
+	if _, _, _, err := parseNewArgs([]string{"demo", "--unknown"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected unknown flag, got %v", err)
 	}
-	for _, name := range []string{"empty", "--web", "--api", "--full"} {
-		if !strings.Contains(newHelp, name) {
-			t.Fatalf("new help must name %q:\n%s", name, newHelp)
-		}
-	}
-}
-
-func TestNewRejectsConflictingProfiles(t *testing.T) {
-	for _, args := range [][]string{
-		{"demo", "--web", "--api"},
-		{"demo", "--web", "--full"},
-		{"demo", "--api", "--full"},
-	} {
-		if _, _, _, _, err := parseNewArgs(args); err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
-			t.Fatalf("expected exclusive error for %v, got %v", args, err)
+	for _, name := range []string{"--web", "--full", "--empty", "--minimal"} {
+		if strings.Contains(newHelp, name) {
+			t.Fatalf("new help must not mention %s:\n%s", name, newHelp)
 		}
 	}
 }
@@ -85,14 +51,14 @@ func TestSanitizeModule(t *testing.T) {
 	}
 }
 
-func TestNewWebApplication(t *testing.T) {
+func TestNewApplication(t *testing.T) {
 	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(t.TempDir(), "demo")
 	cmd := &NewCommand{}
-	if err := cmd.Handle([]string{dest, "--module", "example.com/demo", "--replace", root, "--web"}); err != nil {
+	if err := cmd.Handle([]string{dest, "--module", "example.com/demo", "--replace", root}); err != nil {
 		t.Fatal(err)
 	}
 	mainPath := filepath.Join(dest, "cmd", "app", "main.go")
@@ -130,6 +96,7 @@ func TestNewWebApplication(t *testing.T) {
 		`"github.com/zatrano/packages/health"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/view"`,
+		`"github.com/zatrano/packages/validation"`,
 	} {
 		if !strings.Contains(addonsText, pkg) {
 			t.Fatalf("web addons.go must blank-import %s:\n%s", pkg, addonsText)
@@ -140,7 +107,7 @@ func TestNewWebApplication(t *testing.T) {
 		t.Fatalf("expected bootstrap/scaffold.go: %v", err)
 	}
 	metaText := string(scaffoldMeta)
-	if !strings.Contains(metaText, `ScaffoldName      = "web"`) || !strings.Contains(metaText, "sha256:") {
+	if !strings.Contains(metaText, `ScaffoldName      = "app"`) || !strings.Contains(metaText, "sha256:") {
 		t.Fatalf("scaffold metadata:\n%s", metaText)
 	}
 	dockerfile, err := os.ReadFile(filepath.Join(dest, "Dockerfile"))
@@ -163,7 +130,7 @@ func TestNewWebApplication(t *testing.T) {
 		t.Fatalf("expected bootstrap/enabled.go: %v", err)
 	}
 	enabledText := string(enabledBody)
-	for _, want := range []string{"RegisterEnablement", `"assets"`, `"health"`, `"localization"`, `"view"`} {
+	for _, want := range []string{"RegisterEnablement", `"assets"`, `"health"`, `"localization"`, `"view"`, `"validation"`} {
 		if !strings.Contains(enabledText, want) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, enabledText)
 		}
@@ -235,204 +202,17 @@ func TestNewWebApplication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
 	}
-	assertNoPackagesVersionImport(t, dest)
-	assertDoctorPass(t, dest)
-}
-
-func TestNewEmptyApplication(t *testing.T) {
-	root, err := filepath.Abs("..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dest := filepath.Join(t.TempDir(), "emptyapp")
-	cmd := &NewCommand{}
-	if err := cmd.Handle([]string{dest, "--module", "example.com/emptyapp", "--replace", root}); err != nil {
-		t.Fatal(err)
-	}
-	assertGeneratedConsoleRegisterABI(t, dest)
-	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertGeneratedFrameworkRequire(t, string(modBytes))
-	if strings.Contains(string(modBytes), "github.com/zatrano/packages") {
-		t.Fatalf("empty go.mod must not pin packages:\n%s", modBytes)
-	}
-	walk := exec.Command("go", "list", "-deps", "./cmd/app")
-	walk.Dir = dest
-	out, err := walk.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list -deps: %v\n%s", err, out)
-	}
-	if strings.Contains(string(out), "github.com/zatrano/packages/") {
-		t.Fatalf("empty app has packages deps:\n%s", out)
-	}
-	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	enabledText := string(enabledBody)
-	if strings.Contains(enabledText, `"health"`) || strings.Contains(enabledText, `"view"`) {
-		t.Fatalf("empty enabled.go must be empty:\n%s", enabledText)
-	}
-	meta, err := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(meta), `ScaffoldName      = "empty"`) {
-		t.Fatalf("empty metadata:\n%s", meta)
-	}
-	home, err := os.ReadFile(filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(home), "http.View") {
-		t.Fatalf("empty home must not use view:\n%s", home)
-	}
-	assertSeededEnv(t, dest)
-	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "emptyapp.exe"), "./cmd/app")
-	build.Dir = dest
-	if bout, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, bout)
-	}
-	testCmd := exec.Command("go", "test", "./tests")
-	testCmd.Dir = dest
-	if testOut, err := testCmd.CombinedOutput(); err != nil {
-		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
-	}
-	assertDoctorPass(t, dest)
-}
-
-func TestNewFullApplication(t *testing.T) {
-	root, err := filepath.Abs("..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dest := filepath.Join(t.TempDir(), "fullapp")
-	cmd := &NewCommand{}
-	if err := cmd.Handle([]string{dest, "--module", "example.com/fullapp", "--replace", root, "--full"}); err != nil {
-		t.Fatal(err)
-	}
-	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	enabledText := string(enabledBody)
-	for _, want := range []string{`"assets"`, `"health"`, `"localization"`, `"view"`, `"validation"`} {
-		if !strings.Contains(enabledText, want) {
-			t.Fatalf("full enabled.go missing %s:\n%s", want, enabledText)
-		}
+	if _, err := os.Stat(filepath.Join(dest, "tests", "api_root_test.go")); err != nil {
+		t.Fatal("generated app must include API root test")
 	}
 	home, err := os.ReadFile(filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(home), "http.View") {
-		t.Fatalf("full home must keep web HTML:\n%s", home)
-	}
-	meta, err := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(meta), `ScaffoldName      = "full"`) {
-		t.Fatalf("full metadata:\n%s", meta)
-	}
-	if _, err := os.Stat(filepath.Join(dest, "tests", "api_root_test.go")); err != nil {
-		t.Fatal("full must include API root test")
+		t.Fatalf("generated home must be HTML View:\n%s", home)
 	}
 	assertNoPackagesVersionImport(t, dest)
-	build := exec.Command("go", "build", "./...")
-	build.Dir = dest
-	if bout, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, bout)
-	}
-	testCmd := exec.Command("go", "test", "./tests")
-	testCmd.Dir = dest
-	if testOut, err := testCmd.CombinedOutput(); err != nil {
-		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
-	}
-	assertDoctorPass(t, dest)
-}
-
-func TestNewAPIApplication(t *testing.T) {
-	root, err := filepath.Abs("..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dest := filepath.Join(t.TempDir(), "apiapp")
-	cmd := &NewCommand{}
-	if err := cmd.Handle([]string{dest, "--module", "example.com/apiapp", "--replace", root, "--api"}); err != nil {
-		t.Fatal(err)
-	}
-	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	modText := string(modBytes)
-	assertGeneratedFrameworkRequire(t, modText)
-	if !strings.Contains(modText, "replace github.com/zatrano/packages =>") {
-		t.Fatalf("api scaffold must pin packages:\n%s", modText)
-	}
-	walk := exec.Command("go", "list", "-deps", "./cmd/app")
-	walk.Dir = dest
-	out, err := walk.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list -deps: %v\n%s", err, out)
-	}
-	deps := string(out)
-	if !strings.Contains(deps, "github.com/zatrano/packages/health") || !strings.Contains(deps, "github.com/zatrano/packages/validation") {
-		t.Fatalf("api app must import health and validation:\n%s", deps)
-	}
-	if strings.Contains(deps, "github.com/zatrano/packages/view") {
-		t.Fatalf("api default must not import view:\n%s", deps)
-	}
-	if strings.Contains(deps, "github.com/zatrano/packages/version") {
-		t.Fatalf("api app must not import packages/version:\n%s", deps)
-	}
-	assertNoPackagesVersionImport(t, dest)
-	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	enabledText := string(enabledBody)
-	for _, want := range []string{`"health"`, `"validation"`} {
-		if !strings.Contains(enabledText, want) {
-			t.Fatalf("api enabled.go missing %s:\n%s", want, enabledText)
-		}
-	}
-	if strings.Contains(enabledText, `"view"`) || strings.Contains(enabledText, `"assets"`) {
-		t.Fatalf("api enabled.go must not default presentation packages:\n%s", enabledText)
-	}
-	home, err := os.ReadFile(filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(home), "http.View") {
-		t.Fatalf("api home must be JSON, not View:\n%s", home)
-	}
-	meta, err := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(meta), `ScaffoldName      = "api"`) {
-		t.Fatalf("api scaffold metadata:\n%s", meta)
-	}
-	if _, err := os.Stat(filepath.Join(dest, "app", "views", "welcome.html")); err != nil {
-		t.Fatal("api scaffold must keep view files so package:enable view works")
-	}
-	assertSeededEnv(t, dest)
-	build := exec.Command("go", "build", "-o", filepath.Join(t.TempDir(), "apiapp.exe"), "./cmd/app")
-	build.Dir = dest
-	bout, err := build.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go build: %v\n%s", err, bout)
-	}
-	testCmd := exec.Command("go", "test", "./tests")
-	testCmd.Dir = dest
-	testOut, err := testCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
-	}
 	assertDoctorPass(t, dest)
 }
 

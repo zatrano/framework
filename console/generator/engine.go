@@ -14,6 +14,8 @@ const (
 	ScaffoldAPI   = "api"
 	ScaffoldWeb   = "web"
 	ScaffoldFull  = "full"
+	// ScaffoldApp is the only zatrano-new product: HTML / plus JSON /api.
+	ScaffoldApp   = "app"
 	LayoutVersion = "2"
 )
 

@@ -64,3 +64,38 @@ func DatabaseDir(app contracts.App) string {
 func DatabaseDirForCreate(app contracts.App) string {
 	return DirForCreate(app, []string{"app", "database"}, []string{"database"})
 }
+
+// CanonicalConsumerDirs are the application directories required of every
+// app created by zatrano new. Doctor and agents use this list; they must not
+// infer it from console/templates.
+func CanonicalConsumerDirs() []string {
+	return []string{
+		"app/console",
+		"app/http/controllers/api",
+		"app/http/controllers/web",
+		"app/providers",
+		"app/routes",
+		"app/routes/api",
+		"app/routes/web",
+		"bootstrap",
+		"cmd/app",
+	}
+}
+
+// CanonicalRouteDirs are where RegisterWeb / RegisterAPI belong.
+func CanonicalRouteDirs() []string {
+	return []string{
+		"app/routes/web",
+		"app/routes/api",
+	}
+}
+
+// OptionalWebScaffoldDirs are view-package directories, not kernel requirements.
+func OptionalWebScaffoldDirs() []string {
+	return []string{
+		"app/views",
+		"app/localization",
+		"public/css",
+		"public/js",
+	}
+}

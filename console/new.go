@@ -15,19 +15,14 @@ import (
 const newHelp = `Create a new ZATRANO application
 
 Usage:
-  zatrano new <name> [--module path] [--replace /path/to/framework] [--web|--api|--full]
+  zatrano new <name> [--module path] [--replace /path/to/framework]
 
-Canonical profiles:
-  empty    zatrano new myapp          opinion-free application foundation
-  web      zatrano new myapp --web    full-capacity HTML presentation defaults
-  api      zatrano new myapp --api    full-capacity JSON/API presentation defaults
-  full     zatrano new myapp --full   web + API presentation composition
+One application: HTML at / and JSON at /api. Controllers live in
+app/http/controllers/web and app/http/controllers/api. Choose View or JSON
+per handler; both are present.
 
-empty is not a reduced platform. full is not every package.
---web, --api and --full are mutually exclusive. --minimal is not a scaffold.
-
-add:web / add:api compose presentation onto an existing app and preserve the
-existing root handler. --full starts with HTML / plus JSON /api.
+Enabled presentation packages: assets, health, localization, view, validation.
+Database, auth, queue, and other capabilities stay opt-in (package:enable).
 `
 
 func registerNewCommand(console *Application, app *kernel.Application) {
@@ -46,7 +41,7 @@ func (c *NewCommand) Handle(args []string) error {
 		fmt.Print(newHelp)
 		return nil
 	}
-	name, module, replace, scaffold, err := parseNewArgs(args)
+	name, module, replace, err := parseNewArgs(args)
 	if err != nil {
 		return err
 	}
@@ -60,24 +55,54 @@ func (c *NewCommand) Handle(args []string) error {
 			ver = v
 		}
 	}
+	if err := applyStarter(dest, module, replace, generator.ScaffoldApp, ver); err != nil {
+		return err
+	}
+	if _, err := WriteAgentsMarkdown(dest); err != nil {
+		return err
+	}
+	if err := seedEnvFromExample(dest); err != nil {
+		return err
+	}
+	if replace != "" {
+		tidy := exec.Command("go", "mod", "tidy")
+		tidy.Dir = dest
+		tidy.Stdout = os.Stdout
+		tidy.Stderr = os.Stderr
+		if err := tidy.Run(); err != nil {
+			return fmt.Errorf("go mod tidy: %w", err)
+		}
+	}
+	fmt.Printf("Created %s (module %s)\n", dest, module)
+	fmt.Println("Next:")
+	fmt.Printf("  cd %s\n", filepath.Base(dest))
+	if replace == "" {
+		fmt.Println("  go mod tidy")
+	}
+	fmt.Println("  go run ./cmd/app key:generate")
+	fmt.Println("  go run ./cmd/app serve")
+	return nil
+}
+
+func applyStarter(dest, module, replace, scaffold, ver string) error {
 	fwVer := frameworkGoModVersion(ver)
 	scaffoldVer := strings.TrimPrefix(fwVer, "v")
 	replaceLine := newReplaceLine(replace, scaffold)
 	subs := map[string]string{
 		"__MODULE__":            module,
-		"__APP_NAME__":          filepath.Base(name),
+		"__APP_NAME__":          filepath.Base(dest),
 		"__FRAMEWORK_VERSION__": fwVer,
 		"__REPLACE_LINE__":      replaceLine,
 		"__SCAFFOLD_NAME__":     scaffold,
 		"__SCAFFOLD_VERSION__":  scaffoldVer,
 	}
 	switch scaffold {
-	case generator.ScaffoldFull:
+	case generator.ScaffoldApp, generator.ScaffoldFull:
 		if err := generator.Apply(generator.Request{
 			FS:               starterTemplates,
 			Root:             "templates/web",
 			Dest:             dest,
-			ScaffoldName:     generator.ScaffoldFull,
+			ScaffoldName:     scaffold,
 			ScaffoldVersion:  scaffoldVer,
 			SkipScaffoldMeta: true,
 			Substitutions:    subs,
@@ -95,11 +120,9 @@ func (c *NewCommand) Handle(args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := generator.WriteScaffoldMeta(dest, generator.ScaffoldFull, scaffoldVer, generator.CombinedDigest(webDig, apiDig)); err != nil {
-			return err
-		}
+		return generator.WriteScaffoldMeta(dest, scaffold, scaffoldVer, generator.CombinedDigest(webDig, apiDig))
 	default:
-		err = generator.Apply(generator.Request{
+		return generator.Apply(generator.Request{
 			FS:              starterTemplates,
 			Root:            "templates/" + scaffold,
 			Dest:            dest,
@@ -107,34 +130,7 @@ func (c *NewCommand) Handle(args []string) error {
 			ScaffoldVersion: scaffoldVer,
 			Substitutions:   subs,
 		})
-		if err != nil {
-			return err
-		}
 	}
-	if _, err := WriteAgentsMarkdown(dest); err != nil {
-		return err
-	}
-	if err := seedEnvFromExample(dest); err != nil {
-		return err
-	}
-	if replace != "" {
-		tidy := exec.Command("go", "mod", "tidy")
-		tidy.Dir = dest
-		tidy.Stdout = os.Stdout
-		tidy.Stderr = os.Stderr
-		if err := tidy.Run(); err != nil {
-			return fmt.Errorf("go mod tidy: %w", err)
-		}
-	}
-	fmt.Printf("Created %s (module %s, profile %s)\n", dest, module, scaffold)
-	fmt.Println("Next:")
-	fmt.Printf("  cd %s\n", filepath.Base(dest))
-	if replace == "" {
-		fmt.Println("  go mod tidy")
-	}
-	fmt.Println("  go run ./cmd/app key:generate")
-	fmt.Println("  go run ./cmd/app serve")
-	return nil
 }
 
 func newReplaceLine(replace, scaffold string) string {
@@ -148,68 +144,41 @@ func newReplaceLine(replace, scaffold string) string {
 	return line
 }
 
-func parseNewArgs(args []string) (dir, module, replace, scaffold string, err error) {
+func parseNewArgs(args []string) (dir, module, replace string, err error) {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return "", "", "", "", fmt.Errorf("%s", strings.TrimSpace(newHelp))
+		return "", "", "", fmt.Errorf("%s", strings.TrimSpace(newHelp))
 	}
 	dir = strings.TrimSpace(args[0])
 	if dir == "" || strings.Contains(dir, "..") {
-		return "", "", "", "", fmt.Errorf("invalid project name")
+		return "", "", "", fmt.Errorf("invalid project name")
 	}
 	module = sanitizeModule(dir)
-	scaffold = generator.ScaffoldEmpty
-	var profile string
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--module":
 			if i+1 >= len(args) {
-				return "", "", "", "", fmt.Errorf("--module requires a path")
+				return "", "", "", fmt.Errorf("--module requires a path")
 			}
 			i++
 			module = strings.TrimSpace(args[i])
 		case "--replace":
 			if i+1 >= len(args) {
-				return "", "", "", "", fmt.Errorf("--replace requires a path")
+				return "", "", "", fmt.Errorf("--replace requires a path")
 			}
 			i++
 			abs, aerr := filepath.Abs(args[i])
 			if aerr != nil {
-				return "", "", "", "", aerr
+				return "", "", "", aerr
 			}
 			replace = filepath.ToSlash(abs)
-		case "--web":
-			if err := setNewProfile(&profile, generator.ScaffoldWeb); err != nil {
-				return "", "", "", "", err
-			}
-			scaffold = generator.ScaffoldWeb
-		case "--api":
-			if err := setNewProfile(&profile, generator.ScaffoldAPI); err != nil {
-				return "", "", "", "", err
-			}
-			scaffold = generator.ScaffoldAPI
-		case "--full":
-			if err := setNewProfile(&profile, generator.ScaffoldFull); err != nil {
-				return "", "", "", "", err
-			}
-			scaffold = generator.ScaffoldFull
-		case "--minimal":
-			return "", "", "", "", fmt.Errorf("--minimal is no longer a supported scaffold profile; use --api, --web, --full, or no profile")
 		default:
-			return "", "", "", "", fmt.Errorf("unknown flag %s", args[i])
+			return "", "", "", fmt.Errorf("unknown flag %s", args[i])
 		}
 	}
 	if module == "" {
-		return "", "", "", "", fmt.Errorf("empty module path")
+		return "", "", "", fmt.Errorf("empty module path")
 	}
-	return dir, module, replace, scaffold, nil
-}
-
-func setNewProfile(current *string, next string) error {
-	if *current != "" && *current != next {
-		return fmt.Errorf("--web, --api and --full are mutually exclusive")
-	}
-	*current = next
-	return nil
+	return dir, module, replace, nil
 }
 
 func hasHelpFlag(args []string) bool {

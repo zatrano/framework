@@ -4,6 +4,12 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Breaking / DX
+
+`zatrano new` generates one application: HTML at `/` and JSON at `/api`. Presentation packages `assets`, `health`, `localization`, `view`, and `validation` are enabled; other packages stay opt-in.
+
+Canonical application directories live in `kernel/dirs` (`dirs.go`). There is no `layout.go`; HTML layouts stay in the `view` package.
+
 ## 2.2.1 - 2026-09-11
 
 Patch release. Kernel ABI, contracts, and ORM public API are unchanged.

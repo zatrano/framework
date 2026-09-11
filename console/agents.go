@@ -85,7 +85,8 @@ ZATRANO applications are kernel consumers. There is one way:
 
 Route → Middleware → FormRequest (writes) → Controller → optional Service → orm.* / pkg.From(app) → View | JSON | Redirect
 
-- Web: http.View (or kernel HTML on empty). API: http.JSON.
+- Web: http.View. API: http.JSON. Both are in every generated app (/ HTML, /api JSON).
+- Controllers: app/http/controllers/web (View/Redirect) and app/http/controllers/api (JSON). make:controller --api writes the api tree.
 - Mutating HTTP uses validation.FormRequest (StoreRequest / UpdateRequest) and ValidateForm.
 - Services are optional (multi-write, transaction, reuse). Not UseCase, Action, DTO, or Entity layers.
 - Persistence: orm.Query[T](). Repositories are optional concrete wrappers, not interfaces.

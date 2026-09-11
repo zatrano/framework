@@ -45,8 +45,11 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if !strings.Contains(text, "github.com/zatrano/framework/v2 v2.2.1") {
 		t.Fatalf("go.mod must require v2.2.1:\n%s", text)
 	}
-	if strings.Contains(text, "v2-dev") || strings.Contains(text, "github.com/zatrano/packages") {
-		t.Fatalf("empty go.mod must not pin packages or v2-dev:\n%s", text)
+	if strings.Contains(text, "v2-dev") {
+		t.Fatalf("go.mod must not use v2-dev:\n%s", text)
+	}
+	if !strings.Contains(text, "github.com/zatrano/packages") {
+		t.Fatalf("generated go.mod must pin packages:\n%s", text)
 	}
 
 	build := exec.CommandContext(ctx, "go", "build", "./...")

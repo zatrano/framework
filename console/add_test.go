@@ -7,25 +7,44 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zatrano/framework/v2/console/generator"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
-func generateApp(t *testing.T, name string, flags ...string) string {
+func generateApp(t *testing.T, name, kind string) string {
 	t.Helper()
 	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(t.TempDir(), name)
-	args := append([]string{dest, "--module", "example.com/" + name, "--replace", root}, flags...)
-	if err := (&NewCommand{}).Handle(args); err != nil {
+	module := "example.com/" + name
+	if kind == "" || kind == generator.ScaffoldApp {
+		if err := (&NewCommand{}).Handle([]string{dest, "--module", module, "--replace", root}); err != nil {
+			t.Fatal(err)
+		}
+		return dest
+	}
+	replace := filepath.ToSlash(root)
+	if err := applyStarter(dest, module, replace, kind, productVersion()); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := WriteAgentsMarkdown(dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedEnvFromExample(dest); err != nil {
+		t.Fatal(err)
+	}
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = dest
+	if out, err := tidy.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy: %v\n%s", err, out)
 	}
 	return dest
 }
 
 func TestAddAPIToWebApplication(t *testing.T) {
-	dest := generateApp(t, "webplus", "--web")
+	dest := generateApp(t, "webplus", generator.ScaffoldWeb)
 	homeBefore, _ := os.ReadFile(filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go"))
 	metaBefore, _ := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
 	app := kernel.NewApplication(dest)
@@ -52,7 +71,7 @@ func TestAddAPIToWebApplication(t *testing.T) {
 }
 
 func TestAddWebToAPIApplication(t *testing.T) {
-	dest := generateApp(t, "apiplus", "--api")
+	dest := generateApp(t, "apiplus", generator.ScaffoldAPI)
 	homeBefore, _ := os.ReadFile(filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go"))
 	app := kernel.NewApplication(dest)
 	if err := (&AddWebCommand{app: app}).Handle(nil); err != nil {
@@ -77,7 +96,7 @@ func TestAddWebToAPIApplication(t *testing.T) {
 }
 
 func TestAddWebIdempotent(t *testing.T) {
-	dest := generateApp(t, "webid", "--web")
+	dest := generateApp(t, "webid", generator.ScaffoldWeb)
 	app := kernel.NewApplication(dest)
 	if err := (&AddWebCommand{app: app}).Handle(nil); err != nil {
 		t.Fatal(err)
@@ -90,7 +109,7 @@ func TestAddWebIdempotent(t *testing.T) {
 }
 
 func TestAddAPIIdempotent(t *testing.T) {
-	dest := generateApp(t, "apiid", "--api")
+	dest := generateApp(t, "apiid", generator.ScaffoldAPI)
 	app := kernel.NewApplication(dest)
 	if err := (&AddAPICommand{app: app}).Handle(nil); err != nil {
 		t.Fatal(err)
@@ -104,8 +123,8 @@ func TestAddAPIIdempotent(t *testing.T) {
 }
 
 func TestFullEquivalentToWebPlusAPI(t *testing.T) {
-	full := generateApp(t, "fulleq", "--full")
-	web := generateApp(t, "webeq", "--web")
+	full := generateApp(t, "fulleq", generator.ScaffoldApp)
+	web := generateApp(t, "webeq", generator.ScaffoldWeb)
 	if err := (&AddAPICommand{app: kernel.NewApplication(web)}).Handle(nil); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +147,7 @@ func TestFullCapabilityEquivalentToWebPlusAPI(t *testing.T) {
 }
 
 func TestAddAPIDoesNotChangeWebRootBehavior(t *testing.T) {
-	dest := generateApp(t, "webroot", "--web")
+	dest := generateApp(t, "webroot", generator.ScaffoldWeb)
 	home := string(mustRead(t, filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go")))
 	if !strings.Contains(home, "http.View") {
 		t.Fatal("web root must be HTML")
@@ -151,7 +170,7 @@ func TestAddAPIDoesNotChangeWebRootBehavior(t *testing.T) {
 }
 
 func TestAddWebDoesNotChangeAPIRootBehavior(t *testing.T) {
-	dest := generateApp(t, "apiroot", "--api")
+	dest := generateApp(t, "apiroot", generator.ScaffoldAPI)
 	home := string(mustRead(t, filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go")))
 	if !strings.Contains(home, "http.JSON") {
 		t.Fatal("api root must be JSON")
@@ -176,19 +195,19 @@ func TestAddWebDoesNotChangeAPIRootBehavior(t *testing.T) {
 }
 
 func TestFullCanonicalPresentation(t *testing.T) {
-	dest := generateApp(t, "fullcanon", "--full")
+	dest := generateApp(t, "fullcanon", generator.ScaffoldApp)
 	home := string(mustRead(t, filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go")))
 	if !strings.Contains(home, "http.View") {
-		t.Fatal("--full canonical root must be HTML")
+		t.Fatal("generated root must be HTML")
 	}
 	enabled := string(mustRead(t, filepath.Join(dest, "bootstrap", "enabled.go")))
 	for _, ban := range []string{`"database"`, `"auth"`, `"queue"`, `"notification"`, `"ai"`} {
 		if strings.Contains(enabled, ban) {
-			t.Fatalf("--full must not enable %s:\n%s", ban, enabled)
+			t.Fatalf("generated app must not enable %s:\n%s", ban, enabled)
 		}
 	}
 	meta := string(mustRead(t, filepath.Join(dest, "bootstrap", "scaffold.go")))
-	if !strings.Contains(meta, `ScaffoldName      = "full"`) {
+	if !strings.Contains(meta, `ScaffoldName      = "app"`) {
 		t.Fatalf("metadata:\n%s", meta)
 	}
 	if _, err := os.Stat(filepath.Join(dest, "tests", "api_root_test.go")); err != nil {
@@ -198,7 +217,7 @@ func TestFullCanonicalPresentation(t *testing.T) {
 }
 
 func TestAddPreservesUserModifiedSource(t *testing.T) {
-	dest := generateApp(t, "usermod", "--api")
+	dest := generateApp(t, "usermod", generator.ScaffoldAPI)
 	homePath := filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go")
 	orig := mustRead(t, homePath)
 	modified := append(append([]byte{}, orig...), []byte("\n// user edit\n")...)
@@ -226,7 +245,7 @@ func TestAddPreservesUserModifiedSource(t *testing.T) {
 }
 
 func TestEmptyAddWebUpgradesExactStub(t *testing.T) {
-	dest := generateApp(t, "emptystub")
+	dest := generateApp(t, "emptystub", generator.ScaffoldEmpty)
 	home := string(mustRead(t, filepath.Join(dest, "app", "http", "controllers", "web", "home_controller.go")))
 	if strings.Contains(home, "http.View") {
 		t.Fatal("empty home is kernel HTML, not view")
