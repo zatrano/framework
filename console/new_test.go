@@ -35,10 +35,35 @@ func TestNewHelpHasNoProfileFlags(t *testing.T) {
 	if _, _, _, err := parseNewArgs([]string{"demo", "--unknown"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
 		t.Fatalf("expected unknown flag, got %v", err)
 	}
-	for _, name := range []string{"--web", "--full", "--empty", "--minimal"} {
+	for _, name := range []string{"--web", "--full", "--empty", "--minimal", "add:web", "add:api"} {
 		if strings.Contains(newHelp, name) {
 			t.Fatalf("new help must not mention %s:\n%s", name, newHelp)
 		}
+	}
+}
+
+func TestAddCommandsRemoved(t *testing.T) {
+	if _, err := os.Stat("add.go"); err == nil {
+		t.Fatal("add.go must not exist")
+	}
+	src, err := os.ReadFile("console.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	if strings.Contains(text, "registerAddCommands") || strings.Contains(text, "add:web") || strings.Contains(text, "add:api") {
+		t.Fatal("console must not register add:web / add:api")
+	}
+}
+
+func TestG001UpgradeDoesNotRegenerateApplicationSource(t *testing.T) {
+	upgrade, err := os.ReadFile(filepath.Join("..", "tests", "compatibility", "upgrade_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(upgrade)
+	if strings.Contains(text, "add:web") || strings.Contains(text, "add:api") {
+		t.Fatal("G-001 upgrade must not invoke add:web/add:api")
 	}
 }
 
@@ -303,7 +328,7 @@ func TestRenameTemplatePath(t *testing.T) {
 	}
 }
 
-func TestEmbeddedScaffoldDigestsAreDeterministicAndDistinct(t *testing.T) {
+func TestEmbeddedScaffoldDigestIsDeterministic(t *testing.T) {
 	web1, err := generator.Digest(starterTemplates, "templates/web")
 	if err != nil {
 		t.Fatal(err)
@@ -312,29 +337,10 @@ func TestEmbeddedScaffoldDigestsAreDeterministicAndDistinct(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	empty1, err := generator.Digest(starterTemplates, "templates/empty")
-	if err != nil {
-		t.Fatal(err)
+	if web1 != web2 {
+		t.Fatalf("digest not stable %s/%s", web1, web2)
 	}
-	empty2, err := generator.Digest(starterTemplates, "templates/empty")
-	if err != nil {
-		t.Fatal(err)
-	}
-	api1, err := generator.Digest(starterTemplates, "templates/api")
-	if err != nil {
-		t.Fatal(err)
-	}
-	api2, err := generator.Digest(starterTemplates, "templates/api")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if web1 != web2 || empty1 != empty2 || api1 != api2 {
-		t.Fatalf("digest not stable web=%s/%s empty=%s/%s api=%s/%s", web1, web2, empty1, empty2, api1, api2)
-	}
-	if web1 == empty1 || web1 == api1 || empty1 == api1 {
-		t.Fatal("web, api, and empty scaffolds must have distinct digests")
-	}
-	if !strings.HasPrefix(web1, "sha256:") || !strings.HasPrefix(empty1, "sha256:") || !strings.HasPrefix(api1, "sha256:") {
-		t.Fatalf("digest scheme web=%s empty=%s api=%s", web1, empty1, api1)
+	if !strings.HasPrefix(web1, "sha256:") {
+		t.Fatalf("digest scheme %s", web1)
 	}
 }

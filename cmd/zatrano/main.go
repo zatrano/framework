@@ -36,7 +36,7 @@ func cliUsesCoreBoot(args []string) bool {
 		return true
 	}
 	switch name {
-	case "db:setup", "new", "add:web", "add:api", "describe", "doctor", "agents:generate",
+	case "db:setup", "new", "describe", "doctor", "agents:generate",
 		"--help", "-h", "help", "--version", "-v", "version":
 		return true
 	default:

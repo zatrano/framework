@@ -55,7 +55,7 @@ func (c *NewCommand) Handle(args []string) error {
 			ver = v
 		}
 	}
-	if err := applyStarter(dest, module, replace, generator.ScaffoldApp, ver); err != nil {
+	if err := applyStarter(dest, module, replace, ver); err != nil {
 		return err
 	}
 	if _, err := WriteAgentsMarkdown(dest); err != nil {
@@ -84,64 +84,33 @@ func (c *NewCommand) Handle(args []string) error {
 	return nil
 }
 
-func applyStarter(dest, module, replace, scaffold, ver string) error {
+func applyStarter(dest, module, replace, ver string) error {
 	fwVer := frameworkGoModVersion(ver)
 	scaffoldVer := strings.TrimPrefix(fwVer, "v")
-	replaceLine := newReplaceLine(replace, scaffold)
+	replaceLine := newReplaceLine(replace)
 	subs := map[string]string{
 		"__MODULE__":            module,
 		"__APP_NAME__":          filepath.Base(dest),
 		"__FRAMEWORK_VERSION__": fwVer,
 		"__REPLACE_LINE__":      replaceLine,
-		"__SCAFFOLD_NAME__":     scaffold,
+		"__SCAFFOLD_NAME__":     generator.ScaffoldApp,
 		"__SCAFFOLD_VERSION__":  scaffoldVer,
 	}
-	switch scaffold {
-	case generator.ScaffoldApp, generator.ScaffoldFull:
-		if err := generator.Apply(generator.Request{
-			FS:               starterTemplates,
-			Root:             "templates/web",
-			Dest:             dest,
-			ScaffoldName:     scaffold,
-			ScaffoldVersion:  scaffoldVer,
-			SkipScaffoldMeta: true,
-			Substitutions:    subs,
-		}); err != nil {
-			return err
-		}
-		if _, _, err := overlayPresentation(dest, generator.ScaffoldAPI, subs, false); err != nil {
-			return err
-		}
-		webDig, err := generator.Digest(starterTemplates, "templates/web")
-		if err != nil {
-			return err
-		}
-		apiDig, err := generator.Digest(starterTemplates, "templates/api")
-		if err != nil {
-			return err
-		}
-		return generator.WriteScaffoldMeta(dest, scaffold, scaffoldVer, generator.CombinedDigest(webDig, apiDig))
-	default:
-		return generator.Apply(generator.Request{
-			FS:              starterTemplates,
-			Root:            "templates/" + scaffold,
-			Dest:            dest,
-			ScaffoldName:    scaffold,
-			ScaffoldVersion: scaffoldVer,
-			Substitutions:   subs,
-		})
-	}
+	return generator.Apply(generator.Request{
+		FS:              starterTemplates,
+		Root:            "templates/web",
+		Dest:            dest,
+		ScaffoldName:    generator.ScaffoldApp,
+		ScaffoldVersion: scaffoldVer,
+		Substitutions:   subs,
+	})
 }
 
-func newReplaceLine(replace, scaffold string) string {
+func newReplaceLine(replace string) string {
 	if replace == "" {
 		return ""
 	}
-	line := "\nreplace github.com/zatrano/framework/v2 => " + replace + "\n"
-	if scaffold != generator.ScaffoldEmpty {
-		line += packagesReplaceLines(replace)
-	}
-	return line
+	return "\nreplace github.com/zatrano/framework/v2 => " + replace + "\n" + packagesReplaceLines(replace)
 }
 
 func parseNewArgs(args []string) (dir, module, replace string, err error) {

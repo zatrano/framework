@@ -25,6 +25,10 @@ func TestScaffoldBoundaries(t *testing.T) {
 		t.Fatal("make:rule must not live in the framework console")
 	}
 
+	if _, err := os.Stat(filepath.Join(root, "console", "add.go")); err == nil {
+		t.Fatal("add:web / add:api must not exist")
+	}
+
 	entries, err := os.ReadDir(filepath.Join(root, "console", "templates"))
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +39,7 @@ func TestScaffoldBoundaries(t *testing.T) {
 			continue
 		}
 		switch e.Name() {
-		case "empty", "web", "api", "overlays":
+		case "web":
 		default:
 			t.Errorf("unexpected scaffold directory console/templates/%s", e.Name())
 		}
@@ -54,39 +58,23 @@ func TestScaffoldBoundaries(t *testing.T) {
 	}
 }
 
-func TestEmptyScaffoldHasNoPackageImports(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "console", "templates", "empty")
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		name := d.Name()
-		switch {
-		case strings.HasSuffix(name, ".go"), strings.HasSuffix(name, ".tmpl"), name == "go.mod.tmpl", name == "go.mod":
-		default:
-			return nil
-		}
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, line := range strings.Split(string(body), "\n") {
-			trim := strings.TrimSpace(line)
-			if strings.HasPrefix(trim, "//") {
-				continue
-			}
-			if strings.Contains(trim, `"github.com/zatrano/packages`) {
-				rel, _ := filepath.Rel(root, path)
-				t.Errorf("%s imports packages: %s", filepath.ToSlash(rel), trim)
-			}
-		}
-		return nil
-	})
+func TestStarterEnablementImportsPresentationPackages(t *testing.T) {
+	root := filepath.Join(moduleRoot(t), "console", "templates", "web")
+	addons, err := os.ReadFile(filepath.Join(root, "bootstrap", "addons.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	text := string(addons)
+	for _, pkg := range []string{
+		`"github.com/zatrano/packages/assets"`,
+		`"github.com/zatrano/packages/health"`,
+		`"github.com/zatrano/packages/localization"`,
+		`"github.com/zatrano/packages/validation"`,
+		`"github.com/zatrano/packages/view"`,
+	} {
+		if !strings.Contains(text, pkg) {
+			t.Errorf("starter addons.go.tmpl must blank-import %s", pkg)
+		}
 	}
 }
 
@@ -94,8 +82,6 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 	root := moduleRoot(t)
 	for _, rel := range []string{
 		filepath.Join("console", "templates", "web", "Dockerfile"),
-		filepath.Join("console", "templates", "api", "Dockerfile"),
-		filepath.Join("console", "templates", "empty", "Dockerfile"),
 	} {
 		body, err := os.ReadFile(filepath.Join(root, rel))
 		if err != nil {
@@ -106,38 +92,33 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 			t.Errorf("%s uses legacy top-level COPY", filepath.ToSlash(rel))
 		}
 	}
-	for _, scaffold := range []string{"web", "api"} {
-		body, err := os.ReadFile(filepath.Join(root, "console", "templates", scaffold, "Dockerfile"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		text := string(body)
-		if !strings.Contains(text, "COPY app/views") || !strings.Contains(text, "COPY app/database") {
-			t.Fatalf("%s Dockerfile must copy app/views and app/database", scaffold)
-		}
+	body, err := os.ReadFile(filepath.Join(root, "console", "templates", "web", "Dockerfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "COPY app/views") || !strings.Contains(text, "COPY app/database") {
+		t.Fatal("web Dockerfile must copy app/views and app/database")
 	}
 }
 
 func TestWebScaffoldDoesNotShipPackageMigrations(t *testing.T) {
-	root := moduleRoot(t)
-	for _, scaffold := range []string{"web", "api"} {
-		dir := filepath.Join(root, "console", "templates", scaffold, "app", "database", "migrations")
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				return nil
-			}
-			name := strings.ToLower(d.Name())
-			if strings.Contains(name, "job") || strings.Contains(name, "notification") {
-				t.Errorf("%s scaffold must not ship package migration %s", scaffold, d.Name())
-			}
-			return nil
-		})
+	dir := filepath.Join(moduleRoot(t), "console", "templates", "web", "app", "database", "migrations")
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
+		if d.IsDir() {
+			return nil
+		}
+		name := strings.ToLower(d.Name())
+		if strings.Contains(name, "job") || strings.Contains(name, "notification") {
+			t.Errorf("starter must not ship package migration %s", d.Name())
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -164,98 +145,38 @@ func TestGeneratorEngineHasNoApplicationPolicy(t *testing.T) {
 	}
 }
 
-func TestEmptyAndWebShareLayoutDifferInPresentation(t *testing.T) {
+func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 	root := moduleRoot(t)
-	emptyRoot := filepath.Join(root, "console", "templates", "empty")
 	webRoot := filepath.Join(root, "console", "templates", "web")
-	emptyPaths := relFiles(t, emptyRoot)
-	webPaths := relFiles(t, webRoot)
-	if strings.Join(emptyPaths, "\n") != strings.Join(webPaths, "\n") {
-		t.Fatalf("path inventory drifted\nempty=%d web=%d", len(emptyPaths), len(webPaths))
+	if len(relFiles(t, webRoot)) == 0 {
+		t.Fatal("web starter inventory")
 	}
-	if len(emptyPaths) == 0 {
-		t.Fatal("empty scaffold inventory")
+	enabled, err := os.ReadFile(filepath.Join(webRoot, "bootstrap", "enabled.go.tmpl"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	policy := []string{
-		"Dockerfile",
-		"app/database/migrations/migrations.go.tmpl",
-		"app/database/seeders/database_seeder.go.tmpl",
-		"app/http/controllers/api/home_controller.go.tmpl",
-		"app/http/controllers/web/home_controller.go.tmpl",
-		"app/providers/app_service_provider.go.tmpl",
-		"app/providers/providers.go.tmpl",
-		"app/routes/web/health.go.tmpl",
-		"app/routes/web/web.go.tmpl",
-		"bootstrap/enabled.go.tmpl",
-		"tests/feature_test.go.tmpl",
-	}
-	for _, rel := range policy {
-		eb, err := os.ReadFile(filepath.Join(emptyRoot, filepath.FromSlash(rel)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		wb, err := os.ReadFile(filepath.Join(webRoot, filepath.FromSlash(rel)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(eb) == string(wb) {
-			t.Errorf("policy file %s must differ between empty and web", rel)
+	text := string(enabled)
+	for _, want := range []string{`"assets"`, `"health"`, `"localization"`, `"validation"`, `"view"`} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("starter enablement missing %s:\n%s", want, text)
 		}
 	}
-	home, err := os.ReadFile(filepath.Join(emptyRoot, "app", "http", "controllers", "web", "home_controller.go.tmpl"))
+	webHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "web", "home_controller.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(home), "http.View") || strings.Contains(string(home), "github.com/zatrano/packages") {
-		t.Fatalf("empty home controller must stay kernel HTML:\n%s", home)
+	if !strings.Contains(string(webHome), "http.View") {
+		t.Fatal("starter web home must be HTML View")
 	}
-	enabled, err := os.ReadFile(filepath.Join(emptyRoot, "bootstrap", "enabled.go.tmpl"))
+	apiHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "api", "home_controller.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(enabled), `"view"`) || strings.Contains(string(enabled), `"health"`) {
-		t.Fatalf("empty enablement must be empty:\n%s", enabled)
+	if !strings.Contains(string(apiHome), "http.JSON") {
+		t.Fatal("starter API home must be JSON")
 	}
-}
-
-func TestAPIAndWebShareLayoutDifferInPresentation(t *testing.T) {
-	root := moduleRoot(t)
-	apiRoot := filepath.Join(root, "console", "templates", "api")
-	webRoot := filepath.Join(root, "console", "templates", "web")
-	if strings.Join(relFiles(t, apiRoot), "\n") != strings.Join(relFiles(t, webRoot), "\n") {
-		t.Fatal("api and web must share the same layout inventory so either can enable any package")
-	}
-	apiEnabled, err := os.ReadFile(filepath.Join(apiRoot, "bootstrap", "enabled.go.tmpl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(apiEnabled)
-	if !strings.Contains(text, `"health"`) || !strings.Contains(text, `"validation"`) {
-		t.Fatalf("api defaults: %s", text)
-	}
-	if strings.Contains(text, `"view"`) {
-		t.Fatal("api must not default-enable view")
-	}
-	webEnabled, err := os.ReadFile(filepath.Join(webRoot, "bootstrap", "enabled.go.tmpl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(webEnabled), `"view"`) {
-		t.Fatal("web must default-enable view")
-	}
-	apiHome, err := os.ReadFile(filepath.Join(apiRoot, "app", "http", "controllers", "web", "home_controller.go.tmpl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(apiHome), "http.View") {
-		t.Fatal("api root must be JSON")
-	}
-	mig, err := os.ReadFile(filepath.Join(apiRoot, "app", "database", "migrations", "migrations.go.tmpl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(mig), "github.com/zatrano/packages/database/migration") {
-		t.Fatal("api must use typed migrations so package:enable database is first-class")
+	if _, err := os.Stat(filepath.Join(webRoot, "tests", "api_root_test.go.tmpl")); err != nil {
+		t.Fatal("starter must include API root test")
 	}
 }
 

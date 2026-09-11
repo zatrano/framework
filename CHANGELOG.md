@@ -4,6 +4,16 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.3.1 - 2026-09-11
+
+Patch release after `v2.3.0`. Kernel ABI, contracts, and ORM public API are unchanged.
+
+### Breaking / DX
+
+- Removed `zatrano add:web` and `zatrano add:api`. `zatrano new` already writes HTML `/` and JSON `/api` from a single `templates/web` tree (including `validation`). A framework upgrade still does not regenerate application source (G-001).
+
+Install with `go get github.com/zatrano/framework/v2@v2.3.1` and `go get github.com/zatrano/packages@v1.7.2`.
+
 ## 2.3.0 - 2026-09-11
 
 Minor release after `v2.2.1`. Kernel ABI, contracts, and ORM public API are unchanged.

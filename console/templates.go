@@ -2,15 +2,11 @@ package console
 
 import "embed"
 
-// Starter scaffolds embedded in the CLI so `go install` can run `zatrano new` offline.
+// Starter templates embedded in the CLI so `go install` can run `zatrano new` offline.
 //
-//	templates/web   — zatrano new (HTML / plus JSON /api after API overlay)
-//	templates/empty — overlay stub baseline for add:*
-//	templates/api   — add:api overlay source
-//	templates/overlays — additive files for add:api
+//	templates/web — HTML at / and JSON at /api
 //
-// The generator engine lives in console/generator. These trees are content only.
-// `zatrano new` is web + API overlay.
+// The generator engine lives in console/generator. This tree is content only.
 //
 //go:embed all:templates
 var starterTemplates embed.FS

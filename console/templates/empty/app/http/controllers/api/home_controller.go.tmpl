@@ -1,9 +1,0 @@
-package api
-
-import "github.com/zatrano/framework/v2/kernel/http"
-
-type HomeController struct{}
-
-func (c *HomeController) Index(req *http.Request) *http.Response {
-	return http.JSON(map[string]any{"name": "__APP_NAME__"})
-}

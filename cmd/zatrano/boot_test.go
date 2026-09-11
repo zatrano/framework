@@ -20,8 +20,6 @@ func TestCliUsesCoreBoot(t *testing.T) {
 		{[]string{"make:auth"}, true},
 		{[]string{"make:controller", "X", "--api"}, true},
 		{[]string{"new", "myapp"}, true},
-		{[]string{"add:web"}, true},
-		{[]string{"add:api"}, true},
 		{[]string{"describe", "--format=json"}, true},
 		{[]string{"doctor"}, true},
 		{[]string{"agents:generate"}, true},

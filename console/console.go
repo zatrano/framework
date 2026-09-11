@@ -54,7 +54,6 @@ func New(app *kernel.Application) *Application {
 	registerMakeCommand(console, app)
 	registerPackageCommands(console, app)
 	registerNewCommand(console, app)
-	registerAddCommands(console, app)
 	registerDescribeCommand(console, app)
 	registerDoctorCommand(console, app)
 	registerAgentsCommand(console, app)
