@@ -1,9 +1,7 @@
 package str
 
 import (
-	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"net"
 	"net/url"
@@ -252,13 +250,6 @@ func Mask(value string, start, end int, mask ...string) string {
 	}
 	hidden := n - start - end
 	return string(runes[:start]) + strings.Repeat(repl, hidden) + string(runes[n-end:])
-}
-
-// Random returns a random hex string of n bytes.
-func Random(n int) string {
-	buf := make([]byte, n)
-	_, _ = rand.Read(buf)
-	return hex.EncodeToString(buf)
 }
 
 // After returns the remainder after the first search occurrence.

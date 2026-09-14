@@ -123,7 +123,8 @@ func traceIDFromTraceparent(header string) string {
 
 func newRequestID() string {
 	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	_, err := rand.Read(b[:])
+	if err != nil {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b[:])

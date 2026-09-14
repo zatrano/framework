@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Breaking
+
+- Removed `str.Random`. Randomness is only `support.RandomBytes`, `support.RandomHex`, `support.RandomBase64` (all return errors) and `support.MustRandomHex` (panics on entropy failure). `str` is deterministic string operations only.
+
 ## 2.3.1 - 2026-09-11
 
 Patch release after `v2.3.0`. Kernel ABI, contracts, and ORM public API are unchanged.

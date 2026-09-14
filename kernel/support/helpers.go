@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -20,7 +21,7 @@ func BasePath(parts ...string) string {
 // RandomBytes returns n random bytes.
 func RandomBytes(n int) ([]byte, error) {
 	buf := make([]byte, n)
-	_, err := rand.Read(buf)
+	_, err := io.ReadFull(rand.Reader, buf)
 	return buf, err
 }
 
@@ -40,6 +41,15 @@ func RandomBase64(n int) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+// MustRandomHex returns a random hex string of n bytes, or panics.
+func MustRandomHex(n int) string {
+	s, err := RandomHex(n)
+	if err != nil {
+		panic("support: " + err.Error())
+	}
+	return s
 }
 
 // ValueOr returns value when not empty, otherwise fallback.
