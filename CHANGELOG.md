@@ -10,6 +10,10 @@ All notable changes to ZATRANO are documented in this file.
 - Moved `kernel/support/{date,arr,str,num,html,money,color}` to `github.com/zatrano/packages/toolkit/{date,arr,str,num,html,money,color}` (opt-in `LayerAddon` libraries). No re-export. Import `github.com/zatrano/packages/toolkit/str` (and siblings). Resource route parameter inflection uses `kernel/internal.Singular` only. Remaining `kernel/support` surface: entropy/`When` helpers, `uuid` (used by first-party packages), `files`, `fn`, `once`.
 - Split `console` into `console/doctor`, `console/pkgmanager`, `console/scaffold`, `console/describe`, and `console/consolecore`. Root `console` keeps the CLI kernel (`console.go`, `cli_exit.go`, `version.go`, `service.go`, `agents.go`, `utility.go`, `env.go`, `envfile.go`, `env_seed.go`, `cache_commands.go`, `deploy.go`, `storage.go`, `exception.go`, `addon_cli.go`, `apppaths.go`). Import paths for those command groups change; `cmd/zatrano` still uses `console.New`.
 
+### Changed
+
+- Split `kernel/http` large files without behavior change: `response.go` (core status/header) / `response_render.go` / `response_stream.go` / `response_redirect.go`; `input.go` / `input_form.go` / `input_json.go`; `request.go` / `request_headers.go` / `request_files.go`.
+
 ## 2.3.1 - 2026-09-11
 
 Patch release after `v2.3.0`. Kernel ABI, contracts, and ORM public API are unchanged.
