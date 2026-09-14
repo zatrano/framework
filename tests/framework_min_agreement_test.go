@@ -88,7 +88,7 @@ func TestAcquireDoesNotRevalidateFrameworkMin(t *testing.T) {
 }
 
 func TestDoctorReportsFrameworkMinViaAddons(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "package_doctor.go"))
+	body, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_doctor_report.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

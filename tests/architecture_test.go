@@ -130,7 +130,7 @@ func TestRegistryDoesNotImportConsole(t *testing.T) {
 }
 
 func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
-	path := filepath.Join(moduleRoot(t), "console", "package_registry.go")
+	path := filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_registry.go")
 	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -177,8 +177,8 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 }
 
 func TestEnablementCommandsDoNotImportRegistry(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "console")
-	files := []string{"package_cmd.go", "package_doctor.go", "package_wire.go", "package_env.go"}
+	root := filepath.Join(moduleRoot(t), "console", "pkgmanager")
+	files := []string{"package_cmd.go", "package_doctor.go", "package_wire.go", "package_env.go", "package_enable.go"}
 	fset := token.NewFileSet()
 	for _, name := range files {
 		path := filepath.Join(root, name)
@@ -200,7 +200,7 @@ func TestSearchHitHasNoSelectionFields(t *testing.T) {
 		"Name": true, "Import": true, "Module": true, "Kind": true,
 		"Layer": true, "Heavy": true, "Description": true,
 	}
-	got := structFields(t, filepath.Join(moduleRoot(t), "console", "package_registry.go"), "searchHit")
+	got := structFields(t, filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_registry.go"), "searchHit")
 	for name := range got {
 		if !allow[name] {
 			t.Errorf("searchHit grew %s — search must not carry selection/release fields", name)
@@ -779,12 +779,16 @@ func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
 
 func TestCLIAcquireGate(t *testing.T) {
 	root := moduleRoot(t)
-	path := filepath.Join(root, "console", "package_acquire.go")
+	path := filepath.Join(root, "console", "pkgmanager", "package_acquire.go")
 	src, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatal("missing console/package_acquire.go — Contract B CLI acquisition")
+		t.Fatal("missing console/pkgmanager/package_acquire.go — Contract B CLI acquisition")
 	}
-	text := string(src)
+	viewSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_acquire_view.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src) + "\n" + string(viewSrc)
 	for _, want := range []string{
 		`"github.com/zatrano/framework/v2/distribution/acquire"`,
 		`"github.com/zatrano/framework/v2/distribution/registry"`,
@@ -820,7 +824,7 @@ func TestCLIAcquireGate(t *testing.T) {
 	if !strings.Contains(text, `"enabled": false`) && !strings.Contains(text, "Enabled: false") && !strings.Contains(text, "enabled: false") && !strings.Contains(text, `json:"enabled"`) {
 		t.Error("package_acquire.go must still report enabled as a distinct field")
 	}
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -863,14 +867,18 @@ func TestExplicitEnablementAfterAcquire(t *testing.T) {
 			t.Errorf("console/%s — Contract C stays in package_acquire.go", name)
 		}
 	}
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(cmdSrc), "/acquire") {
 		t.Error("package_cmd.go must not import acquire — package:install stays enablement")
 	}
-	if !strings.Contains(string(cmdSrc), `return "package:install"`) || !strings.Contains(string(cmdSrc), "enablePackage(") {
+	enableSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_enable.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(cmdSrc), `return "package:install"`) || !strings.Contains(string(enableSrc), "func enablePackage(") {
 		t.Error("package:install must remain enablement")
 	}
 	dry, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "dry_run.go"))
@@ -978,7 +986,7 @@ func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 }
 
 func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "package_acquire.go"))
+	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_acquire_view.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,394 @@
+package doctor
+
+import (
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/zatrano/framework/v2/console/describe"
+	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v2/kernel/dirs"
+)
+
+var doctorRouteCalls = map[string]bool{
+	"Get": true, "Post": true, "Put": true, "Patch": true, "Delete": true,
+	"Head": true, "Options": true, "Any": true, "Match": true,
+	"RegisterWeb": true, "RegisterAPI": true, "Controller": true,
+	"ApplyWeb": true, "ApplyAPI": true,
+}
+
+func checkRouteLocation(root string) ([]Finding, error) {
+	var out []Finding
+	err := walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		imports := importPathByName(file)
+		ast.Inspect(file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := callSelName(call.Fun)
+			if !isHTTPRouteCall(name, call) {
+				return true
+			}
+			if routeCallAllowed(rel, name) {
+				return true
+			}
+			path := firstStringArg(call)
+			found := name + "()"
+			if path != "" {
+				found = fmt.Sprintf("%s(%q)", name, path)
+			}
+			how := "Move this call into app/routes/web or app/routes/api and register it with RegisterWeb/RegisterAPI."
+			if name == "ApplyWeb" || name == "ApplyAPI" {
+				how = "Keep ApplyWeb/ApplyAPI in an app/providers RouteServiceProvider Boot method."
+			}
+			out = append(out, Finding{
+				Rule:     "APP-ROUTE-001",
+				Check:    "routes",
+				Severity: "error",
+				File:     rel,
+				Line:     fset.Position(call.Pos()).Line,
+				Found:    found + " outside app/routes/{web,api}",
+				Why:      "HTTP routes belong in self-registered web/api groups, not scattered through the app.",
+				How:      how,
+				See:      "https://zatrano.com/docs/application-engineering/standard §N",
+			})
+			return true
+		})
+		out = append(out, routerVerbOnAppRouter(rel, fset, file, imports)...)
+	})
+	return out, err
+}
+
+func isHTTPRouteCall(name string, call *ast.CallExpr) bool {
+	if !doctorRouteCalls[name] {
+		return false
+	}
+	switch name {
+	case "RegisterWeb", "RegisterAPI", "ApplyWeb", "ApplyAPI", "Controller":
+		return true
+	}
+	if path := firstStringArg(call); strings.HasPrefix(path, "/") {
+		return true
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(id.Name) {
+	case "r", "router", "route", "rt", "mux":
+		return true
+	default:
+		return false
+	}
+}
+
+func routeCallAllowed(rel, call string) bool {
+	rel = filepath.ToSlash(rel)
+	switch call {
+	case "ApplyWeb", "ApplyAPI":
+		return strings.HasPrefix(rel, "app/providers/")
+	default:
+		return strings.HasPrefix(rel, "app/routes/web/") || strings.HasPrefix(rel, "app/routes/api/")
+	}
+}
+
+func checkConcreteLeak(root string) ([]Finding, error) {
+	fw, err := frameworkModuleRoot()
+	if err != nil {
+		return nil, err
+	}
+	concretes, err := collectContractConcretes(fw)
+	if err != nil {
+		return nil, err
+	}
+	var out []Finding
+	err = walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		for _, spec := range file.Imports {
+			path, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				continue
+			}
+			iface, ok := concretes[path]
+			if !ok {
+				continue
+			}
+			if concreteImportAllowed(rel, path) {
+				continue
+			}
+			line := fset.Position(spec.Pos()).Line
+			out = append(out, Finding{
+				Rule:     "APP-CON-001",
+				Check:    "concrete",
+				Severity: "warning",
+				File:     rel,
+				Line:     line,
+				Found:    fmt.Sprintf("import %s (contracts.%s concrete)", path, iface),
+				Why:      "Depending on framework concrete types couples the app to implementation details and weakens contract stability.",
+				How:      fmt.Sprintf("Use contracts.%s via kernel.Application accessors instead of importing %s.", iface, path),
+			})
+		}
+	})
+	return out, err
+}
+
+func concreteImportAllowed(rel, importPath string) bool {
+	rel = filepath.ToSlash(rel)
+	if strings.HasSuffix(importPath, "/kernel") && strings.HasPrefix(rel, "app/console/") {
+		return true
+	}
+	if strings.HasSuffix(importPath, "/packages/database/migration") && strings.HasPrefix(rel, "app/database/") {
+		return true
+	}
+	if !strings.HasSuffix(importPath, "/routing") {
+		return false
+	}
+	if strings.HasPrefix(rel, "app/routes/web/") || strings.HasPrefix(rel, "app/routes/api/") {
+		return true
+	}
+	if strings.HasPrefix(rel, "app/providers/") {
+		return true
+	}
+	return false
+}
+
+func collectContractConcretes(fw string) (map[string]string, error) {
+	files := []string{
+		filepath.Join("kernel", "services.go"),
+		filepath.Join("kernel", "config", "assert.go"),
+		filepath.Join("kernel", "container", "assert.go"),
+		filepath.Join("kernel", "context", "assert.go"),
+		filepath.Join("kernel", "log", "assert.go"),
+		filepath.Join("kernel", "encryption", "assert.go"),
+	}
+	out := map[string]string{}
+	for _, rel := range files {
+		part, err := parseContractConcretes(fw, filepath.Join(fw, rel))
+		if err != nil {
+			return nil, err
+		}
+		for ip, iface := range part {
+			out[ip] = iface
+		}
+	}
+	if out["github.com/zatrano/framework/v2/kernel/routing"] == "" {
+		out["github.com/zatrano/framework/v2/kernel/routing"] = "Router"
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("console: no contract concrete bindings")
+	}
+	return out, nil
+}
+
+func parseContractConcretes(fw, path string) (map[string]string, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	pkgPath := map[string]string{}
+	for _, spec := range file.Imports {
+		ip, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		name := filepath.Base(ip)
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		pkgPath[name] = ip
+	}
+	out := map[string]string{}
+	for _, decl := range file.Decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok || len(vs.Names) == 0 || len(vs.Values) == 0 {
+				continue
+			}
+			ifaceName := ""
+			switch t := vs.Type.(type) {
+			case *ast.Ident:
+				ifaceName = t.Name
+			case *ast.SelectorExpr:
+				ifaceName = t.Sel.Name
+			}
+			star, ok := vs.Values[0].(*ast.CallExpr)
+			if !ok {
+				continue
+			}
+			paren, ok := star.Fun.(*ast.ParenExpr)
+			if !ok {
+				continue
+			}
+			starExpr, ok := paren.X.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			ip := ""
+			switch typed := starExpr.X.(type) {
+			case *ast.SelectorExpr:
+				pkgIdent, ok := typed.X.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				ip = pkgPath[pkgIdent.Name]
+			case *ast.Ident:
+				rel, err := filepath.Rel(fw, filepath.Dir(path))
+				if err != nil {
+					continue
+				}
+				ip = "github.com/zatrano/framework/v2/" + filepath.ToSlash(rel)
+			}
+			if ip == "" || ifaceName == "" {
+				continue
+			}
+			out[ip] = ifaceName
+		}
+	}
+	return out, nil
+}
+
+func checkAppLayout(root string) ([]Finding, error) {
+	required, err := requiredStarterAppDirs()
+	if err != nil {
+		return nil, err
+	}
+	var out []Finding
+	for _, dir := range required {
+		if st, err := os.Stat(filepath.Join(root, filepath.FromSlash(dir))); err != nil || !st.IsDir() {
+			out = append(out, Finding{
+				Rule:     "APP-LAY-004",
+				Check:    "layout",
+				Severity: "warning",
+				File:     dir,
+				Found:    "missing directory " + dir,
+				Why:      "canonical application layout requires this directory (kernel/dirs.CanonicalConsumerDirs).",
+				How:      "Create " + dir + " (or regenerate the app with zatrano new) and keep types in the starter locations.",
+				See:      "https://zatrano.com/docs/application-engineering/standard §C",
+			})
+		}
+	}
+	unexpected := []struct {
+		path     string
+		severity string
+		why      string
+		how      string
+	}{
+		{"application", "error", "Legacy application/ trees are not the V2 consumer layout.", "Move code into app/ (http/controllers, services, providers) and delete application/."},
+		{"routes", "error", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api}.", "Move route files into app/routes/web and app/routes/api with RegisterWeb/RegisterAPI."},
+		{"app/controllers", "error", "Controllers belong under app/http/controllers, not app/controllers.", "Move files into app/http/controllers/{web,api}."},
+		{"app/config", "warning", "Application config is not an app/config tree; framework config lives in kernel/config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
+	}
+	for _, u := range unexpected {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(u.path))); err != nil {
+			continue
+		}
+		out = append(out, Finding{
+			Rule:     "APP-LAY-005",
+			Check:    "layout",
+			Severity: u.severity,
+			File:     u.path,
+			Found:    "unexpected path " + u.path,
+			Why:      u.why,
+			How:      u.how,
+			See:      "https://zatrano.com/docs/application-engineering/standard §C",
+		})
+	}
+	return out, nil
+}
+
+func requiredStarterAppDirs() ([]string, error) {
+	out := append([]string{}, dirs.CanonicalConsumerDirs()...)
+	if len(out) == 0 {
+		return nil, fmt.Errorf("console: canonical consumer dirs are empty")
+	}
+	return out, nil
+}
+
+func checkProviders(root string) ([]Finding, error) {
+	dir := filepath.Join(root, "app", "providers")
+	st, err := os.Stat(dir)
+	if err != nil || !st.IsDir() {
+		return nil, nil
+	}
+	types := map[string]*providerShape{}
+	err = walkDirGo(dir, root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		collectProviderShapes(types, rel, fset, file)
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []Finding
+	for name, p := range types {
+		if !p.Register && !p.Boot && !strings.HasSuffix(name, "Provider") {
+			continue
+		}
+		if p.Register && p.Boot {
+			continue
+		}
+		file := p.File
+		line := p.Line
+		missing := "Boot"
+		if !p.Register {
+			missing = "Register"
+		}
+		if !p.Register && !p.Boot {
+			missing = "Register and Boot"
+		}
+		out = append(out, Finding{
+			Rule:     "APP-PROV-001",
+			Check:    "providers",
+			Severity: "warning",
+			File:     file,
+			Line:     line,
+			Found:    fmt.Sprintf("type %s missing %s", name, missing),
+			Why:      "kernel.Provider requires both Register and Boot so bootstrap.WithProviders can load the type.",
+			How:      fmt.Sprintf("Add func (p *%s) %s(app contracts.App) error on this type.", name, missing),
+		})
+	}
+	addonNames := map[string]bool{}
+	for _, p := range describe.ByLayer(kernel.LayerAddon) {
+		addonNames[p.Name] = true
+	}
+	err = walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
+		ast.Inspect(file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := callSelName(call.Fun)
+			if name != "Load" && name != "LoadIfAbsent" {
+				return true
+			}
+			cfgName := firstStringArg(call)
+			if !addonNames[cfgName] {
+				return true
+			}
+			out = append(out, Finding{
+				Rule:     "APP-PROV-002",
+				Check:    "providers",
+				Severity: "warning",
+				File:     rel,
+				Line:     fset.Position(call.Pos()).Line,
+				Found:    fmt.Sprintf("%s(%q) loads addon config from application code", name, cfgName),
+				Why:      "Addon configuration is owned by the addon's own Provider, not kernel or the consumer app.",
+				How:      "Remove this Load/LoadIfAbsent; blank-import the addon and let its Provider register config.",
+			})
+			return true
+		})
+	})
+	return out, err
+}

@@ -1,32 +1,14 @@
 package console
 
-import (
-	"os"
-	"path/filepath"
-	"strings"
-)
+import "github.com/zatrano/framework/v2/console/consolecore"
 
-// currentRelease is the fallback product version when VERSION cannot be read
-// (for example a generated app with no VERSION file). Keep in sync with the
-// repository VERSION file.
-const currentRelease = "2.3.1"
+const currentRelease = consolecore.CurrentRelease
 
-func productVersion() string {
-	root, err := frameworkModuleRoot()
-	if err != nil {
-		return currentRelease
-	}
-	return productVersionAt(root)
+func productVersion() string                 { return consolecore.ProductVersion() }
+func productVersionAt(root string) string    { return consolecore.ProductVersionAt(root) }
+func frameworkModuleRoot() (string, error)   { return consolecore.FrameworkModuleRoot() }
+func modulePath(root string) (string, error) { return consolecore.ModulePath(root) }
+func hasFlag(args []string, flags ...string) bool {
+	return consolecore.HasFlag(args, flags...)
 }
-
-func productVersionAt(root string) string {
-	raw, err := os.ReadFile(filepath.Join(root, "VERSION"))
-	if err != nil {
-		return currentRelease
-	}
-	v := strings.TrimSpace(string(raw))
-	if v == "" {
-		return currentRelease
-	}
-	return v
-}
+func parseEnabledAddons(src string) []string { return consolecore.ParseEnabledAddons(src) }

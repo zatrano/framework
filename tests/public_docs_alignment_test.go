@@ -54,7 +54,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 		}
 	}
 
-	catalog, err := os.ReadFile(filepath.Join(root, "console", "catalog.go"))
+	catalog, err := os.ReadFile(filepath.Join(root, "console", "describe", "catalog.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -58,7 +58,12 @@ check_pkg kernel/support/uuid 80
 
 # CLI / tools (>=60)
 check_pkg console 60
+check_pkg console/consolecore 60
+check_pkg console/describe 60
+check_pkg console/doctor 60
 check_pkg console/generator 60
+check_pkg console/pkgmanager 60
+check_pkg console/scaffold 60
 check_pkg cmd/zatrano 60
 check_pkg distribution/acquire 60
 check_pkg distribution/registry 60

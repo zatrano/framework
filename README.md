@@ -609,8 +609,12 @@ kernel/            Application + primitives
 contracts/         Public dependency-neutral ABI
 bootstrap/         Application boot and package registry
 console/           Platform CLI commands
+console/doctor/    Application architecture doctor
+console/pkgmanager/ Package enablement, registry, and acquire CLI
+console/scaffold/  zatrano new / make:* and embedded starter templates
+console/describe/  describe, catalog, AGENTS.md
+console/consolecore/ Shared CLI types (no import cycles)
 console/generator/ Generator engine (templates, placeholders, filesystem)
-console/templates/ Embedded application starter (`templates/web`: HTML `/` and JSON `/api`)
 cmd/zatrano/       CLI entrypoint
 distribution/      Package manifest, registry index, acquisition plan
 tests/             Architecture, compatibility, boot, and fuzz tests

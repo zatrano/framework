@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zatrano/framework/v2/console"
+	"github.com/zatrano/framework/v2/console/scaffold"
 )
 
 // TestGoldenAppCompilesAgainstCurrentFramework scaffolds `zatrano new`
@@ -18,7 +18,7 @@ func TestGoldenAppCompilesAgainstCurrentFramework(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(t.TempDir(), "golden")
-	cmd := &console.NewCommand{}
+	cmd := &scaffold.NewCommand{}
 	if err := cmd.Handle([]string{dest, "--module", "example.com/golden", "--replace", root}); err != nil {
 		t.Fatal(err)
 	}

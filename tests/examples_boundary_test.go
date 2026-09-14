@@ -32,7 +32,7 @@ func TestExamplesBoundaryDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	}
 	files := []string{
 		filepath.Join("console", "console.go"),
-		filepath.Join("console", "new.go"),
+		filepath.Join("console", "scaffold", "new.go"),
 		filepath.Join("kernel", "application.go"),
 		filepath.Join("kernel", "env", "env.go"),
 		filepath.Join("contracts", "app.go"),

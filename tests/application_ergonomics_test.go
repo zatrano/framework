@@ -113,7 +113,7 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	}
 	files := []string{
 		filepath.Join("console", "console.go"),
-		filepath.Join("console", "new.go"),
+		filepath.Join("console", "scaffold", "new.go"),
 		filepath.Join("kernel", "application.go"),
 		filepath.Join("kernel", "env", "env.go"),
 		filepath.Join("contracts", "app.go"),
@@ -148,7 +148,7 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("Bootstrap/Start must not enforce framework_min")
 	}
 
-	acq, err := os.ReadFile(filepath.Join(root, "console", "package_acquire.go"))
+	acq, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_acquire.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

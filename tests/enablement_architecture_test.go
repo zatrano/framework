@@ -39,16 +39,17 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		filepath.Join("console", "package_cmd.go"),
-		filepath.Join("console", "package_wire.go"),
-		filepath.Join("console", "package_acquire.go"),
-		filepath.Join("console", "package_doctor.go"),
+		filepath.Join("console", "pkgmanager", "package_cmd.go"),
+		filepath.Join("console", "pkgmanager", "package_wire.go"),
+		filepath.Join("console", "pkgmanager", "package_acquire.go"),
+		filepath.Join("console", "pkgmanager", "package_doctor.go"),
+		filepath.Join("console", "pkgmanager", "package_enable.go"),
 		filepath.Join("contracts", "app.go"),
 	} {
 		check(filepath.Join(root, rel))
 	}
 
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,10 +61,16 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("console must not copy registry resolution")
 	}
 	if !strings.Contains(text, "addons.Expand(") {
-		t.Fatal("Enablement enable/disable must reuse addons.Expand")
+		enableSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_enable.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(enableSrc), "addons.Expand(") {
+			t.Fatal("Enablement enable/disable must reuse addons.Expand")
+		}
 	}
 
-	wireSrc, err := os.ReadFile(filepath.Join(root, "console", "package_wire.go"))
+	wireSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_wire.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +98,7 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 			return walkErr
 		}
 		base := filepath.Base(path)
-		if base != "package_cmd.go" && base != "package_wire.go" && base != "package_doctor.go" && base != "package_acquire.go" {
+		if base != "package_cmd.go" && base != "package_wire.go" && base != "package_doctor.go" && base != "package_acquire.go" && base != "package_enable.go" {
 			return nil
 		}
 		body, err := os.ReadFile(path)

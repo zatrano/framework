@@ -6,85 +6,51 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/zatrano/framework/v2/console/consolecore"
+	"github.com/zatrano/framework/v2/console/describe"
+	"github.com/zatrano/framework/v2/console/doctor"
 	"github.com/zatrano/framework/v2/console/generator"
+	"github.com/zatrano/framework/v2/console/pkgmanager"
+	"github.com/zatrano/framework/v2/console/scaffold"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
 // Application is the console kernel.
-type Application struct {
-	app      *kernel.Application
-	commands map[string]Command
-}
+type Application = consolecore.Application
 
 // Command is a CLI command.
-type Command interface {
-	Name() string
-	Description() string
-	Handle(args []string) error
-}
+type Command = consolecore.Command
 
 // New creates a console application.
 func New(app *kernel.Application) *Application {
-	console := &Application{
-		app:      app,
-		commands: make(map[string]Command),
-	}
-	console.Register(
+	c := consolecore.New(app)
+	c.Unknown = unknownCommandError
+	c.Register(
 		&ServeCommand{app: app},
-		&ListCommand{console: console},
+		&ListCommand{console: c},
 		&MakeControllerCommand{app: app},
 		&MakeMiddlewareCommand{app: app},
 		&KeyGenerateCommand{app: app},
 		&AboutCommand{app: app},
 		&VersionCommand{},
 	)
-	registerCacheCommands(console, app)
-	registerStorageCommands(console, app)
-	registerMakeProviderCommand(console, app)
-	registerServiceCommands(console, app)
-	registerExceptionCommands(console, app)
-	registerUtilityCommands(console, app)
-	registerEnvCommands(console, app)
-	registerDeployCommands(console, app)
-	registerMakeCommand(console, app)
-	registerPackageCommands(console, app)
-	registerNewCommand(console, app)
-	registerDescribeCommand(console, app)
-	registerDoctorCommand(console, app)
-	registerAgentsCommand(console, app)
-	registerAddonCLI(console, app)
-	return console
-}
-
-// Register registers commands.
-func (c *Application) Register(commands ...Command) {
-	for _, command := range commands {
-		c.commands[command.Name()] = command
-	}
-}
-
-// Run executes the console application.
-func (c *Application) Run(args []string) error {
-	if len(args) == 0 {
-		return c.commands["list"].Handle(nil)
-	}
-	name := args[0]
-	switch name {
-	case "--help", "-h", "help":
-		return c.commands["list"].Handle(nil)
-	case "--version", "-v":
-		return c.commands["version"].Handle(nil)
-	}
-	command, ok := c.commands[name]
-	if !ok {
-		return unknownCommandError(name)
-	}
-	return command.Handle(args[1:])
+	registerCacheCommands(c, app)
+	registerStorageCommands(c, app)
+	registerServiceCommands(c, app)
+	registerExceptionCommands(c, app)
+	registerUtilityCommands(c, app)
+	registerEnvCommands(c, app)
+	registerDeployCommands(c, app)
+	scaffold.Register(c, app, WriteAgentsMarkdown, seedEnvFromExample)
+	pkgmanager.Register(c, app)
+	describe.Register(c, app)
+	doctor.Register(c, app)
+	registerAgentsCommand(c, app)
+	registerAddonCLI(c, app)
+	return c
 }
 
 // packageOwnedCLI maps kernel-absent commands to catalog package names.
@@ -96,16 +62,11 @@ var packageOwnedCLI = map[string]string{
 
 func unknownCommandError(name string) error {
 	if pkg, ok := packageOwnedCLI[name]; ok {
-		if _, exists := catalogLookup(pkg); exists {
+		if _, exists := describe.Lookup(pkg); exists {
 			return fmt.Errorf("%s requires the %s package, which is not imported in this process.\nKernel CLI does not import packages. From an application that imports %s:\n  go run ./cmd/app %s\nEnable with: go run ./cmd/app package:enable %s", name, pkg, pkg, name, pkg)
 		}
 	}
 	return fmt.Errorf("command [%s] not defined\nNext: run zatrano --help (or list) for available commands", name)
-}
-
-// Commands returns registered commands.
-func (c *Application) Commands() map[string]Command {
-	return c.commands
 }
 
 type ListCommand struct {
@@ -115,19 +76,7 @@ type ListCommand struct {
 func (c *ListCommand) Name() string        { return "list" }
 func (c *ListCommand) Description() string { return "List all available commands" }
 func (c *ListCommand) Handle(args []string) error {
-	fmt.Println("ZATRANO Console")
-	fmt.Println()
-	names := make([]string, 0, len(c.console.commands))
-	for name := range c.console.commands {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, name := range names {
-		command := c.console.commands[name]
-		fmt.Fprintf(w, "  %s\t%s\n", name, command.Description())
-	}
-	return w.Flush()
+	return c.console.WriteCommandList()
 }
 
 type ServeCommand struct {
@@ -333,7 +282,7 @@ func consumerHasEnabledAddon(app *kernel.Application, name string) bool {
 	if err != nil {
 		return false
 	}
-	for _, n := range parseEnabledAddons(string(body)) {
+	for _, n := range consolecore.ParseEnabledAddons(string(body)) {
 		if n == name {
 			return true
 		}
@@ -404,25 +353,6 @@ func (c *%s) Index(req *Request) *Response {
 	}
 }
 
-func toSnake(name string) string {
-	var b strings.Builder
-	for i, r := range name {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			b.WriteByte('_')
-		}
-		b.WriteRune(r)
-	}
-	return strings.ToLower(b.String())
-}
+func toSnake(name string) string { return consolecore.ToSnake(name) }
 
-func toExported(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return name
-	}
-	runes := []rune(name)
-	if runes[0] >= 'a' && runes[0] <= 'z' {
-		runes[0] = runes[0] - 'a' + 'A'
-	}
-	return string(runes)
-}
+func toExported(name string) string { return consolecore.ToExported(name) }

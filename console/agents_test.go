@@ -5,21 +5,23 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zatrano/framework/v2/console/describe"
 )
 
 func TestRenderAgentsIncludesDescribeContracts(t *testing.T) {
-	doc, err := BuildDescribeDocument("")
+	doc, err := describe.BuildDescribeDocument("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc.Contracts["ExtraSurface"] = ContractType{
+	doc.Contracts["ExtraSurface"] = describe.ContractType{
 		Name: "ExtraSurface",
 		File: "contracts/extra.go",
-		Methods: []ContractMethod{
+		Methods: []describe.ContractMethod{
 			{Name: "Ping", Signature: "Ping() string"},
 		},
 	}
-	doc.Routing.Primitives = append(doc.Routing.Primitives, ContractMethod{
+	doc.Routing.Primitives = append(doc.Routing.Primitives, describe.ContractMethod{
 		Name:      "RegisterExtra",
 		Signature: "RegisterExtra(fn func(*Router))",
 	})

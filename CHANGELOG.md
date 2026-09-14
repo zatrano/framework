@@ -8,6 +8,7 @@ All notable changes to ZATRANO are documented in this file.
 
 - Removed `str.Random`. Randomness is only `support.RandomBytes`, `support.RandomHex`, `support.RandomBase64` (all return errors) and `support.MustRandomHex` (panics on entropy failure). `str` is deterministic string operations only.
 - Moved `kernel/support/{date,arr,str,num,html,money,color}` to `github.com/zatrano/packages/toolkit/{date,arr,str,num,html,money,color}` (opt-in `LayerAddon` libraries). No re-export. Import `github.com/zatrano/packages/toolkit/str` (and siblings). Resource route parameter inflection uses `kernel/internal.Singular` only. Remaining `kernel/support` surface: entropy/`When` helpers, `uuid` (used by first-party packages), `files`, `fn`, `once`.
+- Split `console` into `console/doctor`, `console/pkgmanager`, `console/scaffold`, `console/describe`, and `console/consolecore`. Root `console` keeps the CLI kernel (`console.go`, `cli_exit.go`, `version.go`, `service.go`, `agents.go`, `utility.go`, `env.go`, `envfile.go`, `env_seed.go`, `cache_commands.go`, `deploy.go`, `storage.go`, `exception.go`, `addon_cli.go`, `apppaths.go`). Import paths for those command groups change; `cmd/zatrano` still uses `console.New`.
 
 ## 2.3.1 - 2026-09-11
 

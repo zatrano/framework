@@ -85,6 +85,26 @@ func TestMakeServiceHasNoHandleMethod(t *testing.T) {
 	}
 }
 
+func TestMakeTestIsKernelOnly(t *testing.T) {
+	dir := t.TempDir()
+	app := kernel.NewApplication(dir)
+	cmd := &MakeTestCommand{app: app}
+	if err := cmd.Handle([]string{"Health"}); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "tests", "health_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	if strings.Contains(text, "github.com/zatrano/packages") {
+		t.Fatalf("make:test must not import packages:\n%s", text)
+	}
+	if !strings.Contains(text, "net/http/httptest") || !strings.Contains(text, "bootstrap.App()") {
+		t.Fatalf("make:test must use kernel HTTP test helpers:\n%s", text)
+	}
+}
+
 func writeFile(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

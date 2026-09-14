@@ -259,7 +259,7 @@ File: `contracts/app.go`.
 * **Ready (HTTP):** Booted (and later states including Stopped). Created / Bootstrapping / BootFailed → 503 (`kernel/application_http_ready_test.go`).
 * **Ready (process workers):** `lifeRunning` after all `LifecycleProvider.Start` return nil.
 * **Shutdown:** `Stop(ctx)` only if Running. Reverse of the **provider-slice** LifecycleProviders (not only those that started — see increment D). Start-failure cleanup iterates **started** only.
-* **Service vs library:** kernel has no Kind. Catalog `KindLibrary` is rejected by `package:enable` (`console/package_cmd.go` `enablePackage`). Libraries may still `addons.Register` for CLI (`package:doctor` comment). Factory-less Meta contributes a name to `enabled` but no Provider (`providersFromMetas` skips `Factory == nil`).
+* **Service vs library:** kernel has no Kind. Catalog `KindLibrary` is rejected by `package:enable` (`console/pkgmanager/package_enable.go` `enablePackage`). Libraries may still `addons.Register` for CLI (`package:doctor` comment). Factory-less Meta contributes a name to `enabled` but no Provider (`providersFromMetas` skips `Factory == nil`).
 * **Partial boot:** Bootstrap: first `Register`/`Boot` error → `lifeBootFailed`, later providers not called, earlier Register side effects remain, retry forbidden (`TestBootstrapFailureIsTerminal`). Start: failed LP is not Stop’d by kernel; prior LPs are Stop’d; state returns to Booted; retry allowed (`TestLifecycleFailedStartThenRetry`).
 
 ### 4.2 Boot ordering
@@ -345,9 +345,9 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | HTTP 503 until Booted | `kernel/application_http_ready_test.go` |
 | Duplicate routes | `kernel/routing/router_extra_test.go` |
 | `framework_min` registry | `distribution/registry/resolve_test.go` |
-| `framework_min` doctor | `console/package_doctor.go` + doctor tests |
-| Acquire ≠ enable | `console/package_acquire_test.go` |
-| Acquire+enable+Bootstrap Bound | `console/package_acquire_e2e_test.go` `TestPackageAcquireE2EEnableThenBoot` (subprocess Bootstrap only; **no** `Start`/`Stop` at SPEC write time) |
+| `framework_min` doctor | `console/pkgmanager/package_doctor_report.go` + doctor tests |
+| Acquire ≠ enable | `console/pkgmanager/package_acquire_test.go` |
+| Acquire+enable+Bootstrap Bound | `console/pkgmanager/package_acquire_e2e_test.go` `TestPackageAcquireE2EEnableThenBoot` (subprocess Bootstrap only; **no** `Start`/`Stop` at SPEC write time) |
 | `go test -race` | `.github/workflows/security.yml` job `race` |
 
 ### 5.1 Implemented runtime tests (final)
@@ -362,8 +362,8 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | F Registration / process-global registry | `bootstrap/registration_integrity_test.go`; container last-wins |
 | G Enabled ∩ Imported | `bootstrap/enablement_test.go` |
 | H `framework_min` agreement | `tests/framework_min_agreement_test.go` |
-| I Service / library / heavy | `bootstrap/kind_lifecycle_test.go`; `console/package_kind_lifecycle_test.go` |
-| J Runtime E2E | `console/package_acquire_e2e_test.go` `TestPackageAcquireE2ERuntimeLifecycle`: real acquire → enable → App → Bootstrap → `StartContext` → capability → `Stop` |
+| I Service / library / heavy | `bootstrap/kind_lifecycle_test.go`; `console/pkgmanager/package_kind_lifecycle_test.go` |
+| J Runtime E2E | `console/pkgmanager/package_acquire_e2e_test.go` `TestPackageAcquireE2ERuntimeLifecycle`: real acquire → enable → App → Bootstrap → `StartContext` → capability → `Stop` |
 | L Runtime CLI 20–23 | `console/cli_runtime_exit_test.go`; `kernel/runtime_cli_test.go` |
 
 ---
