@@ -12,7 +12,7 @@ go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
 
-Add optional packages from `github.com/zatrano/packages` with `go run ./cmd/app package:enable <name>`. That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, runs `go get`, and merges that package's environment keys into `.env.example`. `bootstrap.App()` boots Enabled ∩ Imported. Views live in `app/views`, locales in `app/localization`, and migrations in `app/database`.
+Add optional packages from `github.com/zatrano/packages` with `go run ./cmd/app package:enable <name>`. That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, runs `go get`, merges that package's environment keys into `.env.example`, and creates that package's `app/` directory if it is missing. `bootstrap.App()` boots Enabled ∩ Imported. Views live in `app/views`. Locale overrides and migrations appear when you enable those packages or run `make:*`.
 
 A database is optional. After `package:enable database`, link a driver with `go run ./cmd/app db:setup --drivers=sqlite` (or `mysql`, `pgsql`, …).
 

@@ -517,3 +517,13 @@ func TestEnableUnknownReportsNextStep(t *testing.T) {
 		t.Fatalf("enable error must name action, package, and next step: %v", err)
 	}
 }
+
+func TestEnableScaffoldsPackageDirs(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	if err := (&PackageEnableCommand{app: app}).Handle([]string{"queue"}); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(app.BasePath("app", "jobs")); err != nil || !st.IsDir() {
+		t.Fatalf("package:enable queue must create app/jobs: %v", err)
+	}
+}

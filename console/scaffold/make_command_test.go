@@ -42,6 +42,9 @@ func TestMakeCommandGeneratesContractsApp(t *testing.T) {
 	if strings.Contains(ktext, "*kernel.Application") {
 		t.Fatalf("make:command kernel.go must not leak *kernel.Application:\n%s", ktext)
 	}
+	if _, err := os.Stat(filepath.Join(dir, "app", "console", "commands")); err != nil {
+		t.Fatalf("make:command must create app/console/commands: %v", err)
+	}
 }
 
 func TestMakeCommandDoesNotRewriteExistingKernel(t *testing.T) {

@@ -104,12 +104,16 @@ func TestNewApplication(t *testing.T) {
 		t.Fatalf("expected app/views/welcome.html: %v", err)
 	}
 	assertSeededEnv(t, dest)
-	if _, err := os.Stat(filepath.Join(dest, "app", "database", "migrations", "migrations.go")); err != nil {
-		t.Fatalf("expected app/database/migrations: %v", err)
+	if _, err := os.Stat(filepath.Join(dest, "app", "database")); err == nil {
+		t.Fatal("starter must not ship app/database until package:enable database")
 	}
-	if _, err := os.Stat(filepath.Join(dest, "app", "localization", "en")); err != nil {
-		t.Fatalf("expected app/localization: %v", err)
+	if _, err := os.Stat(filepath.Join(dest, "app", "localization")); err == nil {
+		t.Fatal("starter must not ship app/localization until package:enable localization / lang:publish")
 	}
+	if _, err := os.Stat(filepath.Join(dest, "config", ".gitkeep")); err != nil {
+		t.Fatalf("expected minimal config/: %v", err)
+	}
+	assertStarterAppDirBudget(t, dest)
 	if _, err := os.Stat(filepath.Join(dest, "bootstrap", "addons.go")); err != nil {
 		t.Fatalf("expected bootstrap/addons.go: %v", err)
 	}
@@ -145,13 +149,13 @@ func TestNewApplication(t *testing.T) {
 	if strings.Contains(df, "COPY views ") || strings.Contains(df, "COPY database ") {
 		t.Fatalf("Dockerfile still uses legacy top-level copies:\n%s", df)
 	}
-	if !strings.Contains(df, "COPY app/views") || !strings.Contains(df, "COPY app/database") {
-		t.Fatalf("Dockerfile must copy app/views and app/database:\n%s", df)
+	if !strings.Contains(df, "COPY app/views") {
+		t.Fatalf("Dockerfile must copy app/views:\n%s", df)
 	}
-	if _, err := os.Stat(filepath.Join(dest, "app", "database", "migrations", "20260801_000002_create_jobs_table.go")); err == nil {
-		t.Fatal("web starter must not ship queue/jobs migrations")
+	if strings.Contains(df, "COPY app/database") {
+		t.Fatalf("Dockerfile must not copy opt-in app/database:\n%s", df)
 	}
-	assertGeneratedConsoleRegisterABI(t, dest)
+	assertGeneratedMainHasNoAppConsole(t, dest)
 	enabledBody, err := os.ReadFile(filepath.Join(dest, "bootstrap", "enabled.go"))
 	if err != nil {
 		t.Fatalf("expected bootstrap/enabled.go: %v", err)
@@ -241,6 +245,7 @@ func TestNewApplication(t *testing.T) {
 	}
 	assertNoPackagesVersionImport(t, dest)
 	assertDoctorPass(t, dest)
+	assertMakeJobCreatesAppJobs(t, dest)
 }
 
 func TestFrameworkGoModVersion(t *testing.T) {
@@ -302,22 +307,63 @@ func assertNoPackagesVersionImport(t *testing.T, dest string) {
 	}
 }
 
-func assertGeneratedConsoleRegisterABI(t *testing.T, dest string) {
+func assertStarterAppDirBudget(t *testing.T, dest string) {
 	t.Helper()
-	kernelPath := filepath.Join(dest, "app", "console", "kernel.go")
-	body, err := os.ReadFile(kernelPath)
+	appDir := filepath.Join(dest, "app")
+	entries, err := os.ReadDir(appDir)
 	if err != nil {
-		t.Fatalf("expected %s: %v", kernelPath, err)
+		t.Fatal(err)
+	}
+	allow := map[string]bool{"http": true, "providers": true, "views": true, "routes": true}
+	n := 1
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		n++
+		if !allow[e.Name()] {
+			t.Fatalf("starter app/%s is not a default-enabled package directory", e.Name())
+		}
+	}
+	if n > 5 {
+		t.Fatalf("find %s -maxdepth 1 -type d counted %d, want <= 5", appDir, n)
+	}
+}
+
+func assertGeneratedMainHasNoAppConsole(t *testing.T, dest string) {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(dest, "cmd", "app", "main.go"))
+	if err != nil {
+		t.Fatal(err)
 	}
 	text := string(body)
-	if !strings.Contains(text, "func Register(cli *coreconsole.Application, app contracts.App)") {
-		t.Fatalf("generated Register must take contracts.App:\n%s", text)
+	if strings.Contains(text, "/app/console") || strings.Contains(text, "console.Register(") {
+		t.Fatalf("starter main.go must not import app/console until make:command:\n%s", text)
 	}
-	if strings.Contains(text, "*kernel.Application") {
-		t.Fatalf("generated Register must not leak *kernel.Application:\n%s", text)
+}
+
+func assertMakeJobCreatesAppJobs(t *testing.T, dest string) {
+	t.Helper()
+	enable := exec.Command("go", "run", "./cmd/app", "package:enable", "queue")
+	enable.Dir = dest
+	out, err := enable.CombinedOutput()
+	if err != nil {
+		t.Fatalf("package:enable queue: %v\n%s", err, out)
 	}
-	if strings.Contains(text, `"github.com/zatrano/framework/v2/kernel"`) {
-		t.Fatalf("generated kernel.go must not import kernel:\n%s", text)
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = dest
+	out, err = tidy.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go mod tidy after package:enable queue: %v\n%s", err, out)
+	}
+	job := exec.Command("go", "run", "./cmd/app", "make:job", "SendWelcome")
+	job.Dir = dest
+	out, err = job.CombinedOutput()
+	if err != nil {
+		t.Fatalf("make:job: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "app", "jobs", "send_welcome.go")); err != nil {
+		t.Fatalf("make:job must create app/jobs file: %v\n%s", err, out)
 	}
 }
 

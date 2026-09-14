@@ -17,7 +17,6 @@ COPY --from=builder /out/app /app/app
 COPY .env.example /app/.env.example
 COPY app/views /app/app/views
 COPY public /app/public
-COPY app/database /app/app/database
 RUN mkdir -p /app/storage/framework/sessions \
              /app/storage/framework/cache \
              /app/storage/framework/schedule \

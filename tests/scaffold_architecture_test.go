@@ -97,28 +97,18 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	if !strings.Contains(text, "COPY app/views") || !strings.Contains(text, "COPY app/database") {
-		t.Fatal("web Dockerfile must copy app/views and app/database")
+	if !strings.Contains(text, "COPY app/views") {
+		t.Fatal("web Dockerfile must copy app/views")
+	}
+	if strings.Contains(text, "COPY app/database") {
+		t.Fatal("web Dockerfile must not copy opt-in app/database")
 	}
 }
 
 func TestWebScaffoldDoesNotShipPackageMigrations(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "console", "scaffold", "templates", "web", "app", "database", "migrations")
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		name := strings.ToLower(d.Name())
-		if strings.Contains(name, "job") || strings.Contains(name, "notification") {
-			t.Errorf("starter must not ship package migration %s", d.Name())
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+	dir := filepath.Join(moduleRoot(t), "console", "scaffold", "templates", "web", "app", "database")
+	if _, err := os.Stat(dir); err == nil {
+		t.Fatal("starter must not ship app/database")
 	}
 }
 

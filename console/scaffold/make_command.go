@@ -83,12 +83,43 @@ func Register(cli *coreconsole.Application, app contracts.App) {
 		}
 		fmt.Printf("created %s\n", path)
 		fmt.Printf("registered in app/console/kernel.go\n")
-		return nil
+		return ensureMainRegistersConsole(c.app, mod)
 	}
 
 	fmt.Printf("created %s\n", path)
 	fmt.Printf("register it in app/console/kernel.go: &commands.%s{App: app}\n", structName)
-	return nil
+	return ensureMainRegistersConsole(c.app, mod)
+}
+
+func ensureMainRegistersConsole(app *kernel.Application, mod string) error {
+	if app == nil || mod == "" {
+		return nil
+	}
+	mainPath := app.BasePath("cmd", "app", "main.go")
+	body, err := os.ReadFile(mainPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	text := string(body)
+	if strings.Contains(text, "console.Register(") {
+		return nil
+	}
+	if !strings.Contains(text, "/app/console\"") {
+		needle := "\t\"github.com/zatrano/framework/v2/bootstrap\"\n"
+		if !strings.Contains(text, needle) {
+			return fmt.Errorf("cmd/app/main.go: cannot insert app/console import")
+		}
+		text = strings.Replace(text, needle, "\t\""+mod+"/app/console\"\n"+needle, 1)
+	}
+	call := "cli := fwconsole.New(app)\n"
+	if !strings.Contains(text, call) {
+		return fmt.Errorf("cmd/app/main.go: cannot insert console.Register")
+	}
+	text = strings.Replace(text, call, call+"\tconsole.Register(cli, app)\n", 1)
+	return os.WriteFile(mainPath, []byte(text), 0o644)
 }
 
 func toCommandSignature(name string) string {

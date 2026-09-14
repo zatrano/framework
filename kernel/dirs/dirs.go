@@ -67,10 +67,11 @@ func DatabaseDirForCreate(app contracts.App) string {
 
 // CanonicalConsumerDirs are the application directories required of every
 // app created by zatrano new. Doctor and agents use this list; they must not
-// infer it from console/templates.
+// infer it from console/templates. Opt-in package trees (jobs, policies,
+// database, console commands, localization overrides) are created by
+// make:* / package:enable, not by the starter.
 func CanonicalConsumerDirs() []string {
 	return []string{
-		"app/console",
 		"app/http/controllers/api",
 		"app/http/controllers/web",
 		"app/providers",
