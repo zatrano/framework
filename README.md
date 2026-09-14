@@ -47,6 +47,8 @@ ZATRANO is a **Go application platform** for building, running, and extending pr
 
 It is built around a small, dependency-neutral kernel and an opt-in package ecosystem. The kernel is the stable runtime foundation. Packages add capabilities such as databases, authentication, sessions, queues, notifications, AI, RAG, agents, billing, OAuth, and other application services.
 
+`ai`, `rag`, and `agent` are **experimental**: they have not completed the same security review as the rest of the ecosystem.
+
 You import what you run. The kernel has **zero third-party runtime dependencies**.
 
 ```text

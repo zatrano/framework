@@ -21,16 +21,16 @@ func TestEcosystemCatalogCoversLayers(t *testing.T) {
 	}
 
 	ai, ok := catalogLookup("ai")
-	if !ok || ai.Layer != kernel.LayerIntelligence || ai.EffectiveKind() != kernel.KindService {
-		t.Fatal("ai should be an intelligence service")
+	if !ok || ai.Layer != kernel.LayerIntelligence || ai.EffectiveKind() != kernel.KindService || ai.Stability != "experimental" {
+		t.Fatal("ai should be an experimental intelligence service")
 	}
 	rag, ok := catalogLookup("rag")
-	if !ok || rag.Layer != kernel.LayerIntelligence || rag.EffectiveKind() != kernel.KindLibrary {
-		t.Fatal("rag should be an intelligence library")
+	if !ok || rag.Layer != kernel.LayerIntelligence || rag.EffectiveKind() != kernel.KindLibrary || rag.Stability != "experimental" {
+		t.Fatal("rag should be an experimental intelligence library")
 	}
 	agent, ok := catalogLookup("agent")
-	if !ok || agent.Layer != kernel.LayerIntelligence || agent.EffectiveKind() != kernel.KindLibrary {
-		t.Fatal("agent should be an intelligence library")
+	if !ok || agent.Layer != kernel.LayerIntelligence || agent.EffectiveKind() != kernel.KindLibrary || agent.Stability != "experimental" {
+		t.Fatal("agent should be an experimental intelligence library")
 	}
 	redisx, ok := catalogLookup("redisx")
 	if !ok || redisx.Layer != kernel.LayerFoundation || redisx.EffectiveKind() != kernel.KindLibrary {

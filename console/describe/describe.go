@@ -108,6 +108,7 @@ type CatalogPackageReport struct {
 	Kind        string `json:"kind"`
 	Heavy       bool   `json:"heavy"`
 	Description string `json:"description"`
+	Stability   string `json:"stability,omitempty"`
 }
 
 // RoutingReport holds discovery primitives and optional in-app sample routes.
@@ -221,6 +222,7 @@ func assembleCatalog(layers []CatalogLayerReport) []CatalogLayerReport {
 			Kind:        kind,
 			Heavy:       p.Heavy,
 			Description: p.Description,
+			Stability:   p.Stability,
 		})
 	}
 	return layers
@@ -233,6 +235,7 @@ func FormatDescribeText(doc *DescribeDocument) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "ZATRANO describe %s\n", doc.Version)
+	b.WriteString("warning: packages ai, rag, and agent are experimental: they have not completed the same security review as the rest of the ecosystem.\n")
 	b.WriteString("\n== contracts ==\n")
 	names := make([]string, 0, len(doc.Contracts))
 	for name := range doc.Contracts {
@@ -253,6 +256,11 @@ func FormatDescribeText(doc *DescribeDocument) string {
 			fmt.Fprintf(&b, "  role: %s\n", layer.Role)
 		}
 		for _, p := range layer.Packages {
+			stab := p.Stability
+			if stab != "" {
+				fmt.Fprintf(&b, "  - %s [%s] (%s) %s\n", p.Name, p.Kind, stab, p.Description)
+				continue
+			}
 			fmt.Fprintf(&b, "  - %s [%s] %s\n", p.Name, p.Kind, p.Description)
 		}
 	}

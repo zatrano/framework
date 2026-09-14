@@ -33,6 +33,7 @@ type PackageInfo struct {
 	Kind        Kind
 	Heavy       bool
 	Description string
+	Stability   string
 }
 
 // EffectiveKind returns the consumption kind for this package.

@@ -17,6 +17,7 @@ Neden şimdi:
 - Split `kernel/http` large files without behavior change: `response.go` (core status/header) / `response_render.go` / `response_stream.go` / `response_redirect.go`; `input.go` / `input_form.go` / `input_json.go`; `request.go` / `request_headers.go` / `request_files.go`.
 - `zatrano new` starter `app/` contains only `http`, `providers`, `views`, and `routes`. Opt-in package directories are created by `make:*` or `package:enable`.
 - Framework repo root must not contain consumer trees (`storage/`, `app/`, `public/`, `views/`, `routes/`). `zatrano doctor` on this module runs `FW-ROOT-001`.
+- `ai`, `rag`, and `agent` are catalogued as `Stability: experimental` until they complete the same security review as the rest of the ecosystem. `zatrano describe` prints a warning.
 
 ## 2.3.1 - 2026-09-11
 

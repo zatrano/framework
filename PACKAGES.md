@@ -616,8 +616,22 @@ Docs: [Billing](https://zatrano.com/docs/billing)
 
 ### `ai`
 
+**Stability:** experimental. This package has not completed the same security review as the rest of the ecosystem.
+
 **For:** Chat / completion providers.  
 Docs: [AI](https://zatrano.com/docs/ai)
+
+### `rag`
+
+**Stability:** experimental. This package has not completed the same security review as the rest of the ecosystem.
+
+**For:** Chunking, embed pipeline, and vector store helpers (import-only library).
+
+### `agent`
+
+**Stability:** experimental. This package has not completed the same security review as the rest of the ecosystem.
+
+**For:** Agent loop, tools, and conversation memory (import-only library).
 
 ### `backup`
 

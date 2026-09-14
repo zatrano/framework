@@ -26,6 +26,9 @@ func TestDescribeHelpAndText(t *testing.T) {
 	if !strings.Contains(buf.String(), "ZATRANO describe") && !strings.Contains(buf.String(), "contracts") {
 		t.Fatalf("text empty: %q", buf.String())
 	}
+	if !strings.Contains(buf.String(), "warning: packages ai, rag, and agent are experimental") {
+		t.Fatalf("describe must warn that ai/rag/agent are experimental:\n%s", buf.String())
+	}
 	if err := cmd.Handle([]string{"--format=xml"}); err == nil {
 		t.Fatal("bad format")
 	}

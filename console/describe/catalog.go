@@ -40,9 +40,9 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "console", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "CLI application"},
 	{Name: "version", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Version helper"},
 
-	{Name: "ai", Layer: kernel.LayerIntelligence, Kind: kernel.KindService, Description: "AI chat providers"},
-	{Name: "rag", Layer: kernel.LayerIntelligence, Kind: kernel.KindLibrary, Description: "RAG chunking, embed pipeline, vector store helpers"},
-	{Name: "agent", Layer: kernel.LayerIntelligence, Kind: kernel.KindLibrary, Description: "AI agent loop, tools, conversation memory"},
+	{Name: "ai", Layer: kernel.LayerIntelligence, Kind: kernel.KindService, Stability: "experimental", Description: "AI chat providers"},
+	{Name: "rag", Layer: kernel.LayerIntelligence, Kind: kernel.KindLibrary, Stability: "experimental", Description: "RAG chunking, embed pipeline, vector store helpers"},
+	{Name: "agent", Layer: kernel.LayerIntelligence, Kind: kernel.KindLibrary, Stability: "experimental", Description: "AI agent loop, tools, conversation memory"},
 
 	{Name: "audit", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Request/audit event log"},
 	{Name: "backup", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Database backup/restore (SQLite + native dump tools)"},
