@@ -19,6 +19,7 @@ Neden şimdi:
 - Framework repo root must not contain consumer trees (`storage/`, `app/`, `public/`, `views/`, `routes/`). `zatrano doctor` on this module runs `FW-ROOT-001`.
 - `ai`, `rag`, and `agent` are catalogued as `Stability: experimental` until they complete the same security review as the rest of the ecosystem. `zatrano describe` prints a warning.
 - Releases are created only with `scripts/release.sh` (`--dry-run` prints validation; no hand-run `git tag`).
+- README leads with `describe` / `doctor` / `agents:generate` before Learning ZATRANO. No Laravel-style marketing copy.
 
 ## 2.3.1 - 2026-09-11
 

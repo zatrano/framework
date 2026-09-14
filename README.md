@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>A Go application platform for building production-grade software.</em>
+  <em>A small, typed, stable Go kernel with machine-readable contracts for humans and AI agents.</em>
 </p>
 
 <p align="center">
@@ -43,9 +43,19 @@
 
 ## What is ZATRANO?
 
-ZATRANO is a **Go application platform** for building, running, and extending production-grade software.
+ZATRANO is a **small, typed, stable kernel** plus opt-in packages. The kernel is HTTP, container, config, routing, lifecycle, and CLI. Packages bind with `From(app)` / `app.Make`. `contracts.App` does not grow package methods.
 
-It is built around a small, dependency-neutral kernel and an opt-in package ecosystem. The kernel is the stable runtime foundation. Packages add capabilities such as databases, authentication, sessions, queues, notifications, AI, RAG, agents, billing, OAuth, and other application services.
+The same surface is for people and for AI agents: frozen `contracts`, plus three machine-readable CLI tools.
+
+```bash
+zatrano describe
+zatrano doctor
+zatrano agents:generate
+```
+
+- `describe` prints the live catalog, routing primitives, and package inventory.
+- `doctor` checks the application (and this repository) against the frozen architecture rules.
+- `agents:generate` writes an application-root `AGENTS.md` from `describe` so agents read the same facts the CLI does.
 
 `ai`, `rag`, and `agent` are **experimental**: they have not completed the same security review as the rest of the ecosystem.
 
@@ -225,13 +235,10 @@ Generated applications contain application-specific structure. A typical tree lo
 ```text
 myapp/
 ├── app/
-│   ├── http/controllers/
+│   ├── http/
 │   ├── routes/
 │   ├── providers/
-│   ├── views/
-│   ├── localization/
-│   ├── database/
-│   └── …
+│   └── views/
 ├── bootstrap/
 │   ├── addons.go      # blank-imports (process registry)
 │   └── enabled.go     # enablement manifest
@@ -541,6 +548,7 @@ zatrano new
 zatrano serve
 zatrano doctor
 zatrano describe
+zatrano agents:generate
 zatrano key:generate
 zatrano package:list
 zatrano package:search
@@ -709,7 +717,7 @@ Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do no
 
 Each module follows Go semantic versioning on its own path. Install current stables with the `go get` commands above.
 
-## Documentation
+## Learning ZATRANO
 
 - [zatrano.com/docs](https://zatrano.com/docs)
 - [Installation](https://zatrano.com/docs/installation)
