@@ -634,6 +634,9 @@ The release gate:
 bash .github/scripts/release-gate.sh
 ```
 
+Releases are created only with `scripts/release.sh`. Do not run `git tag` by hand. Preview with `scripts/release.sh --dry-run vX.Y.Z`.
+
+
 Optional extended checks:
 
 ```bash
