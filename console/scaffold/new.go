@@ -20,11 +20,11 @@ Usage:
   zatrano new <name> [--module path] [--replace /path/to/framework]
 
 One application: HTML at / and JSON at /api. Controllers live in
-app/http/controllers/web and app/http/controllers/api. Choose View or JSON
+app/http/controllers/web and app/http/controllers/api. Choose HTML or JSON
 per handler; both are present.
 
-Enabled presentation packages: assets, health, localization, view, validation.
-Database, auth, queue, and other capabilities stay opt-in (package:enable).
+Default enabled package: health. assets, localization, view, validation,
+and other capabilities stay opt-in (package:enable).
 `
 
 // NewCommand scaffolds a consumer application (zatrano new).

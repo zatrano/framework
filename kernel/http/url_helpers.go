@@ -3,8 +3,6 @@ package http
 import (
 	"fmt"
 	"strings"
-
-	"github.com/zatrano/framework/v2/kernel/http/useragent"
 )
 
 // Host returns the request host (prefers trusted forwarded host).
@@ -325,8 +323,8 @@ func (r *Request) UserAgent() string {
 }
 
 // Agent returns a parsed User-Agent summary.
-func (r *Request) Agent() useragent.Agent {
-	return useragent.Parse(r.UserAgent())
+func (r *Request) Agent() Agent {
+	return ParseUserAgent(r.UserAgent())
 }
 
 // Old returns a previously flashed input value (same key as flash.OldValue).

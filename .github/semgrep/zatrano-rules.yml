@@ -27,7 +27,7 @@ rules:
       use crypto/rand or configuration.
     paths:
       include:
-        - "/kernel/middleware/csrf/**/*.go"
+        - "/kernel/middleware/csrf.go"
     pattern-either:
       - pattern: password := "..."
       - pattern: secret := "..."

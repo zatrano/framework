@@ -4,22 +4,33 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-Neden şimdi:
+Why now:
+
+## 2.4.0 - 2026-09-15
+
+Why now: Publish the kernel cleanup as a pinable minor so applications can take opt-in starter packages, flattened CSRF and HTTP helpers, and toolkit extraction without tracking `main`.
+
+Minor release after `v2.3.1`. Kernel ABI (`contracts.App`) and ORM public API are unchanged. DX import paths and the default starter surface change.
 
 ### Breaking
 
 - Removed `str.Random`. Randomness is only `support.RandomBytes`, `support.RandomHex`, `support.RandomBase64` (all return errors) and `support.MustRandomHex` (panics on entropy failure). `str` is deterministic string operations only.
-- Moved `kernel/support/{date,arr,str,num,html,money,color}` to `github.com/zatrano/packages/toolkit/{date,arr,str,num,html,money,color}` (opt-in `LayerAddon` libraries). No re-export. Import `github.com/zatrano/packages/toolkit/str` (and siblings). Resource route parameter inflection uses `kernel/internal.Singular` only. Remaining `kernel/support` surface: entropy/`When` helpers, `uuid` (used by first-party packages), `files`, `fn`, `once`.
-- Split `console` into `console/doctor`, `console/pkgmanager`, `console/scaffold`, `console/describe`, and `console/consolecore`. Root `console` keeps the CLI kernel (`console.go`, `cli_exit.go`, `version.go`, `service.go`, `agents.go`, `utility.go`, `env.go`, `envfile.go`, `env_seed.go`, `cache_commands.go`, `deploy.go`, `storage.go`, `exception.go`, `addon_cli.go`, `apppaths.go`). Import paths for those command groups change; `cmd/zatrano` still uses `console.New`. `describe_parse.go` is split into `describe_parse.go` and `describe_parse_routes.go` so no console non-test file exceeds 400 lines.
+- Moved `kernel/support/{date,arr,str,num,html,money,color}` to `github.com/zatrano/packages/toolkit/{date,arr,str,num,html,money,color}` (opt-in `LayerAddon` libraries). No re-export. Import `github.com/zatrano/packages/toolkit/str` (and siblings). Resource route parameter inflection is unexported in `kernel/routing`. Remaining `kernel/support` surface: entropy/`When` helpers, `uuid` (used by first-party packages), `files`, `fn`, `once`.
+- Split `console` into `console/doctor`, `console/pkgmanager`, `console/scaffold`, `console/describe`, and `console/consolecore`. Root `console` keeps the CLI kernel (`console.go`, `cli_exit.go`, `version.go`, `service.go`, `agents.go`, `utility.go`, `env.go`, `env_seed.go`, `cache_commands.go`, `deploy.go`, `storage.go`, `exception.go`, `addon_cli.go`, `apppaths.go`). Import paths for those command groups change; `cmd/zatrano` still uses `console.New`.
+- Removed `kernel/internal`. Resource name inflection lives unexported in `kernel/routing`.
+- Flattened `kernel/middleware/csrf` into `kernel/middleware` (`CSRF`, `CSRFExcept`, `CSRFToken`). No re-export package.
+- Flattened `kernel/http/useragent` into `kernel/http` (`Agent`, `ParseUserAgent`).
+- `zatrano new` enables only `health` by default. `assets`, `localization`, `view`, and `validation` are opt-in (`package:enable`).
 
 ### Changed
 
 - Split `kernel/http` large files without behavior change: `response.go` (core status/header) / `response_render.go` / `response_stream.go` / `response_redirect.go`; `input.go` / `input_form.go` / `input_json.go`; `request.go` / `request_headers.go` / `request_files.go`.
-- `zatrano new` starter `app/` contains only `http`, `providers`, `views`, and `routes`. Opt-in package directories are created by `make:*` or `package:enable`.
+- `zatrano new` starter `app/` contains only `http`, `providers`, and `routes`. Opt-in package directories are created by `make:*` or `package:enable`.
 - Framework repo root must not contain consumer trees (`storage/`, `app/`, `public/`, `views/`, `routes/`). `zatrano doctor` on this module runs `FW-ROOT-001`.
 - `ai`, `rag`, and `agent` are catalogued as `Stability: experimental` until they complete the same security review as the rest of the ecosystem. `zatrano describe` prints a warning.
-- Releases are created only with `scripts/release.sh` (`--dry-run` prints validation; no hand-run `git tag`).
 - README leads with `describe` / `doctor` / `agents:generate` before Learning ZATRANO. No Laravel-style marketing copy.
+
+Install with `go get github.com/zatrano/framework/v2@v2.4.0` and `go get github.com/zatrano/packages@v1.8.0`.
 
 ## 2.3.1 - 2026-09-11
 

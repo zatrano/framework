@@ -15,7 +15,6 @@ RUN apk add --no-cache ca-certificates tzdata \
  && adduser -D -H -u 10001 app
 COPY --from=builder /out/app /app/app
 COPY .env.example /app/.env.example
-COPY app/views /app/app/views
 COPY public /app/public
 RUN mkdir -p /app/storage/framework/sessions \
              /app/storage/framework/cache \

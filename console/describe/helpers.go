@@ -11,15 +11,12 @@ func hasFlag(args []string, flags ...string) bool { return consolecore.HasFlag(a
 func formatFromArgs(args []string) (string, error) {
 	return consolecore.FormatFromArgs(args)
 }
-func cliErr(code int, err error) error { return consolecore.CliErr(code, err) }
-func productVersion() string           { return consolecore.ProductVersion() }
+func productVersion() string { return consolecore.ProductVersion() }
 func productVersionAt(root string) string {
 	return consolecore.ProductVersionAt(root)
 }
 func frameworkModuleRoot() (string, error)   { return consolecore.FrameworkModuleRoot() }
 func modulePath(root string) (string, error) { return consolecore.ModulePath(root) }
-
-const ExitUsage = consolecore.ExitUsage
 
 // Lookup is the consumer catalog lookup (kernel primitives + ecosystem).
 func Lookup(name string) (kernel.PackageInfo, bool) { return catalogLookup(name) }

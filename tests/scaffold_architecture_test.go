@@ -58,22 +58,24 @@ func TestScaffoldBoundaries(t *testing.T) {
 	}
 }
 
-func TestStarterEnablementImportsPresentationPackages(t *testing.T) {
+func TestStarterEnablementImportsHealthOnly(t *testing.T) {
 	root := filepath.Join(moduleRoot(t), "console", "scaffold", "templates", "web")
 	addons, err := os.ReadFile(filepath.Join(root, "bootstrap", "addons.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(addons)
+	if !strings.Contains(text, `"github.com/zatrano/packages/health"`) {
+		t.Errorf("starter addons.go.tmpl must blank-import health")
+	}
 	for _, pkg := range []string{
 		`"github.com/zatrano/packages/assets"`,
-		`"github.com/zatrano/packages/health"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/validation"`,
 		`"github.com/zatrano/packages/view"`,
 	} {
-		if !strings.Contains(text, pkg) {
-			t.Errorf("starter addons.go.tmpl must blank-import %s", pkg)
+		if strings.Contains(text, pkg) {
+			t.Errorf("starter addons.go.tmpl must not default-import %s", pkg)
 		}
 	}
 }
@@ -97,8 +99,8 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	if !strings.Contains(text, "COPY app/views") {
-		t.Fatal("web Dockerfile must copy app/views")
+	if strings.Contains(text, "COPY app/views") {
+		t.Fatal("web Dockerfile must not copy opt-in app/views")
 	}
 	if strings.Contains(text, "COPY app/database") {
 		t.Fatal("web Dockerfile must not copy opt-in app/database")
@@ -146,17 +148,23 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(enabled)
-	for _, want := range []string{`"assets"`, `"health"`, `"localization"`, `"validation"`, `"view"`} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("starter enablement missing %s:\n%s", want, text)
+	if !strings.Contains(text, `"health"`) {
+		t.Fatalf("starter enablement missing health:\n%s", text)
+	}
+	for _, deny := range []string{`"assets"`, `"localization"`, `"validation"`, `"view"`} {
+		if strings.Contains(text, deny) {
+			t.Fatalf("starter must not default-enable %s:\n%s", deny, text)
 		}
 	}
 	webHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "web", "home_controller.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(webHome), "http.View") {
-		t.Fatal("starter web home must be HTML View")
+	if !strings.Contains(string(webHome), "http.HTML") {
+		t.Fatal("starter web home must be kernel HTML")
+	}
+	if strings.Contains(string(webHome), "http.View") {
+		t.Fatal("starter web home must not use View until package:enable view")
 	}
 	apiHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "api", "home_controller.go.tmpl"))
 	if err != nil {

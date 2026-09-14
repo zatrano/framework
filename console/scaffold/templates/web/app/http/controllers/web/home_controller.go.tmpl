@@ -5,7 +5,7 @@ import "github.com/zatrano/framework/v2/kernel/http"
 // HomeController serves the welcome page.
 type HomeController struct{}
 
-// Index renders the welcome view.
+// Index returns a kernel HTML welcome page (the view package is opt-in).
 func (c *HomeController) Index(req *http.Request) *http.Response {
-	return http.View("welcome", map[string]any{})
+	return http.HTML("<!DOCTYPE html><html><head><title>__APP_NAME__</title></head><body><h1>__APP_NAME__</h1></body></html>")
 }

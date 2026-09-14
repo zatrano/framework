@@ -39,6 +39,4 @@ Report security vulnerabilities privately to [serhankarakoc@gmail.com](mailto:se
 
 Patch and minor versions are published **at most once per week**. The only exception is a tagged security fix: the CHANGELOG entry must include `[security]`, which is the only trigger for this exception.
 
-Every release note must include a one-line `Neden şimdi:` reason. Do not add that line to historical entries; it is required from the next tagged release forward.
-
-Releases are created **only** with `scripts/release.sh`. Do not run `git tag` by hand. `scripts/release.sh --dry-run <tag>` prints the validation steps.
+Every release note must include a one-line `Why now:` reason. Do not add that line to historical entries; it is required from the next tagged release forward.

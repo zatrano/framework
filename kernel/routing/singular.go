@@ -1,7 +1,4 @@
-// Package internal holds kernel-only helpers that are not a public library.
-// Other packages in kernel/ may import this path; applications and
-// github.com/zatrano/packages cannot.
-package internal
+package routing
 
 import "strings"
 
@@ -30,8 +27,7 @@ var irregularSingulars = map[string]string{
 	"buses":    "bus",
 }
 
-// Singular returns a best-effort singular form for a resource name.
-func Singular(word string) string {
+func singular(word string) string {
 	lower := strings.ToLower(word)
 	if singular, ok := irregularSingulars[lower]; ok {
 		return matchCase(word, singular)

@@ -100,8 +100,8 @@ func TestNewApplication(t *testing.T) {
 	if !strings.Contains(text, "example.com/demo/app/providers") {
 		t.Fatalf("expected module import in main.go:\n%s", text)
 	}
-	if _, err := os.Stat(filepath.Join(dest, "app", "views", "welcome.html")); err != nil {
-		t.Fatalf("expected app/views/welcome.html: %v", err)
+	if _, err := os.Stat(filepath.Join(dest, "app", "views")); err == nil {
+		t.Fatal("starter must not ship app/views until package:enable view")
 	}
 	assertSeededEnv(t, dest)
 	if _, err := os.Stat(filepath.Join(dest, "app", "database")); err == nil {
@@ -123,14 +123,20 @@ func TestNewApplication(t *testing.T) {
 	}
 	addonsText := string(addonsBody)
 	for _, pkg := range []string{
-		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/health"`,
+	} {
+		if !strings.Contains(addonsText, pkg) {
+			t.Fatalf("web addons.go must blank-import %s:\n%s", pkg, addonsText)
+		}
+	}
+	for _, pkg := range []string{
+		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/view"`,
 		`"github.com/zatrano/packages/validation"`,
 	} {
-		if !strings.Contains(addonsText, pkg) {
-			t.Fatalf("web addons.go must blank-import %s:\n%s", pkg, addonsText)
+		if strings.Contains(addonsText, pkg) {
+			t.Fatalf("web addons.go must not default-import opt-in %s:\n%s", pkg, addonsText)
 		}
 	}
 	scaffoldMeta, err := os.ReadFile(filepath.Join(dest, "bootstrap", "scaffold.go"))
@@ -149,8 +155,8 @@ func TestNewApplication(t *testing.T) {
 	if strings.Contains(df, "COPY views ") || strings.Contains(df, "COPY database ") {
 		t.Fatalf("Dockerfile still uses legacy top-level copies:\n%s", df)
 	}
-	if !strings.Contains(df, "COPY app/views") {
-		t.Fatalf("Dockerfile must copy app/views:\n%s", df)
+	if strings.Contains(df, "COPY app/views") {
+		t.Fatalf("Dockerfile must not copy opt-in app/views:\n%s", df)
 	}
 	if strings.Contains(df, "COPY app/database") {
 		t.Fatalf("Dockerfile must not copy opt-in app/database:\n%s", df)
@@ -161,9 +167,14 @@ func TestNewApplication(t *testing.T) {
 		t.Fatalf("expected bootstrap/enabled.go: %v", err)
 	}
 	enabledText := string(enabledBody)
-	for _, want := range []string{"RegisterEnablement", `"assets"`, `"health"`, `"localization"`, `"view"`, `"validation"`} {
+	for _, want := range []string{"RegisterEnablement", `"health"`} {
 		if !strings.Contains(enabledText, want) {
 			t.Fatalf("enabled.go missing %q:\n%s", want, enabledText)
+		}
+	}
+	for _, deny := range []string{`"assets"`, `"localization"`, `"view"`, `"validation"`} {
+		if strings.Contains(enabledText, deny) {
+			t.Fatalf("enabled.go must not default-enable %s:\n%s", deny, enabledText)
 		}
 	}
 	modBytes, err := os.ReadFile(filepath.Join(dest, "go.mod"))
@@ -240,8 +251,11 @@ func TestNewApplication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(home), "http.View") {
-		t.Fatalf("generated home must be HTML View:\n%s", home)
+	if !strings.Contains(string(home), "http.HTML") {
+		t.Fatalf("generated home must be kernel HTML:\n%s", home)
+	}
+	if strings.Contains(string(home), "http.View") {
+		t.Fatalf("generated home must not use view until package:enable view:\n%s", home)
 	}
 	assertNoPackagesVersionImport(t, dest)
 	assertDoctorPass(t, dest)
@@ -314,7 +328,7 @@ func assertStarterAppDirBudget(t *testing.T, dest string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allow := map[string]bool{"http": true, "providers": true, "views": true, "routes": true}
+	allow := map[string]bool{"http": true, "providers": true, "routes": true}
 	n := 1
 	for _, e := range entries {
 		if !e.IsDir() {

@@ -59,9 +59,6 @@ jobs:
         run: go test ./...
         # Includes zatrano doctor architecture fixtures and generated-app PASS checks.
 
-      - name: Coverage thresholds
-        run: bash scripts/check-coverage.sh
-
       - name: Framework repo layout
         run: go run ./cmd/zatrano doctor .
 

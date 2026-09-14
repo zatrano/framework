@@ -1,4 +1,4 @@
-package csrf
+package middleware
 
 import (
 	"crypto/rand"
@@ -26,8 +26,8 @@ var (
 	skipAnonymousSeed func(*http.Request) bool
 )
 
-// SetSessionCookieName overrides the cookie checked by SkipAnonymousSeed (default zatrano_session).
-func SetSessionCookieName(name string) {
+// SetCSRFSessionCookieName overrides the cookie checked by SkipCSRFAnonymousSeed (default zatrano_session).
+func SetCSRFSessionCookieName(name string) {
 	csrfMu.Lock()
 	defer csrfMu.Unlock()
 	name = strings.TrimSpace(name)
@@ -38,10 +38,10 @@ func SetSessionCookieName(name string) {
 	sessionCookieName = name
 }
 
-// SkipAnonymousSeed registers a path matcher for CDN-friendly public GETs.
+// SkipCSRFAnonymousSeed registers a path matcher for CDN-friendly public GETs.
 // When the matcher returns true and the request has no session cookie, reading
 // methods skip token seed and XSRF-TOKEN Set-Cookie. Pass nil to disable.
-func SkipAnonymousSeed(match func(*http.Request) bool) {
+func SkipCSRFAnonymousSeed(match func(*http.Request) bool) {
 	csrfMu.Lock()
 	defer csrfMu.Unlock()
 	skipAnonymousSeed = match
@@ -61,15 +61,15 @@ func shouldSkipAnonymousSeed(req *http.Request) bool {
 	return match(req)
 }
 
-// Middleware verifies CSRF tokens on unsafe HTTP methods for all paths.
+// CSRF verifies CSRF tokens on unsafe HTTP methods for all paths.
 // Browser same-origin signals (Origin / Referer / Sec-Fetch-Site) are also enforced.
-// To exempt prefixes (e.g. token-authenticated /api), use Except explicitly in the app.
-func Middleware(next routing.HandlerFunc) routing.HandlerFunc {
-	return Except()(next)
+// To exempt prefixes (e.g. token-authenticated /api), use CSRFExcept explicitly in the app.
+func CSRF(next routing.HandlerFunc) routing.HandlerFunc {
+	return CSRFExcept()(next)
 }
 
-// Except skips CSRF verification for matching path prefixes.
-func Except(prefixes ...string) routing.MiddlewareFunc {
+// CSRFExcept skips CSRF verification for matching path prefixes.
+func CSRFExcept(prefixes ...string) routing.MiddlewareFunc {
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
 			if exceptedPath(req, prefixes) {
@@ -273,7 +273,7 @@ func refererMatchesRequest(req *http.Request, referer string) bool {
 	return strings.EqualFold(u.Scheme, req.Scheme())
 }
 
-// Token returns the CSRF token from the request session.
-func Token(req *http.Request) string {
+// CSRFToken returns the CSRF token from the request session.
+func CSRFToken(req *http.Request) string {
 	return ensureToken(req)
 }

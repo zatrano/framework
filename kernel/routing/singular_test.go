@@ -1,4 +1,4 @@
-package internal
+package routing
 
 import "testing"
 
@@ -25,8 +25,8 @@ func TestSingular(t *testing.T) {
 		{"ss", "ss"},
 	}
 	for _, tc := range cases {
-		if got := Singular(tc.in); got != tc.want {
-			t.Errorf("Singular(%q)=%q want %q", tc.in, got, tc.want)
+		if got := singular(tc.in); got != tc.want {
+			t.Errorf("singular(%q)=%q want %q", tc.in, got, tc.want)
 		}
 	}
 }

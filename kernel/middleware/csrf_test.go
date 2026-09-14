@@ -1,4 +1,4 @@
-package csrf_test
+package middleware
 
 import (
 	stdhttp "net/http"
@@ -8,8 +8,6 @@ import (
 
 	"github.com/zatrano/framework/v2/kernel/cookie"
 	"github.com/zatrano/framework/v2/kernel/http"
-	"github.com/zatrano/framework/v2/kernel/middleware"
-	"github.com/zatrano/framework/v2/kernel/middleware/csrf"
 )
 
 type memSession struct {
@@ -50,11 +48,11 @@ func newCSRFRequest(method, target string) (*http.Request, *memSession) {
 }
 
 func seedToken(req *http.Request) string {
-	return csrf.Token(req)
+	return CSRFToken(req)
 }
 
 func TestCSRFValidTokenSameOrigin(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -68,7 +66,7 @@ func TestCSRFValidTokenSameOrigin(t *testing.T) {
 }
 
 func TestCSRFInvalidToken(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -82,7 +80,7 @@ func TestCSRFInvalidToken(t *testing.T) {
 }
 
 func TestCSRFMissingToken(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -95,7 +93,7 @@ func TestCSRFMissingToken(t *testing.T) {
 }
 
 func TestCSRFOriginValidation(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -112,7 +110,7 @@ func TestCSRFOriginValidation(t *testing.T) {
 }
 
 func TestCSRFCrossSiteRequest(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -126,7 +124,7 @@ func TestCSRFCrossSiteRequest(t *testing.T) {
 }
 
 func TestCSRFSameSiteSecFetchAllowed(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -140,7 +138,7 @@ func TestCSRFSameSiteSecFetchAllowed(t *testing.T) {
 }
 
 func TestCSRFGETSkipsVerification(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
@@ -151,7 +149,7 @@ func TestCSRFGETSkipsVerification(t *testing.T) {
 }
 
 func TestCSRFPUTPATCHDELETERequireToken(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	for _, method := range []string{stdhttp.MethodPut, stdhttp.MethodPatch, stdhttp.MethodDelete} {
@@ -166,7 +164,7 @@ func TestCSRFPUTPATCHDELETERequireToken(t *testing.T) {
 }
 
 func TestCSRFNullOriginBlocked(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -181,7 +179,7 @@ func TestCSRFNullOriginBlocked(t *testing.T) {
 
 func TestCSRFNoOriginTokenOnly(t *testing.T) {
 	// Non-browser clients without Origin still authenticate via token.
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api")
@@ -209,7 +207,7 @@ func TestXSRFCookieSecureInProduction(t *testing.T) {
 	t.Cleanup(func() { cookie.SetProductionPolicy(false) })
 	t.Setenv("COOKIE_SECURE", "")
 	t.Setenv("SESSION_SECURE", "")
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodGet, "http://app.example/form")
@@ -229,7 +227,7 @@ func TestXSRFCookieSecureInProduction(t *testing.T) {
 func TestXSRFCookieSecureOnHTTPSInDevelopment(t *testing.T) {
 	cookie.SetProductionPolicy(false)
 	t.Setenv("COOKIE_SECURE", "")
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodGet, "https://app.example/form")
@@ -247,7 +245,7 @@ func TestXSRFCookieNotForcedSecureOnHTTPInDevelopment(t *testing.T) {
 	cookie.SetProductionPolicy(false)
 	t.Setenv("COOKIE_SECURE", "")
 	t.Setenv("SESSION_SECURE", "")
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodGet, "http://app.example/form")
@@ -268,12 +266,12 @@ func hasResponseCookie(resp *http.Response, name string) bool {
 }
 
 func TestCSRFSkipAnonymousSeedNoSessionCookie(t *testing.T) {
-	csrf.SkipAnonymousSeed(func(req *http.Request) bool {
+	SkipCSRFAnonymousSeed(func(req *http.Request) bool {
 		return req.Path() == "/"
 	})
-	t.Cleanup(func() { csrf.SkipAnonymousSeed(nil) })
+	t.Cleanup(func() { SkipCSRFAnonymousSeed(nil) })
 
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, sess := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
@@ -290,16 +288,16 @@ func TestCSRFSkipAnonymousSeedNoSessionCookie(t *testing.T) {
 }
 
 func TestCSRFSkipAnonymousSeedWithSessionCookie(t *testing.T) {
-	csrf.SkipAnonymousSeed(func(req *http.Request) bool {
+	SkipCSRFAnonymousSeed(func(req *http.Request) bool {
 		return req.Path() == "/"
 	})
-	t.Cleanup(func() { csrf.SkipAnonymousSeed(nil) })
+	t.Cleanup(func() { SkipCSRFAnonymousSeed(nil) })
 
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, sess := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
-	req.Raw().AddCookie(&stdhttp.Cookie{Name: csrf.DefaultSessionCookie, Value: "aabbccddeeff00112233445566778899"})
+	req.Raw().AddCookie(&stdhttp.Cookie{Name: DefaultSessionCookie, Value: "aabbccddeeff00112233445566778899"})
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -313,7 +311,7 @@ func TestCSRFSkipAnonymousSeedWithSessionCookie(t *testing.T) {
 }
 
 func exceptAPI() func(*http.Request) *http.Response {
-	return csrf.Except("/api")(func(req *http.Request) *http.Response {
+	return CSRFExcept("/api")(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 }
@@ -371,14 +369,14 @@ func TestCSRFExceptDoesNotUseQueryAsPath(t *testing.T) {
 }
 
 func TestCSRFSeesMethodOverrideDELETE(t *testing.T) {
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(req)
 	req.Raw().Header.Set("Origin", "https://app.example")
 	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
-	middleware.ApplyMethodOverride(req)
+	ApplyMethodOverride(req)
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("overridden DELETE must require CSRF: status=%d", resp.StatusCode())
@@ -390,7 +388,7 @@ func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
 	_ = seedToken(req)
 	req.Raw().Header.Set("Origin", "https://app.example")
 	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
-	middleware.ApplyMethodOverride(req)
+	ApplyMethodOverride(req)
 	resp := exceptAPI()(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("API except must still bypass overridden DELETE: status=%d", resp.StatusCode())
@@ -398,10 +396,10 @@ func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
 }
 
 func TestCSRFSetSessionCookieNameAndReferer(t *testing.T) {
-	csrf.SetSessionCookieName("")
-	csrf.SetSessionCookieName("custom_session")
-	t.Cleanup(func() { csrf.SetSessionCookieName(csrf.DefaultSessionCookie) })
-	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+	SetCSRFSessionCookieName("")
+	SetCSRFSessionCookieName("custom_session")
+	t.Cleanup(func() { SetCSRFSessionCookieName(DefaultSessionCookie) })
+	handler := CSRF(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
@@ -415,11 +413,11 @@ func TestCSRFSetSessionCookieNameAndReferer(t *testing.T) {
 	bad, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(bad)
 	bad.Raw().Header.Set("Referer", "https://evil.example/x")
-	bad.Raw().Header.Set("X-CSRF-TOKEN", csrf.Token(bad))
+	bad.Raw().Header.Set("X-CSRF-TOKEN", CSRFToken(bad))
 	if handler(bad).StatusCode() == 200 {
 		t.Fatal("cross-origin referer must fail")
 	}
-	except := csrf.Except("api")(func(req *http.Request) *http.Response {
+	except := CSRFExcept("api")(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
 	api, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api/x")

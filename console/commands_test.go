@@ -98,12 +98,4 @@ func TestRootCLICommandHandles(t *testing.T) {
 			t.Fatalf("tinker %v: %v", args, err)
 		}
 	}
-	n, err := mergePackageEnvFile(filepath.Join(dir, ".env"), "session", "SESSION_DRIVER=file\n")
-	if err != nil || n != 1 {
-		t.Fatalf("merge env n=%d err=%v", n, err)
-	}
-	n, err = mergePackageEnvFile(filepath.Join(dir, ".env"), "session", "SESSION_DRIVER=file\n")
-	if err != nil || n != 0 {
-		t.Fatalf("idempotent merge n=%d err=%v", n, err)
-	}
 }

@@ -2,8 +2,6 @@ package routing
 
 import (
 	"strings"
-
-	"github.com/zatrano/framework/v2/kernel/internal"
 )
 
 // Resource holds optional REST resource handlers.
@@ -57,7 +55,7 @@ func Except(actions ...string) ResourceOption {
 func (r *Router) Resource(name string, res Resource, opts ...ResourceOption) []*Route {
 	name = strings.Trim(name, "/")
 	cfg := &resourceConfig{
-		parameter: internal.Singular(name),
+		parameter: singular(name),
 	}
 	for _, opt := range opts {
 		opt(cfg)

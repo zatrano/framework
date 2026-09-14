@@ -1,4 +1,4 @@
-package useragent
+package http
 
 import (
 	"strings"
@@ -14,8 +14,8 @@ type Agent struct {
 	IsBot    bool   `json:"is_bot"`
 }
 
-// Parse extracts coarse browser/platform/device info from a User-Agent string.
-func Parse(ua string) Agent {
+// ParseUserAgent extracts coarse browser/platform/device info from a User-Agent string.
+func ParseUserAgent(ua string) Agent {
 	raw := strings.TrimSpace(ua)
 	lower := strings.ToLower(raw)
 	a := Agent{Raw: raw, Browser: "Unknown", Platform: "Unknown", Device: "Desktop"}
