@@ -25,3 +25,16 @@ func TestWhenUnlessTap(t *testing.T) {
 		t.Fatal("transform")
 	}
 }
+
+func TestBasePathAndValueOr(t *testing.T) {
+	if support.BasePath() == "" {
+		t.Fatal("BasePath")
+	}
+	if support.ValueOr("", "fb") != "fb" || support.ValueOr("x", "fb") != "x" {
+		t.Fatal("ValueOr")
+	}
+	s, err := support.RandomBase64(4)
+	if err != nil || s == "" {
+		t.Fatal(err)
+	}
+}

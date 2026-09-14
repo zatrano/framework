@@ -259,3 +259,24 @@ func TestNumAggregates(t *testing.T) {
 		t.Fatalf("pctof=%v", num.PercentageOf(25, 200))
 	}
 }
+
+func TestBetweenToIntToFloat(t *testing.T) {
+	if !num.Between(5, 1, 10) || num.Between(0, 1, 10) {
+		t.Fatal("between")
+	}
+	if num.ToInt(7) != 7 || num.ToInt(int64(8)) != 8 || num.ToInt(9.9) != 9 || num.ToInt(float32(2)) != 2 {
+		t.Fatal("toint numbers")
+	}
+	if num.ToInt("11") != 11 || num.ToInt("x", 4) != 4 {
+		t.Fatal("toint string")
+	}
+	if num.ToFloat(1.5) != 1.5 || num.ToFloat(float32(2)) != 2 || num.ToFloat(3) != 3 || num.ToFloat(int64(4)) != 4 {
+		t.Fatal("tofloat numbers")
+	}
+	if num.ToFloat("1.25") != 1.25 || num.ToFloat("x", 9) != 9 {
+		t.Fatal("tofloat string")
+	}
+	if num.Clamp(-1, 0, 10) != 0 {
+		t.Fatal("clamp low")
+	}
+}

@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
+	stdhttp "net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
+	zhttp "github.com/zatrano/framework/v2/kernel/http"
 	"github.com/zatrano/framework/v2/kernel/report"
 )
 
@@ -32,7 +33,7 @@ func TestReportWebhook(t *testing.T) {
 		got  report.Event
 		hits int
 	)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		defer r.Body.Close()
 		raw, _ := io.ReadAll(r.Body)
 		var ev report.Event
@@ -74,4 +75,40 @@ func TestReportWebhook(t *testing.T) {
 	if m.Count() != 1 {
 		t.Fatal("expected memory capture")
 	}
+}
+
+func TestReportNilClearLimitReporter(t *testing.T) {
+	m := report.New(2)
+	if m.Capture(nil, nil).Message != "" {
+		t.Fatal("nil err")
+	}
+	m.Capture(fmt.Errorf("a"), nil)
+	m.Capture(fmt.Errorf("b"), nil)
+	m.Capture(fmt.Errorf("c"), nil)
+	if m.Count() != 2 {
+		t.Fatal(m.Count())
+	}
+	raw := httptest.NewRequest("POST", "/x", nil)
+	ev := m.Capture(fmt.Errorf("req"), zhttp.NewRequest(raw), "")
+	if ev.Path != "/x" || ev.Method != "POST" {
+		t.Fatalf("%+v", ev)
+	}
+	m.Reporter()(fmt.Errorf("via"), nil)
+	m.Clear()
+	if m.Count() != 0 {
+		t.Fatal("clear")
+	}
+	var n *report.Manager
+	n.SetWebhook("http://x")
+	if n.Webhook() != "" {
+		t.Fatal("nil webhook")
+	}
+	m.SetWebhook("http://127.0.0.1:1/hook")
+	if m.Webhook() == "" {
+		t.Fatal("webhook set")
+	}
+	rep := &report.HTTPReporter{}
+	rep.Report(report.Event{Message: "x"})
+	rep.URL = "http://127.0.0.1:1/hook"
+	rep.Report(report.Event{Message: "y"})
 }

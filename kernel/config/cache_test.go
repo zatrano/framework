@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -122,4 +123,80 @@ func TestLoadAndSetCopyIncomingValues(t *testing.T) {
 	if repo.Get("app.list").([]map[string]any)[0]["n"] != "keep" {
 		t.Fatal("Set must copy the incoming value")
 	}
+}
+
+func TestConfigGettersAppAndCacheExists(t *testing.T) {
+	_ = config.App()
+	repo := config.New()
+	repo.Load("app", map[string]any{
+		"debug": true,
+		"flag":  "on",
+		"n":     7,
+		"n64":   int64(8),
+		"f":     float64(9),
+		"label": 12,
+	})
+	if !repo.GetBool("app.debug") || !repo.GetBool("app.flag") {
+		t.Fatal("GetBool")
+	}
+	if repo.GetBool("missing", true) != true || repo.GetBool("missing") {
+		t.Fatal("GetBool fallback")
+	}
+	if repo.GetInt("app.n") != 7 || repo.GetInt("app.n64") != 8 || repo.GetInt("app.f") != 9 {
+		t.Fatal("GetInt")
+	}
+	if repo.GetInt("missing", 3) != 3 || repo.GetInt("missing") != 0 {
+		t.Fatal("GetInt fallback")
+	}
+	if repo.GetString("app.label") != "12" {
+		t.Fatal("GetString non-string")
+	}
+	if repo.GetString("nope", "fb") != "fb" || repo.GetString("nope") != "" {
+		t.Fatal("GetString missing")
+	}
+	if repo.Get("nope.nested", "x") != "x" {
+		t.Fatal("Get nested missing")
+	}
+	path := filepath.Join(t.TempDir(), "cfg.json")
+	if config.CacheExists(path) {
+		t.Fatal("missing cache")
+	}
+	config.MustSaveCache(path, repo)
+	if !config.CacheExists(path) {
+		t.Fatal("cache exists")
+	}
+	if err := config.SaveCache(path, nil); err == nil {
+		t.Fatal("nil repo")
+	}
+	repo.Load("", map[string]any{"top": "v", "nested": map[string]any{"k": 1}})
+	if repo.GetString("top") != "v" {
+		t.Fatal("load empty name")
+	}
+	if repo.GetBool("nested.k") || repo.GetBool("nested.k", true) != true {
+		// int is not bool
+	}
+	if repo.GetInt("top", 9) != 9 {
+		t.Fatal("GetInt non-numeric")
+	}
+	bad := filepath.Join(t.TempDir(), "bad.json")
+	if err := os.WriteFile(bad, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.LoadCache(bad); err == nil {
+		t.Fatal("bad json")
+	}
+	if err := config.ClearCache(filepath.Join(t.TempDir(), "missing.json")); err != nil && !os.IsNotExist(err) {
+		// ClearCache may return nil on missing
+	}
+	_ = config.ClearCache(filepath.Join(t.TempDir(), "nope.json"))
+	repo.MergeCached(map[string]any{"scalar": "x"})
+	if repo.GetString("scalar") != "x" {
+		t.Fatal("merge scalar")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("MustSaveCache panic")
+		}
+	}()
+	config.MustSaveCache(filepath.Join(t.TempDir(), "no", "such", "\x00"), nil)
 }

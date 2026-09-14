@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	stdhttp "net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/zatrano/framework/v2/kernel/http"
@@ -79,5 +80,53 @@ func TestSubstituteBindings(t *testing.T) {
 	missing := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/notes/404", nil)))
 	if missing.StatusCode() != 404 {
 		t.Fatalf("expected 404, got %d", missing.StatusCode())
+	}
+}
+
+func TestControllerHelper(t *testing.T) {
+	r := routing.New()
+	type notes struct{}
+	routing.Controller(r, notes{}, func(rr routing.RouteRegistrar, c notes) {
+		rr.Get("/n", func(req *http.Request) *http.Response { return http.Text("ok") })
+	})
+	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/n", nil)))
+	if resp.StatusCode() != 200 {
+		t.Fatalf("status=%d", resp.StatusCode())
+	}
+}
+
+func TestCoverageVerbsDiscoveryAndCache(t *testing.T) {
+	r := routing.New()
+	ok := func(req *http.Request) *http.Response { return http.Text("ok") }
+	r.Put("/p", ok)
+	r.Patch("/p", ok)
+	r.Delete("/p", ok)
+	r.Options("/p", ok)
+	r.Any("/any", ok)
+	r.Match([]string{"GET", "POST"}, "/m", ok)
+	r.Resource("posts", routing.Resource{Index: ok, Store: ok}, routing.Except("store"), routing.Parameter("post"))
+	if routing.From(nil) != nil {
+		t.Fatal("From nil")
+	}
+	routing.RegisterAPI(nil)
+	routing.RegisterAPI(func(rr *routing.Router) { rr.Get("/api/z", ok) })
+	routing.ApplyAPI(nil)
+	api := routing.New()
+	routing.ApplyAPI(api)
+	if routing.HasBinding("nope") {
+		t.Fatal("has binding")
+	}
+	path := filepath.Join(t.TempDir(), "routes.json")
+	if err := r.SaveCache(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := routing.LoadRouteCache(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := routing.ClearRouteCache(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := routing.ClearRouteCache(path); err != nil {
+		t.Fatal("missing cache")
 	}
 }

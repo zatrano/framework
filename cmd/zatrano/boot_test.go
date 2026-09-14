@@ -62,3 +62,14 @@ func TestZatranoMainClassifiesCLIErrors(t *testing.T) {
 		t.Fatal("cmd/zatrano must not special-case acquisition codes")
 	}
 }
+
+func TestBootForCLI(t *testing.T) {
+	core := bootForCLI([]string{"doctor"})
+	if core == nil {
+		t.Fatal("core boot")
+	}
+	app := bootForCLI([]string{"serve"})
+	if app == nil {
+		t.Fatal("from env")
+	}
+}

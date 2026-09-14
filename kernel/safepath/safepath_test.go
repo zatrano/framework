@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +111,131 @@ func TestEvalUnderAllowsInside(t *testing.T) {
 	}
 	if !Under(resolvedRoot, got) {
 		t.Fatalf("not under resolved root %s: %s", resolvedRoot, got)
+	}
+}
+
+func TestResolveEmptyAndDot(t *testing.T) {
+	root := t.TempDir()
+	for _, p := range []string{"", "."} {
+		full, err := Resolve(root, p)
+		if err != nil {
+			t.Fatalf("%q: %v", p, err)
+		}
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if full != abs {
+			t.Fatalf("%q got %s want %s", p, full, abs)
+		}
+	}
+}
+
+func TestResolveRejectsAbsoluteAndUNC(t *testing.T) {
+	root := t.TempDir()
+	for _, p := range []string{"C:/windows", "foo:bar"} {
+		if _, err := Resolve(root, p); err == nil {
+			t.Fatalf("expected reject for %q", p)
+		}
+	}
+}
+
+func TestEvalUnderMissingFile(t *testing.T) {
+	root := t.TempDir()
+	full, err := Resolve(root, "gone.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := EvalUnder(root, full); err == nil {
+		t.Fatal("expected Lstat error for missing path")
+	}
+}
+
+func TestEvalUnderSymlinkHopLimit(t *testing.T) {
+	root := t.TempDir()
+	a := filepath.Join(root, "a")
+	b := filepath.Join(root, "b")
+	if err := os.Symlink(b, a); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+	if err := os.Symlink(a, b); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+	if _, err := EvalUnder(root, a); err == nil {
+		t.Fatal("expected too many symlinks")
+	} else if !strings.Contains(err.Error(), "too many symlinks") && !strings.Contains(strings.ToLower(err.Error()), "too many") {
+		if _, ok := err.(interface{ Error() string }); !ok {
+			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestEvalUnderInsideSymlinkAndDotSegments(t *testing.T) {
+	root := t.TempDir()
+	inner := filepath.Join(root, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(inner, "a.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(inner, link); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	full, err := Resolve(root, "link/a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := EvalUnder(root, full); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, "inner/./a.txt"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStripLongPathUNCAndDrive(t *testing.T) {
+	if got := stripLongPath(`\\?\C:\Windows\System32`); got != `C:\Windows\System32` {
+		t.Fatalf("drive prefix: %q", got)
+	}
+	if got := stripLongPath(`\\?\UNC\server\share\file`); got != `\\server\share\file` {
+		t.Fatalf("unc prefix: %q", got)
+	}
+	if got := stripLongPath(`\\?\unc\server\share`); got != `\\server\share` {
+		t.Fatalf("unc lower: %q", got)
+	}
+	if got := stripLongPath(`/plain`); got != `/plain` {
+		t.Fatalf("plain: %q", got)
+	}
+}
+
+func TestResolveFSNHopLimitDirect(t *testing.T) {
+	if _, err := resolveFSN(".", maxSymlinkHops+1); err == nil {
+		t.Fatal("expected hop limit")
+	}
+}
+
+func TestUnderAbsAndRelErrors(t *testing.T) {
+	if Under("\x00", "x") {
+		t.Fatal("null root")
+	}
+	if Under(".", "\x00") {
+		t.Fatal("null candidate")
+	}
+	if filepath.VolumeName(`C:\`) != "" && Under(`C:\`, `D:\outside`) {
+		t.Fatal("cross-volume")
+	}
+}
+
+func TestSplitAbsSkipsEmptyAndDot(t *testing.T) {
+	base, parts := splitAbs(filepath.Join(string(filepath.Separator), "a", ".", "b"))
+	if len(parts) == 0 {
+		t.Fatal("expected parts")
+	}
+	for _, p := range parts {
+		if p == "" || p == "." {
+			t.Fatalf("empty/dot part in %v base=%s", parts, base)
+		}
 	}
 }

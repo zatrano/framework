@@ -3,6 +3,7 @@ package middleware_test
 import (
 	stdhttp "net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/v2/kernel/http"
@@ -157,5 +158,42 @@ func TestCORSNullOrigin(t *testing.T) {
 	resp := handler(http.NewRequest(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("null Origin must not match")
+	}
+}
+
+func TestStackLoggerForceJSONDomainMethodOverride(t *testing.T) {
+	inner := func(req *http.Request) *http.Response {
+		return http.Text(req.Header("Accept") + ":" + req.Method())
+	}
+	h := middleware.Stack(inner, middleware.ForceJSON, middleware.Logger, middleware.MethodOverride)
+	raw := httptest.NewRequest(stdhttp.MethodPost, "/", nil)
+	raw.Header.Set("X-HTTP-Method-Override", "PUT")
+	resp := h(http.NewRequest(raw))
+	if !strings.Contains(string(resp.Content()), "application/json") || !strings.Contains(string(resp.Content()), "PUT") {
+		t.Fatalf("body=%s", resp.Content())
+	}
+	ok := middleware.Domain("example.com", "*.app.test")(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	good := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	good.Host = "example.com"
+	if ok(http.NewRequest(good)).StatusCode() != 200 {
+		t.Fatal("exact host")
+	}
+	sub := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	sub.Host = "api.app.test:443"
+	if ok(http.NewRequest(sub)).StatusCode() != 200 {
+		t.Fatal("wildcard host")
+	}
+	bad := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	bad.Host = "evil.test"
+	if ok(http.NewRequest(bad)).StatusCode() != 404 {
+		t.Fatal("rejected host")
+	}
+	passthrough := middleware.Domain()(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	if passthrough(http.NewRequest(good)).StatusCode() != 200 {
+		t.Fatal("empty domain list")
 	}
 }

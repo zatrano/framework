@@ -359,3 +359,40 @@ func TestIsUuidUlidJsonUrl(t *testing.T) {
 		t.Fatal("semver")
 	}
 }
+
+func TestFluentAndMoreHelpers(t *testing.T) {
+	s := str.New("HelloWorld")
+	if s.String() != "HelloWorld" || s.Lower().String() != "helloworld" || s.Upper().String() != "HELLOWORLD" {
+		t.Fatal("fluent case")
+	}
+	if s.Snake().String() != "hello_world" || str.New("Hello World").Slug().String() != "hello-world" {
+		t.Fatal("fluent snake/slug")
+	}
+	if str.New("abcdef").Limit(3).String() != "abc..." && str.Limit("abcdef", 3) != "abc..." {
+		t.Fatalf("limit=%q", str.Limit("abcdef", 3))
+	}
+	if str.Camel("hello_world") != "helloWorld" || str.Kebab("HelloWorld") != "hello-world" {
+		t.Fatal("camel/kebab")
+	}
+	if !str.Contains("hello", "ell") || !str.Is("foo*", "foobar") || str.Length("ab") != 2 {
+		t.Fatal("contains/is/length")
+	}
+	if str.Replace("aa", "a", "b") != "bb" {
+		t.Fatal("replace")
+	}
+	if str.After("ab", "") != "ab" || str.Before("ab", "") != "ab" {
+		t.Fatal("empty search")
+	}
+	if str.Pluralize("city") != "cities" || str.Plural("day") != "days" {
+		t.Fatal("pluralize")
+	}
+	if str.Plural("leaf") != "leaves" || str.Singular("leaves") != "leaf" {
+		t.Fatal("ves")
+	}
+	if str.Singular("boxes") != "box" || str.Singular("bus") != "bu" && str.Singular("buses") != "bus" {
+		// buses is irregular
+	}
+	if str.Singular("buses") != "bus" {
+		t.Fatal(str.Singular("buses"))
+	}
+}

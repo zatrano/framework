@@ -396,3 +396,34 @@ func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
 		t.Fatalf("API except must still bypass overridden DELETE: status=%d", resp.StatusCode())
 	}
 }
+
+func TestCSRFSetSessionCookieNameAndReferer(t *testing.T) {
+	csrf.SetSessionCookieName("")
+	csrf.SetSessionCookieName("custom_session")
+	t.Cleanup(func() { csrf.SetSessionCookieName(csrf.DefaultSessionCookie) })
+	handler := csrf.Middleware(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
+	token := seedToken(req)
+	req.Raw().Header.Set("Referer", "https://app.example/page")
+	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	resp := handler(req)
+	if resp.StatusCode() != 200 {
+		t.Fatalf("referer same-origin status=%d", resp.StatusCode())
+	}
+	bad, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
+	_ = seedToken(bad)
+	bad.Raw().Header.Set("Referer", "https://evil.example/x")
+	bad.Raw().Header.Set("X-CSRF-TOKEN", csrf.Token(bad))
+	if handler(bad).StatusCode() == 200 {
+		t.Fatal("cross-origin referer must fail")
+	}
+	except := csrf.Except("api")(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	api, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api/x")
+	if except(api).StatusCode() != 200 {
+		t.Fatal("except without leading slash")
+	}
+}

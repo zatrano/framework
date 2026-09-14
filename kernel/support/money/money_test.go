@@ -28,3 +28,21 @@ func TestMoney(t *testing.T) {
 		t.Fatal(a.Format("$"))
 	}
 }
+
+func TestMoneySubMulFormat(t *testing.T) {
+	a := money.Of(1000, "USD")
+	b := money.Of(250, "USD")
+	diff, err := a.Sub(b)
+	if err != nil || diff.Amount != 750 {
+		t.Fatalf("%+v %v", diff, err)
+	}
+	if _, err := a.Sub(money.Of(1, "EUR")); err == nil {
+		t.Fatal("currency mismatch")
+	}
+	if a.Mul(2).Amount != 2000 {
+		t.Fatal("mul")
+	}
+	if a.Format("") == "" {
+		t.Fatal("format symbol empty")
+	}
+}

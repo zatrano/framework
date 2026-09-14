@@ -221,3 +221,34 @@ func TestAllowIPNotBypassedByPrependedXFF(t *testing.T) {
 		t.Fatalf("AllowIP bypassed via XFF prepend: status=%d", resp.StatusCode())
 	}
 }
+
+func TestRemoteAddrIPv6AndNil(t *testing.T) {
+	if trustedproxy.RemoteAddr(nil) != "" {
+		t.Fatal("nil req")
+	}
+	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
+	raw.RemoteAddr = "[2001:db8::1]:443"
+	req := http.NewRequest(raw)
+	if got := trustedproxy.RemoteAddr(req); got != "2001:db8::1" {
+		t.Fatalf("ipv6=%q", got)
+	}
+	raw.RemoteAddr = "203.0.113.9"
+	if got := trustedproxy.RemoteAddr(http.NewRequest(raw)); got != "203.0.113.9" {
+		t.Fatalf("no port=%q", got)
+	}
+	raw.Header.Set("X-Real-IP", "198.51.100.9")
+	raw.RemoteAddr = "192.0.2.1:1"
+	_, n, err := net.ParseCIDR("192.0.2.1/32")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{n}); got != "198.51.100.9" {
+		t.Fatalf("x-real-ip=%q", got)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic")
+		}
+	}()
+	_ = trustedproxy.Middleware("not-a-proxy")
+}

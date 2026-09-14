@@ -92,3 +92,67 @@ func TestLocalDevKeyIsAES256Length(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestEncryptStringJSONAndMust(t *testing.T) {
+	enc, err := encryption.New(strings.Repeat("k", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct, err := enc.EncryptString("hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := enc.DecryptString(ct)
+	if err != nil || plain != "hello" {
+		t.Fatalf("%q %v", plain, err)
+	}
+	must := enc.MustEncrypt("must")
+	if enc.MustDecrypt(must) != "must" {
+		t.Fatal("must round-trip")
+	}
+	payload, err := enc.EncryptJSON(map[string]int{"n": 7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dest map[string]int
+	if err := enc.DecryptJSON(payload, &dest); err != nil || dest["n"] != 7 {
+		t.Fatalf("%v %v", dest, err)
+	}
+	if _, err := enc.EncryptJSON(make(chan int)); err == nil {
+		t.Fatal("expected json marshal error")
+	}
+	if err := enc.DecryptJSON("not-ciphertext", &dest); err == nil {
+		t.Fatal("expected decrypt error")
+	}
+	ct, err = enc.Encrypt("hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := base64.StdEncoding.DecodeString(ct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw[len(raw)-1] ^= 0xff
+	if _, err := enc.Decrypt(base64.StdEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("tampered ciphertext")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("MustDecrypt must panic")
+		}
+	}()
+	_ = enc.MustDecrypt("nope")
+}
+
+func TestDecryptRejectsGarbage(t *testing.T) {
+	enc, err := encryption.New(strings.Repeat("k", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := enc.Decrypt("%%%"); err == nil {
+		t.Fatal("invalid base64")
+	}
+	if _, err := enc.Decrypt(base64.StdEncoding.EncodeToString([]byte("short"))); err == nil {
+		t.Fatal("short payload")
+	}
+}

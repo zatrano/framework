@@ -26,4 +26,19 @@ func TestColorHelpers(t *testing.T) {
 	if mixed.R < 100 || mixed.R > 150 {
 		t.Fatalf("%+v", mixed)
 	}
+	alpha, err := color.ParseHex("#11223344")
+	if err != nil || alpha.A != 0x44 || alpha.Hex() != "#11223344" {
+		t.Fatalf("%+v %v", alpha, err)
+	}
+	if _, err := color.ParseHex("zz"); err == nil {
+		t.Fatal("invalid hex")
+	}
+	clamped := color.Mix(black, white, 2)
+	if clamped.R != 255 {
+		t.Fatalf("t>1 %+v", clamped)
+	}
+	low := color.Mix(black, white, -1)
+	if low.R != 0 {
+		t.Fatalf("t<0 %+v", low)
+	}
 }
