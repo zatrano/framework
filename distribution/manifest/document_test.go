@@ -151,3 +151,22 @@ func TestFrameworkMinOptional(t *testing.T) {
 		t.Fatal("expected invalid framework_min")
 	}
 }
+
+func TestDeriveNestedToolkitLibrary(t *testing.T) {
+	d := Derive(Input{
+		Name:        "toolkit/str",
+		Kind:        KindLibrary,
+		Layer:       LayerAddon,
+		Description: "String helpers",
+	})
+	if d.Import != DefaultModule+"/toolkit/str" {
+		t.Fatalf("import=%q", d.Import)
+	}
+	if err := Validate(d); err != nil {
+		t.Fatal(err)
+	}
+	bad := Derive(Input{Name: "toolkit/", Kind: KindLibrary, Layer: LayerAddon, Description: "x"})
+	if err := Validate(bad); err == nil {
+		t.Fatal("expected invalid nested name")
+	}
+}

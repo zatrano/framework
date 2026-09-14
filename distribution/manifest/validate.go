@@ -97,6 +97,21 @@ func validName(name string) bool {
 	if name == "" || len(name) > 64 {
 		return false
 	}
+	if strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") || strings.Contains(name, "//") {
+		return false
+	}
+	for _, seg := range strings.Split(name, "/") {
+		if !validNameSegment(seg) {
+			return false
+		}
+	}
+	return true
+}
+
+func validNameSegment(name string) bool {
+	if name == "" {
+		return false
+	}
 	for i, r := range name {
 		if r >= 'a' && r <= 'z' {
 			continue

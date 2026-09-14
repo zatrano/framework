@@ -77,7 +77,7 @@ func TestEcosystemCatalogHasPackageDirectories(t *testing.T) {
 		if p.Name == "console" {
 			continue // lives in the framework CLI, not packages/
 		}
-		dir := filepath.Join(root, p.Name)
+		dir := filepath.Join(root, filepath.FromSlash(p.Name))
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 			t.Errorf("catalog %q has no packages/%s directory", p.Name, p.Name)
 		}

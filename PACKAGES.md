@@ -180,8 +180,9 @@ Docs: [Cookies](https://zatrano.com/docs/cookies)
 
 ### `support`
 
-**For:** Strings, arrays, UUID, and similar helpers (`kernel/support`, `kernel/support/str`, …).  
+**For:** Kernel primitives — entropy (`RandomBytes` / `RandomHex` / `RandomBase64` / `MustRandomHex`), `When`/`Tap`, UUID, atomic files, `fn`/`once` (`kernel/support`, `kernel/support/uuid`, `kernel/support/files`, `kernel/support/fn`, `kernel/support/once`).  
 Always available; not opt-in.  
+String, array, date, HTML, money, number, and color helpers are not in the kernel. They live in `github.com/zatrano/packages/toolkit/{str,arr,date,html,money,num,color}` (opt-in libraries, `package:list --libraries`). There is no re-export from `kernel/support`.  
 Docs: [Helpers](https://zatrano.com/docs/helpers)
 
 ### `routing`

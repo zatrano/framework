@@ -100,6 +100,13 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "testing", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Test helpers"},
 	{Name: "timing", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Timing / stopwatch helpers"},
 	{Name: "totp", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "TOTP codes"},
+	{Name: "toolkit/arr", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Array/slice helpers"},
+	{Name: "toolkit/color", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Color helpers"},
+	{Name: "toolkit/date", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Date/time helpers"},
+	{Name: "toolkit/html", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "HTML helpers"},
+	{Name: "toolkit/money", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Money helpers"},
+	{Name: "toolkit/num", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Number helpers"},
+	{Name: "toolkit/str", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "String helpers"},
 	{Name: "useragent", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "User-Agent parser"},
 	{Name: "websocket", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "WebSocket helpers"},
 }

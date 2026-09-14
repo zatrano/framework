@@ -98,6 +98,10 @@ func TestEcosystemCatalogAddonKinds(t *testing.T) {
 	if !ok || collection.EffectiveKind() != kernel.KindLibrary {
 		t.Fatal("collection should be a library addon")
 	}
+	str, ok := catalogLookup("toolkit/str")
+	if !ok || str.Layer != kernel.LayerAddon || str.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/str should be an addon library")
+	}
 	oauth, ok := catalogLookup("oauth")
 	if !ok || oauth.EffectiveKind() != kernel.KindService {
 		t.Fatal("oauth should be a service addon")

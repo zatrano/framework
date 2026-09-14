@@ -7,6 +7,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Breaking
 
 - Removed `str.Random`. Randomness is only `support.RandomBytes`, `support.RandomHex`, `support.RandomBase64` (all return errors) and `support.MustRandomHex` (panics on entropy failure). `str` is deterministic string operations only.
+- Moved `kernel/support/{date,arr,str,num,html,money,color}` to `github.com/zatrano/packages/toolkit/{date,arr,str,num,html,money,color}` (opt-in `LayerAddon` libraries). No re-export. Import `github.com/zatrano/packages/toolkit/str` (and siblings). Resource route parameter inflection uses `kernel/internal.Singular` only. Remaining `kernel/support` surface: entropy/`When` helpers, `uuid` (used by first-party packages), `files`, `fn`, `once`.
 
 ## 2.3.1 - 2026-09-11
 

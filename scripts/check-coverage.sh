@@ -49,17 +49,11 @@ check_pkg kernel/pipeline 80
 check_pkg kernel/report 80
 check_pkg kernel/context 80
 check_pkg kernel/middleware 80
+check_pkg kernel/internal 80
 check_pkg kernel/support 80
-check_pkg kernel/support/arr 80
-check_pkg kernel/support/color 80
-check_pkg kernel/support/date 80
 check_pkg kernel/support/files 80
 check_pkg kernel/support/fn 80
-check_pkg kernel/support/html 80
-check_pkg kernel/support/money 80
-check_pkg kernel/support/num 80
 check_pkg kernel/support/once 80
-check_pkg kernel/support/str 80
 check_pkg kernel/support/uuid 80
 
 # CLI / tools (>=60)
