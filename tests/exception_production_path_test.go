@@ -48,10 +48,11 @@ func bootExceptionPathApp(t *testing.T) contracts.App {
 	t.Setenv("APP_DEBUG", "false")
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App(bootstrap.WithProviders(&exceptionPathFixture{}))
+	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()), bootstrap.WithProviders(&exceptionPathFixture{}))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if app.Exceptions() == nil {
 		t.Fatal("expected exceptions.Handler from KernelServiceProvider, not middleware.Recover fallback")
 	}

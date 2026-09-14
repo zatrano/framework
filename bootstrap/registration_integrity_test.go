@@ -40,10 +40,11 @@ func TestRegisterEnablementLastWriteWins(t *testing.T) {
 	RegisterEnablement([]string{"keep"})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App()
+	app := App(WithBasePath(t.TempDir()))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if !app.Bound("keep") {
 		t.Fatal("last RegisterEnablement must win")
 	}
@@ -56,14 +57,16 @@ func TestTwoAppsShareProcessGlobalRegistry(t *testing.T) {
 	registerIntegrityAddons(t)
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	a := App(WithAddons("keep"))
-	b := App(WithAddons("keep", "skip"))
+	a := App(WithBasePath(t.TempDir()), WithAddons("keep"))
+	b := App(WithBasePath(t.TempDir()), WithAddons("keep", "skip"))
 	if err := a.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, a)
 	if err := b.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, b)
 	if !a.Bound("keep") || a.Bound("skip") {
 		t.Fatal("app A WithAddons must select keep only")
 	}
@@ -81,10 +84,11 @@ func TestWithAddonsIsolatesApplicationSelection(t *testing.T) {
 	RegisterEnablement([]string{"keep", "skip"})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App(WithAddons("keep"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("keep"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if app.Bound("skip") {
 		t.Fatal("WithAddons isolates selection; it does not clone the registry")
 	}
@@ -109,8 +113,8 @@ func TestAppDoesNotUsePerApplicationRegistry(t *testing.T) {
 	registerIntegrityAddons(t)
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	_ = App(WithAddons("keep"))
-	_ = App(WithAddons("skip"))
+	_ = App(WithBasePath(t.TempDir()), WithAddons("keep"))
+	_ = App(WithBasePath(t.TempDir()), WithAddons("skip"))
 	if len(addons.Names()) != 2 {
 		t.Fatal("two App() values must share one process-global imported set")
 	}

@@ -10,6 +10,7 @@ type Application = consolecore.Application
 func hasFlag(args []string, flags ...string) bool { return consolecore.HasFlag(args, flags...) }
 func cliErr(code int, err error) error            { return consolecore.CliErr(code, err) }
 func parseEnabledAddons(src string) []string      { return consolecore.ParseEnabledAddons(src) }
+func modulePath(root string) (string, error)      { return consolecore.ModulePath(root) }
 func frameworkModuleRoot() (string, error)        { return consolecore.FrameworkModuleRoot() }
 
 const (

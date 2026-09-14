@@ -117,10 +117,14 @@ func DoctorChecks() []DoctorCheck {
 }
 
 // RunDoctor runs every check against a consumer app root.
+// The framework module itself is not a consumer: only FW-ROOT-001 runs there.
 func RunDoctor(root string) ([]Finding, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
+	}
+	if isFrameworkRepo(abs) {
+		return checkFrameworkRepoLayout(abs)
 	}
 	appDir := filepath.Join(abs, "app")
 	st, err := os.Stat(appDir)

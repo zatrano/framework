@@ -2,10 +2,12 @@ package bootstrap_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/zatrano/framework/v2/bootstrap"
 	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/kernel"
 )
 
 func TestResolveProfile(t *testing.T) {
@@ -37,6 +39,7 @@ func TestResolveProfile(t *testing.T) {
 }
 
 func TestProfileAPIDoesNotBindMongo(t *testing.T) {
+	chdirTempModule(t)
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
 	app, err := bootstrap.Profile("api")
@@ -46,6 +49,7 @@ func TestProfileAPIDoesNotBindMongo(t *testing.T) {
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeTestLog(t, app)
 	if app.Bound("mongo") {
 		t.Fatal("api profile should not bind mongo")
 	}
@@ -61,6 +65,7 @@ func TestProfileAPIDoesNotBindMongo(t *testing.T) {
 }
 
 func TestFromEnvHonorsAPP_BOOT(t *testing.T) {
+	chdirTempModule(t)
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
 	t.Setenv("APP_BOOT", "minimal")
@@ -68,10 +73,32 @@ func TestFromEnvHonorsAPP_BOOT(t *testing.T) {
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeTestLog(t, app)
 	for _, m := range addons.Available() {
 		if app.Bound(m.Key) {
 			t.Fatalf("minimal FromEnv should not bind addon %q", m.Name)
 		}
 	}
 	_ = os.Unsetenv("APP_BOOT")
+}
+
+func chdirTempModule(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+}
+
+func closeTestLog(t *testing.T, app *kernel.Application) {
+	t.Helper()
+	if app == nil {
+		return
+	}
+	t.Cleanup(func() {
+		if c, ok := app.Logger().(interface{ Close() error }); ok && c != nil {
+			_ = c.Close()
+		}
+	})
 }

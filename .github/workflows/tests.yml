@@ -62,6 +62,9 @@ jobs:
       - name: Coverage thresholds
         run: bash scripts/check-coverage.sh
 
+      - name: Framework repo layout
+        run: go run ./cmd/zatrano doctor .
+
       - name: Acquisition E2E
         env:
           PACKAGES_DIR: ${{ github.workspace }}/packages

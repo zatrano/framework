@@ -13,6 +13,7 @@ type appOptions struct {
 	addons       []string
 	addonsSet    bool
 	appProviders []kernel.Provider
+	basePath     string
 }
 
 // Option configures App().
@@ -22,6 +23,14 @@ type Option func(*appOptions)
 func WithProviders(providers ...kernel.Provider) Option {
 	return func(o *appOptions) {
 		o.appProviders = append(o.appProviders, providers...)
+	}
+}
+
+// WithBasePath sets the application root. Tests in this repository must pass
+// t.TempDir() so Bootstrap does not treat the framework module as a consumer.
+func WithBasePath(path string) Option {
+	return func(o *appOptions) {
+		o.basePath = path
 	}
 }
 
@@ -72,7 +81,7 @@ func App(opts ...Option) *kernel.Application {
 	providers := []kernel.Provider{&KernelServiceProvider{}}
 	providers = append(providers, extra...)
 	providers = append(providers, cfg.appProviders...)
-	app, err := Boot(providers)
+	app, err := bootAt(providers, cfg.basePath)
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +132,13 @@ func providersFromMetas(metas []addons.Meta) ([]contracts.Provider, []string) {
 // Boot constructs an application and registers providers. It does not run
 // Provider.Register/Boot or Application.Bootstrap; the name is historical.
 func Boot(providers []kernel.Provider, _ ...any) (*kernel.Application, error) {
-	basePath, _ := findBasePath()
+	return bootAt(providers, "")
+}
+
+func bootAt(providers []kernel.Provider, basePath string) (*kernel.Application, error) {
+	if basePath == "" {
+		basePath, _ = findBasePath()
+	}
 	application := kernel.NewApplication(basePath)
 	application.RegisterProviders(providers...)
 	return application, nil

@@ -43,10 +43,11 @@ func TestServiceMayParticipateInLifecycle(t *testing.T) {
 	})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App(WithAddons("features"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("features"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if !app.Bound("svc-lp") {
 		t.Fatal("service provider must Register")
 	}
@@ -80,10 +81,11 @@ func TestLibraryHasNoForcedLifecycleProvider(t *testing.T) {
 	})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App(WithAddons("collection"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("collection"))
 	if err := app.Start(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	names := app.EnabledAddons()
 	if len(names) != 1 || names[0] != "collection" {
 		t.Fatalf("library may be selected, names=%v", names)
@@ -112,10 +114,11 @@ func TestSharedModulePackagesHaveIndependentBootGraph(t *testing.T) {
 	})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App(WithAddons("auth", "session"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("auth", "session"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if len(order) != 2 || order[0] != "session" || order[1] != "auth" {
 		t.Fatalf("shared-module packages boot independently: %v", order)
 	}

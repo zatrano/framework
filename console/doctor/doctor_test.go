@@ -139,3 +139,36 @@ func TestRequiredStarterAppDirsAreCanonical(t *testing.T) {
 		}
 	}
 }
+
+func TestFrameworkRepoLayoutPass(t *testing.T) {
+	fw, err := frameworkModuleRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	findings, err := RunDoctor(fw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range findings {
+		if f.Severity == "error" {
+			t.Fatalf("framework repo doctor must PASS, got %s: %+v\n%s", f.Rule, f, FormatDoctorText(fw, findings))
+		}
+	}
+}
+
+func TestFrameworkRepoLayoutRejectsStorage(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/zatrano/framework/v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "storage"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := RunDoctor(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasDoctorCheck(findings, "layout", "storage") {
+		t.Fatalf("expected FW-ROOT-001 for storage/, got:\n%s", FormatDoctorText(dir, findings))
+	}
+}

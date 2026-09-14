@@ -64,10 +64,11 @@ func TestAppProviderSlicePreservesOrderMetas(t *testing.T) {
 		want[i] = m.Name
 	}
 
-	app := App(WithAddons("auth", "zeta", "alpha", "session", "hashing"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("auth", "zeta", "alpha", "session", "hashing"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 
 	if got := app.EnabledAddons(); !equalStringSlice(want, got) {
 		t.Fatalf("EnabledAddons want %v got %v", want, got)
@@ -85,10 +86,11 @@ func TestAppProviderSliceRepeatedIdentical(t *testing.T) {
 		registerDeterminismAddons(t, &order)
 		t.Setenv("DB_CONNECTION", "")
 		t.Setenv("DB_CONNECTIONS", "")
-		app := App(WithAddons(names...))
+		app := App(WithBasePath(t.TempDir()), WithAddons(names...))
 		if err := app.Bootstrap(); err != nil {
 			t.Fatal(err)
 		}
+		closeAppLog(t, app)
 		if i == 0 {
 			first = append([]string(nil), order...)
 			continue

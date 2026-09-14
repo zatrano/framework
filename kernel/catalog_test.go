@@ -45,7 +45,7 @@ func TestCatalogKernelInternals(t *testing.T) {
 }
 
 func TestMakeMissingService(t *testing.T) {
-	app := NewApplication(".")
+	app := NewApplication(t.TempDir())
 	if _, err := app.Make("missing"); err == nil {
 		t.Fatal("expected error for missing binding")
 	}

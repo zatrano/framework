@@ -45,10 +45,12 @@ func bootApp(t *testing.T, opts ...Option) *kernel.Application {
 	t.Helper()
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
+	opts = append([]Option{WithBasePath(t.TempDir())}, opts...)
 	app := App(opts...)
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	return app
 }
 

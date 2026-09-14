@@ -11,10 +11,11 @@ import (
 func TestAppBootsKernelWithoutImportedPackages(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App()
+	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if app.Router() == nil {
 		t.Fatal("expected router")
 	}
@@ -44,14 +45,14 @@ func TestAppBootsKernelWithoutImportedPackages(t *testing.T) {
 }
 
 func TestWithAddonsEmptyIsKernel(t *testing.T) {
-	app := bootstrap.App(bootstrap.WithAddons())
+	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()), bootstrap.WithAddons())
 	if app == nil {
 		t.Fatal("expected app")
 	}
 }
 
 func TestWithAddonsUnknownIsKernel(t *testing.T) {
-	app := bootstrap.App(bootstrap.WithAddons("definitely-not-imported"))
+	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()), bootstrap.WithAddons("definitely-not-imported"))
 	if app == nil {
 		t.Fatal("unknown WithAddons names must be skipped, not panic")
 	}
@@ -60,10 +61,11 @@ func TestWithAddonsUnknownIsKernel(t *testing.T) {
 func TestKernelStartStopThenStartRejected(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App()
+	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()))
 	if err := app.Start(); err != nil {
 		t.Fatal(err)
 	}
+	closeAppLog(t, app)
 	if err := app.Stop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
