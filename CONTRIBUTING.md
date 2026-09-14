@@ -34,3 +34,9 @@ Be respectful in issues, pull requests, and discussions. Harassment and discrimi
 ## Security
 
 Report security vulnerabilities privately to [serhankarakoc@gmail.com](mailto:serhankarakoc@gmail.com). See [.github/SECURITY.md](.github/SECURITY.md).
+
+## Release cadence
+
+Patch and minor versions are published **at most once per week**. The only exception is a tagged security fix: the CHANGELOG entry must include `[security]`, which is the only trigger for this exception.
+
+Every release note must include a one-line `Neden şimdi:` reason. Do not add that line to historical entries; it is required from the next tagged release forward.
