@@ -101,7 +101,7 @@ database.Migrator(app)
 | Need | Package | Docs |
 |------|---------|------|
 | HTTP handlers / JSON | `http` + `routing` | [Requests](https://zatrano.com/docs/requests) · [Routing](https://zatrano.com/docs/routing) |
-| Session login / MFA | `auth` | [Authentication](https://zatrano.com/docs/authentication) |
+| Session login / MFA | `auth` | [auth](https://zatrano.com/docs/auth) |
 | Gates / policies | `authorization` | [Authorization](https://zatrano.com/docs/authorization) |
 | Validate forms | `validation` | [Validation](https://zatrano.com/docs/validation) |
 | SQL + models | `database` + `orm` | [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) |
@@ -309,8 +309,8 @@ ok, err := mgr.Attempt(req, map[string]string{
 router.Group("/account", routes, auth.Middleware(mgr))
 ```
 
-Scaffold: `go run ./cmd/app make:auth` · `go run ./cmd/app make:panel dashboard` (auth paketi blank-import edildikten sonra)  
-Docs: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold)
+Scaffold: `go run ./cmd/app make:auth` · `go run ./cmd/app make:panel dashboard` (after `package:enable auth`). There is no `make:dashboard`.  
+Docs: [auth](https://zatrano.com/docs/auth)
 
 ### `authorization`
 
@@ -677,12 +677,14 @@ Docs: [Docs](https://zatrano.com/docs/docs)
 
 ```go
 s := seo.From(app)
+s.Configure(func(o *seo.Options) { o.Name = "Acme" })
 s.Add("/about")
 s.Register(router)
 data := s.ViewData(seo.Meta{Title: "Home", Path: "/"})
 ```
 
-Docs: [SEO](https://zatrano.com/docs/seo)
+`Boot` does not mount routes. Optional `docs` fills the sitemap and `/llms-full.txt`.  
+Docs: [seo](https://zatrano.com/docs/seo)
 
 ---
 
