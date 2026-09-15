@@ -167,7 +167,7 @@ jobs:
           cache: true
           cache-dependency-path: framework/go.mod
 
-      - name: Scaffold app, enable billing, hit health
+      - name: Scaffold app, import audit, hit health
         working-directory: framework
         env:
           PACKAGES_DIR: ${{ github.workspace }}/packages

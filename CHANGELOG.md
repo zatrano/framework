@@ -4,6 +4,8 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+- Starter smoke blank-imports `audit`, not the removed `billing` addon.
+
 ## 2.5.0 - 2026-09-15
 
 Why now: Pin the catalog freeze so applications can take toolkit ownership, nested pagination/TOTP/OTP, and dropped fake addons without tracking `main`.

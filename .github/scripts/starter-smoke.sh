@@ -33,7 +33,7 @@ go run ./cmd/zatrano new "$DEST" --module example.com/zsmoke --replace "$FRAMEWO
     database/driver/mongo
     mongo
     webauthn
-    q
+    qr
   )
   for rel in "${nested[@]}"; do
     if [[ -f "${PACKAGES}/${rel}/go.mod" ]]; then
@@ -47,7 +47,7 @@ import pathlib, sys
 p = pathlib.Path(sys.argv[1])
 text = p.read_text(encoding="utf-8")
 old_imp = '\t"github.com/zatrano/framework/v2/bootstrap"\n'
-new_imp = '\t_ "github.com/zatrano/packages/billing"\n\n\t"github.com/zatrano/framework/v2/bootstrap"\n'
+new_imp = '\t_ "github.com/zatrano/packages/audit"\n\n\t"github.com/zatrano/framework/v2/bootstrap"\n'
 if old_imp not in text:
     raise SystemExit("import block not found")
 p.write_text(text.replace(old_imp, new_imp, 1), encoding="utf-8")

@@ -201,3 +201,23 @@ func relFiles(t *testing.T, root string) []string {
 	sort.Strings(out)
 	return out
 }
+
+func TestStarterSmokeUsesLiveAddon(t *testing.T) {
+	root := moduleRoot(t)
+	body, err := os.ReadFile(filepath.Join(root, ".github", "scripts", "starter-smoke.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := strings.ReplaceAll(string(body), "\r\n", "\n")
+	if !strings.Contains(src, `github.com/zatrano/packages/audit`) {
+		t.Fatal("starter-smoke must blank-import a live addon (audit)")
+	}
+	if !strings.Contains(src, "\n    qr\n") {
+		t.Fatal("starter-smoke nested replaces must include qr")
+	}
+	for _, gone := range []string{"packages/billing", "packages/octane", "packages/bus", "packages/features", "packages/tenancy"} {
+		if strings.Contains(src, gone) {
+			t.Fatalf("starter-smoke must not import removed package %s", gone)
+		}
+	}
+}
