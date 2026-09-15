@@ -55,7 +55,6 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "webauthn", Layer: kernel.LayerAddon, Kind: kernel.KindService, Heavy: true, Description: "WebAuthn/passkeys (separate module)"},
 	{Name: "webhooks", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Outbound signed webhooks"},
 
-	{Name: "api", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "API versioning helpers"},
 	{Name: "browser", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Headless browser testing"},
 	{Name: "consent", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Cookie/consent helpers"},
 	{Name: "export", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "CSV/XLSX import and export"},

@@ -33,8 +33,8 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 				t.Errorf("%s still describes the pre-release model: %q", rel, ban)
 			}
 		}
-		if !strings.Contains(text, "github.com/zatrano/packages@v1.9.1") && !strings.Contains(text, "v1.9.1") {
-			t.Errorf("%s must name current packages v1.9.1", rel)
+		if !strings.Contains(text, "github.com/zatrano/packages@v1.10.0") && !strings.Contains(text, "v1.10.0") {
+			t.Errorf("%s must name current packages v1.10.0", rel)
 		}
 	}
 
@@ -44,8 +44,8 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	}
 	text := string(readme)
 	for _, want := range []string{
-		"github.com/zatrano/framework/v2@v2.5.1",
-		"github.com/zatrano/packages@v1.9.1",
+		"github.com/zatrano/framework/v2@v2.6.0",
+		"github.com/zatrano/packages@v1.10.0",
 		"Enabled ∩ Imported",
 		"Expand Requires",
 	} {

@@ -4,6 +4,19 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.6.0 - 2026-09-15
+
+Why now: Put API path versioning in the kernel so applications and `make:auth` do not import a library addon for `/api/{version}`.
+
+Minor release after `v2.5.1`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Breaking / DX
+
+- API path versioning is kernel `routing.Version` / `FromRequest` / `RequireVersion`. The `api` library is gone from the CLI catalog; there is no `packages/api`. `RegisterAPI` still does not prefix `/api`.
+- First-time enablement pins `github.com/zatrano/packages@v1.10.0`.
+
+Install with `go get github.com/zatrano/framework/v2@v2.6.0` and `go get github.com/zatrano/packages@v1.10.0`.
+
 ## 2.5.1 - 2026-09-15
 
 Patch after `v2.5.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.

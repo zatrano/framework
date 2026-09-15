@@ -27,6 +27,7 @@ func RegisterWeb(fn func(*Router)) {
 }
 
 // RegisterAPI appends an API-group route registrar (typically from init()).
+// It does not prefix /api; use Version inside the registrar for /api/{version}.
 func RegisterAPI(fn func(*Router)) {
 	if fn == nil {
 		return

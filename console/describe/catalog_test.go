@@ -113,6 +113,9 @@ func TestEcosystemCatalogAddonKinds(t *testing.T) {
 	if _, ok := catalogLookup("useragent"); ok {
 		t.Fatal("useragent is kernel http.ParseUserAgent, not an addon")
 	}
+	if _, ok := catalogLookup("api"); ok {
+		t.Fatal("api versioning is kernel routing.Version, not an addon")
+	}
 	if _, ok := catalogLookup("archive"); ok {
 		t.Fatal("archive moved to toolkit/zip")
 	}
