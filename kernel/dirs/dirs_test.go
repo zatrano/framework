@@ -48,6 +48,30 @@ func TestDirForCreateUsesNewWhenMissing(t *testing.T) {
 	}
 }
 
+func TestHTTPSurfaces(t *testing.T) {
+	if !RouteRelAllowed("app/routes/auth/web/auth.go") || !ControllerRelAllowed("app/http/controllers/auth/web/auth_controller.go") {
+		t.Fatal("auth is a built-in HTTP surface")
+	}
+	if !RouteRelAllowed("app/routes/auth/api/auth.go") || !ControllerRelAllowed("app/http/controllers/auth/api/auth_controller.go") {
+		t.Fatal("auth api nest is a built-in HTTP surface")
+	}
+	if ControllerKind("app/http/controllers/auth/api/auth_controller.go") != SurfaceAPI {
+		t.Fatal("auth/api controllers are JSON")
+	}
+	if ControllerKind("app/http/controllers/auth/web/auth_controller.go") != SurfaceWeb {
+		t.Fatal("auth/web controllers are HTML")
+	}
+	if !RouteRelAllowed("app/routes/dashboard/home.go") || !ValidPanelName("dashboard") {
+		t.Fatal("make:panel names are route/controller surfaces")
+	}
+	if ValidPanelName("web") || ValidPanelName("api") || ValidPanelName("auth") || ValidPanelName("1ops") {
+		t.Fatal("reserved or non-canonical panel names")
+	}
+	if RouteRelAllowed("app/http/routes/web.go") || ControllerRelAllowed("app/http/controllers/home.go") {
+		t.Fatal("non-surface paths must be rejected")
+	}
+}
+
 func TestCanonicalConsumerDirsArePlatformNotWeb(t *testing.T) {
 	got := CanonicalConsumerDirs()
 	if len(got) == 0 {

@@ -49,7 +49,7 @@ func (p PackageInfo) EffectiveKind() Kind {
 
 // Catalog is the kernel's own primitive surface. Foundation, intelligence, and
 // addon names live in the CLI aggregator (console) so the kernel does not know
-// "auth", "billing", or "agent".
+// "auth", "oauth", or "agent".
 var Catalog = []PackageInfo{
 	{Name: "container", Layer: LayerPrimitive, Description: "Service container"},
 	{Name: "config", Layer: LayerPrimitive, Description: "Configuration repository"},

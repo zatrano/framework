@@ -2,7 +2,7 @@
 
 How to choose and use first-party packages.
 
-This repository is the **framework kernel** (`github.com/zatrano/framework/v2`). Foundation, intelligence (AI/RAG/Agent), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
+This repository is the **framework kernel** (`github.com/zatrano/framework/v2`). Foundation, intelligence (AI/RAG/agent/workflow), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
 
 - **Catalog source:** `kernel/catalog.go` (primitives) plus `console/describe/catalog.go` (foundation / intelligence / addon *names*). Addon *code* is not in this module.
 - **Addon implementations:** blank-import + `bootstrap.WithAddons` / `EnabledAddons`
@@ -14,8 +14,8 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.4.0
-github.com/zatrano/packages       v1.8.0
+github.com/zatrano/framework/v2   v2.5.0
+github.com/zatrano/packages       v1.9.0
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
@@ -24,7 +24,7 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.8.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.9.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -56,7 +56,7 @@ The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Searc
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
-**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.8.0`.
+**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.9.0`.
 
 Public nested-module tags follow Go path semantics, for example:
 
@@ -65,10 +65,10 @@ github.com/zatrano/packages/database/driver/sqlite
 tag: database/driver/sqlite/v1.0.0
 ```
 
-A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.8.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0`; do not retag `v1.7.0`.
+A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.9.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0`; do not retag `v1.7.0`.
 
 ```bash
-go run ./cmd/zatrano package:enable social billing
+go run ./cmd/zatrano package:enable social
 go run ./cmd/zatrano package:doctor
 go run ./cmd/zatrano package:list --all
 ```
@@ -166,7 +166,8 @@ import "github.com/zatrano/framework/v2/kernel/http"
 
 func (c *HomeController) Index(req *http.Request) *http.Response {
     email := req.Input("email")
-    return http.JSON(map[string]any{"ok": true})
+    ua := req.Agent() // or http.ParseUserAgent(req.UserAgent())
+    return http.JSON(map[string]any{"ok": true, "browser": ua.Browser})
 }
 ```
 
@@ -308,7 +309,7 @@ ok, err := mgr.Attempt(req, map[string]string{
 router.Group("/account", routes, auth.Middleware(mgr))
 ```
 
-Scaffold: `go run ./cmd/app make:auth` · `go run ./cmd/app make:dashboard` (auth paketi blank-import edildikten sonra)  
+Scaffold: `go run ./cmd/app make:auth` · `go run ./cmd/app make:panel dashboard` (auth paketi blank-import edildikten sonra)  
 Docs: [Authentication](https://zatrano.com/docs/authentication) · [Dashboard Scaffold](https://zatrano.com/docs/dashboard-scaffold)
 
 ### `authorization`
@@ -397,6 +398,7 @@ Docs: [Database](https://zatrano.com/docs/database) · [Query Builder](https://z
 ```go
 user, err := orm.Query[User]().Where("email", email).First()
 post, err := orm.Create[Post](map[string]any{"title": "Hi"})
+page, err := orm.Query[User]().Paginate(1, 15, "/users")
 ```
 
 Docs: [ORM](https://zatrano.com/docs/orm) (+ models / querying / relationships / eager / advanced)
@@ -495,6 +497,16 @@ _ = n.Send(
 )
 ```
 
+Numeric one-time codes (issue/verify; you send the code over mail/SMS) live at `notification/otp`:
+
+```go
+import "github.com/zatrano/packages/notification/otp"
+
+m := otp.New(otp.NewMemoryStore())
+code, err := m.Generate("ada@example.com")
+ok := m.Verify("ada@example.com", code)
+```
+
 Docs: [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://zatrano.com/docs/mail)
 
 ### `broadcasting`
@@ -544,7 +556,7 @@ Docs: [URL Generation](https://zatrano.com/docs/urls)
 **For:** `/health` style checks (optional addon). Kernel HTTP is ready only after Bootstrap (`Booted`); until then requests get `503`. Generated apps also expose `/up` as process liveness without this package.
 Docs: [Health](https://zatrano.com/docs/health)
 
-### `observability` · `maintenance` · `assets` · `console` · `version`
+### `observability` · `maintenance` · `assets` · `console`
 
 | Package | For | Docs / CLI |
 |---------|-----|------------|
@@ -552,7 +564,6 @@ Docs: [Health](https://zatrano.com/docs/health)
 | `maintenance` | Downtime page (`down` / `up`) | [Maintenance](https://zatrano.com/docs/maintenance-mode) |
 | `assets` | Asset manifest URLs in views | [Assets](https://zatrano.com/docs/assets) |
 | `console` | `cmd/zatrano` CLI | [CLI](https://zatrano.com/docs/cli) |
-| `version` | Framework version helper | — |
 | `apitoken` | Personal access tokens | [API Tokens](https://zatrano.com/docs/api-tokens) |
 
 **`apitoken` usage:**
@@ -607,11 +618,6 @@ Docs: [MongoDB](https://zatrano.com/docs/mongodb)
 **For:** Passkey registration/login. Wire routes yourself.  
 Docs: [WebAuthn](https://zatrano.com/docs/webauthn)
 
-### `billing`
-
-**For:** Subscriptions / Stripe-style billing manager + webhooks.  
-Docs: [Billing](https://zatrano.com/docs/billing)
-
 ### `ai`
 
 **Stability:** experimental. This package has not completed the same security review as the rest of the ecosystem.
@@ -631,6 +637,12 @@ Docs: [AI](https://zatrano.com/docs/ai)
 
 **For:** Agent loop, tools, and conversation memory (import-only library).
 
+### `workflow`
+
+**Stability:** experimental. This package has not completed the same security review as the rest of the ecosystem.
+
+**For:** Generic process graphs (import-only library). Agents enter with `agent.AsExecutor`. Not durable execution. Do not add to `EnabledAddons`.
+
 ### `backup`
 
 **For:** DB backup/restore via native CLIs.  
@@ -639,100 +651,15 @@ go run ./cmd/zatrano db:backup
 ```
 Docs: [Backup](https://zatrano.com/docs/backup)
 
-### `bus`
-
-**For:** Sync command bus (`Dispatch` → handler). Not a queue.  
-Docs: [Command Bus](https://zatrano.com/docs/buses)
-
-### `circuit`
-
-**For:** Circuit breaker around flaky dependencies.  
-Docs: [Circuit Breaker](https://zatrano.com/docs/circuit-breaker)
-
-### `docs`
-
-**For:** Markdown documentation repository (powers docs sites).  
-Docs: [Documentation Engine](https://zatrano.com/docs/documentation-engine)
-
-### `enums`
-
-**For:** Register string-backed enums with labels.  
-Docs: [Enums](https://zatrano.com/docs/enums)
-
-### `features`
-
-**For:** In-memory feature flags and % rollouts.  
-Docs: [Feature Flags](https://zatrano.com/docs/feature-flags)
-
-### `geo`
-
-**For:** Resolve client geolocation.  
-Docs: [Geolocation](https://zatrano.com/docs/geolocation)
-
 ### `graphql`
 
 **For:** GraphQL schema/queries addon.  
 Docs: [GraphQL](https://zatrano.com/docs/graphql)
 
-### `hashid`
-
-**For:** Obfuscate numeric IDs for URLs.  
-Docs: [Hashids](https://zatrano.com/docs/hashids)
-
-### `inspector`
-
-**For:** Request inspector toolbar data.  
-Docs: [Inspector](https://zatrano.com/docs/inspector)
-
-### `lock`
-
-**For:** Process-local atomic locks (not distributed).  
-Docs: [Locks](https://zatrano.com/docs/locks)
-
-### `octane`
-
-**For:** Concurrent request metrics + `GOMAXPROCS` hint via `octane:start`. **Not** a multi-process app server.  
-Docs: [Octane](https://zatrano.com/docs/octane)
-
-### `otp`
-
-**For:** Short numeric OTPs (you deliver via SMS/mail).  
-Docs: [OTP](https://zatrano.com/docs/otp)
-
-### `pulse`
-
-**For:** Metrics pulse dashboard.  
-Docs: [Pulse](https://zatrano.com/docs/pulse)
-
-### `search`
-
-**For:** In-memory search index.  
-Docs: [Search](https://zatrano.com/docs/search)
-
-### `shorturl`
-
-**For:** Create and resolve short URLs.  
-Docs: [Short URLs](https://zatrano.com/docs/short-urls)
-
-### `sitemap`
-
-**For:** Build XML sitemaps.  
-Docs: [Sitemaps](https://zatrano.com/docs/sitemaps)
-
-### `tenancy`
-
-**For:** Resolve current tenant from header/query/host (no auto DB isolation).  
-Docs: [Tenancy](https://zatrano.com/docs/tenancy)
-
 ### `webhooks`
 
 **For:** Signed outbound webhook delivery.  
 Docs: [Webhooks](https://zatrano.com/docs/webhooks)
-
-### `wellknown`
-
-**For:** `/.well-known` / `security.txt` helpers.  
-Docs: [Well-Known](https://zatrano.com/docs/well-known)
 
 ### `audit`
 
@@ -748,14 +675,8 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | Package | For | How to use (sketch) | Docs |
 |---------|-----|---------------------|------|
 | `api` | API versioning | Version middleware / helpers | [API Versioning](https://zatrano.com/docs/api-versioning) |
-| `archive` | ZIP create/extract | `zipx.Create` / `Extract` | [Archives](https://zatrano.com/docs/archives) |
-| `bloom` | Bloom filter | `bloom.New` then Add/Test | [Bloom Filters](https://zatrano.com/docs/bloom-filters) |
 | `browser` | Headless browser tests | Browser test helpers | [Browser Tests](https://zatrano.com/docs/browser-tests) |
-| `collection` | In-memory collections | `collection.Make(...).Filter(...)` | [Collections](https://zatrano.com/docs/collections) |
-| `concurrency` | Parallel tasks | `concurrency.Run` / `Map` / `Pool` | [Concurrency](https://zatrano.com/docs/concurrency) |
 | `consent` | Cookie consent | Consent helpers | [Cookie Consent](https://zatrano.com/docs/cookie-consent) |
-| `cron` | Cron parse/match | `cron.Parse("@hourly")` | [Cron](https://zatrano.com/docs/cron) |
-| `debug` | Dump helpers | Debug dumps | [Debugging](https://zatrano.com/docs/debugging) |
 | `export` | CSV/XLSX | `export.ToMaps` / `csv.Response` | [Exports](https://zatrano.com/docs/exports) |
 | `factory` | Model factories | `factory.Register` / `Create` | [Factories](https://zatrano.com/docs/factories) |
 | `fingerprint` | Device fingerprint | Fingerprint helpers | [Fingerprinting](https://zatrano.com/docs/fingerprinting) |
@@ -763,20 +684,27 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | `idempotency` | Idempotent POSTs | `idempotency.Middleware(cache, ttl)` | [Idempotency](https://zatrano.com/docs/idempotency) |
 | `image` | Image processing | Resize/encode helpers | [Images](https://zatrano.com/docs/images) |
 | `jsonapi` | JSON:API docs | `jsonapi.Response(doc)` | [JSON:API](https://zatrano.com/docs/json-api) |
-| `jsonschema` | JSON Schema | Validate payloads | [JSON Schema](https://zatrano.com/docs/json-schema) |
-| `markdown` | MD → HTML | `markdown.ToHTML(src)` | [Markdown](https://zatrano.com/docs/markdown) |
 | `negotiate` | Accept negotiation | `negotiate.Middleware(...)` | [Content Negotiation](https://zatrano.com/docs/content-negotiation) |
 | `openapi` | OpenAPI helpers | Generate/serve specs | [OpenAPI](https://zatrano.com/docs/openapi) |
 | `pages` | File-based pages | `pages.New(...).Register(router)` | [Pages](https://zatrano.com/docs/pages) |
-| `pagination` | Page metadata | `pagination.New(items, total, …)` | [Pagination](https://zatrano.com/docs/pagination) |
 | `pdf` | PDF generate/view | PDF helpers | [PDF](https://zatrano.com/docs/pdf) |
-| `process` | OS commands | `process.Command("git","status").Run()` | [Processes](https://zatrano.com/docs/processes) |
 | `qr` (heavy) | QR codes | Generate QR images | [QR Codes](https://zatrano.com/docs/qr-codes) |
 | `resources` | API transformers | `resources.JSON(UserResource{}, user)` | [API Resources](https://zatrano.com/docs/api-resources) |
 | `testing` | Feature tests | `testkit.New(app).Get("/").AssertOK()` | [Testing](https://zatrano.com/docs/testing) |
-| `timing` | Server-Timing | `timing.Measure(req, "db", fn)` | [Timing](https://zatrano.com/docs/timing) |
-| `totp` | Authenticator codes | `totp.GenerateSecret` / `Verify` | [TOTP](https://zatrano.com/docs/totp) |
-| `useragent` | UA parse | Parse browser/OS | [User Agent](https://zatrano.com/docs/user-agent) |
+| `toolkit/bloom` | Bloom filter | `bloom.New` then Add/Test | [Bloom Filters](https://zatrano.com/docs/bloom-filters) |
+| `toolkit/circuit` | Circuit breaker | `circuit.New(...).Breaker("db")` | [Circuit Breaker](https://zatrano.com/docs/circuit-breaker) |
+| `toolkit/collection` | In-memory collections | `collection.Make(...).Filter(...)` | [Collections](https://zatrano.com/docs/collections) |
+| `toolkit/concurrency` | Parallel tasks | `concurrency.Run` / `Map` / `Pool` | [Concurrency](https://zatrano.com/docs/concurrency) |
+| `toolkit/cron` | Cron parse/match | `cron.Parse("@hourly")` | [Cron](https://zatrano.com/docs/cron) |
+| `toolkit/debug` | Dump helpers | Debug dumps | [Debugging](https://zatrano.com/docs/debugging) |
+| `toolkit/enums` | String enums | `enums.NewString("status", "draft:Draft")` | [Enums](https://zatrano.com/docs/enums) |
+| `toolkit/hashid` | Opaque IDs | `hashid.New(salt, 8).Encode(42)` | [Hashids](https://zatrano.com/docs/hashids) |
+| `toolkit/jsonschema` | JSON Schema | `jsonschema.Validate(schema, data)` | [JSON Schema](https://zatrano.com/docs/json-schema) |
+| `toolkit/lock` | Process-local locks | `lock.New().Get("job").Acquire()` | [Locks](https://zatrano.com/docs/locks) |
+| `toolkit/markdown` | MD → HTML | `markdown.ToHTML(src)` | [Markdown](https://zatrano.com/docs/markdown) |
+| `toolkit/process` | OS commands | `process.Command("git","status").Run()` | [Processes](https://zatrano.com/docs/processes) |
+| `toolkit/timing` | Server-Timing | `timing.Measure(req, "db", fn)` | [Timing](https://zatrano.com/docs/timing) |
+| `toolkit/zip` | ZIP create/extract | `zipx.Create` / `Extract` | [Archives](https://zatrano.com/docs/archives) |
 | `websocket` | WS upgrade | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
 
 ---
@@ -805,7 +733,7 @@ Not a consumer-facing service; CLI and addons import `kernel/dirs` when they nee
 2. `routing` · `http` · `validation` · `view`  
 3. `database` · `orm` · `auth` · `authorization`  
 4. `notification` · `queue` · `cache`  
-5. Enable only the addons you need (`social`, `billing`, …)
+5. Enable only the addons you need (`social`, `webauthn`, …)
 
 ---
 

@@ -36,14 +36,14 @@ func TestServiceMayParticipateInLifecycle(t *testing.T) {
 	})
 	lp := &serviceLP{}
 	addons.Register(addons.Meta{
-		Name: "features",
+		Name: "probe",
 		Factory: func() contracts.Provider {
 			return lp
 		},
 	})
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := App(WithBasePath(t.TempDir()), WithAddons("features"))
+	app := App(WithBasePath(t.TempDir()), WithAddons("probe"))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

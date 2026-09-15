@@ -95,6 +95,8 @@ func CanonicalRouteDirs() []string {
 func OptionalWebScaffoldDirs() []string {
 	return []string{
 		"app/views",
+		"app/views/web",
+		"app/views/layout",
 		"app/localization",
 		"public/css",
 		"public/js",

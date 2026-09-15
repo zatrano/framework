@@ -32,7 +32,7 @@ func TestResolveOKAndMustResolve(t *testing.T) {
 
 func TestMiddlewareFromMissing(t *testing.T) {
 	app := NewApplication(t.TempDir())
-	if middlewareFrom(app, "octane") != nil {
+	if middlewareFrom(app, "missing") != nil {
 		t.Fatal("expected nil middleware when addon not registered")
 	}
 }

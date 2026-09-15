@@ -19,7 +19,7 @@ func registerEnablementGraph(t *testing.T) {
 	addons.Register(addons.Meta{Name: "session", Requires: []string{"hashing"}})
 	addons.Register(addons.Meta{Name: "auth", Requires: []string{"session"}, Optional: []string{"redisx"}})
 	addons.Register(addons.Meta{Name: "redisx"})
-	addons.Register(addons.Meta{Name: "features"})
+	addons.Register(addons.Meta{Name: "audit"})
 }
 
 func TestEnableRequiresClosureDirect(t *testing.T) {
@@ -162,17 +162,17 @@ func TestDisableIndependentPackage(t *testing.T) {
 	if _, err := enablePackage(app, "auth"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := enablePackage(app, "features"); err != nil {
+	if _, err := enablePackage(app, "audit"); err != nil {
 		t.Fatal(err)
 	}
-	removed, err := disablePackage(app, "features")
+	removed, err := disablePackage(app, "audit")
 	if err != nil || !removed {
 		t.Fatalf("independent disable must succeed, removed=%v err=%v", removed, err)
 	}
 	names, _ := consumerManifest(app)
 	for _, n := range names {
-		if n == "features" {
-			t.Fatalf("features must be removed, got %#v", names)
+		if n == "audit" {
+			t.Fatalf("audit must be removed, got %#v", names)
 		}
 	}
 	want := map[string]bool{"auth": true, "session": true, "hashing": true}
@@ -187,10 +187,10 @@ func TestDisableIndependentPackage(t *testing.T) {
 func TestDisableAlreadyDisabledIdempotent(t *testing.T) {
 	registerEnablementGraph(t)
 	app := kernel.NewApplication(t.TempDir())
-	if _, err := enablePackage(app, "features"); err != nil {
+	if _, err := enablePackage(app, "audit"); err != nil {
 		t.Fatal(err)
 	}
-	removed, err := disablePackage(app, "features")
+	removed, err := disablePackage(app, "audit")
 	if err != nil || !removed {
 		t.Fatalf("first disable: removed=%v err=%v", removed, err)
 	}
@@ -198,7 +198,7 @@ func TestDisableAlreadyDisabledIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	removed, err = disablePackage(app, "features")
+	removed, err = disablePackage(app, "audit")
 	if err != nil {
 		t.Fatalf("second disable must succeed: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestDisableAlreadyDisabledIdempotent(t *testing.T) {
 	}
 
 	cmd := &PackageDisableCommand{app: app}
-	if err := cmd.Handle([]string{"features"}); err != nil {
+	if err := cmd.Handle([]string{"audit"}); err != nil {
 		t.Fatalf("package:disable already-disabled must succeed: %v", err)
 	}
 }

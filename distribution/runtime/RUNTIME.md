@@ -264,7 +264,7 @@ File: `contracts/app.go`.
 
 ### 4.2 Boot ordering
 
-* Addon graph: `Requires` must exist (error) or be dropped (`Bootable` for DefaultMetas). `Optional` edges only if present. Kahn sort + tie-break `Order` then `Name` (`OrderMetas`, tests in `bootstrap/addons/registry_order_test.go`).
+* Addon graph: `Requires` must exist (error) or be dropped (`Bootable` for DefaultMetas). `Expand` / `Resolve` membership is the Requires closure only — imported Optional addons are not pulled into the enable-set. `Optional` edges order members already in the set (`OrderMetas`). Kahn sort + tie-break `Order` then `Name` (`OrderMetas`, tests in `bootstrap/addons/registry_order_test.go`).
 * Kernel executes **provider slice order**, not the graph by itself. Slice is built from `OrderMetas` then `WithProviders`.
 * Independent packages: deterministic via `Order` then `Name`, not random.
 * Default (no manifest): `DefaultMetas` = `Bootable(Available())` then `OrderMetas` — unsatisfied Requires **dropped**, not error.

@@ -22,9 +22,12 @@ type Meta struct {
 	// Requires lists addon names that must be imported and must Register/Boot
 	// first. A missing requirement is a startup error, not a skip.
 	Requires []string
-	// Optional lists addon names that boot first when they are imported, and
-	// are ignored when they are not.
+	// Optional lists addon names that boot first when they are already in the
+	// selected enable-set. Expand does not pull Optional into membership;
+	// missing Optional names are ignored. package:enable also does not enable them.
 	Optional []string
+	// Scaffold, if set, is invoked from package:enable after consumer dirs exist.
+	Scaffold func(app contracts.App) error
 	// CLI, if set, is invoked from console.New when this addon is imported.
 	CLI func(app contracts.App) []CLICommand
 	// EnvExample is an optional dotenv snippet. package:enable merges it into
@@ -141,8 +144,9 @@ func Names() []string {
 	return out
 }
 
-// Resolve expands Requires/Optional from the process registry, then returns
-// metas in boot order. Unknown names and missing Requires are errors.
+// Resolve expands Requires from the process registry, then returns metas in
+// boot order. Optional names order the selected set; they are not added to it.
+// Unknown names and missing Requires are errors.
 func Resolve(names ...string) ([]Meta, error) {
 	selected, err := Expand(names, Lookup)
 	if err != nil {
@@ -167,7 +171,8 @@ func Select(names ...string) ([]contracts.Provider, error) {
 	return providersOf(ordered), nil
 }
 
-// Expand closes a name set over Requires (must exist) and Optional (if present).
+// Expand closes a name set over Requires (must exist). Imported Optional
+// addons are not added to the set; OrderMetas uses Optional only among members.
 func Expand(names []string, lookup func(string) (Meta, bool)) ([]Meta, error) {
 	if lookup == nil {
 		lookup = Lookup
@@ -206,17 +211,6 @@ func Expand(names []string, lookup func(string) (Meta, bool)) ([]Meta, error) {
 				return nil, fmt.Errorf("addons: %q requires %q, which is not imported", name, req)
 			}
 			queue = append(queue, req)
-		}
-		for _, opt := range m.Optional {
-			if opt == "" || opt == name {
-				continue
-			}
-			if _, already := seen[opt]; already {
-				continue
-			}
-			if _, ok := lookup(opt); ok {
-				queue = append(queue, opt)
-			}
 		}
 	}
 	out := make([]Meta, 0, len(seen))

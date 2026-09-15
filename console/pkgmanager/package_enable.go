@@ -55,6 +55,9 @@ func (c *PackageEnableCommand) Handle(args []string) error {
 	if err := scaffoldPackageDirs(c.app, names); err != nil {
 		return err
 	}
+	if err := scaffoldPackageFiles(c.app, names); err != nil {
+		return err
+	}
 	fmt.Println("Restart the app (or rebuild) to load the provider.")
 	return nil
 }

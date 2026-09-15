@@ -10,7 +10,7 @@ import (
 
 func TestEnablePackageRejectsLibrary(t *testing.T) {
 	app := kernel.NewApplication(t.TempDir())
-	_, err := enablePackage(app, "collection")
+	_, err := enablePackage(app, "toolkit/collection")
 	if err == nil || !strings.Contains(err.Error(), "library package") {
 		t.Fatalf("package:enable must reject libraries, err=%v", err)
 	}
@@ -18,7 +18,7 @@ func TestEnablePackageRejectsLibrary(t *testing.T) {
 
 func TestEnablePackageAllowsService(t *testing.T) {
 	app := kernel.NewApplication(t.TempDir())
-	added, err := enablePackage(app, "features")
+	added, err := enablePackage(app, "audit")
 	if err != nil {
 		t.Fatal(err)
 	}

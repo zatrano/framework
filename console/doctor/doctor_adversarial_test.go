@@ -310,6 +310,34 @@ func Boot(a app) {
 	assertDoctorNoRule(t, root, "APP-ROUTE-002")
 }
 
+func TestDoctorAuthSurfaceRoutesPass(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "routes", "auth", "web", "auth.go"), `package web
+
+func init() {
+	router.Get("/login", nil)
+}
+`)
+	writeDoctorFile(t, root, filepath.Join("app", "routes", "auth", "api", "auth.go"), `package api
+
+func init() {
+	router.Post("/login", nil)
+}
+`)
+	writeDoctorFile(t, root, filepath.Join("app", "http", "controllers", "auth", "web", "auth_controller.go"), `package web
+
+type AuthController struct{}
+`)
+	writeDoctorFile(t, root, filepath.Join("app", "http", "controllers", "auth", "api", "auth_controller.go"), `package api
+
+type AuthController struct{}
+`)
+	findings := mustDoctor(t, root)
+	if hasDoctorRule(findings, "APP-ROUTE-001") || hasDoctorRule(findings, "APP-CTL-001") {
+		t.Fatalf("auth surface must pass doctor:\n%s", FormatDoctorText(root, findings))
+	}
+}
+
 func TestDoctorMisplacedRouteRegistrationFails(t *testing.T) {
 	root := t.TempDir()
 	writeDoctorFile(t, root, filepath.Join("app", "http", "routes", "web.go"), `package routes

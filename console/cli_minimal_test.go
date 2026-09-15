@@ -13,9 +13,9 @@ func TestDatabaseCommandsAbsentWithoutImport(t *testing.T) {
 		"db:setup", "migrate", "make:migration", "db:seed",
 		"cache:clear", "queue:work", "make:job",
 		"make:view", "down", "up",
-		"make:auth", "make:dashboard", "make:policy",
+		"make:auth", "make:panel", "make:policy",
 		"schedule:run", "make:notification", "lang:publish",
-		"make:factory", "octane:start", "openapi:generate",
+		"make:factory", "openapi:generate",
 	} {
 		if _, ok := cli.Commands()[name]; ok {
 			t.Fatalf("command %q must not appear unless its package is imported", name)

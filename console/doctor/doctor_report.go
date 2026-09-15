@@ -159,7 +159,7 @@ func routerVerbOnAppRouter(rel string, fset *token.FileSet, file *ast.File, impo
 			Line:     fset.Position(call.Pos()).Line,
 			Found:    "app.Router()." + sel.Sel.Name,
 			Why:      "contracts.Router has no Put/Patch/Delete/Resource. Application routes use routing.From(app).",
-			How:      "Call routing.From(app).Put/Patch/Delete/Resource from app/routes/{web,api}.",
+			How:      "Call routing.From(app).Put/Patch/Delete/Resource from app/routes/{web,api,auth} or a panel route folder.",
 			See:      archSee + " §N",
 		})
 		return true

@@ -51,8 +51,8 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 | Concern | MUST |
 |---|---|
 | Directory | `dirs.CanonicalConsumerDirs()` plus generated scaffold dirs. Do not invent `domain/`, `internal/usecase/`, `handlers/`. |
-| Routes | `app/routes/web` and `app/routes/api`. Register via `RouteServiceProvider` → `ApplyWeb` / `ApplyAPI`. Use `routing.From(app)` for Put/Patch/Delete/Resource. |
-| Controllers | `app/http/controllers/{web,api,admin}`. Methods: `(req *http.Request) *http.Response`. |
+| Routes | HTTP surfaces `app/routes/{web,api}` plus `app/routes/auth/{web,api}` and `make:panel {name}` folders. Register via `RouteServiceProvider` → `ApplyWeb` / `ApplyAPI`. Controllers match the surface; services stay shared. Use `routing.From(app)` for Put/Patch/Delete/Resource. |
+| Controllers | `app/http/controllers/{web,api}`, `app/http/controllers/auth/{web,api}`, and `make:panel {name}`. Methods: `(req *http.Request) *http.Response`. |
 | Input (writes) | `validation.FormRequest` in `app/http/requests`. `ValidateForm` then controller. |
 | Input (reads) | `{Resource}IndexRequest` when the index accepts any query (`page`, `q`, `sort`, filters). Path-only Show/Destroy: `req.Param` + Policy. |
 | Validation | `packages/validation` only. Do not re-validate the same rules in the ORM or service. |
@@ -72,7 +72,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 - Invent directories, layers, or parallel implementations.
 - Copy a local violation because it already exists (dashboard stubs may call `validation.Make`; `make:auth` may mix View/JSON — do not spread those into resource CRUD).
 - Put ORM query chains, rule maps, or Gate definitions in controllers (controllers may *call* Gate and FormRequest).
-- Use `bus.Dispatch` as the default application layer (optional package, not the CRUD path).
+- Use a command bus as the application layer. There is no `bus` package; Controller → FormRequest → optional service is the path.
 - Treat `jsonapi` or `make:resource` as required API shape (optional helpers).
 - Bypass FormRequest with ad-hoc `map[string]string` for mutating endpoints when `validation` is enabled.
 - Nest `orm.Transaction` (not supported).

@@ -357,16 +357,10 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	if env.GetBool("CORS_ENABLED", true) {
 		app.router.Use(middleware.CORSFromEnv(app.Environment()))
 	}
-	if o := middlewareFrom(app, "octane"); o != nil {
-		app.router.Use(o)
-	}
 	if o := middlewareFrom(app, "maintenance"); o != nil {
 		app.router.Use(o)
 	}
 	if o := middlewareFrom(app, "metrics-timing"); o != nil {
-		app.router.Use(o)
-	}
-	if o := middlewareFrom(app, "inspector"); o != nil {
 		app.router.Use(o)
 	}
 	if o := middlewareFrom(app, "audit"); o != nil {

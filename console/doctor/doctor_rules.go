@@ -5,6 +5,8 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+
+	"github.com/zatrano/framework/v2/kernel/dirs"
 )
 
 func checkControllers(root string) ([]Finding, error) {
@@ -33,9 +35,9 @@ func checkControllers(root string) ([]Finding, error) {
 						Severity: "error",
 						File:     rel,
 						Line:     fset.Position(ts.Pos()).Line,
-						Found:    "type " + ts.Name.Name + " outside app/http/controllers/{web,api,admin}",
-						Why:      "Controllers belong in the canonical HTTP controller packages.",
-						How:      "Move this type into app/http/controllers/web, api, or admin.",
+						Found:    "type " + ts.Name.Name + " outside app/http/controllers/{web,api,auth} or a panel surface",
+						Why:      "Controllers belong on an HTTP surface: web, api, auth, or a make:panel name.",
+						How:      "Move this type into app/http/controllers/web, api, auth, or the matching panel folder.",
 						See:      archSee + " §G",
 					})
 				}
@@ -56,7 +58,7 @@ func checkControllers(root string) ([]Finding, error) {
 					File:     rel,
 					Line:     fset.Position(fn.Pos()).Line,
 					Found:    recv + "." + fn.Name.Name + " is an HTTP entry but " + recv + " is not a *Controller",
-					Why:      "HTTP methods belong on *Controller types in app/http/controllers/{web,api,admin}. Handler/Action types are not a second HTTP layer.",
+					Why:      "HTTP methods belong on *Controller types in app/http/controllers/{web,api,auth} or a panel surface. Handler/Action types are not a second HTTP layer.",
 					How:      "Rename the type to {Resource}Controller and keep it under the canonical controller package.",
 					See:      archSee + " §G · ADR-0001",
 				})
@@ -175,24 +177,11 @@ func controllerFileTransactions(rel string, fset *token.FileSet, file *ast.File)
 }
 
 func controllerPathAllowed(rel string) bool {
-	rel = filepath.ToSlash(rel)
-	return strings.HasPrefix(rel, "app/http/controllers/web/") ||
-		strings.HasPrefix(rel, "app/http/controllers/api/") ||
-		strings.HasPrefix(rel, "app/http/controllers/admin/")
+	return dirs.ControllerRelAllowed(rel)
 }
 
 func controllerDirKind(rel string) string {
-	rel = filepath.ToSlash(rel)
-	switch {
-	case strings.HasPrefix(rel, "app/http/controllers/web/"):
-		return "web"
-	case strings.HasPrefix(rel, "app/http/controllers/api/"):
-		return "api"
-	case strings.HasPrefix(rel, "app/http/controllers/admin/"):
-		return "admin"
-	default:
-		return ""
-	}
+	return dirs.ControllerKind(rel)
 }
 
 func isAuthControllerFile(rel string, types map[string]token.Pos) bool {

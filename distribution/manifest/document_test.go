@@ -112,8 +112,8 @@ func TestParseRoundTripTestdata(t *testing.T) {
 func TestParseIgnoresUnknownFields(t *testing.T) {
 	raw := []byte(`{
 		"schema": "zatrano.package/v1",
-		"name": "collection",
-		"import": "github.com/zatrano/packages/collection",
+		"name": "toolkit/collection",
+		"import": "github.com/zatrano/packages/toolkit/collection",
 		"kind": "library",
 		"layer": "addon",
 		"description": "Collection helpers",
@@ -126,7 +126,7 @@ func TestParseIgnoresUnknownFields(t *testing.T) {
 }
 
 func TestValidateRejectsLibraryEnable(t *testing.T) {
-	d := Derive(Input{Name: "collection", Kind: KindLibrary, Layer: LayerAddon, Description: "x"})
+	d := Derive(Input{Name: "toolkit/collection", Kind: KindLibrary, Layer: LayerAddon, Description: "x"})
 	d.Capabilities = append(d.Capabilities, CapEnable)
 	if err := Validate(d); err == nil {
 		t.Fatal("expected error")

@@ -21,7 +21,7 @@ var (
 
 func TestEcosystemCatalogDerivesValidManifests(t *testing.T) {
 	hints := loadRegisterHints(t)
-	if len(ecosystemCatalog) < 80 {
+	if len(ecosystemCatalog) < 70 {
 		t.Fatalf("expected full ecosystem catalog, got %d", len(ecosystemCatalog))
 	}
 	for _, p := range ecosystemCatalog {

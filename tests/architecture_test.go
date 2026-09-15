@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.4.0" {
-		t.Fatalf("VERSION=%q want 2.4.0", version)
+	if version != "2.5.0" {
+		t.Fatalf("VERSION=%q want 2.5.0", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -1067,7 +1067,7 @@ func TestKernelCatalogIsPrimitiveOnly(t *testing.T) {
 			t.Errorf("kernel.Catalog %q layer=%s want primitive", p.Name, p.Layer)
 		}
 	}
-	for _, name := range []string{"auth", "database", "ai", "agent", "billing"} {
+	for _, name := range []string{"auth", "database", "ai", "agent", "oauth"} {
 		if _, ok := kernel.LookupPackage(name); ok {
 			t.Errorf("kernel catalog must not contain %s", name)
 		}

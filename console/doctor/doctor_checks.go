@@ -43,7 +43,7 @@ func checkRouteLocation(root string) ([]Finding, error) {
 			if path != "" {
 				found = fmt.Sprintf("%s(%q)", name, path)
 			}
-			how := "Move this call into app/routes/web or app/routes/api and register it with RegisterWeb/RegisterAPI."
+			how := "Move this call into app/routes/web, app/routes/api, app/routes/auth/{web,api}, or a make:panel route folder and register it with RegisterWeb/RegisterAPI."
 			if name == "ApplyWeb" || name == "ApplyAPI" {
 				how = "Keep ApplyWeb/ApplyAPI in an app/providers RouteServiceProvider Boot method."
 			}
@@ -53,8 +53,8 @@ func checkRouteLocation(root string) ([]Finding, error) {
 				Severity: "error",
 				File:     rel,
 				Line:     fset.Position(call.Pos()).Line,
-				Found:    found + " outside app/routes/{web,api}",
-				Why:      "HTTP routes belong in self-registered web/api groups, not scattered through the app.",
+				Found:    found + " outside an HTTP surface route folder",
+				Why:      "HTTP routes belong in self-registered web, api, auth, or panel groups, not scattered through the app.",
 				How:      how,
 				See:      "https://zatrano.com/docs/application-engineering/standard §N",
 			})
@@ -98,7 +98,7 @@ func routeCallAllowed(rel, call string) bool {
 	case "ApplyWeb", "ApplyAPI":
 		return strings.HasPrefix(rel, "app/providers/")
 	default:
-		return strings.HasPrefix(rel, "app/routes/web/") || strings.HasPrefix(rel, "app/routes/api/")
+		return dirs.RouteRelAllowed(rel)
 	}
 }
 
@@ -152,7 +152,7 @@ func concreteImportAllowed(rel, importPath string) bool {
 	if !strings.HasSuffix(importPath, "/routing") {
 		return false
 	}
-	if strings.HasPrefix(rel, "app/routes/web/") || strings.HasPrefix(rel, "app/routes/api/") {
+	if dirs.RouteRelAllowed(rel) {
 		return true
 	}
 	if strings.HasPrefix(rel, "app/providers/") {
@@ -288,7 +288,7 @@ func checkAppLayout(root string) ([]Finding, error) {
 		how      string
 	}{
 		{"application", "error", "Legacy application/ trees are not the V2 consumer layout.", "Move code into app/ (http/controllers, services, providers) and delete application/."},
-		{"routes", "error", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api}.", "Move route files into app/routes/web and app/routes/api with RegisterWeb/RegisterAPI."},
+		{"routes", "error", "Top-level routes/ is the old skeleton; V2 routes live under app/routes/{web,api,auth} or a panel folder.", "Move route files into app/routes/web, app/routes/api, app/routes/auth/{web,api}, or make:panel {name}."},
 		{"app/controllers", "error", "Controllers belong under app/http/controllers, not app/controllers.", "Move files into app/http/controllers/{web,api}."},
 		{"app/config", "warning", "Application config is not an app/config tree; framework config lives in kernel/config/ and addon providers load their own maps.", "Keep settings in .env / published config stubs; do not add app/config."},
 	}

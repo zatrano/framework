@@ -371,7 +371,7 @@ func defaultEnabledAddonsPreamble() string {
 	b.WriteString("// Quick start:\n")
 	b.WriteString("//\tzatrano package:list\n")
 	b.WriteString("//\tzatrano package:enable mongo\n")
-	b.WriteString("//\tzatrano package:install billing\n")
+	b.WriteString("//\tzatrano package:enable social\n")
 	b.WriteString("//\tzatrano package:disable mongo\n")
 	b.WriteString("//\n")
 	b.WriteString("// Keep this list explicit for production: only enable what the project needs.\n")

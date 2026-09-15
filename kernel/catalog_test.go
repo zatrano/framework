@@ -20,7 +20,7 @@ func TestCatalogPrimitivesOnly(t *testing.T) {
 			t.Errorf("%s layer=%s want primitive", p.Name, p.Layer)
 		}
 	}
-	for _, name := range []string{"auth", "database", "ai", "agent", "billing"} {
+	for _, name := range []string{"auth", "database", "ai", "agent", "oauth"} {
 		if _, ok := LookupPackage(name); ok {
 			t.Errorf("%s must not be in the kernel catalog", name)
 		}

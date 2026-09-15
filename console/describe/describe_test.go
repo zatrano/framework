@@ -56,7 +56,7 @@ func TestDescribeJSONHasRouter(t *testing.T) {
 			intel = append(intel, p.Name)
 		}
 	}
-	for _, want := range []string{"ai", "rag", "agent"} {
+	for _, want := range []string{"ai", "rag", "agent", "workflow"} {
 		if !containsStr(intel, want) {
 			t.Fatalf("catalog intelligence missing %s: %v", want, intel)
 		}

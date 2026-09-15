@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/zatrano/framework/v2/bootstrap/addons"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -30,9 +31,7 @@ func packageAppDirs(name string) []string {
 	case "localization":
 		return []string{"app/localization"}
 	case "view":
-		return []string{"app/views"}
-	case "enums":
-		return []string{"app/enums"}
+		return []string{"app/views", "app/views/web", "app/views/layout"}
 	case "factory":
 		return []string{"app/database/factories"}
 	case "resources":
@@ -66,6 +65,22 @@ func scaffoldPackageDirs(app *kernel.Application, names []string) error {
 			if err := os.WriteFile(keep, []byte(""), 0o644); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func scaffoldPackageFiles(app *kernel.Application, names []string) error {
+	if app == nil {
+		return nil
+	}
+	for _, name := range names {
+		meta, ok := addons.Lookup(name)
+		if !ok || meta.Scaffold == nil {
+			continue
+		}
+		if err := meta.Scaffold(app); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -4,7 +4,21 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-Why now:
+## 2.5.0 - 2026-09-15
+
+Why now: Pin the catalog freeze so applications can take toolkit ownership, nested pagination/TOTP/OTP, and dropped fake addons without tracking `main`.
+
+Minor release after `v2.4.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Breaking / DX
+
+- Boot membership is Requires-only (`Expand` / `Resolve` do not pull imported Optional addons into the enable-set). Optional still orders members already selected.
+- HTTP surfaces: `web`, `api`, `auth/{web,api}`, and `make:panel {name}`. `zatrano doctor` APP-ROUTE-001 / APP-CTL-001 accept `app/routes/auth/{web,api}` and named panel folders. Auth JSON controllers under `controllers/auth/api` are APP-CTL-004. `package:enable view` creates `app/views/web` and `app/views/layout`; the view package writes `layout/app.html` and `web/welcome.html` when missing and switches the starter home to `http.View("web.welcome")`.
+- Dropped `billing` from the CLI catalog. String enums and other import-only helpers live under `toolkit/` (`enums`, `collection`, `bloom`, `circuit`, `concurrency`, `cron`, `debug`, `process`, `timing`, `markdown`, `zip`, `jsonschema`). No `make:enum`, no enablement. User-Agent parsing stays in the kernel (`http.ParseUserAgent` / `req.Agent()`); there is no addon copy.
+- Removed `octane`, `pulse`, and `inspector` from the CLI catalog. Metrics stay on `observability`. Application version is `app.Version()` / the kernel `version` CLI; there is no `packages/version` addon. Dropped site addons `search`, `shorturl`, `sitemap`, `wellknown`, `geo`, and `docs`. Page metadata lives in `orm/pagination`. TOTP lives in `auth/totp`. Numeric codes live in `notification/otp`. `hashid` and `lock` are toolkit libraries.
+- Removed `bus`, `features`, and `tenancy`. Command dispatch stays on `events` and application services. Feature flags stay in config/env. Tenant resolution is application middleware, not a first-party package. `workflow` is catalogued as an experimental intelligence library (import-only; `agent.AsExecutor`).
+
+Install with `go get github.com/zatrano/framework/v2@v2.5.0` and `go get github.com/zatrano/packages@v1.9.0`.
 
 ## 2.4.0 - 2026-09-15
 

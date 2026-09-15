@@ -196,7 +196,7 @@ func TestNewPlanEmptyMeansKernelOnly(t *testing.T) {
 	}
 }
 
-func TestExpandPullsRequiresAndSkipsMissingOptional(t *testing.T) {
+func TestExpandPullsRequiresAndSkipsOptional(t *testing.T) {
 	catalog := map[string]addons.Meta{
 		"auth":     {Name: "auth", Requires: []string{"database"}, Optional: []string{"redisx", "missing"}},
 		"database": {Name: "database"},
@@ -214,8 +214,11 @@ func TestExpandPullsRequiresAndSkipsMissingOptional(t *testing.T) {
 	for _, m := range got {
 		names[m.Name] = true
 	}
-	if !names["auth"] || !names["database"] || !names["redisx"] {
+	if !names["auth"] || !names["database"] {
 		t.Fatalf("expanded=%v", names)
+	}
+	if names["redisx"] {
+		t.Fatal("present Optional must not join the enable-set")
 	}
 	if names["missing"] {
 		t.Fatal("missing optional should not be included")

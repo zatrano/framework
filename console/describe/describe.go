@@ -235,7 +235,7 @@ func FormatDescribeText(doc *DescribeDocument) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "ZATRANO describe %s\n", doc.Version)
-	b.WriteString("warning: packages ai, rag, and agent are experimental: they have not completed the same security review as the rest of the ecosystem.\n")
+	b.WriteString("warning: packages ai, rag, agent, and workflow are experimental: they have not completed the same security review as the rest of the ecosystem.\n")
 	b.WriteString("\n== contracts ==\n")
 	names := make([]string, 0, len(doc.Contracts))
 	for name := range doc.Contracts {

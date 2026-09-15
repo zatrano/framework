@@ -250,7 +250,7 @@ func TestPackageResolveDoesNotMutateTree(t *testing.T) {
 	app := kernel.NewApplication(dir)
 	var buf bytes.Buffer
 	cmd := &PackageResolveCommand{app: app, out: &buf}
-	if err := cmd.Handle([]string{"collection"}); err != nil {
+	if err := cmd.Handle([]string{"toolkit/collection"}); err != nil {
 		t.Fatal(err)
 	}
 	body, err := os.ReadFile(filepath.Join(dir, "go.mod"))
