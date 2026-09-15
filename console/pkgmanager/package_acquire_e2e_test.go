@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/zatrano/framework/v2/console/consolecore"
 	"github.com/zatrano/framework/v2/distribution/acquire"
 	"github.com/zatrano/framework/v2/distribution/manifest"
 	"github.com/zatrano/framework/v2/distribution/registry"
@@ -20,11 +20,11 @@ import (
 
 func frameworkRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller")
+	root, err := consolecore.FrameworkModuleRoot()
+	if err != nil {
+		t.Fatal(err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
+	return root
 }
 
 func packagesCheckout(t *testing.T) string {

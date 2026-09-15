@@ -11,6 +11,9 @@ const maxSymlinkHops = 32
 
 // Under reports whether candidate resolves inside root (inclusive).
 func Under(root, candidate string) bool {
+	if strings.ContainsRune(root, 0) || strings.ContainsRune(candidate, 0) {
+		return false
+	}
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return false
