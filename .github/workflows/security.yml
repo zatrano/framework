@@ -27,30 +27,6 @@ jobs:
       - run: go mod download
       - run: go vet ./...
 
-  race:
-    name: go-test-race
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: framework
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          path: framework
-      - uses: actions/checkout@v5
-        with:
-          repository: zatrano/packages
-          ref: main
-          path: packages
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.25.13'
-          cache: true
-          cache-dependency-path: framework/go.mod
-      - run: go mod download
-      - name: go test -race
-        run: go test -race ./... -count=1
-
   gosec:
     name: gosec
     runs-on: ubuntu-latest
@@ -218,7 +194,7 @@ jobs:
     name: Security Summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [vet, race, gosec, govulncheck, semgrep, trivy, fuzz]
+    needs: [vet, gosec, govulncheck, semgrep, trivy, fuzz]
     steps:
       - name: Write summary table
         run: |
@@ -237,14 +213,13 @@ jobs:
             echo "| Tool | Result |"
             echo "|------|--------|"
             echo "| go vet | $(status '${{ needs.vet.result }}') |"
-            echo "| go test -race | $(status '${{ needs.race.result }}') |"
             echo "| gosec | $(status '${{ needs.gosec.result }}') |"
             echo "| govulncheck | $(status '${{ needs.govulncheck.result }}') |"
             echo "| Semgrep | $(status '${{ needs.semgrep.result }}') |"
             echo "| Trivy FS | $(status '${{ needs.trivy.result }}') |"
             echo "| Fuzz | $(status '${{ needs.fuzz.result }}') |"
           } >> "$GITHUB_STEP_SUMMARY"
-          for r in ${{ needs.vet.result }} ${{ needs.race.result }} ${{ needs.gosec.result }} ${{ needs.govulncheck.result }} ${{ needs.semgrep.result }} ${{ needs.trivy.result }} ${{ needs.fuzz.result }}; do
+          for r in ${{ needs.vet.result }} ${{ needs.gosec.result }} ${{ needs.govulncheck.result }} ${{ needs.semgrep.result }} ${{ needs.trivy.result }} ${{ needs.fuzz.result }}; do
             if [ "$r" = "failure" ]; then
               exit 1
             fi

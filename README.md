@@ -633,7 +633,7 @@ The packages ecosystem is maintained in the separate [packages](https://github.c
 
 ## Security
 
-Security is a platform concern. CI runs **go vet**, **go test -race**, **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and Go fuzzing.
+Security is a platform concern. Tests CI runs **go test -race**. Security CI runs **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and Go fuzzing. Static analysis runs **go vet**.
 
 The release gate:
 

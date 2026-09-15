@@ -348,7 +348,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | `framework_min` doctor | `console/pkgmanager/package_doctor_report.go` + doctor tests |
 | Acquire ≠ enable | `console/pkgmanager/package_acquire_test.go` |
 | Acquire+enable+Bootstrap Bound | `console/pkgmanager/package_acquire_e2e_test.go` `TestPackageAcquireE2EEnableThenBoot` (subprocess Bootstrap only; **no** `Start`/`Stop` at SPEC write time) |
-| `go test -race` | `.github/workflows/security.yml` job `race` |
+| `go test -race` | `.github/workflows/tests.yml` job `race` |
 
 ### 5.1 Implemented runtime tests (final)
 
@@ -387,7 +387,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | H Dual MeetsFrameworkMin | Two copies | `registry/compat.go`, `addons/compat.go` | Drift | Agreement tests; no acquire merge |
 | I Library enable | Rejected | `enablePackage` | — | Keep |
 | J Runtime E2E | Acquire+enable+Bootstrap Bound | `package_acquire_e2e_test.go` | No Start/Stop | Isolated Start+Stop E2E |
-| K Race | Serialized Start/Stop; CI `-race` | lifecycle tests; `security.yml` | Shared registry | Test two `App()`; no speculative locks |
+| K Race | Serialized Start/Stop; CI `-race` | lifecycle tests; `tests.yml` | Shared registry | Test two `App()`; no speculative locks |
 | L CLI runtime errors | `serve`/`Run` → exit 1 | `CodeFromError` | Acquire code reuse | **Decision L:** codes 20–23; never 2–7 |
 
 Gaps that are **not** work: second lifecycle manager; `func Apply`; moving packages into kernel; runtime re-resolve; automatic rollback of `Register`; per-App addon registry; `framework_min` inside `Bootstrap`.
@@ -557,4 +557,4 @@ Implementation COMPLETE
 ```
 
 Local `go test ./...`, `go vet ./...`, and `staticcheck ./...` passed after A–L.
-`go test -race ./...` requires cgo; this Windows host has no C compiler. CI continues to run the race job (`.github/workflows/security.yml`). No speculative locks were added.
+`go test -race ./...` requires cgo; this Windows host has no C compiler. CI continues to run the race job (`.github/workflows/tests.yml`). No speculative locks were added.
