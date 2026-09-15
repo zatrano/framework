@@ -4,7 +4,16 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.5.1 - 2026-09-15
+
+Patch after `v2.5.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+- Restored `docs` in the CLI catalog (markdown encyclopedia addon).
+- Added `seo`: classic crawler SEO (sitemap, robots, OG/JSON-LD, security.txt) and LLM discovery (`llms.txt`, `ai-plugin.json`) as one addon. `sitemap` and `wellknown` stay removed; consume `seo`. Does not import `ai`.
 - Starter smoke blank-imports `audit`, not the removed `billing` addon.
+- First-time enablement pins `github.com/zatrano/packages@v1.9.1`.
+
+Install with `go get github.com/zatrano/framework/v2@v2.5.1` and `go get github.com/zatrano/packages@v1.9.1`.
 
 ## 2.5.0 - 2026-09-15
 

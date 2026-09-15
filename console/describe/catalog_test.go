@@ -131,10 +131,18 @@ func TestEcosystemCatalogAddonKinds(t *testing.T) {
 	if _, ok := catalogLookup("inspector"); ok {
 		t.Fatal("inspector was removed")
 	}
-	for _, name := range []string{"version", "search", "shorturl", "sitemap", "wellknown", "geo", "docs", "hashid", "lock", "pagination", "totp", "otp", "bus", "features", "tenancy"} {
+	for _, name := range []string{"version", "search", "shorturl", "sitemap", "wellknown", "geo", "hashid", "lock", "pagination", "totp", "otp", "bus", "features", "tenancy"} {
 		if _, ok := catalogLookup(name); ok {
 			t.Fatalf("%s was removed", name)
 		}
+	}
+	docsPkg, ok := catalogLookup("docs")
+	if !ok || docsPkg.EffectiveKind() != kernel.KindService {
+		t.Fatal("docs should be a service addon")
+	}
+	seoPkg, ok := catalogLookup("seo")
+	if !ok || seoPkg.EffectiveKind() != kernel.KindService {
+		t.Fatal("seo should be a service addon")
 	}
 	breaker, ok := catalogLookup("toolkit/circuit")
 	if !ok || breaker.EffectiveKind() != kernel.KindLibrary {

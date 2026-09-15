@@ -46,9 +46,11 @@ var ecosystemCatalog = []kernel.PackageInfo{
 
 	{Name: "audit", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Request/audit event log"},
 	{Name: "backup", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Database backup/restore (SQLite + native dump tools)"},
+	{Name: "docs", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Markdown docs repository"},
 	{Name: "graphql", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "GraphQL schema and queries"},
 	{Name: "mongo", Layer: kernel.LayerAddon, Kind: kernel.KindService, Heavy: true, Description: "MongoDB client (separate module)"},
 	{Name: "oauth", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "OAuth2 authorization server"},
+	{Name: "seo", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Classic crawler SEO and LLM discovery"},
 	{Name: "social", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Social OAuth login (GitHub/Google)"},
 	{Name: "webauthn", Layer: kernel.LayerAddon, Kind: kernel.KindService, Heavy: true, Description: "WebAuthn/passkeys (separate module)"},
 	{Name: "webhooks", Layer: kernel.LayerAddon, Kind: kernel.KindService, Description: "Outbound signed webhooks"},
