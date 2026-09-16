@@ -41,6 +41,49 @@
 
 ---
 
+## Benchmarks
+
+Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middleware, and AES-GCM encrypted session cookies.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/requests-304K%2B-2ea44f?style=for-the-badge" alt="Total requests">
+  <img src="https://img.shields.io/badge/errors-0-2ea44f?style=for-the-badge" alt="Errors">
+  <img src="https://img.shields.io/badge/data_races-0-2ea44f?style=for-the-badge" alt="Data races">
+  <img src="https://img.shields.io/badge/panics-0-2ea44f?style=for-the-badge" alt="Panics">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/peak-9%2C514_RPS-e67e22?style=for-the-badge" alt="Peak RPS">
+  <img src="https://img.shields.io/badge/burst-2%2C000%2F2%2C000_%40_397ms-3498db?style=for-the-badge" alt="Burst test">
+  <img src="https://img.shields.io/badge/session_collisions-0-2ea44f?style=for-the-badge" alt="Session collisions">
+  <img src="https://img.shields.io/badge/cross--user_leaks-0-2ea44f?style=for-the-badge" alt="Cross-user leaks">
+</p>
+
+**Throughput by concurrency**
+
+| Workers | RPS |
+| --- | --- |
+| 10 | 🟢 9,514 |
+| 50 | 🟢 7,837 |
+| 200 | 🟡 7,138 |
+| 500 | 🟡 5,704 |
+| 1,000 | 🟠 5,230 |
+
+**Sustained and burst load**
+
+| Test | Requests | p50 | p95 | p99 | Errors |
+| --- | --- | --- | --- | --- | --- |
+| 500 workers | 100,000 | 174.55 ms | — | 243.40 ms | ✅ 0 |
+| 1,000 workers | 100,000 | 383.94 ms | — | 505.21 ms | ✅ 0 |
+| Sustained, 300 workers / 15s | 91,237 (6,072 RPS avg) | — | 90.04 ms | 120.69 ms | ✅ 0 |
+| Burst, 2,000 concurrent connections | 2,000 (2,000 succeeded) | — | — | 360 ms | ✅ 0 (0 timeouts) |
+
+**Concurrency safety** — session handling (login → encrypted cookie → profile → user verification) run under `go test -race` and under every load test above: 100,000 requests through the race detector with **0 data races**, **0 session collisions**, **0 cross-user leaks**.
+
+> Environment: 1 vCPU / 3.9 GB RAM, single core. Structural/relative measurements, not production capacity figures — multi-core benchmarking with production-like network, TLS, and database workloads is next. Full methodology and raw output: [releases](https://github.com/zatrano/framework/releases).
+
+---
+
 ## What is ZATRANO?
 
 ZATRANO is a **small, typed, stable kernel** plus opt-in packages. The kernel is HTTP, container, config, routing, lifecycle, and CLI. Packages bind with `From(app)` / `app.Make`. `contracts.App` does not grow package methods.
@@ -83,7 +126,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
              │                                Queue
              │                                …
              │
-             └──────────── Application ────────┘
+             └──────────── Application ────────────┘
                               │
                          bootstrap.App()
                               │
@@ -657,39 +700,6 @@ FUZZ=1 bash .github/scripts/release-gate.sh
 Kernel security primitives include request size limits, safe path resolution, secure request IDs, security headers, trusted proxy handling, production secret validation, exception isolation, and cookie protection.
 
 Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com). Do not open a public GitHub issue for security reports.
-
-## Benchmarks
-
-Kernel `v2.6.0` was load-tested against the full HTTP request path — routing, middleware, and AES-GCM encrypted session cookies — under concurrent traffic. Environment: 1 vCPU / 3.9 GB RAM, single core. These are structural/relative measurements, not production capacity figures; multi-core benchmarking with production-like network, TLS, and database workloads is the next step.
-
-**Throughput by concurrency**
-
-| Workers | RPS |
-| --- | --- |
-| 10 | 9,514 |
-| 50 | 7,837 |
-| 200 | 7,138 |
-| 500 | 5,704 |
-| 1,000 | 5,230 |
-
-**Sustained and burst load**
-
-| Test | Requests | p50 | p95 | p99 | Errors |
-| --- | --- | --- | --- | --- | --- |
-| 500 workers | 100,000 | 174.55 ms | — | 243.40 ms | 0 |
-| 1,000 workers | 100,000 | 383.94 ms | — | 505.21 ms | 0 |
-| Sustained, 300 workers / 15s | 91,237 (6,072 RPS avg) | — | 90.04 ms | 120.69 ms | 0 |
-| Burst, 2,000 concurrent connections | 2,000 (2,000 succeeded) | — | — | 360 ms | 0 (0 timeouts) |
-
-Across the full run — 304,000+ requests total: 0 errors, 0 panics, no goroutine leak signal.
-
-**Concurrency safety**
-
-Session handling — login, encrypted cookie issuance, profile access, user verification — was run under `go test -race` and under the load tests above:
-
-- 100,000 requests under the race detector: 0 data races
-- 0 session collisions across all load tests
-- 0 cross-user session leaks
 
 ## Architecture principles
 
