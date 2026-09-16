@@ -59,6 +59,10 @@ Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middl
   <img src="https://img.shields.io/badge/cross--user_leaks-0-2ea44f?style=for-the-badge" alt="Cross-user leaks">
 </p>
 
+<table>
+<tr>
+<td valign="top">
+
 **Throughput by concurrency**
 
 | Workers | RPS |
@@ -69,14 +73,21 @@ Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middl
 | 500 | 5,704 |
 | 1,000 | 5,230 |
 
+</td>
+<td valign="top">
+
 **Sustained and burst load**
 
-| Test | Requests | p50 | p95 | p99 | Errors |
-| --- | --- | --- | --- | --- | --- |
-| 500 workers | 100,000 | 174.55 ms | — | 243.40 ms | ✅ 0 |
-| 1,000 workers | 100,000 | 383.94 ms | — | 505.21 ms | ✅ 0 |
-| Sustained, 300 workers / 15s | 91,237 (6,072 RPS avg) | — | 90.04 ms | 120.69 ms | ✅ 0 |
-| Burst, 2,000 concurrent connections | 2,000 (2,000 succeeded) | — | — | 360 ms | ✅ 0 (0 timeouts) |
+| Test | p99 | Errors |
+| --- | --- | --- |
+| 500 workers, 100K req | 243.40 ms | ✅ 0 |
+| 1,000 workers, 100K req | 505.21 ms | ✅ 0 |
+| Sustained, 300w / 15s, 91K req | 120.69 ms | ✅ 0 |
+| Burst, 2,000 concurrent | 360 ms | ✅ 0 |
+
+</td>
+</tr>
+</table>
 
 **Concurrency safety** — session handling (login → encrypted cookie → profile → user verification) run under `go test -race` and under every load test above: 100,000 requests through the race detector with **0 data races**, **0 session collisions**, **0 cross-user leaks**.
 
