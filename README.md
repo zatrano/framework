@@ -63,11 +63,11 @@ Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middl
 
 | Workers | RPS |
 | --- | --- |
-| 10 | 🟢 9,514 |
-| 50 | 🟢 7,837 |
-| 200 | 🟡 7,138 |
-| 500 | 🟡 5,704 |
-| 1,000 | 🟠 5,230 |
+| 10 | 9,514 |
+| 50 | 7,837 |
+| 200 | 7,138 |
+| 500 | 5,704 |
+| 1,000 | 5,230 |
 
 **Sustained and burst load**
 
