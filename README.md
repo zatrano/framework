@@ -53,7 +53,7 @@ Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middl
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/peak-9%2C514_RPS-e67e22?style=for-the-badge" alt="Peak RPS">
+  <img src="https://img.shields.io/badge/peak-9%2C514_RPS-3498db?style=for-the-badge" alt="Peak RPS">
   <img src="https://img.shields.io/badge/burst-2%2C000%2F2%2C000_%40_397ms-3498db?style=for-the-badge" alt="Burst test">
   <img src="https://img.shields.io/badge/session_collisions-0-2ea44f?style=for-the-badge" alt="Session collisions">
   <img src="https://img.shields.io/badge/cross--user_leaks-0-2ea44f?style=for-the-badge" alt="Cross-user leaks">
