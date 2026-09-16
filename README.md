@@ -83,7 +83,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
              │                                Queue
              │                                …
              │
-             └──────────── Application ────────────┘
+             └──────────── Application ────────┘
                               │
                          bootstrap.App()
                               │
@@ -657,6 +657,39 @@ FUZZ=1 bash .github/scripts/release-gate.sh
 Kernel security primitives include request size limits, safe path resolution, secure request IDs, security headers, trusted proxy handling, production secret validation, exception isolation, and cookie protection.
 
 Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com). Do not open a public GitHub issue for security reports.
+
+## Benchmarks
+
+Kernel `v2.6.0` was load-tested against the full HTTP request path — routing, middleware, and AES-GCM encrypted session cookies — under concurrent traffic. Environment: 1 vCPU / 3.9 GB RAM, single core. These are structural/relative measurements, not production capacity figures; multi-core benchmarking with production-like network, TLS, and database workloads is the next step.
+
+**Throughput by concurrency**
+
+| Workers | RPS |
+| --- | --- |
+| 10 | 9,514 |
+| 50 | 7,837 |
+| 200 | 7,138 |
+| 500 | 5,704 |
+| 1,000 | 5,230 |
+
+**Sustained and burst load**
+
+| Test | Requests | p50 | p95 | p99 | Errors |
+| --- | --- | --- | --- | --- | --- |
+| 500 workers | 100,000 | 174.55 ms | — | 243.40 ms | 0 |
+| 1,000 workers | 100,000 | 383.94 ms | — | 505.21 ms | 0 |
+| Sustained, 300 workers / 15s | 91,237 (6,072 RPS avg) | — | 90.04 ms | 120.69 ms | 0 |
+| Burst, 2,000 concurrent connections | 2,000 (2,000 succeeded) | — | — | 360 ms | 0 (0 timeouts) |
+
+Across the full run — 304,000+ requests total: 0 errors, 0 panics, no goroutine leak signal.
+
+**Concurrency safety**
+
+Session handling — login, encrypted cookie issuance, profile access, user verification — was run under `go test -race` and under the load tests above:
+
+- 100,000 requests under the race detector: 0 data races
+- 0 session collisions across all load tests
+- 0 cross-user session leaks
 
 ## Architecture principles
 
