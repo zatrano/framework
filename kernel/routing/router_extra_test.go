@@ -35,6 +35,32 @@ func TestCatchAllParamAndFallback(t *testing.T) {
 	}
 }
 
+func TestFrozenRouteComposesMiddlewareOnce(t *testing.T) {
+	r := routing.New()
+	hits := 0
+	r.Use(func(next routing.HandlerFunc) routing.HandlerFunc {
+		return func(req *http.Request) *http.Response {
+			hits++
+			return next(req)
+		}
+	})
+	r.Get("/json", func(req *http.Request) *http.Response {
+		return http.JSON(map[string]any{"ok": true})
+	})
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/json", nil)))
+		if resp.StatusCode() != 200 {
+			t.Fatalf("status=%d", resp.StatusCode())
+		}
+	}
+	if hits != 3 {
+		t.Fatalf("middleware hits=%d want 3", hits)
+	}
+}
+
 func TestRouterRedirectAndNamed(t *testing.T) {
 	r := routing.New()
 	r.Get("/home", func(req *http.Request) *http.Response {

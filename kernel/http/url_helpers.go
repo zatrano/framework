@@ -226,6 +226,9 @@ func (r *Request) Segment(n int, fallback ...string) string {
 
 // SetRouteName stores the matched route name on the request.
 func (r *Request) SetRouteName(name string) {
+	if name == "" {
+		return
+	}
 	r.Set("_route", name)
 }
 

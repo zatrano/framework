@@ -30,10 +30,7 @@ type Jar struct {
 
 // NewJar creates a cookie jar.
 func NewJar() *Jar {
-	return &Jar{
-		queued:       make([]*QueuedCookie, 0),
-		queuedForget: make([]string, 0),
-	}
+	return &Jar{}
 }
 
 // Queue queues a cookie.

@@ -51,12 +51,7 @@ type SessionStore interface {
 
 // NewRequest creates a ZATRANO request.
 func NewRequest(r *stdhttp.Request) *Request {
-	return &Request{
-		raw:     r,
-		route:   make(map[string]string),
-		attrs:   make(map[string]any),
-		cookies: cookie.NewJar(),
-	}
+	return &Request{raw: r}
 }
 
 // Raw returns the underlying net/http request.
@@ -191,11 +186,17 @@ func (r *Request) RouteInt(key string, fallback ...int) int {
 
 // SetRouteParams sets matched route parameters.
 func (r *Request) SetRouteParams(params map[string]string) {
+	if r == nil {
+		return
+	}
 	r.route = params
 }
 
 // RouteParams returns all matched route parameters.
 func (r *Request) RouteParams() map[string]string {
+	if r == nil || len(r.route) == 0 {
+		return map[string]string{}
+	}
 	out := make(map[string]string, len(r.route))
 	for key, value := range r.route {
 		out[key] = value
@@ -289,6 +290,17 @@ func (r *Request) Cookies() *cookie.Jar {
 		r.cookies = cookie.NewJar()
 	}
 	return r.cookies
+}
+
+// DrainCookies returns queued response cookies and clears the jar.
+// A request that never queued cookies does not allocate a jar.
+func (r *Request) DrainCookies() []*stdhttp.Cookie {
+	if r == nil || r.cookies == nil {
+		return nil
+	}
+	out := r.cookies.Apply()
+	r.cookies.Clear()
+	return out
 }
 
 // HasHeader reports whether a header exists.

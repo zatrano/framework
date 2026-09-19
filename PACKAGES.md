@@ -14,7 +14,7 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.6.2
+github.com/zatrano/framework/v2   v2.6.3
 github.com/zatrano/packages       v1.10.0
 ```
 

@@ -31,6 +31,7 @@ type Route struct {
 	frozenMethod  string
 	frozenHandler HandlerFunc
 	frozenMW      []MiddlewareFunc
+	frozenChain   HandlerFunc
 }
 
 type methodTable struct {
@@ -40,17 +41,18 @@ type methodTable struct {
 
 // Router is the ZATRANO HTTP router.
 type Router struct {
-	routes          []*Route
-	middleware      []MiddlewareFunc
-	groupPrefix     string
-	groupName       string
-	groupMiddleware []MiddlewareFunc
-	named           map[string]*Route
-	fallback        HandlerFunc
-	frozen          bool
-	frozenGlobalMW  []MiddlewareFunc
-	frozenFallback  HandlerFunc
-	byMethod        map[string]*methodTable
+	routes              []*Route
+	middleware          []MiddlewareFunc
+	groupPrefix         string
+	groupName           string
+	groupMiddleware     []MiddlewareFunc
+	named               map[string]*Route
+	fallback            HandlerFunc
+	frozen              bool
+	frozenGlobalMW      []MiddlewareFunc
+	frozenFallback      HandlerFunc
+	frozenFallbackChain HandlerFunc
+	byMethod            map[string]*methodTable
 }
 
 // New creates a new router.
@@ -89,6 +91,9 @@ func (r *Router) Freeze() error {
 	r.named = named
 	r.frozenGlobalMW = append([]MiddlewareFunc{}, r.middleware...)
 	r.frozenFallback = r.fallback
+	if r.frozenFallback != nil {
+		r.frozenFallbackChain = composeHandler(r.frozenFallback, r.frozenGlobalMW)
+	}
 	for _, route := range r.routes {
 		if route == nil {
 			continue
@@ -98,9 +103,21 @@ func (r *Router) Freeze() error {
 		route.frozenMethod = route.Method
 		route.frozenHandler = route.Handler
 		route.frozenMW = append([]MiddlewareFunc{}, route.Middleware...)
+		stack := append(append([]MiddlewareFunc{}, r.frozenGlobalMW...), route.frozenMW...)
+		route.frozenChain = composeHandler(route.frozenHandler, stack)
 	}
 	r.frozen = true
 	return nil
+}
+
+func composeHandler(handler HandlerFunc, stack []MiddlewareFunc) HandlerFunc {
+	if handler == nil {
+		return nil
+	}
+	for i := len(stack) - 1; i >= 0; i-- {
+		handler = stack[i](handler)
+	}
+	return handler
 }
 
 func (r *Router) compileNamed() (map[string]*Route, error) {
@@ -354,6 +371,9 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 		fallback = r.frozenFallback
 	}
 	if fallback != nil {
+		if r.frozen && r.frozenFallbackChain != nil {
+			return r.frozenFallbackChain(req)
+		}
 		mw := r.middleware
 		if r.frozen {
 			mw = r.frozenGlobalMW
@@ -369,7 +389,7 @@ func (r *Router) match(req *http.Request) *Route {
 	if r.byMethod != nil {
 		if t := r.byMethod[method]; t != nil {
 			if route := t.static[path]; route != nil {
-				req.SetRouteParams(map[string]string{})
+				req.SetRouteParams(nil)
 				req.SetRouteName(route.dispatchName())
 				return route
 			}
@@ -410,12 +430,11 @@ func (r *Router) bind(req *http.Request, route *Route, path string) bool {
 }
 
 func (r *Router) invoke(req *http.Request, route *Route) *http.Response {
+	if r.frozen && route != nil && route.frozenChain != nil {
+		return route.frozenChain(req)
+	}
 	global := r.middleware
 	local := route.Middleware
-	if r.frozen {
-		global = r.frozenGlobalMW
-		local = route.frozenMW
-	}
 	stack := append(append([]MiddlewareFunc{}, global...), local...)
 	return r.invokeHandler(req, route.dispatchHandler(), stack)
 }

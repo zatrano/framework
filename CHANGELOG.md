@@ -4,6 +4,17 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.6.3 - 2026-09-19
+
+Patch after `v2.6.2`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Performance
+
+- Frozen routes compose the global+route middleware chain once at `Router.Freeze` instead of reallocating closures on every request.
+- `NewRequest` no longer pre-allocates route params, attributes, or a cookie jar; `DrainCookies` skips the jar when nothing was queued. Unnamed static matches do not store an empty `_route` attribute.
+
+Install with `go get github.com/zatrano/framework/v2@v2.6.3` and `go get github.com/zatrano/packages@v1.10.0`.
+
 ## 2.6.2 - 2026-09-19
 
 Patch after `v2.6.1`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.

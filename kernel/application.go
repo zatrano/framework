@@ -596,10 +596,9 @@ func (app *Application) ServeHTTP(w stdhttp.ResponseWriter, r *stdhttp.Request) 
 		resp = http.Abort(204)
 	}
 
-	for _, c := range req.Cookies().Apply() {
+	for _, c := range req.DrainCookies() {
 		resp.WithCookie(c)
 	}
-	req.Cookies().Clear()
 
 	_ = resp.WriteTo(cw)
 }
