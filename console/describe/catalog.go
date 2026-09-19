@@ -23,7 +23,7 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "orm", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Active-record ORM"},
 	{Name: "view", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "HTML view engine"},
 	{Name: "queue", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Job queues"},
-	{Name: "events", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Event dispatcher"},
+	{Name: "facts", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Typed facts and reactions"},
 	{Name: "localization", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Translator / locales"},
 	{Name: "schedule", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Task scheduler"},
 	{Name: "filesystem", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Filesystem disks"},

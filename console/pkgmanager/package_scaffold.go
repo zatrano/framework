@@ -14,8 +14,6 @@ func packageAppDirs(name string) []string {
 	switch name {
 	case "queue":
 		return []string{"app/jobs"}
-	case "events":
-		return []string{"app/events", "app/listeners"}
 	case "broadcasting":
 		return []string{"app/broadcasting"}
 	case "notification":

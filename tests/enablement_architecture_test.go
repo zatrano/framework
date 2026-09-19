@@ -78,8 +78,8 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	if !strings.Contains(wire, "packagesModuleRequired") {
 		t.Fatal("enablement must skip go get when packages is already required")
 	}
-	if strings.Count(wire, "github.com/zatrano/packages@v1.11.0") < 1 {
-		t.Fatal("first-time enablement must pin current stable packages@v1.11.0")
+	if strings.Count(wire, "github.com/zatrano/packages@v1.12.0") < 1 {
+		t.Fatal("first-time enablement must pin current stable packages@v1.12.0")
 	}
 	if strings.Contains(wire, "packages@main") {
 		t.Fatal("first-time enablement must not go get packages@main")
