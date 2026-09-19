@@ -43,7 +43,7 @@
 
 ## Benchmarks
 
-Kernel `v2.7.0` under concurrent load — full HTTP request path: routing, the default kernel middleware stack (exception handling, trusted proxy, request ID, security headers, CORS, input normalization) and JSON responses, compared against [Gin](https://github.com/gin-gonic/gin) `v1.12.0` on the same machine, with the same handlers and the same load.
+Kernel `v2.7.0` under concurrent load — full HTTP request path: routing, the default kernel middleware stack (exception handling, trusted proxy, request ID, security headers, CORS, input normalization) and JSON responses.
 
 <p align="center">
   <img src="https://img.shields.io/badge/requests-8M%2B-2ea44f?style=for-the-badge" alt="Total requests">
@@ -53,65 +53,41 @@ Kernel `v2.7.0` under concurrent load — full HTTP request path: routing, the d
   <img src="https://img.shields.io/badge/peak_RSS-13.5_MB-3498db?style=for-the-badge" alt="Peak memory">
 </p>
 
-**Throughput** — requests/second, 64 connections, median of 3 runs
+**Throughput by route** — 64 connections, median of 3 runs
 
-| Route | ZATRANO v2.7.0 | Gin v1.12.0 | Gin (same middleware) |
-|:---|---:|---:|---:|
-| `GET /plaintext` | 48,921 | 75,077 | 57,790 |
-| `GET /json` | 49,881 | 72,017 | 56,695 |
-| `GET /users/{id}` (path param + JSON) | 49,221 | 70,451 | 56,153 |
-| `POST /echo` (JSON in, JSON out) | 43,544 | 61,623 | 49,857 |
+| Route | RPS | p50 | p99 | CPU / request |
+|:---|---:|---:|---:|---:|
+| `GET /plaintext` | 48,921 | 1.50 ms | 18.89 ms | 14.5 µs |
+| `GET /json` | 49,881 | 1.46 ms | 19.48 ms | 14.3 µs |
+| `GET /users/{id}` (path param + JSON) | 49,221 | 1.49 ms | 19.98 ms | 14.6 µs |
+| `POST /echo` (JSON in, JSON out) | 43,544 | 1.69 ms | 33.90 ms | 16.9 µs |
 
-ZATRANO always runs its kernel middleware stack in production (request ID, security headers, CORS, exception handling, trusted proxy). Gin ships none of it by default, so the third column adds the same eight response headers and a per-request `crypto/rand` request ID to Gin for a like-for-like comparison. Against that column ZATRANO is about 14–15% behind on this workload.
+The kernel middleware stack (request ID, security headers, CORS, exception handling, trusted proxy) is always on in production, so every figure above includes it.
 
 Compared to `v2.6.0` (same machine, same run): **+54%** on `/plaintext`, **+58%** on `/json`, **+62%** on `/users/{id}`, **+9%** on `POST /echo`, with `/json` p99 down from 86 ms to 19.5 ms.
 
-<table align="center">
-<tr>
-<td align="center" valign="top">
+**Scaling with concurrency** (`GET /json`)
 
-**Throughput by concurrency** (`GET /json`)
+| Connections | RPS | p50 | p99 | RSS | Errors |
+|:---:|---:|---:|---:|---:|:---:|
+| 16 | 44,221 | 0.26 ms | 4.93 ms | 13.0 MB | ✅ 0 |
+| 128 | 47,130 | 3.22 ms | 29.85 ms | 13.8 MB | ✅ 0 |
+| 512 | 46,165 | 13.24 ms | 88.27 ms | 26.1 MB | ✅ 0 |
+| 1,000 | 46,506 | 25.53 ms | 142.31 ms | 42.1 MB | ✅ 0 |
+| 2,000 | 42,112 | 55.46 ms | 283.60 ms | 74.9 MB | ✅ 0 |
 
-| Connections | ZATRANO | Gin |
-|:---:|---:|---:|
-| 16 | 44,221 | 78,494 |
-| 128 | 47,130 | 71,722 |
-| 512 | 46,165 | 72,739 |
-| 1,000 | 46,506 | 73,156 |
-| 2,000 | 42,112 | 66,878 |
+Zero errors (no non-2xx responses, no socket errors) at every level up to 2,000 connections. Throughput drops only about 5% going from 16 to 2,000 connections.
 
-</td>
-<td align="center" valign="top">
+**Resources and unloaded latency**
 
-**p99 latency by concurrency**
+| Metric | Value |
+|:---|---:|
+| Idle RSS | 7.5 MB |
+| Peak RSS under load | 13.5 MB |
+| Binary size (stripped) | 7.3 MB |
+| `GET /json` p50 / p99, 1 connection | 20 µs / 158 µs |
 
-| Connections | ZATRANO | Gin |
-|:---:|---:|---:|
-| 16 | 4.93 ms | 1.11 ms |
-| 128 | 29.85 ms | 9.10 ms |
-| 512 | 88.27 ms | 28.21 ms |
-| 1,000 | 142.31 ms | 46.89 ms |
-| 2,000 | 283.60 ms | 110.93 ms |
-
-</td>
-</tr>
-</table>
-
-Zero errors (no non-2xx responses, no socket errors) at every concurrency level up to 2,000 connections. ZATRANO loses about 5% throughput going from 16 to 2,000 connections.
-
-**Resources and latency** (`GET /json`, 64 connections unless noted)
-
-| | ZATRANO v2.7.0 | Gin v1.12.0 |
-|:---|---:|---:|
-| Idle RSS | 7.5 MB | 12.9 MB |
-| Peak RSS under load | 13.5 MB | 19.3 MB |
-| RSS at 2,000 connections | 74.9 MB | 79.2 MB |
-| Binary size (stripped) | 7.3 MB | 21 MB |
-| CPU per request | 14.3 µs | 9.3 µs |
-| p50 / p99 (64 connections) | 1.46 ms / 19.5 ms | 0.82 ms / 5.6 ms |
-| p50 / p99 (1 connection) | 20 µs / 158 µs | 13 µs / 228 µs |
-
-The higher p99 at 64+ connections comes from the load generator sharing the single core with the server: tail latency grows with CPU time per request. With one connection there is no queueing and ZATRANO's p99 is lower than Gin's.
+Latency at 64+ connections is inflated by the load generator sharing the single core with the server: tail latency grows with CPU time per request. With one connection there is no queueing, which shows the request path itself.
 
 > Environment: 1 vCPU (Intel Xeon 2.1 GHz) / 4 GB RAM, Go 1.26.8, `wrk -t1` running on the same core as the server, ZATRANO in production mode with a `public/` directory present, each result the median of 3 runs of 10 s. Structural/relative measurements, not production capacity figures. Sessions, database, TLS and multi-core workloads are not part of this run. Full methodology and raw output: [releases](https://github.com/zatrano/framework/releases).
 
