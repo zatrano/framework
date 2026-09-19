@@ -4,9 +4,15 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.6.2 - 2026-09-19
+
+Patch after `v2.6.1`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
 ### Fixed
 
 - Production `public/` index no longer treats a regular nested directory as a symlink tree when `EvalSymlinks` canonicalizes the runner temp/checkout path (Windows CI).
+
+Install with `go get github.com/zatrano/framework/v2@v2.6.2` and `go get github.com/zatrano/packages@v1.10.0`.
 
 ## 2.6.1 - 2026-09-19
 
