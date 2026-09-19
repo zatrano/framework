@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/zatrano/framework/v2/kernel/safepath"
 )
 
 // publicFileIndex is a production-only negative filter for Application.publicFile.
@@ -68,7 +70,7 @@ func buildPublicFileIndex(root string) *publicFileIndex {
 			return nil
 		}
 		if d.IsDir() {
-			if dirLeavesPublicTree(path) {
+			if dirLeavesPublicTree(abs, path) {
 				idx.addDynamic(key)
 				return filepath.SkipDir
 			}
@@ -171,19 +173,21 @@ func entryIsSymlink(d fs.DirEntry, path string) bool {
 
 // dirLeavesPublicTree detects Windows junctions / reparse points that WalkDir
 // may list as ordinary directories without ModeSymlink.
-func dirLeavesPublicTree(path string) bool {
+// Compare resolved paths against the public root, not Abs(path)==Eval(path):
+// CI runners often canonicalize Temp/checkout via a junction, so those strings
+// differ even for a normal nested directory.
+func dirLeavesPublicTree(root, path string) bool {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		resolvedRoot = root
+	}
 	eval, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		return true
+		info, stErr := os.Lstat(path)
+		if stErr != nil || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return true
+		}
+		return false
 	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return true
-	}
-	eval = filepath.Clean(eval)
-	abs = filepath.Clean(abs)
-	if runtime.GOOS == "windows" {
-		return !strings.EqualFold(eval, abs)
-	}
-	return eval != abs
+	return !safepath.Under(resolvedRoot, eval)
 }

@@ -62,8 +62,30 @@ func TestPublicFileIndexConcurrentOnce(t *testing.T) {
 	if app.publicFiles == nil {
 		t.Fatal("index must be built once under concurrent first hits")
 	}
-	if _, ok := app.publicFiles.files[foldPublicKey("/css/app.css")]; !ok {
-		t.Fatalf("index missing /css/app.css: %#v", app.publicFiles.files)
+	key := foldPublicKey("/css/app.css")
+	if !app.publicFiles.mayServe(key) {
+		t.Fatalf("index missing %s: files=%#v prefixes=%#v", key, app.publicFiles.files, app.publicFiles.dynamicPrefixes)
+	}
+	if _, ok := app.publicFiles.files[key]; !ok {
+		t.Fatalf("nested regular file must be in files (not only a dynamic prefix): files=%#v prefixes=%#v", app.publicFiles.files, app.publicFiles.dynamicPrefixes)
+	}
+}
+
+func TestBuildPublicFileIndexNestedRegularDir(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "css"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "css", "app.css"), []byte("body{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	idx := buildPublicFileIndex(root)
+	key := foldPublicKey("/css/app.css")
+	if !idx.mayServe(key) {
+		t.Fatalf("mayServe false files=%#v prefixes=%#v", idx.files, idx.dynamicPrefixes)
+	}
+	if _, ok := idx.files[key]; !ok {
+		t.Fatalf("nested regular file must be in files: files=%#v prefixes=%#v", idx.files, idx.dynamicPrefixes)
 	}
 }
 

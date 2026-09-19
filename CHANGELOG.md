@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Production `public/` index no longer treats a regular nested directory as a symlink tree when `EvalSymlinks` canonicalizes the runner temp/checkout path (Windows CI).
+
 ## 2.6.1 - 2026-09-19
 
 Patch after `v2.6.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
