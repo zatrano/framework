@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Performance
+
+- Production `publicFile` builds a one-time index of `public/` so GET/HEAD requests that cannot be static files skip `EvalSymlinks`/`Stat`. Files added under non-symlink directories after boot are not served until restart. Symlink trees (for example `public/storage`) stay on the existing slow path.
+
 ## 2.6.0 - 2026-09-15
 
 Why now: Put API path versioning in the kernel so applications and `make:auth` do not import a library addon for `/api/{version}`.

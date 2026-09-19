@@ -77,6 +77,8 @@ type Application struct {
 	transitionMu       sync.Mutex
 	environment        string
 	enabledAddons      []string
+	publicFilesOnce    sync.Once
+	publicFiles        *publicFileIndex
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -385,6 +387,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	}
 	app.config.Freeze()
 	app.container.Freeze()
+	app.ensurePublicFileIndex()
 
 	app.logger.Infof("%s application bootstrapped (%s)", app.config.GetString("app.name"), app.environment)
 	return nil
@@ -631,6 +634,21 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 	if path == "/" {
 		return nil
 	}
+	// Production uses a one-time public/ index as a negative filter only.
+	// Hits still Resolve + EvalUnder + Stat. Regular files added after boot
+	// are not served until restart; symlink/junction trees stay on the slow path.
+	if app.IsProduction() {
+		app.ensurePublicFileIndex()
+		key, ok := publicFileLookupKey(path)
+		if !ok || app.publicFiles == nil || !app.publicFiles.mayServe(key) {
+			return nil
+		}
+	}
+	return app.servePublicFile(req)
+}
+
+func (app *Application) servePublicFile(req *http.Request) *http.Response {
+	path := req.Path()
 	publicPath, err := safepath.Resolve(app.BasePath("public"), path)
 	if err != nil {
 		return nil
