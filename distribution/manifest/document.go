@@ -92,7 +92,7 @@ func Derive(in Input) Document {
 		d.Module = FrameworkModule
 	default:
 		d.Module = DefaultModule
-		d.Import = DefaultModule + "/" + name
+		d.Import = DefaultModule + "/" + OfficialImportRel(name)
 		if in.Heavy {
 			d.Module = DefaultModule + "/" + name
 			d.Import = d.Module
@@ -122,6 +122,25 @@ func deriveCapabilities(d Document) []string {
 		caps = append(caps, CapHeavy)
 	}
 	return caps
+}
+
+// OfficialImportRel is the packages-module path after github.com/zatrano/packages/.
+// Enable names stay flat (authorization, apitoken, …); implementations live under auth/.
+// Names without a mapping return themselves. Heavy modules keep name == directory.
+func OfficialImportRel(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	switch name {
+	case "authorization":
+		return "auth/authorization"
+	case "apitoken":
+		return "auth/token"
+	case "oauth":
+		return "auth/oauth"
+	case "social":
+		return "auth/social"
+	default:
+		return name
+	}
 }
 
 func normalizeNames(names []string) []string {

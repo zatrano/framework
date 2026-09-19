@@ -56,7 +56,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 | Input (writes) | `validation.FormRequest` in `app/http/requests`. `ValidateForm` then controller. |
 | Input (reads) | `{Resource}IndexRequest` when the index accepts any query (`page`, `q`, `sort`, filters). Path-only Show/Destroy: `req.Param` + Policy. |
 | Validation | `packages/validation` only. Do not re-validate the same rules in the ORM or service. |
-| Authorization | Gate/Policy (`packages/authorization`) **before** data access. Dashboard role stubs are not the API. |
+| Authorization | Gate/Policy (`packages/auth/authorization`) **before** data access. Dashboard role stubs are not the API. |
 | Persistence | `orm.Query[T]()`, `Find`, `Create`, `With(loader funcs)`. |
 | Transactions | `orm.Transaction` inside an application service. Controllers do not start transactions. |
 | Services | `app/services` only when more than one model write, an explicit transaction, or reuse from HTTP and console/job. Size of the project is not a reason. |

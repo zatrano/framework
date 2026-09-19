@@ -170,3 +170,39 @@ func TestDeriveNestedToolkitLibrary(t *testing.T) {
 		t.Fatal("expected invalid nested name")
 	}
 }
+
+func TestDeriveAuthDomainImports(t *testing.T) {
+	cases := map[string]string{
+		"authorization": DefaultModule + "/auth/authorization",
+		"apitoken":      DefaultModule + "/auth/token",
+		"oauth":         DefaultModule + "/auth/oauth",
+		"social":        DefaultModule + "/auth/social",
+		"session":       DefaultModule + "/session",
+		"webauthn":      DefaultModule + "/webauthn",
+	}
+	for name, want := range cases {
+		heavy := name == "webauthn"
+		kind := KindService
+		layer := LayerFoundation
+		if name == "oauth" || name == "social" || name == "webauthn" {
+			layer = LayerAddon
+		}
+		d := Derive(Input{
+			Name:        name,
+			Kind:        kind,
+			Layer:       layer,
+			Description: name,
+			Heavy:       heavy,
+			Factory:     true,
+		})
+		if d.Import != want {
+			t.Errorf("%s import=%q want %q", name, d.Import, want)
+		}
+		if heavy && (d.Module != want || d.Import != d.Module) {
+			t.Errorf("%s heavy module=%q import=%q", name, d.Module, d.Import)
+		}
+		if err := Validate(d); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

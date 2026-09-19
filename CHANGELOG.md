@@ -4,6 +4,17 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.6.4 - 2026-09-19
+
+Patch after `v2.6.3`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Changed
+
+- Catalog copy presents `authorization`, `apitoken`, `oauth`, and `social` as the auth domain. `package:enable` writes nested imports (`auth/authorization`, `auth/token`, `auth/oauth`, `auth/social`) and strips leftover top-level blank-imports from `bootstrap/addons.go`. Enable names are unchanged. `webauthn` stays `github.com/zatrano/packages/webauthn`.
+- First-time enablement pins `github.com/zatrano/packages@v1.11.0`.
+
+Install with `go get github.com/zatrano/framework/v2@v2.6.4` and `go get github.com/zatrano/packages@v1.11.0`.
+
 ## 2.6.3 - 2026-09-19
 
 Patch after `v2.6.2`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.

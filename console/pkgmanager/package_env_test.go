@@ -120,6 +120,34 @@ func TestApplyPackageEnvFromPackagesDir(t *testing.T) {
 	}
 }
 
+func TestApplyPackageEnvFromAuthDomainDir(t *testing.T) {
+	packages := t.TempDir()
+	oauthDir := filepath.Join(packages, "auth", "oauth")
+	if err := os.MkdirAll(oauthDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oauthDir, ".env.example"), []byte("OAUTH_STORE_PATH=\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PACKAGES_DIR", packages)
+
+	app := kernel.NewApplication(t.TempDir())
+	if err := os.WriteFile(app.BasePath(".env.example"), []byte("APP_NAME=Demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	merged, err := applyPackageEnv(app, "oauth")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !merged {
+		t.Fatal("enable name oauth must read packages/auth/oauth/.env.example")
+	}
+	example, _ := os.ReadFile(app.BasePath(".env.example"))
+	if !strings.Contains(string(example), "OAUTH_STORE_PATH=") {
+		t.Fatalf(".env.example missing OAUTH_STORE_PATH:\n%s", example)
+	}
+}
+
 func TestApplyPackageEnvSkipsUnknownPackage(t *testing.T) {
 	app := kernel.NewApplication(t.TempDir())
 	if err := os.WriteFile(app.BasePath(".env.example"), []byte("APP_NAME=Demo\n"), 0o644); err != nil {

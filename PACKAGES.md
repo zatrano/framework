@@ -14,8 +14,8 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.6.3
-github.com/zatrano/packages       v1.10.0
+github.com/zatrano/framework/v2   v2.6.4
+github.com/zatrano/packages       v1.11.0
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
@@ -24,7 +24,7 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.10.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.11.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -56,7 +56,7 @@ The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Searc
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
-**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.10.0`.
+**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.11.0`.
 
 Public nested-module tags follow Go path semantics, for example:
 
@@ -65,7 +65,7 @@ github.com/zatrano/packages/database/driver/sqlite
 tag: database/driver/sqlite/v1.0.0
 ```
 
-A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.10.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0`; do not retag `v1.7.0`.
+A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.11.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0` then `v1.11.0`; do not retag `v1.7.0`.
 
 ```bash
 go run ./cmd/zatrano package:enable social
@@ -102,14 +102,14 @@ database.Migrator(app)
 |------|---------|------|
 | HTTP handlers / JSON | `http` + `routing` | [Requests](https://zatrano.com/docs/requests) · [Routing](https://zatrano.com/docs/routing) |
 | Session login / MFA | `auth` | [auth](https://zatrano.com/docs/auth) |
-| Gates / policies | `authorization` | [Authorization](https://zatrano.com/docs/authorization) |
+| Gates / policies | `authorization` (`auth/authorization`) | [Authorization](https://zatrano.com/docs/authorization) |
 | Validate forms | `validation` | [Validation](https://zatrano.com/docs/validation) |
 | SQL + models | `database` + `orm` | [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) |
 | Send email / SMS | `notification` | [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://zatrano.com/docs/mail) |
 | Background jobs | `queue` | [Queues](https://zatrano.com/docs/queues) |
-| Social login | `social` | [Social](https://zatrano.com/docs/social) |
-| OAuth **server** | `oauth` | [OAuth](https://zatrano.com/docs/oauth) |
-| API Bearer tokens | `apitoken` | [API Tokens](https://zatrano.com/docs/api-tokens) |
+| Social login | `social` (`auth/social`) | [Social](https://zatrano.com/docs/social) |
+| OAuth **server** | `oauth` (`auth/oauth`) | [OAuth](https://zatrano.com/docs/oauth) |
+| API Bearer tokens | `apitoken` (`auth/token`) | [API Tokens](https://zatrano.com/docs/api-tokens) |
 | Redis | `cache` (owns client; `redisx` is a library) | [Redis](https://zatrano.com/docs/redis) |
 | CSRF | `middleware` | [CSRF](https://zatrano.com/docs/csrf) |
 
@@ -321,10 +321,12 @@ Docs: [auth](https://zatrano.com/docs/auth)
 
 ### `authorization`
 
-**For:** Gates and policies after authentication.  
+**For:** Gates and policies after authentication (`github.com/zatrano/packages/auth/authorization`). Enable name remains `authorization`.  
 **Use:**
 
 ```go
+import "github.com/zatrano/packages/auth/authorization"
+
 gate := authorization.From(app)
 gate.Define("edit-post", func(user authorization.Authenticatable, args ...any) bool {
     return true
@@ -338,7 +340,7 @@ Docs: [Authorization](https://zatrano.com/docs/authorization)
 
 ### `hashing`
 
-**For:** bcrypt password hashes.  
+**For:** bcrypt secret hashes. Generic infrastructure — not under `auth`. The auth package requires it; other code may use it for any secret.  
 **Use:**
 
 ```go
@@ -571,9 +573,9 @@ Docs: [Health](https://zatrano.com/docs/health)
 | `maintenance` | Downtime page (`down` / `up`) | [Maintenance](https://zatrano.com/docs/maintenance-mode) |
 | `assets` | Asset manifest URLs in views | [Assets](https://zatrano.com/docs/assets) |
 | `console` | `cmd/zatrano` CLI | [CLI](https://zatrano.com/docs/cli) |
-| `apitoken` | Personal access tokens | [API Tokens](https://zatrano.com/docs/api-tokens) |
+| `apitoken` | Personal access tokens (`auth/token`) | [API Tokens](https://zatrano.com/docs/api-tokens) |
 
-**`apitoken` usage:**
+**`apitoken` usage** (canonical import `github.com/zatrano/packages/auth/token`, package name `apitoken`):
 
 ```go
 tokens := apitoken.From(app)
@@ -597,10 +599,12 @@ Enablement is not acquisition. Disable is not runtime Stop. Unused `github.com/z
 
 ### `social`
 
-**For:** GitHub/Google OAuth **client** login.  
+**For:** GitHub/Google OAuth **client** login (`github.com/zatrano/packages/auth/social`). Enable name remains `social`.  
 **Use:**
 
 ```go
+import "github.com/zatrano/packages/auth/social"
+
 mgr := social.From(app)
 url, _, err := mgr.Redirect("github")
 user, err := mgr.User("github", code)
@@ -611,7 +615,7 @@ Docs: [Social](https://zatrano.com/docs/social)
 
 ### `oauth`
 
-**For:** Run an OAuth2 **authorization server** (not social login).  
+**For:** Run an OAuth2 **authorization server** (not social login). Canonical import `github.com/zatrano/packages/auth/oauth`. Enable name remains `oauth`.  
 Docs: [OAuth](https://zatrano.com/docs/oauth)
 
 ### `mongo` (heavy)
@@ -622,7 +626,7 @@ Docs: [MongoDB](https://zatrano.com/docs/mongodb)
 
 ### `webauthn` (heavy)
 
-**For:** Passkey registration/login. Wire routes yourself.  
+**For:** Passkey registration/login. Nested module `github.com/zatrano/packages/webauthn`. Wire routes yourself.  
 Docs: [WebAuthn](https://zatrano.com/docs/webauthn)
 
 ### `ai`

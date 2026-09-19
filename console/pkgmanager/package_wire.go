@@ -11,17 +11,35 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zatrano/framework/v2/distribution/manifest"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
 // packagesModuleGetArg is the first-time enablement pin when go.mod has no
 // github.com/zatrano/packages require. It is the current stable packages tag,
 // not a lockfile and not registry Resolve. Existing requires are left alone.
-const packagesModuleGetArg = "github.com/zatrano/packages@v1.10.0"
+const packagesModuleGetArg = "github.com/zatrano/packages@v1.11.0"
 
 func addonImportPath(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
-	return "github.com/zatrano/packages/" + name
+	return manifest.DefaultModule + "/" + manifest.OfficialImportRel(name)
+}
+
+func addonLegacyImportPath(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return ""
+	}
+	return manifest.DefaultModule + "/" + name
+}
+
+func addonImportPaths(name string) []string {
+	canonical := addonImportPath(name)
+	legacy := addonLegacyImportPath(name)
+	if legacy == "" || legacy == canonical {
+		return []string{canonical}
+	}
+	return []string{canonical, legacy}
 }
 
 func wireEnablement(app *kernel.Application, name string) error {
@@ -48,6 +66,14 @@ func wireEnabledAddons(app *kernel.Application, names []string) error {
 	}
 	if err := upsertAddonBlankImports(root, imports); err != nil {
 		return err
+	}
+	for _, name := range names {
+		legacy := addonLegacyImportPath(name)
+		if legacy != "" && legacy != addonImportPath(name) {
+			if err := removeAddonBlankImport(root, legacy); err != nil {
+				return err
+			}
+		}
 	}
 	if !needPackages {
 		return nil

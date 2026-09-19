@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v2/distribution/manifest"
 	"github.com/zatrano/framework/v2/kernel"
 )
 
@@ -53,18 +54,26 @@ func (l *packageEnvLookup) snippet(name string) string {
 	if name == "" {
 		return ""
 	}
+	rels := []string{name}
+	if rel := manifest.OfficialImportRel(name); rel != name {
+		rels = append(rels, filepath.FromSlash(rel))
+	}
 	for _, root := range l.roots {
-		body, err := os.ReadFile(filepath.Join(root, name, ".env.example"))
-		if err == nil && len(strings.TrimSpace(string(body))) > 0 {
-			return string(body)
+		for _, rel := range rels {
+			body, err := os.ReadFile(filepath.Join(root, rel, ".env.example"))
+			if err == nil && len(strings.TrimSpace(string(body))) > 0 {
+				return string(body)
+			}
 		}
 	}
 	if l.appRoot != "" {
-		dir := goListModuleDir(l.appRoot, "github.com/zatrano/packages/"+name)
-		if dir != "" {
-			body, err := os.ReadFile(filepath.Join(dir, ".env.example"))
-			if err == nil && len(strings.TrimSpace(string(body))) > 0 {
-				return string(body)
+		for _, rel := range rels {
+			dir := goListModuleDir(l.appRoot, "github.com/zatrano/packages/"+filepath.ToSlash(rel))
+			if dir != "" {
+				body, err := os.ReadFile(filepath.Join(dir, ".env.example"))
+				if err == nil && len(strings.TrimSpace(string(body))) > 0 {
+					return string(body)
+				}
 			}
 		}
 	}

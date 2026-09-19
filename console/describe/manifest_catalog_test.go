@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -57,12 +56,8 @@ type registerHint struct {
 
 func loadRegisterHints(t *testing.T) map[string]registerHint {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller")
-	}
-	root := filepath.Join(filepath.Dir(file), "..", "..", "packages")
-	if st, err := os.Stat(root); err != nil || !st.IsDir() {
+	root := packagesRepoRoot(t)
+	if root == "" {
 		t.Log("packages checkout not beside framework; deriving catalog identity only")
 		return map[string]registerHint{}
 	}
@@ -115,7 +110,7 @@ func loadRegisterHints(t *testing.T) map[string]registerHint {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out) < 40 {
+	if len(out) < 35 {
 		t.Fatalf("expected register hints, got %d", len(out))
 	}
 	auth := out["auth"]

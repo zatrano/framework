@@ -82,8 +82,11 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 		return nil
 	}
 	fmt.Printf("Disabled package %s in bootstrap/enabled.go\n", name)
-	if err := removeAddonBlankImport(c.app.BasePath(), addonImportPath(name)); err != nil {
-		fmt.Printf("Note: %v\n", err)
+	for _, imp := range addonImportPaths(name) {
+		if err := removeAddonBlankImport(c.app.BasePath(), imp); err != nil {
+			fmt.Printf("Note: %v\n", err)
+			break
+		}
 	}
 	return nil
 }
