@@ -4,10 +4,16 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.6.1 - 2026-09-19
+
+Patch after `v2.6.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
 ### Performance
 
 - Production `publicFile` builds a one-time index of `public/` so GET/HEAD requests that cannot be static files skip `EvalSymlinks`/`Stat`. Files added under non-symlink directories after boot are not served until restart. Symlink trees (for example `public/storage`) stay on the existing slow path.
 - `TrimStrings` / `ConvertEmptyStringsToNull` queue input transforms and apply them on the first `Input`/`All` (or `Merge`/`Replace`/`Forget`) access, so `JSON()`/`Body()` handlers skip JSON-to-map parsing. `Raw().Form` is unchanged until those accessors run.
+
+Install with `go get github.com/zatrano/framework/v2@v2.6.1` and `go get github.com/zatrano/packages@v1.10.0`.
 
 ## 2.6.0 - 2026-09-15
 
