@@ -21,17 +21,19 @@ var ErrBodyTooLarge = errors.New("http: request body too large")
 
 // Request wraps the standard HTTP request with helpers.
 type Request struct {
-	raw          *stdhttp.Request
-	route        map[string]string
-	attrs        map[string]any
-	cookies      *cookie.Jar
-	jsonData     map[string]string
-	jsonRaw      map[string]any
-	jsonRead     bool
-	bodyCached   []byte
-	bodyErr      error
-	bodyRead     bool
-	maxBodyBytes int64
+	raw              *stdhttp.Request
+	route            map[string]string
+	attrs            map[string]any
+	cookies          *cookie.Jar
+	jsonData         map[string]string
+	jsonRaw          map[string]any
+	jsonRead         bool
+	inputTransforms  []func(key, value string) (string, bool)
+	inputTransformed bool
+	bodyCached       []byte
+	bodyErr          error
+	bodyRead         bool
+	maxBodyBytes     int64
 }
 
 // SessionStore is an optional request capability (flash/csrf bag).

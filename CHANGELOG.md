@@ -7,6 +7,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Performance
 
 - Production `publicFile` builds a one-time index of `public/` so GET/HEAD requests that cannot be static files skip `EvalSymlinks`/`Stat`. Files added under non-symlink directories after boot are not served until restart. Symlink trees (for example `public/storage`) stay on the existing slow path.
+- `TrimStrings` / `ConvertEmptyStringsToNull` queue input transforms and apply them on the first `Input`/`All` (or `Merge`/`Replace`/`Forget`) access, so `JSON()`/`Body()` handlers skip JSON-to-map parsing. `Raw().Form` is unchanged until those accessors run.
 
 ## 2.6.0 - 2026-09-15
 

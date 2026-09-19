@@ -30,3 +30,28 @@ func TestTrimAndEmptyToNull(t *testing.T) {
 	}))
 	_ = handler(req)
 }
+
+func TestTrimAndEmptyToNullJSONHandlerUsesRawBody(t *testing.T) {
+	raw := httptest.NewRequest(stdhttp.MethodPost, "/", strings.NewReader(`{"name":"  Ada  ","note":""}`))
+	raw.Header.Set("Content-Type", "application/json")
+	req := http.NewRequest(raw)
+
+	handler := middleware.TrimStrings()(middleware.ConvertEmptyStringsToNull("keep")(func(r *http.Request) *http.Response {
+		var dest map[string]string
+		if err := r.JSON(&dest); err != nil {
+			t.Fatal(err)
+		}
+		if dest["name"] != "  Ada  " {
+			t.Fatalf("JSON dest=%#v", dest)
+		}
+		all := r.All()
+		if all["name"] != "Ada" {
+			t.Fatalf("All name=%q", all["name"])
+		}
+		if _, ok := all["note"]; ok {
+			t.Fatalf("note should be removed, got %#v", all)
+		}
+		return http.Text("ok")
+	}))
+	_ = handler(req)
+}

@@ -7,7 +7,8 @@ import (
 	"github.com/zatrano/framework/v2/kernel/routing"
 )
 
-// TrimStrings trims whitespace from request inputs, skipping excepted keys.
+// TrimStrings queues whitespace trimming for request inputs, skipping excepted keys.
+// The transform runs when Input/All (or Merge/Replace/Forget) is first used.
 func TrimStrings(except ...string) routing.MiddlewareFunc {
 	skip := exceptSet(except...)
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
@@ -23,7 +24,7 @@ func TrimStrings(except ...string) routing.MiddlewareFunc {
 	}
 }
 
-// ConvertEmptyStringsToNull removes empty-string inputs so they behave as missing/null.
+// ConvertEmptyStringsToNull queues removal of empty-string inputs so they behave as missing/null.
 func ConvertEmptyStringsToNull(except ...string) routing.MiddlewareFunc {
 	skip := exceptSet(except...)
 	return func(next routing.HandlerFunc) routing.HandlerFunc {

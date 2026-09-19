@@ -200,6 +200,7 @@ func (r *Request) Merge(values map[string]string) {
 	if r == nil || len(values) == 0 {
 		return
 	}
+	r.applyPendingInputTransforms()
 	_ = r.raw.ParseForm()
 	if r.raw.Form == nil {
 		r.raw.Form = url.Values{}
@@ -233,6 +234,7 @@ func (r *Request) Replace(values map[string]string) {
 	if r == nil {
 		return
 	}
+	r.applyPendingInputTransforms()
 	_ = r.raw.ParseForm()
 	r.raw.Form = url.Values{}
 	if r.raw.PostForm != nil {

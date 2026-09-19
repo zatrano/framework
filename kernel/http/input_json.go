@@ -7,29 +7,40 @@ import (
 )
 
 func (r *Request) jsonInput() map[string]string {
+	r.applyPendingInputTransforms()
+	r.ensureJSONParsed()
+	return r.jsonData
+}
+
+func (r *Request) ensureJSONParsed() {
+	if r == nil {
+		return
+	}
 	if r.jsonRead {
-		return r.jsonData
+		if r.jsonData == nil {
+			r.jsonData = map[string]string{}
+		}
+		return
 	}
 	r.jsonRead = true
 	r.jsonData = map[string]string{}
 	r.jsonRaw = map[string]any{}
 	if r.raw == nil || r.raw.Body == nil || !r.IsJSON() {
-		return r.jsonData
+		return
 	}
 	raw, err := r.readBody()
 	if err != nil {
-		return r.jsonData
+		return
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(raw, &payload); err != nil {
-		return r.jsonData
+		return
 	}
 	r.jsonRaw = payload
 	for key, value := range payload {
 		r.jsonData[key] = stringifyJSON(value)
 	}
 	flattenJSON("", payload, r.jsonData)
-	return r.jsonData
 }
 
 func stringifyJSON(value any) string {

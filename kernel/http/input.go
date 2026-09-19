@@ -9,6 +9,7 @@ import (
 
 // Input returns an input value from form, multipart, JSON, or query.
 func (r *Request) Input(key string, fallback ...string) string {
+	r.applyPendingInputTransforms()
 	if err := r.raw.ParseForm(); err == nil {
 		if value := r.raw.Form.Get(key); value != "" {
 			return value
@@ -27,6 +28,7 @@ func (r *Request) Input(key string, fallback ...string) string {
 
 // All returns all input values from form and JSON body.
 func (r *Request) All() map[string]string {
+	r.applyPendingInputTransforms()
 	_ = r.raw.ParseForm()
 	values := make(map[string]string)
 	for key, items := range r.raw.Form {
@@ -52,8 +54,36 @@ func (r *Request) All() map[string]string {
 	return values
 }
 
-// TransformInputs mutates form and JSON inputs. When keep is false the key is removed.
+// TransformInputs queues a mutation of form and JSON overlay values.
+// Transforms run on the first Input/All access (and Merge/Replace/Forget).
+// JSON() and Body() read the raw body and do not apply transforms.
+// Raw().Form stays untransformed until those accessors run.
 func (r *Request) TransformInputs(fn func(key, value string) (string, bool)) {
+	if r == nil || r.raw == nil || fn == nil {
+		return
+	}
+	r.inputTransforms = append(r.inputTransforms, fn)
+	if r.inputTransformed {
+		r.applyOneInputTransform(fn)
+	}
+}
+
+func (r *Request) applyPendingInputTransforms() {
+	if r == nil || r.inputTransformed {
+		return
+	}
+	r.inputTransformed = true
+	if r.raw == nil || len(r.inputTransforms) == 0 {
+		return
+	}
+	_ = r.raw.ParseForm()
+	r.ensureJSONParsed()
+	for _, fn := range r.inputTransforms {
+		r.applyOneInputTransform(fn)
+	}
+}
+
+func (r *Request) applyOneInputTransform(fn func(key, value string) (string, bool)) {
 	if r == nil || r.raw == nil || fn == nil {
 		return
 	}
@@ -77,7 +107,8 @@ func (r *Request) TransformInputs(fn func(key, value string) (string, bool)) {
 			}
 		}
 	}
-	data := r.jsonInput()
+	r.ensureJSONParsed()
+	data := r.jsonData
 	for key, value := range data {
 		next, keep := fn(key, value)
 		if !keep {
@@ -196,6 +227,7 @@ func (r *Request) Forget(keys ...string) {
 	if r == nil || r.raw == nil || len(keys) == 0 {
 		return
 	}
+	r.applyPendingInputTransforms()
 	_ = r.raw.ParseForm()
 	data := r.jsonInput()
 	for _, key := range keys {
