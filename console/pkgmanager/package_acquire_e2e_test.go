@@ -282,8 +282,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Last proxy-published tag. go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.0.28", "github.com/zatrano/packages/session")
+	// Published kernel tag compatible with packages v1.13.1 (requires framework v2.8.0).
+	// go.mod replace still binds this checkout (HEAD).
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.8.0", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
@@ -446,8 +447,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Last proxy-published tag. go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.0.28", "github.com/zatrano/packages/session")
+	// Published kernel tag compatible with packages v1.13.1 (requires framework v2.8.0).
+	// go.mod replace still binds this checkout (HEAD).
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v2@v2.8.0", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {

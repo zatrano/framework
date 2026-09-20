@@ -14,8 +14,8 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.8.0
-github.com/zatrano/packages       v1.13.0
+github.com/zatrano/framework/v2   v2.8.1
+github.com/zatrano/packages       v1.13.1
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
@@ -24,7 +24,7 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.13.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.13.1`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -56,7 +56,7 @@ The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Searc
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
-**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.13.0`.
+**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.13.1`.
 
 Public nested-module tags follow Go path semantics, for example:
 
@@ -65,7 +65,7 @@ github.com/zatrano/packages/database/driver/sqlite
 tag: database/driver/sqlite/v1.0.0
 ```
 
-A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.13.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0` then `v1.11.0` then `v1.11.1` then `v1.12.0` then `v1.13.0`; do not retag `v1.7.0`.
+A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.13.1` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0` then `v1.11.0` then `v1.11.1` then `v1.12.0` then `v1.13.0` then `v1.13.1`; do not retag `v1.7.0`.
 
 ```bash
 go run ./cmd/zatrano package:enable social

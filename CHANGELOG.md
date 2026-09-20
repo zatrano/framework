@@ -4,6 +4,16 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.8.1 - 2026-09-20
+
+Patch after `v2.8.0`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Changed
+
+- First-time enablement pins `github.com/zatrano/packages@v1.13.1` (framework `v2.8.0` pin so `ratelimit` compiles `middleware.Throttle`).
+
+Install with `go get github.com/zatrano/framework/v2@v2.8.1` and `go get github.com/zatrano/packages@v1.13.1`.
+
 ## 2.8.0 - 2026-09-20
 
 HTTP protocol primitives (Accept negotiation, HTTP 429 throttle) live in the kernel. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
