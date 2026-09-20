@@ -43,55 +43,53 @@
 
 ## Benchmarks
 
-Kernel `v2.6.0` under concurrent load — full HTTP request path: routing, middleware, and AES-GCM encrypted session cookies.
+Kernel `v2.7.0` under concurrent load — full HTTP request path: routing, the default kernel middleware stack (exception handling, trusted proxy, request ID, security headers, CORS, input normalization) and JSON responses.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/requests-304K%2B-2ea44f?style=for-the-badge" alt="Total requests">
+  <img src="https://img.shields.io/badge/requests-8M%2B-2ea44f?style=for-the-badge" alt="Total requests">
   <img src="https://img.shields.io/badge/errors-0-2ea44f?style=for-the-badge" alt="Errors">
-  <img src="https://img.shields.io/badge/data_races-0-2ea44f?style=for-the-badge" alt="Data races">
-  <img src="https://img.shields.io/badge/panics-0-2ea44f?style=for-the-badge" alt="Panics">
+  <img src="https://img.shields.io/badge/peak-50%2C362_RPS-3498db?style=for-the-badge" alt="Peak RPS">
+  <img src="https://img.shields.io/badge/max_connections-2%2C000_%C2%B7_0_errors-3498db?style=for-the-badge" alt="Max connections">
+  <img src="https://img.shields.io/badge/peak_RSS-13.5_MB-3498db?style=for-the-badge" alt="Peak memory">
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/peak-9%2C514_RPS-3498db?style=for-the-badge" alt="Peak RPS">
-  <img src="https://img.shields.io/badge/burst-2%2C000%2F2%2C000_%40_397ms-3498db?style=for-the-badge" alt="Burst test">
-  <img src="https://img.shields.io/badge/session_collisions-0-2ea44f?style=for-the-badge" alt="Session collisions">
-  <img src="https://img.shields.io/badge/cross--user_leaks-0-2ea44f?style=for-the-badge" alt="Cross-user leaks">
-</p>
+**Throughput by route** — 64 connections, median of 3 runs
 
-<table align="center">
-<tr>
-<td align="center" valign="top">
+| Route | RPS | p50 | p99 | CPU / request |
+|:---|---:|---:|---:|---:|
+| `GET /plaintext` | 48,921 | 1.50 ms | 18.89 ms | 14.5 µs |
+| `GET /json` | 49,881 | 1.46 ms | 19.48 ms | 14.3 µs |
+| `GET /users/{id}` (path param + JSON) | 49,221 | 1.49 ms | 19.98 ms | 14.6 µs |
+| `POST /echo` (JSON in, JSON out) | 43,544 | 1.69 ms | 33.90 ms | 16.9 µs |
 
-**Throughput by concurrency**
+The kernel middleware stack (request ID, security headers, CORS, exception handling, trusted proxy) is always on in production, so every figure above includes it.
 
-| Workers | RPS |
-|:---:|:---:|
-| 10 | 9,514 |
-| 50 | 7,837 |
-| 200 | 7,138 |
-| 500 | 5,704 |
-| 1,000 | 5,230 |
+Compared to `v2.6.0` (same machine, same run): **+54%** on `/plaintext`, **+58%** on `/json`, **+62%** on `/users/{id}`, **+9%** on `POST /echo`, with `/json` p99 down from 86 ms to 19.5 ms.
 
-</td>
-<td align="center" valign="top">
+**Scaling with concurrency** (`GET /json`)
 
-**Sustained and burst load**
+| Connections | RPS | p50 | p99 | RSS | Errors |
+|:---:|---:|---:|---:|---:|:---:|
+| 16 | 44,221 | 0.26 ms | 4.93 ms | 13.0 MB | ✅ 0 |
+| 128 | 47,130 | 3.22 ms | 29.85 ms | 13.8 MB | ✅ 0 |
+| 512 | 46,165 | 13.24 ms | 88.27 ms | 26.1 MB | ✅ 0 |
+| 1,000 | 46,506 | 25.53 ms | 142.31 ms | 42.1 MB | ✅ 0 |
+| 2,000 | 42,112 | 55.46 ms | 283.60 ms | 74.9 MB | ✅ 0 |
 
-| Test | p99 | Errors |
-|:---:|:---:|:---:|
-| 500 workers, 100K req | 243.40 ms | ✅ 0 |
-| 1,000 workers, 100K req | 505.21 ms | ✅ 0 |
-| Sustained, 300w / 15s, 91K req | 120.69 ms | ✅ 0 |
-| Burst, 2,000 concurrent | 360 ms | ✅ 0 |
+Zero errors (no non-2xx responses, no socket errors) at every level up to 2,000 connections. Throughput drops only about 5% going from 16 to 2,000 connections.
 
-</td>
-</tr>
-</table>
+**Resources and unloaded latency**
 
-**Concurrency safety** — session handling (login → encrypted cookie → profile → user verification) run under `go test -race` and under every load test above: 100,000 requests through the race detector with **0 data races**, **0 session collisions**, **0 cross-user leaks**.
+| Metric | Value |
+|:---|---:|
+| Idle RSS | 7.5 MB |
+| Peak RSS under load | 13.5 MB |
+| Binary size (stripped) | 7.3 MB |
+| `GET /json` p50 / p99, 1 connection | 20 µs / 158 µs |
 
-> Environment: 1 vCPU / 3.9 GB RAM, single core. Structural/relative measurements, not production capacity figures — multi-core benchmarking with production-like network, TLS, and database workloads is next. Full methodology and raw output: [releases](https://github.com/zatrano/framework/releases).
+Latency at 64+ connections is inflated by the load generator sharing the single core with the server: tail latency grows with CPU time per request. With one connection there is no queueing, which shows the request path itself.
+
+> Environment: 1 vCPU (Intel Xeon 2.1 GHz) / 4 GB RAM, Go 1.26.8, `wrk -t1` running on the same core as the server, ZATRANO in production mode with a `public/` directory present, each result the median of 3 runs of 10 s. Structural/relative measurements, not production capacity figures. Sessions, database, TLS and multi-core workloads are not part of this run. Full methodology and raw output: [releases](https://github.com/zatrano/framework/releases).
 
 ---
 
