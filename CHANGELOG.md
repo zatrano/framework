@@ -4,6 +4,26 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 2.8.0 - 2026-09-20
+
+HTTP protocol primitives (Accept negotiation, HTTP 429 throttle) live in the kernel. Kernel ABI (`contracts.App`) and ORM public API are unchanged.
+
+### Breaking
+
+- Content negotiation is a kernel HTTP primitive (`http.Negotiate`, `middleware.Negotiate`). The catalog no longer lists `negotiate` as a package.
+
+### Added
+
+- `http.Negotiate` / `http.NegotiatedFormat` / `middleware.Negotiate` (one Accept parser on `Request.Prefers`).
+- `middleware.Throttle` behind atomic `AttemptLimiter.Take`. `packages/ratelimit` implements the limiter; the kernel does not import that package.
+
+### Changed
+
+- Accept negotiation honors RFC quality values (`q=0` is not acceptable; higher `q` wins). No match still falls back to the first offered format.
+- First-time enablement pins `github.com/zatrano/packages@v1.13.0`.
+
+Install with `go get github.com/zatrano/framework/v2@v2.8.0` and `go get github.com/zatrano/packages@v1.13.0`.
+
 ## 2.7.0 - 2026-09-19
 
 Catalog `events` is now `facts`. Kernel ABI (`contracts.App`) and ORM public API are unchanged.

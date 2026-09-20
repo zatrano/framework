@@ -64,7 +64,6 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "idempotency", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Idempotency keys"},
 	{Name: "image", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Image processing helpers"},
 	{Name: "jsonapi", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "JSON:API document helpers"},
-	{Name: "negotiate", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Content negotiation"},
 	{Name: "openapi", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "OpenAPI generator helpers"},
 	{Name: "pages", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "Static page helpers"},
 	{Name: "pdf", Layer: kernel.LayerAddon, Kind: kernel.KindLibrary, Description: "PDF generation and inline viewing"},

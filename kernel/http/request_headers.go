@@ -23,10 +23,21 @@ func (r *Request) BearerToken() string {
 	return ""
 }
 
-// WantsJSON reports whether the client expects JSON.
+// WantsJSON reports whether the client explicitly accepts JSON or sent a JSON body.
+// Empty Accept and */* are not treated as JSON-specific; q=0 JSON is not a match.
 func (r *Request) WantsJSON() bool {
-	accept := r.Header("Accept")
-	return strings.Contains(accept, "application/json") || r.IsJSON()
+	if r.IsJSON() {
+		return true
+	}
+	for _, media := range r.acceptableTypes() {
+		if media == "*/*" {
+			continue
+		}
+		if typeMatchesAccept("json", media) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsJSON reports whether the request content type is JSON.

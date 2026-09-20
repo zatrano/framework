@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.7.0" {
-		t.Fatalf("VERSION=%q want 2.7.0", version)
+	if version != "2.8.0" {
+		t.Fatalf("VERSION=%q want 2.8.0", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -1143,6 +1143,33 @@ func TestRequestCoreFileStaysPrimitive(t *testing.T) {
 	}
 }
 
+func TestKernelHTTPDoesNotImportRouting(t *testing.T) {
+	root := filepath.Join(moduleRoot(t), "kernel", "http")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.Contains(imp, "/kernel/routing") {
+				t.Errorf("%s imports routing (cycle)", filepath.Base(path))
+			}
+			if strings.HasPrefix(imp, "github.com/zatrano/packages/") {
+				t.Errorf("%s imports %s", filepath.Base(path), imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func interfaceMethods(t *testing.T, path, name string) map[string]bool {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -1314,4 +1341,69 @@ func structFields(t *testing.T, path, name string) map[string]bool {
 		t.Fatalf("no fields on %s in %s", name, path)
 	}
 	return out
+}
+
+func TestRemovedNegotiatePackageHasNoImportPath(t *testing.T) {
+	root := moduleRoot(t)
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			name := filepath.Base(path)
+			if name == "vendor" || name == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if imp == "github.com/zatrano/packages/negotiate" || strings.HasPrefix(imp, "github.com/zatrano/packages/negotiate/") {
+				t.Errorf("%s imports removed package %s", rel, imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestKernelHTTPProductionImportsStayStdlibAndKernel(t *testing.T) {
+	dir := filepath.Join(moduleRoot(t), "kernel", "http")
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			imp := strings.Trim(spec.Path.Value, `"`)
+			if strings.HasPrefix(imp, "github.com/zatrano/packages") {
+				t.Errorf("%s imports %s", filepath.Base(path), imp)
+			}
+			if strings.HasPrefix(imp, "github.com/") && !strings.HasPrefix(imp, "github.com/zatrano/framework/") {
+				t.Errorf("%s third-party import %s", filepath.Base(path), imp)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }

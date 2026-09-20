@@ -14,8 +14,8 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.7.0
-github.com/zatrano/packages       v1.12.0
+github.com/zatrano/framework/v2   v2.8.0
+github.com/zatrano/packages       v1.13.0
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
@@ -24,7 +24,7 @@ This guide answers three questions per package: **what it is for**, **how to ena
 
 A package manifest is **not** a second boot path. Runtime remains Enabled ∩ Imported. The v1 document (`zatrano.package/v1`) answers how a package is named, imported, kinded, and later recognized by a registry — see [`distribution/manifest/SPEC.md`](distribution/manifest/SPEC.md). Official packages do not each need a JSON file; the CLI catalog plus `addons.Register` already supply the facts. Do not put `Register`/`Boot` order or `LifecycleProvider` in the manifest.
 
-The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.12.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
+The registry **data model** (`zatrano.registry/v1`) is an in-memory index plus discovery/resolution rules — see [`distribution/registry/SPEC.md`](distribution/registry/SPEC.md). It is not a marketplace and not an HTTP service. Versioning follows the Go **module path**. Official addons share `github.com/zatrano/packages` **v1.x** (current public tag `v1.13.0`). Channel `main` is a source/development stream, not a published release. The registry does not download modules; `go get` does.
 
 CLI **consumes** that index; it does not own resolution:
 
@@ -56,7 +56,7 @@ The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Searc
 | **Addon (service)** | Optional container service | `package:enable NAME` → restart / same boot |
 | **Addon (library)** | Import-only helper | `import` only — **never** put in `EnabledAddons` |
 
-**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.12.0`.
+**Heavy** packages (`mongo`, `webauthn`, `qr`) and SQL drivers use a separate Go module — enable or `db:setup` only when needed. They are not required by root `github.com/zatrano/packages@v1.13.0`.
 
 Public nested-module tags follow Go path semantics, for example:
 
@@ -65,7 +65,7 @@ github.com/zatrano/packages/database/driver/sqlite
 tag: database/driver/sqlite/v1.0.0
 ```
 
-A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.12.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0` then `v1.11.0` then `v1.11.1` then `v1.12.0`; do not retag `v1.7.0`.
+A git tag named `packages/database/driver/sqlite/v1.0.0` is not a valid Go module version. Nested publication is a separate release operation; it is not part of the root `v1.13.0` tag. Historical `packages@v1.7.0` required that unpublished SQLite module — upgrade to `v1.7.1` then `v1.7.2` then `v1.8.0` then `v1.9.0` then `v1.9.1` then `v1.10.0` then `v1.11.0` then `v1.11.1` then `v1.12.0` then `v1.13.0`; do not retag `v1.7.0`.
 
 ```bash
 go run ./cmd/zatrano package:enable social
@@ -101,6 +101,7 @@ database.Migrator(app)
 | Need | Package | Docs |
 |------|---------|------|
 | HTTP handlers / JSON | `http` + `routing` | [Requests](https://zatrano.com/docs/requests) · [Routing](https://zatrano.com/docs/routing) |
+| Accept / representation | kernel `http` | [Content negotiation](https://zatrano.com/docs/negotiate) |
 | Session login / MFA | `auth` | [auth](https://zatrano.com/docs/auth) |
 | Gates / policies | `authorization` (`auth/authorization`) | [Authorization](https://zatrano.com/docs/authorization) |
 | Validate forms | `validation` | [Validation](https://zatrano.com/docs/validation) |
@@ -167,11 +168,14 @@ import "github.com/zatrano/framework/v2/kernel/http"
 func (c *HomeController) Index(req *http.Request) *http.Response {
     email := req.Input("email")
     ua := req.Agent() // or http.ParseUserAgent(req.UserAgent())
-    return http.JSON(map[string]any{"ok": true, "browser": ua.Browser})
+    format := http.Negotiate(req, http.FormatJSON, http.FormatHTML)
+    return http.JSON(map[string]any{"ok": true, "browser": ua.Browser, "format": format})
 }
 ```
 
-Docs: [Requests & Responses](https://zatrano.com/docs/requests)
+`Host` / `Scheme` / `Secure` / `Root` / `FullURL` are request primitives. Content negotiation is `http.Negotiate` (one Accept parser on `Request.Prefers`, including `q` values). HTTP upgrade is `http.Hijack` (HTTP/1.1 `Hijacker`; not HTTP/2); WebSocket frames stay in `packages/websocket`.
+
+Docs: [Requests & Responses](https://zatrano.com/docs/requests) · [Content negotiation](https://zatrano.com/docs/negotiate)
 
 ### `cookie`
 
@@ -214,7 +218,10 @@ Docs: [Routing](https://zatrano.com/docs/routing)
 import "github.com/zatrano/framework/v2/kernel/middleware"
 
 router.Use(middleware.Logger, middleware.Recover, middleware.CSRFExcept("/api"))
+router.Use(middleware.Negotiate(http.FormatJSON, http.FormatHTML))
 ```
+
+`middleware.Throttle` takes a limiter interface (`Take` is atomic). A nil limiter is fail-open. `packages/ratelimit` implements the limiter; a missing named policy is fail-closed (HTTP 500). Kernel does not import that package.
 
 Docs: [Middleware](https://zatrano.com/docs/middleware) · [CSRF](https://zatrano.com/docs/csrf)
 
@@ -540,25 +547,25 @@ Docs: [HTTP Client](https://zatrano.com/docs/http-client)
 
 ### `ratelimit`
 
-**For:** In-memory named rate limiters (per process).  
+**For:** In-memory named rate limiters (per process). HTTP 429 headers come from `kernel/middleware.Throttle`.  
 **Use:**
 
 ```go
 rl := ratelimit.From(app)
-router.Use(ratelimit.Middleware(rl, "api"))
+router.Use(rl.Named("api"))
 ```
 
 Docs: [Rate Limiting](https://zatrano.com/docs/rate-limiting)
 
 ### `url`
 
-**For:** Absolute URLs, named routes, signed links.  
+**For:** Absolute URLs (`APP_URL`), assets, and signed links. Named paths are `routing.From(app).URL` — this package does not keep a second route table.  
 **Use:**
 
 ```go
 u := url.From(app)
 link, _ := u.Route("posts.show", map[string]string{"id": "1"})
-signed, _ := u.Signed("/private")
+signed, _ := u.Signed("/private", time.Hour)
 ```
 
 Docs: [URL Generation](https://zatrano.com/docs/urls)
@@ -717,7 +724,6 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | `idempotency` | Idempotent POSTs | `idempotency.Middleware(cache, ttl)` | [Idempotency](https://zatrano.com/docs/idempotency) |
 | `image` | Image processing | Resize/encode helpers | [Images](https://zatrano.com/docs/images) |
 | `jsonapi` | JSON:API docs | `jsonapi.Response(doc)` | [JSON:API](https://zatrano.com/docs/json-api) |
-| `negotiate` | Accept negotiation | `negotiate.Middleware(...)` | [Content Negotiation](https://zatrano.com/docs/content-negotiation) |
 | `openapi` | OpenAPI helpers | Generate/serve specs | [OpenAPI](https://zatrano.com/docs/openapi) |
 | `pages` | File-based pages | `pages.New(...).Register(router)` | [Pages](https://zatrano.com/docs/pages) |
 | `pdf` | PDF generate/view | PDF helpers | [PDF](https://zatrano.com/docs/pdf) |
@@ -738,7 +744,7 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | `toolkit/process` | OS commands | `process.Command("git","status").Run()` | [Processes](https://zatrano.com/docs/processes) |
 | `toolkit/timing` | Server-Timing | `timing.Measure(req, "db", fn)` | [Timing](https://zatrano.com/docs/timing) |
 | `toolkit/zip` | ZIP create/extract | `zipx.Create` / `Extract` | [Archives](https://zatrano.com/docs/archives) |
-| `websocket` | WS upgrade | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
+| `websocket` | WS frames on `http.Hijack` | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
 
 ---
 

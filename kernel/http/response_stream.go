@@ -23,7 +23,11 @@ func PublicFile(path string, raw *stdhttp.Request) *Response {
 	}
 }
 
-// Hijack creates a response that takes over the underlying connection.
+// Hijack is the HTTP upgrade primitive (status 101). The callback receives the
+// ResponseWriter and must type-assert net/http.Hijacker itself.
+// HTTP/1.1 servers typically implement Hijacker; HTTP/2 usually does not.
+// Frame protocols such as WebSocket live in packages/websocket; the kernel
+// does not implement RFC 6455 and does not claim Hijack works on HTTP/2.
 func Hijack(fn func(w stdhttp.ResponseWriter) error) *Response {
 	return &Response{
 		status:  101,

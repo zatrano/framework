@@ -2,6 +2,8 @@ package http
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -87,13 +89,16 @@ func (r *Request) AcceptsHtml() bool {
 	return r.Accepts("html", "text/html")
 }
 
-// Prefers returns the first offered type that matches the Accept header, or "".
+// Prefers returns the best offered type that matches Accept, or "".
+// Ranking follows RFC 9110: higher q, then more specific media ranges, then header order.
+// A missing Accept header means any type is acceptable (first offered).
+// q=0 media ranges are not acceptable.
 func (r *Request) Prefers(types ...string) string {
 	if len(types) == 0 {
 		return ""
 	}
 	acceptable := r.acceptableTypes()
-	if len(acceptable) == 0 {
+	if acceptable == nil {
 		return types[0]
 	}
 	for _, media := range acceptable {
@@ -117,20 +122,84 @@ func (r *Request) ExpectsJSON() bool {
 	return r.Ajax() && !r.Pjax() && r.AcceptsJSON()
 }
 
+type acceptOffer struct {
+	media string
+	q     float64
+	spec  int
+	pos   int
+}
+
+// acceptableTypes is the single Accept parser for Prefers, Accepts, Negotiate, and WantsJSON.
+// A nil result means the header is absent. An empty slice means the client listed only q=0 ranges.
 func (r *Request) acceptableTypes() []string {
 	accept := r.Header("Accept")
 	if accept == "" {
 		return nil
 	}
 	parts := strings.Split(accept, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		media := strings.TrimSpace(strings.Split(part, ";")[0])
-		if media != "" {
-			out = append(out, strings.ToLower(media))
+	offers := make([]acceptOffer, 0, len(parts))
+	for i, part := range parts {
+		media, q, ok := parseAcceptPart(part)
+		if !ok || q <= 0 {
+			continue
 		}
+		spec := 2
+		if media == "*/*" {
+			spec = 0
+		} else if strings.HasSuffix(media, "/*") {
+			spec = 1
+		}
+		offers = append(offers, acceptOffer{media: media, q: q, spec: spec, pos: i})
+	}
+	sort.SliceStable(offers, func(i, j int) bool {
+		if offers[i].q != offers[j].q {
+			return offers[i].q > offers[j].q
+		}
+		if offers[i].spec != offers[j].spec {
+			return offers[i].spec > offers[j].spec
+		}
+		return offers[i].pos < offers[j].pos
+	})
+	out := make([]string, len(offers))
+	for i, offer := range offers {
+		out[i] = offer.media
 	}
 	return out
+}
+
+func parseAcceptPart(part string) (media string, q float64, ok bool) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return "", 0, false
+	}
+	segs := strings.Split(part, ";")
+	media = strings.ToLower(strings.TrimSpace(segs[0]))
+	if media == "" {
+		return "", 0, false
+	}
+	q = 1
+	for _, param := range segs[1:] {
+		param = strings.TrimSpace(param)
+		eq := strings.IndexByte(param, '=')
+		if eq <= 0 {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(param[:eq]), "q") {
+			continue
+		}
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(param[eq+1:]), 64)
+		if err != nil {
+			continue
+		}
+		if parsed < 0 {
+			parsed = 0
+		}
+		if parsed > 1 {
+			parsed = 1
+		}
+		q = parsed
+	}
+	return media, q, true
 }
 
 func expandAcceptType(t string) []string {
@@ -157,6 +226,13 @@ func expandAcceptType(t string) []string {
 func typeMatchesAccept(offered, acceptMedia string) bool {
 	acceptMedia = strings.ToLower(strings.TrimSpace(acceptMedia))
 	if acceptMedia == "" || acceptMedia == "*/*" {
+		return true
+	}
+	offer := strings.ToLower(strings.TrimSpace(offered))
+	if (offer == "json" || offer == "application/json" || offer == "text/json") && strings.HasSuffix(acceptMedia, "+json") {
+		return true
+	}
+	if (offer == "xml" || offer == "application/xml" || offer == "text/xml") && strings.HasSuffix(acceptMedia, "+xml") {
 		return true
 	}
 	for _, candidate := range expandAcceptType(offered) {

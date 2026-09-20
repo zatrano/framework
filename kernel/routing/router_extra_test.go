@@ -317,6 +317,13 @@ func TestDuplicateRouteNameFreezeErrors(t *testing.T) {
 	}
 }
 
+func TestURLUnknownNameErrors(t *testing.T) {
+	r := routing.New()
+	if _, err := r.URL("missing"); err == nil {
+		t.Fatal("expected missing named route error")
+	}
+}
+
 func TestURLMissingRequiredParamErrors(t *testing.T) {
 	r := routing.New()
 	r.Get("/users/{id}", func(req *http.Request) *http.Response { return http.Text("ok") }).As("users.show")
@@ -330,6 +337,25 @@ func TestURLMissingRequiredParamErrors(t *testing.T) {
 	}
 	if got != "/users/9" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestNamedRouteURLThenDispatch(t *testing.T) {
+	r := routing.New()
+	r.Get("/users/{id}", func(req *http.Request) *http.Response {
+		return http.Text(req.Route("id"))
+	}).As("users.show")
+	r.RegisterName(r.Routes()[0])
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	path, err := r.URL("users.show", map[string]string{"id": "9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, path, nil)))
+	if resp.StatusCode() != 200 || string(resp.Content()) != "9" {
+		t.Fatalf("status=%d body=%s", resp.StatusCode(), resp.Content())
 	}
 }
 

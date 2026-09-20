@@ -100,4 +100,7 @@ func TestEcosystemCatalogHasPackageDirectories(t *testing.T) {
 			t.Errorf("%q is internal and must not be in the consumer catalog", internal)
 		}
 	}
+	if _, ok := catalogLookup("negotiate"); ok {
+		t.Fatal("negotiate is a kernel HTTP primitive, not a catalog package")
+	}
 }
