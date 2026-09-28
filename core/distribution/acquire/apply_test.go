@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 var errMutation = errors.New("mutation failed")

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/zatrano/framework/v3/core/console/consolecore"
-	"github.com/zatrano/framework/v3/distribution/acquire"
-	"github.com/zatrano/framework/v3/distribution/manifest"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/acquire"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 	"github.com/zatrano/framework/v3/core/kernel"
 )
 

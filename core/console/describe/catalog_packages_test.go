@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v3/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
 )
 
 var reAddonName = regexp.MustCompile(`addons\.Register\(\s*addons\.Meta\{[^}]*Name:\s*"([a-z0-9]+)"`)

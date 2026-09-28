@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/zatrano/framework/v3/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
 )
 
 func sampleDocs() []manifest.Document {

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/v3/core/console/describe"
-	"github.com/zatrano/framework/v3/distribution/manifest"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func TestEcosystemCatalogBuildsRegistryIndex(t *testing.T) {

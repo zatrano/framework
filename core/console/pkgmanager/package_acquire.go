@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/zatrano/framework/v3/distribution/acquire"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/acquire"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 	"github.com/zatrano/framework/v3/core/kernel"
 )
 

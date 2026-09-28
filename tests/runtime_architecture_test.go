@@ -10,7 +10,7 @@ import (
 
 func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
-	acquireDir := filepath.Join(root, "distribution", "acquire")
+	acquireDir := filepath.Join(root, "core", "distribution", "acquire")
 	err := filepath.WalkDir(acquireDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr

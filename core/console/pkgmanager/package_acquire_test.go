@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v3/distribution/acquire"
-	"github.com/zatrano/framework/v3/distribution/manifest"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/acquire"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func TestPackageAcquireDryRunUsesPlanGoGetArg(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func TestDryRunConsumesPlanGoGetArg(t *testing.T) {

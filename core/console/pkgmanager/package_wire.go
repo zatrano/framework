@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zatrano/framework/v3/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
 	"github.com/zatrano/framework/v3/core/kernel"
 )
 

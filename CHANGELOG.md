@@ -301,7 +301,7 @@ Apply contract process invocation boundary (`Invoke` / `Runner`). Fake process i
 
 ## 2.0.13 - 2026-09-07
 
-Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v3/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Apply contract stays SPEC-only. Install with `go get github.com/zatrano/framework/v3@latest`.
+Nest the package distribution protocol under `distribution/` (`manifest`, `registry`, `acquire`). Import paths are `github.com/zatrano/framework/v3/core/distribution/...`. JSON schemas (`zatrano.package/v1`, `zatrano.registry/v1`) are unchanged. Apply contract stays SPEC-only. Install with `go get github.com/zatrano/framework/v3@latest`.
 
 ## 2.0.12 - 2026-09-07
 

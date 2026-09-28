@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zatrano/framework/v3/distribution/acquire"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/acquire"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func (c *PackageAcquireCommand) writeView(format string, view acquireCLIView) error {

@@ -82,7 +82,7 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		t.Fatal("console must not copy registry resolution")
 	}
 
-	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(filepath.Join(root, "core", "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
 		}

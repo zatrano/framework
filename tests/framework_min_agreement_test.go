@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/zatrano/framework/v3/core/bootstrap/addons"
-	"github.com/zatrano/framework/v3/distribution/registry"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func TestMeetsFrameworkMinAgreement(t *testing.T) {
@@ -69,7 +69,7 @@ func TestRuntimeDoesNotValidateFrameworkMin(t *testing.T) {
 
 func TestAcquireDoesNotRevalidateFrameworkMin(t *testing.T) {
 	root := moduleRoot(t)
-	err := filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(filepath.Join(root, "core", "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
 		}

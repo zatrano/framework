@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v3/distribution/manifest"
+	"github.com/zatrano/framework/v3/core/distribution/manifest"
 )
 
 func constrainedSession() Index {
