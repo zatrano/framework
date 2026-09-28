@@ -22,7 +22,7 @@ This package does not import `bootstrap/addons`. The process-global addon regist
 | Kind / layer / heavy | Manifest (frozen v1) |
 | Integrity | Optional SHA-256 of the manifest document bytes |
 
-Many official packages share `github.com/zatrano/packages` and therefore share one version stream: that module is **v1.x** (current public tag `v1.13.1`). It is not a `packages/v2` module and must not be tagged `v2.x`. Heavy packages (`mongo`, `webauthn`, `qr`) and SQL drivers have their own module path and their own tags (path-relative, e.g. `database/driver/sqlite/v1.0.0`). `console` versions with `github.com/zatrano/framework/v2`.
+Many official packages share `github.com/zatrano/packages` and therefore share one version stream: that module is **v1.x** (current public tag `v1.13.1`). It is not a `packages/v2` module and must not be tagged `v2.x`. Heavy packages (`mongo`, `webauthn`, `qr`) and SQL drivers have their own module path and their own tags (path-relative, e.g. `database/driver/sqlite/v1.0.0`). `console` versions with `github.com/zatrano/framework/v3`.
 
 Go modules remain authoritative. This registry does not download, `go get`, or replace the Go toolchain. Do not invent a second semver field on the package name.
 

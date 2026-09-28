@@ -116,7 +116,7 @@ func TestFreshConsumerLocalReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v2 v2.8.1") {
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v2.8.1") {
 		t.Fatalf("generated go.mod must require v2.8.1:\n%s", mod)
 	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(t.TempDir(), "app.exe"), "./cmd/app")
@@ -139,7 +139,7 @@ func TestPublishedModuleConsumption(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/zatrano-release-consumer\n\ngo 1.25.0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	get := exec.Command("go", "get", "github.com/zatrano/framework/v2@v2.8.1")
+	get := exec.Command("go", "get", "github.com/zatrano/framework/v3@v2.8.1")
 	get.Dir = dir
 	get.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	gout, err := get.CombinedOutput()
@@ -150,7 +150,7 @@ func TestPublishedModuleConsumption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v2 v2.8.1") {
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v2.8.1") {
 		t.Fatalf("consumer go.mod must pin v2.8.1:\n%s", mod)
 	}
 }

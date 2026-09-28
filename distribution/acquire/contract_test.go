@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/distribution/manifest"
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/distribution/manifest"
+	"github.com/zatrano/framework/v3/distribution/registry"
 )
 
 func officialTypeIndex(t *testing.T) registry.Index {

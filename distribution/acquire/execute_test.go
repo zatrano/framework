@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/distribution/registry"
 )
 
 func requireGo(t *testing.T) {

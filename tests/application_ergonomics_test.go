@@ -42,7 +42,7 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if !strings.Contains(text, "module example.com/freshapp") {
 		t.Fatalf("go.mod module:\n%s", text)
 	}
-	if !strings.Contains(text, "github.com/zatrano/framework/v2 v2.8.1") {
+	if !strings.Contains(text, "github.com/zatrano/framework/v3 v2.8.1") {
 		t.Fatalf("go.mod must require v2.8.1:\n%s", text)
 	}
 	if strings.Contains(text, "v2-dev") {

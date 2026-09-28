@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pkg.go.dev/github.com/zatrano/framework/v2"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
+  <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/version-2.8.1-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
@@ -145,7 +145,7 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
 
 ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
 
-This repository (`github.com/zatrano/framework/v2`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and the embedded application starter. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
+This repository (`github.com/zatrano/framework/v3`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and the embedded application starter. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
 
 ZATRANO is an application platform, not merely a web toolkit.
 
@@ -155,7 +155,7 @@ packages    optional capabilities, package-owned make:*, stubs, config, .env fra
 examples    runnable reference applications — not templates
 ```
 
-`zatrano new myapp` generates one application with HTML at `/` and JSON at `/api`. Use `http.HTML` or `http.JSON` per controller; `make:controller` and `make:controller --api` pick the tree. `health` is enabled by default. `assets`, `localization`, `view`, `validation`, and other capabilities stay opt-in via `package:enable`. First-party templates are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
+`zatrano new myapp` generates one application with HTML at `/` and JSON at `/api`. Use `http.HTML` or `http.JSON` per controller; `make:handler` and `make:handler --api` pick the tree. `health` is enabled by default. `assets`, `localization`, `view`, `validation`, and other capabilities stay opt-in via `package:enable`. First-party templates are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
 
 ## Architecture
 
@@ -193,8 +193,8 @@ Typed developer APIs live next to their implementations:
 
 ```go
 import (
-    "github.com/zatrano/framework/v2/kernel/http"
-    "github.com/zatrano/framework/v2/kernel/routing"
+    "github.com/zatrano/framework/v3/core/kernel/http"
+    "github.com/zatrano/framework/v3/core/kernel/routing"
 )
 
 r := routing.From(app)
@@ -262,7 +262,7 @@ An application does not pay for capabilities it does not enable. Database, auth,
 
 | Module | Role |
 | --- | --- |
-| [`github.com/zatrano/framework/v2`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
+| [`github.com/zatrano/framework/v3`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
 | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Optional application services and libraries |
 
 The packages module depends on this module. This module does not import `github.com/zatrano/packages`.
@@ -270,7 +270,7 @@ The packages module depends on this module. This module does not import `github.
 ```text
 Application
     │
-    ├── github.com/zatrano/framework/v2
+    ├── github.com/zatrano/framework/v3
     │
     └── selected packages
              │
@@ -318,7 +318,7 @@ Requires **Golang 1.25+**.
 Create an application from the published modules:
 
 ```bash
-go install github.com/zatrano/framework/v2/cmd/zatrano@v2.8.1
+go install github.com/zatrano/framework/v3/cmd/zatrano@v2.8.1
 zatrano new myapp
 cd myapp
 go mod tidy
@@ -331,7 +331,7 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v2@v2.8.1
+go get github.com/zatrano/framework/v3@v2.8.1
 go get github.com/zatrano/packages@v1.13.1
 ```
 
@@ -438,10 +438,10 @@ go run ./cmd/app package:doctor
 
 The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives.
 
-Generated web home (`app/http/controllers/web`) returns kernel HTML (`view` is opt-in):
+Generated web home (`app/http/handlers/web`) returns kernel HTML (`view` is opt-in):
 
 ```go
-func (c *HomeController) Index(req *http.Request) *http.Response {
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
     return http.HTML("<h1>__APP_NAME__</h1>")
 }
 ```
@@ -614,7 +614,7 @@ zatrano package:resolve
 zatrano package:enable
 zatrano package:disable
 zatrano package:doctor
-zatrano make:controller
+zatrano make:handler
 zatrano make:middleware
 zatrano make:provider
 zatrano make:command
@@ -739,7 +739,7 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 - Go modules own dependency resolution. There is no second PackageManager, resolver, ServiceLocator, or lifecycle manager.
 - There is no automatic package enablement, implicit rollback, automatic `go mod tidy`, or `zatrano.lock`.
 - Resource ownership is singular. `redisx`, `rag`, and `agent` are libraries. Cache owns the Redis connection.
-- Framework remains `github.com/zatrano/framework/v2`. Packages remains `github.com/zatrano/packages` (v1.x, no `/v2` suffix).
+- Framework remains `github.com/zatrano/framework/v3`. Packages remains `github.com/zatrano/packages` (v1.x, no `/v2` suffix).
 
 ## v2
 
@@ -747,7 +747,7 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 
 ```text
 Framework
-  module: github.com/zatrano/framework/v2
+  module: github.com/zatrano/framework/v3
   major:  v2
   current: v2.8.1
 
@@ -789,7 +789,7 @@ Issues and pull requests are welcome. Keep changes focused, preserve architectur
 [MIT](LICENSE) · Copyright (c) 2026 Serhan KARAKOÇ
 
 - [zatrano.com](https://zatrano.com/docs)
-- [github.com/zatrano/framework/v2](https://github.com/zatrano/framework)
+- [github.com/zatrano/framework/v3](https://github.com/zatrano/framework)
 - [github.com/zatrano/packages](https://github.com/zatrano/packages)
 - [github.com/zatrano/examples](https://github.com/zatrano/examples)
 - [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)

@@ -1,0 +1,606 @@
+package http
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"net"
+	stdhttp "net/http"
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/zatrano/framework/v3/core/kernel/cookie"
+
+	"github.com/zatrano/rawhttp"
+)
+
+// Request is the HTTP primitive: method, URL, headers, body, route, cookies,
+// session, and attributes. Input convenience helpers belong in input.go.
+
+// ErrBodyTooLarge is returned when JSON/Body reads exceed MaxBodyBytes.
+var ErrBodyTooLarge = errors.New("http: request body too large")
+
+// Request wraps rawhttp.Ctx (with a synthetic net/http adapter during V3 migration).
+type Request struct {
+	ctx              *rawhttp.Ctx
+	raw              *stdhttp.Request // synthetic adapter for legacy helpers
+	route            map[string]string
+	attrs            map[string]any
+	cookies          *cookie.Jar
+	jsonData         map[string]string
+	jsonRaw          map[string]any
+	jsonRead         bool
+	inputTransforms  []func(key, value string) (string, bool)
+	inputTransformed bool
+	bodyCached       []byte
+	bodyErr          error
+	bodyRead         bool
+	maxBodyBytes     int64
+}
+
+// SessionStore is an optional request capability (flash/csrf bag).
+// Kernel HTTP does not import the session package; the implementation is
+// attached as a request attribute.
+type SessionStore interface {
+	Get(key string, fallback ...any) any
+	Put(key string, value any)
+	Flash(key string, value any)
+	Pull(key string, fallback ...any) any
+	Forget(key string)
+	Regenerate() error
+	ID() string
+}
+
+// NewRequest creates a ZATRANO request from a rawhttp context.
+// A synthetic net/http.Request is built so existing helpers can migrate gradually.
+func NewRequest(ctx *rawhttp.Ctx) *Request {
+	if ctx == nil {
+		return &Request{}
+	}
+	method := string(ctx.Method)
+	if method == "" {
+		method = stdhttp.MethodGet
+	}
+	host := string(ctx.Host())
+	if host == "" {
+		host = "localhost"
+	}
+	uri := string(ctx.RequestURI())
+	if uri == "" {
+		uri = "/"
+	}
+	scheme := "http"
+	if ctx.IsTLS() {
+		scheme = "https"
+	}
+	raw, err := stdhttp.NewRequest(method, scheme+"://"+host+uri, bytes.NewReader(ctx.Body()))
+	if err != nil {
+		raw, _ = stdhttp.NewRequest(method, "/", bytes.NewReader(ctx.Body()))
+	}
+	raw.RemoteAddr = ctx.RemoteAddr()
+	raw.RequestURI = uri
+	ctx.VisitHeader(func(k, v []byte) {
+		raw.Header.Add(string(k), string(v))
+	})
+	return &Request{ctx: ctx, raw: raw}
+}
+
+// Ctx returns the rawhttp context.
+func (r *Request) Ctx() *rawhttp.Ctx {
+	if r == nil {
+		return nil
+	}
+	return r.ctx
+}
+
+// Raw returns the synthetic net/http request adapter (migration aid).
+func (r *Request) Raw() *stdhttp.Request {
+	if r == nil {
+		return nil
+	}
+	return r.raw
+}
+
+// Method returns the HTTP method.
+func (r *Request) Method() string {
+	if r == nil {
+		return ""
+	}
+	if r.ctx != nil && len(r.ctx.Method) > 0 {
+		return string(r.ctx.Method)
+	}
+	if r.raw != nil {
+		return r.raw.Method
+	}
+	return ""
+}
+
+// Path returns the request path.
+func (r *Request) Path() string {
+	if r == nil {
+		return ""
+	}
+	if r.ctx != nil && len(r.ctx.Path) > 0 {
+		return string(r.ctx.Path)
+	}
+	if r.raw != nil && r.raw.URL != nil {
+		return r.raw.URL.Path
+	}
+	return ""
+}
+
+// URL returns the full request URL string.
+func (r *Request) URL() string {
+	if r == nil {
+		return ""
+	}
+	if r.ctx != nil {
+		host := string(r.ctx.Host())
+		if host == "" {
+			host = "localhost"
+		}
+		scheme := "http"
+		if r.ctx.IsTLS() {
+			scheme = "https"
+		}
+		uri := string(r.ctx.RequestURI())
+		if uri == "" {
+			uri = "/"
+		}
+		return scheme + "://" + host + uri
+	}
+	if r.raw != nil {
+		return r.raw.URL.String()
+	}
+	return ""
+}
+
+// Query returns a query parameter.
+func (r *Request) Query(key string, fallback ...string) string {
+	value := r.raw.URL.Query().Get(key)
+	if value == "" && len(fallback) > 0 {
+		return fallback[0]
+	}
+	return value
+}
+
+// IP returns the client IP (trusted proxy / _client_ip attribute, else remote).
+func (r *Request) IP() string {
+	if v, ok := r.Get("_client_ip").(string); ok && v != "" {
+		return v
+	}
+	return r.RemoteIP()
+}
+
+// RemoteIP returns the direct connection IP (ignores forwarding headers).
+func (r *Request) RemoteIP() string {
+	if r.raw == nil {
+		return ""
+	}
+	host := r.raw.RemoteAddr
+	if strings.HasPrefix(host, "[") {
+		if end := strings.Index(host, "]"); end != -1 {
+			return host[1:end]
+		}
+	}
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		return host[:idx]
+	}
+	return host
+}
+
+// Body returns the raw request body.
+func (r *Request) Body() ([]byte, error) {
+	return r.readBody()
+}
+
+// SetMaxBodyBytes overrides the default JSON/raw body limit for this request.
+func (r *Request) SetMaxBodyBytes(n int64) {
+	if r == nil {
+		return
+	}
+	r.maxBodyBytes = n
+}
+
+func (r *Request) bodyLimit() int64 {
+	if r != nil && r.maxBodyBytes > 0 {
+		return r.maxBodyBytes
+	}
+	return MaxBodyBytes()
+}
+
+func (r *Request) readBody() ([]byte, error) {
+	if r == nil {
+		return nil, nil
+	}
+	if r.bodyRead {
+		return r.bodyCached, r.bodyErr
+	}
+	r.bodyRead = true
+	limit := r.bodyLimit()
+	if r.ctx != nil {
+		if raw := r.ctx.Body(); len(raw) > 0 {
+			if int64(len(raw)) > limit {
+				r.bodyErr = ErrBodyTooLarge
+				return nil, ErrBodyTooLarge
+			}
+			r.bodyCached = raw
+			return raw, nil
+		}
+	}
+	if r.raw == nil || r.raw.Body == nil {
+		return nil, nil
+	}
+	raw, err := io.ReadAll(io.LimitReader(r.raw.Body, limit+1))
+	if err != nil {
+		r.bodyErr = err
+		return nil, err
+	}
+	if int64(len(raw)) > limit {
+		r.bodyErr = ErrBodyTooLarge
+		return nil, ErrBodyTooLarge
+	}
+	r.bodyCached = raw
+	r.raw.Body = io.NopCloser(bytes.NewReader(raw))
+	return raw, nil
+}
+
+// Route returns a route parameter.
+func (r *Request) Route(key string, fallback ...string) string {
+	if value, ok := r.route[key]; ok {
+		return value
+	}
+	if len(fallback) > 0 {
+		return fallback[0]
+	}
+	return ""
+}
+
+// RouteInt returns a route parameter as int.
+func (r *Request) RouteInt(key string, fallback ...int) int {
+	value := r.Route(key)
+	if value == "" {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	return parsed
+}
+
+// SetRouteParams sets matched route parameters.
+func (r *Request) SetRouteParams(params map[string]string) {
+	if r == nil {
+		return
+	}
+	r.route = params
+}
+
+// RouteParams returns all matched route parameters.
+func (r *Request) RouteParams() map[string]string {
+	if r == nil || len(r.route) == 0 {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(r.route))
+	for key, value := range r.route {
+		out[key] = value
+	}
+	return out
+}
+
+// Set sets a request attribute.
+func (r *Request) Set(key string, value any) {
+	if r == nil {
+		return
+	}
+	if r.attrs == nil {
+		r.attrs = make(map[string]any)
+	}
+	r.attrs[key] = value
+}
+
+// Get returns a request attribute.
+func (r *Request) Get(key string) any {
+	if r == nil || r.attrs == nil {
+		return nil
+	}
+	return r.attrs[key]
+}
+
+const sessionAttrKey = "session"
+
+// SetSession attaches a session store as a request attribute.
+func (r *Request) SetSession(store SessionStore) {
+	if r == nil {
+		return
+	}
+	r.Set(sessionAttrKey, store)
+}
+
+// Session returns the session store attached to this request, if any.
+func (r *Request) Session() SessionStore {
+	if r == nil {
+		return nil
+	}
+	s, _ := r.Get(sessionAttrKey).(SessionStore)
+	return s
+}
+
+// Cookie returns a cookie value.
+func (r *Request) Cookie(name string, fallback ...string) string {
+	c, err := r.raw.Cookie(name)
+	if err != nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
+	return c.Value
+}
+
+// HasCookie reports whether a cookie is present.
+func (r *Request) HasCookie(name string) bool {
+	if r == nil || r.raw == nil {
+		return false
+	}
+	_, err := r.raw.Cookie(name)
+	return err == nil
+}
+
+// MissingCookie reports whether a cookie is absent.
+func (r *Request) MissingCookie(name string) bool {
+	return !r.HasCookie(name)
+}
+
+// WhenHasCookie runs fn when the cookie is present.
+func (r *Request) WhenHasCookie(name string, fn func(*Request)) *Request {
+	if r != nil && fn != nil && r.HasCookie(name) {
+		fn(r)
+	}
+	return r
+}
+
+// WhenMissingCookie runs fn when the cookie is absent.
+func (r *Request) WhenMissingCookie(name string, fn func(*Request)) *Request {
+	if r != nil && fn != nil && r.MissingCookie(name) {
+		fn(r)
+	}
+	return r
+}
+
+// Cookies returns the response cookie jar for this request.
+func (r *Request) Cookies() *cookie.Jar {
+	if r.cookies == nil {
+		r.cookies = cookie.NewJar()
+	}
+	return r.cookies
+}
+
+// DrainCookies returns queued response cookies and clears the jar.
+// A request that never queued cookies does not allocate a jar.
+func (r *Request) DrainCookies() []*stdhttp.Cookie {
+	if r == nil || r.cookies == nil {
+		return nil
+	}
+	out := r.cookies.Apply()
+	r.cookies.Clear()
+	return out
+}
+
+// HasHeader reports whether a header exists.
+// IsGet reports whether the method is GET.
+func (r *Request) IsGet() bool { return r.IsMethod("GET") }
+
+// IsPost reports whether the method is POST.
+func (r *Request) IsPost() bool { return r.IsMethod("POST") }
+
+// IsPut reports whether the method is PUT.
+func (r *Request) IsPut() bool { return r.IsMethod("PUT") }
+
+// IsPatch reports whether the method is PATCH.
+func (r *Request) IsPatch() bool { return r.IsMethod("PATCH") }
+
+// IsDelete reports whether the method is DELETE.
+func (r *Request) IsDelete() bool { return r.IsMethod("DELETE") }
+
+// IsHead reports whether the method is HEAD.
+func (r *Request) IsHead() bool { return r.IsMethod("HEAD") }
+
+// IsOptions reports whether the method is OPTIONS.
+func (r *Request) IsOptions() bool { return r.IsMethod("OPTIONS") }
+
+// IsMethodSafe reports whether the method is GET or HEAD.
+func (r *Request) IsMethodSafe() bool {
+	return r.IsMethod("GET", "HEAD")
+}
+
+// IsMethodIdempotent reports whether the method is GET, HEAD, PUT, DELETE, OPTIONS, or TRACE.
+func (r *Request) IsMethodIdempotent() bool {
+	return r.IsMethod("GET", "HEAD", "PUT", "DELETE", "OPTIONS", "TRACE")
+}
+
+// HasQuery reports whether a query parameter exists (even if empty).
+func (r *Request) HasQuery(key string) bool {
+	if r == nil || r.raw == nil || r.raw.URL == nil {
+		return false
+	}
+	_, ok := r.raw.URL.Query()[key]
+	return ok
+}
+
+// QueryInt parses a query parameter as int with optional fallback.
+func (r *Request) QueryInt(key string, fallback ...int) int {
+	raw := strings.TrimSpace(r.Query(key))
+	if raw == "" {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	return n
+}
+
+// QueryFloat parses a query parameter as float64 with optional fallback.
+func (r *Request) QueryFloat(key string, fallback ...float64) float64 {
+	raw := strings.TrimSpace(r.Query(key))
+	if raw == "" {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	n, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return 0
+	}
+	return n
+}
+
+// QueryBool parses a query parameter as boolean-ish.
+func (r *Request) QueryBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(r.Query(key))) {
+	case "1", "true", "on", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+// Port returns the request host port when present.
+func (r *Request) Port() string {
+	host := r.Host()
+	if host == "" {
+		return ""
+	}
+	_, port, err := net.SplitHostPort(host)
+	if err != nil {
+		if r.Secure() {
+			return "443"
+		}
+		return "80"
+	}
+	return port
+}
+
+// HttpHost returns the host header value (may include port).
+func (r *Request) HttpHost() string {
+	return r.Host()
+}
+
+// DecodedPath returns the URL-decoded request path.
+func (r *Request) DecodedPath() string {
+	path := r.Path()
+	decoded, err := url.PathUnescape(path)
+	if err != nil {
+		return path
+	}
+	return decoded
+}
+
+// QueryString returns the raw URL query string without leading ?.
+func (r *Request) QueryString() string {
+	if r == nil || r.raw == nil || r.raw.URL == nil {
+		return ""
+	}
+	return r.raw.URL.RawQuery
+}
+
+// RequestURI returns path + query (RequestURI).
+func (r *Request) RequestURI() string {
+	if r == nil || r.raw == nil || r.raw.URL == nil {
+		return "/"
+	}
+	uri := r.raw.URL.RequestURI()
+	if uri == "" {
+		return "/"
+	}
+	return uri
+}
+
+// FullUrlWithQuery returns FullURL with additional/overridden query parameters.
+func (r *Request) FullUrlWithQuery(extra map[string]string) string {
+	values := url.Values{}
+	for key, items := range r.QueryAll() {
+		for _, item := range items {
+			values.Add(key, item)
+		}
+	}
+	for key, value := range extra {
+		values.Set(key, value)
+	}
+	path := r.Path()
+	if path == "" {
+		path = "/"
+	}
+	encoded := values.Encode()
+	if encoded == "" {
+		return r.Root() + path
+	}
+	return r.Root() + path + "?" + encoded
+}
+
+// FullUrlWithoutQuery returns FullURL without the given query keys.
+func (r *Request) FullUrlWithoutQuery(keys ...string) string {
+	skip := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		skip[key] = true
+	}
+	values := url.Values{}
+	for key, items := range r.QueryAll() {
+		if skip[key] {
+			continue
+		}
+		for _, item := range items {
+			values.Add(key, item)
+		}
+	}
+	path := r.Path()
+	if path == "" {
+		path = "/"
+	}
+	encoded := values.Encode()
+	if encoded == "" {
+		return r.Root() + path
+	}
+	return r.Root() + path + "?" + encoded
+}
+
+// Ips returns client IP candidates (trusted client IP first, then remote).
+func (r *Request) Ips() []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, 2)
+	add := func(ip string) {
+		ip = strings.TrimSpace(ip)
+		if ip == "" || seen[ip] {
+			return
+		}
+		seen[ip] = true
+		out = append(out, ip)
+	}
+	add(r.IP())
+	add(r.RemoteIP())
+	return out
+}
+
+// IsSecure is an alias for Secure.
+func (r *Request) IsSecure() bool {
+	return r.Secure()
+}

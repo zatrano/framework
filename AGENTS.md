@@ -9,7 +9,7 @@ It is **not** the architecture specification. The specification is on the public
 
 It is **not** the generated `AGENTS.md` that `zatrano agents:generate` writes into an application root (that file is a live describe dump: routing primitives, catalog, doctor checks). Do not confuse the two.
 
-Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
+Evidence bases: this repository (`github.com/zatrano/framework/v3`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
 Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, the [Standard](https://zatrano.com/docs/application-engineering/standard), and [golden scenarios](https://zatrano.com/docs/application-engineering/golden).
 
@@ -35,7 +35,7 @@ Before writing application code:
 1. This file.
 2. [Standard](https://zatrano.com/docs/application-engineering/standard) — the A–Z language (**authoritative**).
 3. [Golden scenarios](https://zatrano.com/docs/application-engineering/golden) — exact files, verbs, Policy API, tests.
-4. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
+4. Neighboring generated/canonical code in the same application (`app/http/handlers`, `app/routes`, `app/providers`).
 5. The relevant package public API (`From`, `Register`/`Boot`, tests).
 6. [Examples](https://zatrano.com/docs/application-engineering/examples) for short sketches (golden wins on conflict).
 7. [No second way](https://zatrano.com/docs/application-engineering/no-second-way) if a second implementation looks tempting.
@@ -52,7 +52,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 |---|---|
 | Directory | `dirs.CanonicalConsumerDirs()` plus generated scaffold dirs. Do not invent `domain/`, `internal/usecase/`, `handlers/`. |
 | Routes | HTTP surfaces `app/routes/{web,api}` plus `app/routes/auth/{web,api}` and `make:panel {name}` folders. Register via `RouteServiceProvider` → `ApplyWeb` / `ApplyAPI`. Controllers match the surface; services stay shared. Use `routing.From(app)` for Put/Patch/Delete/Resource. |
-| Controllers | `app/http/controllers/{web,api}`, `app/http/controllers/auth/{web,api}`, and `make:panel {name}`. Methods: `(req *http.Request) *http.Response`. |
+| Controllers | `app/http/handlers/{web,api}`, `app/http/handlers/auth/{web,api}`, and `make:panel {name}`. Methods: `(req *http.Request) *http.Response`. |
 | Input (writes) | `validation.FormRequest` in `app/http/requests`. `ValidateForm` then controller. |
 | Input (reads) | `{Resource}IndexRequest` when the index accepts any query (`page`, `q`, `sort`, filters). Path-only Show/Destroy: `req.Param` + Policy. |
 | Validation | `packages/validation` only. Do not re-validate the same rules in the ORM or service. |
@@ -109,7 +109,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 1. Identify the golden flow (CRUD, relationship, filter, auth, authz, transaction, file, async, AI).
 2. Inspect the relevant canonical example in [golden](https://zatrano.com/docs/application-engineering/golden) and neighboring application code.
 3. Enable the required packages (`package:enable`). Do not fake APIs that are not enabled.
-4. Run the canonical generator (`make:controller`, `make:request`, `make:model`, …).
+4. Run the canonical generator (`make:handler`, `make:request`, `make:model`, …).
 5. Edit generated files to match the Standard. Do not leave `Handle() error` stubs as the architecture. Do not invent layers.
 6. Wire routes in the matching route file. Add middleware in route groups, not ad-hoc inside controllers.
 7. Add tests next to the convention in Standard §Y.

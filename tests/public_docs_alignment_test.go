@@ -17,7 +17,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	}
 	bans := []string{
 		"github.com/zatrano/packages@main",
-		"github.com/zatrano/framework/v2@latest",
+		"github.com/zatrano/framework/v3@latest",
 		"uses channel `main` until tagged",
 		"the module is not tagged `v2.x`",
 		"Today that stream is channel `main`",
@@ -44,7 +44,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	}
 	text := string(readme)
 	for _, want := range []string{
-		"github.com/zatrano/framework/v2@v2.8.1",
+		"github.com/zatrano/framework/v3@v2.8.1",
 		"github.com/zatrano/packages@v1.13.1",
 		"Enabled ∩ Imported",
 		"Expand Requires",

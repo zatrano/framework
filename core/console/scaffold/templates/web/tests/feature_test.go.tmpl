@@ -1,0 +1,81 @@
+package tests
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"__MODULE__/app/providers"
+	_ "__MODULE__/bootstrap"
+
+	"github.com/zatrano/framework/v3/core/bootstrap"
+	"github.com/zatrano/rawhttp"
+)
+
+type handleResult struct {
+	Status int
+	Body   []byte
+}
+
+func doGet(t *testing.T, path string) handleResult {
+	t.Helper()
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	ctx := &rawhttp.Ctx{
+		Method: []byte("GET"),
+		Path:   []byte(path),
+	}
+	app.Handle(ctx)
+	status := ctx.StatusCode
+	if status == 0 {
+		status = 200
+	}
+	return handleResult{Status: status, Body: append([]byte(nil), ctx.ResponseBody()...)}
+}
+
+func TestHealthEndpoint(t *testing.T) {
+	for _, path := range []string{"/api/health", "/up"} {
+		resp := doGet(t, path)
+		if resp.Status != 200 {
+			t.Fatalf("%s: status %d body=%s", path, resp.Status, resp.Body)
+		}
+		var body map[string]any
+		if err := json.Unmarshal(resp.Body, &body); err != nil {
+			t.Fatalf("%s: json: %v body=%s", path, err, resp.Body)
+		}
+		if body["status"] != "ok" {
+			t.Fatalf("%s: expected status ok, got %#v", path, body)
+		}
+	}
+}
+
+func TestLifecycleStartStopWithoutInfrastructure(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_KEY", "zatrano-dev-key-do-not-use-prod!")
+	app := bootstrap.App(bootstrap.WithProviders(providers.All()...))
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWelcomeUsesLayout(t *testing.T) {
+	resp := doGet(t, "/")
+	if resp.Status != 200 {
+		t.Fatalf("status %d body=%s", resp.Status, resp.Body)
+	}
+	body := string(resp.Body)
+	if !strings.Contains(body, "__APP_NAME__") {
+		t.Fatalf("expected brand in welcome page, got %s", body)
+	}
+}

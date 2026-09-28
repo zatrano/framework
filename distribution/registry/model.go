@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zatrano/framework/v2/distribution/manifest"
+	"github.com/zatrano/framework/v3/distribution/manifest"
 )
 
 const SchemaV1 = "zatrano.registry/v1"

@@ -1,0 +1,20 @@
+package tests
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestAPIRootJSON(t *testing.T) {
+	resp := doGet(t, "/api")
+	if resp.Status != 200 {
+		t.Fatalf("status %d body=%s", resp.Status, resp.Body)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(resp.Body, &body); err != nil {
+		t.Fatalf("json: %v body=%s", err, resp.Body)
+	}
+	if body["name"] != "__APP_NAME__" {
+		t.Fatalf("expected name, got %#v", body)
+	}
+}

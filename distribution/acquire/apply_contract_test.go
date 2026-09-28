@@ -55,7 +55,7 @@ func TestApplySpecRequiresConcreteGoGetArguments(t *testing.T) {
 	requireSpecContains(t, spec, "concrete `module@version` strings")
 	requireSpecContains(t, spec, "module@v1.4.0")
 	requireSpecContains(t, spec, "github.com/zatrano/packages@main")
-	requireSpecContains(t, spec, "github.com/zatrano/framework/v2@main")
+	requireSpecContains(t, spec, "github.com/zatrano/framework/v3@main")
 	requireSpecContains(t, spec, "MUST NOT replace a concrete version with `latest`")
 }
 

@@ -27,8 +27,8 @@ const (
 	CapHeavy  = "heavy"
 
 	DefaultModule    = "github.com/zatrano/packages"
-	FrameworkModule  = "github.com/zatrano/framework/v2"
-	FrameworkConsole = "github.com/zatrano/framework/v2/console"
+	FrameworkModule  = "github.com/zatrano/framework/v3"
+	FrameworkConsole = "github.com/zatrano/framework/v3/core/console"
 )
 
 // Document is the machine-readable package identity for distribution.

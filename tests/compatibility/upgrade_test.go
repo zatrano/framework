@@ -12,14 +12,14 @@ import (
 	"testing"
 )
 
-// nestedPackagesModules must match console.nestedPackagesModules and starter-smoke.sh.
+// nestedPackagesModules must match scaffold.nestedPackagesModules and starter-smoke.sh.
 var nestedPackagesModules = []string{
-	"database/driver/sqlite",
-	"database/driver/mysql",
-	"database/driver/pgsql",
-	"database/driver/mssql",
-	"database/driver/oracle",
-	"database/driver/mongo",
+	"db/postgres",
+	"db/mysql",
+	"db/mariadb",
+	"db/sqlite",
+	"db/sqlserver",
+	"db/oracle",
 	"mongo",
 	"webauthn",
 	"qr",
@@ -155,7 +155,7 @@ func packagesDir(frameworkRoot string) string {
 
 func pinModuleReplaces(t *testing.T, appDir, framework, packages string) {
 	t.Helper()
-	modEdit(t, appDir, "-replace", "github.com/zatrano/framework/v2="+framework)
+	modEdit(t, appDir, "-replace", "github.com/zatrano/framework/v3="+framework)
 	modEdit(t, appDir, "-replace", "github.com/zatrano/packages="+packages)
 	for _, rel := range nestedPackagesModules {
 		p := filepath.Join(packages, filepath.FromSlash(rel))
@@ -177,7 +177,7 @@ func modEdit(t *testing.T, appDir string, args ...string) {
 
 func assertConsumesFramework(t *testing.T, appDir, framework string) {
 	t.Helper()
-	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/zatrano/framework/v2")
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/zatrano/framework/v3")
 	cmd.Dir = appDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

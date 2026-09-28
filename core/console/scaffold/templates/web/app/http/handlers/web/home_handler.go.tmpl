@@ -1,0 +1,11 @@
+package web
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+// HomeHandler serves the welcome page.
+type HomeHandler struct{}
+
+// Index returns a kernel HTML welcome page (the view package is opt-in).
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
+	return http.HTML("<!DOCTYPE html><html><head><title>__APP_NAME__</title></head><body><h1>__APP_NAME__</h1></body></html>")
+}

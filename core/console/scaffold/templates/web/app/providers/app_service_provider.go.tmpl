@@ -1,0 +1,21 @@
+package providers
+
+import (
+	"github.com/zatrano/framework/v3/core/contracts"
+	"github.com/zatrano/framework/v3/core/kernel/middleware"
+	"github.com/zatrano/framework/v3/core/kernel/routing"
+)
+
+// AppServiceProvider registers application-level services.
+type AppServiceProvider struct{}
+
+func (p *AppServiceProvider) Register(app contracts.App) error {
+	return nil
+}
+
+func (p *AppServiceProvider) Boot(app contracts.App) error {
+	if r := routing.From(app); r != nil {
+		r.Use(middleware.CSRFExcept("/api"))
+	}
+	return nil
+}

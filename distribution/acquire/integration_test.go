@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/distribution/registry"
 )
 
 func mustTaggedPlan(t *testing.T, name, module, version string) Plan {

@@ -18,7 +18,7 @@ func TestCliUsesCoreBoot(t *testing.T) {
 		{[]string{"migrate"}, false},
 		{[]string{"make:model", "Post"}, true},
 		{[]string{"make:auth"}, true},
-		{[]string{"make:controller", "X", "--api"}, true},
+		{[]string{"make:handler", "X", "--api"}, true},
 		{[]string{"new", "myapp"}, true},
 		{[]string{"describe", "--format=json"}, true},
 		{[]string{"doctor"}, true},

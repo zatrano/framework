@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/zatrano/framework/v2/bootstrap"
-	"github.com/zatrano/framework/v2/bootstrap/addons"
+	"github.com/zatrano/framework/v3/core/bootstrap"
+	"github.com/zatrano/framework/v3/core/bootstrap/addons"
 )
 
 func TestAppBootsKernelWithoutImportedPackages(t *testing.T) {
@@ -31,8 +31,8 @@ func TestAppBootsKernelWithoutImportedPackages(t *testing.T) {
 	if app.Bound("db") {
 		t.Fatal("database must not bind unless imported")
 	}
-	if app.Bound("view") {
-		t.Fatal("view must not bind unless imported")
+	if app.Bound("template") {
+		t.Fatal("template must not bind unless imported")
 	}
 	if app.Bound("auth") {
 		t.Fatal("auth must not bind unless imported")

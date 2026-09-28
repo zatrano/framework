@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/distribution/registry"
 )
 
 var errMutation = errors.New("mutation failed")
@@ -137,7 +137,7 @@ func TestInvokeUsesExplicitGoBinaryAndDir(t *testing.T) {
 	}
 	_, err := Invoke(context.Background(), fake, Request{
 		Root:     root,
-		GoGetArg: "github.com/zatrano/framework/v2@main",
+		GoGetArg: "github.com/zatrano/framework/v3@main",
 		Go:       "/usr/local/go/bin/go",
 	})
 	if err != nil {

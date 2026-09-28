@@ -25,12 +25,12 @@ go run ./cmd/zatrano new "$DEST" --module example.com/zsmoke --replace "$FRAMEWO
   go mod edit -require github.com/zatrano/packages@v0.0.0
   go mod edit -replace "github.com/zatrano/packages=${PACKAGES}"
   nested=(
-    database/driver/sqlite
-    database/driver/mysql
-    database/driver/pgsql
-    database/driver/mssql
-    database/driver/oracle
-    database/driver/mongo
+    db/postgres
+    db/mysql
+    db/mariadb
+    db/sqlite
+    db/sqlserver
+    db/oracle
     mongo
     webauthn
     qr

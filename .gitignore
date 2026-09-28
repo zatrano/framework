@@ -17,6 +17,5 @@ vendor/
 *.log
 *.sqlite
 tests/database/*.sqlite
-# v1 in-tree leftovers — the kernel module has neither of these
-/core/
+# Accidental nested trees (not the V3 platform package core/)
 /packages/

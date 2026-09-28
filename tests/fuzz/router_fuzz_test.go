@@ -10,8 +10,8 @@ import (
 	stdhttp "net/http"
 	"testing"
 
-	"github.com/zatrano/framework/v2/kernel/http"
-	"github.com/zatrano/framework/v2/kernel/routing"
+	"github.com/zatrano/framework/v3/core/kernel/http"
+	"github.com/zatrano/framework/v3/core/kernel/routing"
 )
 
 // FuzzRouterPath exercises route compilation and dispatch on arbitrary paths.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v3/core/kernel"
 )
 
 func moduleRoot(t *testing.T) string {
@@ -46,7 +46,7 @@ func TestProductAndModuleIdentity(t *testing.T) {
 			break
 		}
 	}
-	if path != "github.com/zatrano/framework/v2" {
+	if path != "github.com/zatrano/framework/v3" {
 		t.Fatalf("module path=%q", path)
 	}
 
@@ -137,7 +137,7 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 	}
 	text := string(src)
 	for _, want := range []string{
-		`"github.com/zatrano/framework/v2/distribution/registry"`,
+		`"github.com/zatrano/framework/v3/distribution/registry"`,
 		"idx.Search(",
 		"idx.Lookup(",
 		"idx.Resolve(",
@@ -700,7 +700,7 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 	path := filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go")
 	allowImport := map[string]bool{
 		"fmt": true, "strings": true, "sort": true,
-		"github.com/zatrano/framework/v2/distribution/registry": true,
+		"github.com/zatrano/framework/v3/distribution/registry": true,
 	}
 	bannedFn := map[string]bool{
 		"Apply": true, "Install": true, "Tidy": true, "Download": true,
@@ -790,8 +790,8 @@ func TestCLIAcquireGate(t *testing.T) {
 	}
 	text := string(src) + "\n" + string(viewSrc)
 	for _, want := range []string{
-		`"github.com/zatrano/framework/v2/distribution/acquire"`,
-		`"github.com/zatrano/framework/v2/distribution/registry"`,
+		`"github.com/zatrano/framework/v3/distribution/acquire"`,
+		`"github.com/zatrano/framework/v3/distribution/registry"`,
 		"idx.Resolve(",
 		"acquire.FromResult(",
 		"acquire.Targets(",
@@ -1049,7 +1049,7 @@ func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
 			if !strings.Contains(imp, ".") {
 				continue
 			}
-			if imp == "github.com/zatrano/framework/v2" || strings.HasPrefix(imp, "github.com/zatrano/framework/v2/") {
+			if imp == "github.com/zatrano/framework/v3" || strings.HasPrefix(imp, "github.com/zatrano/framework/v3/") {
 				continue
 			}
 			t.Errorf("%s imports third-party %s", rel, imp)

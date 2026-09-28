@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/distribution/registry"
 )
 
 const SchemaV1 = "zatrano.acquire/v1"

@@ -35,7 +35,7 @@ Unknown properties are ignored (forward compatible). Missing optional properties
 
 | Field | Meaning |
 |-------|---------|
-| `module` | Go module path. Default `github.com/zatrano/packages`. Heavy packages use `github.com/zatrano/packages/<name>`. `console` uses `github.com/zatrano/framework/v2`. |
+| `module` | Go module path. Default `github.com/zatrano/packages`. Heavy packages use `github.com/zatrano/packages/<name>`. `console` uses `github.com/zatrano/framework/v3`. |
 | `heavy` | Separate module / heavy dependency |
 | `key` | Container binding key when the package binds one |
 | `requires` | Addon names that must be imported (copy of `addons.Meta.Requires`; do not invent edges) |

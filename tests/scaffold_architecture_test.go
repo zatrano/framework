@@ -72,7 +72,7 @@ func TestStarterEnablementImportsHealthOnly(t *testing.T) {
 		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/validation"`,
-		`"github.com/zatrano/packages/view"`,
+		`"github.com/zatrano/packages/template"`,
 	} {
 		if strings.Contains(text, pkg) {
 			t.Errorf("starter addons.go.tmpl must not default-import %s", pkg)
@@ -99,8 +99,8 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	if strings.Contains(text, "COPY app/views") {
-		t.Fatal("web Dockerfile must not copy opt-in app/views")
+	if strings.Contains(text, "COPY templates") {
+		t.Fatal("web Dockerfile must not copy opt-in templates")
 	}
 	if strings.Contains(text, "COPY app/database") {
 		t.Fatal("web Dockerfile must not copy opt-in app/database")
@@ -151,12 +151,12 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 	if !strings.Contains(text, `"health"`) {
 		t.Fatalf("starter enablement missing health:\n%s", text)
 	}
-	for _, deny := range []string{`"assets"`, `"localization"`, `"validation"`, `"view"`} {
+	for _, deny := range []string{`"assets"`, `"localization"`, `"validation"`, `"template"`} {
 		if strings.Contains(text, deny) {
 			t.Fatalf("starter must not default-enable %s:\n%s", deny, text)
 		}
 	}
-	webHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "web", "home_controller.go.tmpl"))
+	webHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "handlers", "web", "home_handler.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,9 +164,9 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 		t.Fatal("starter web home must be kernel HTML")
 	}
 	if strings.Contains(string(webHome), "http.View") {
-		t.Fatal("starter web home must not use View until package:enable view")
+		t.Fatal("starter web home must not use View until package:enable template")
 	}
-	apiHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "controllers", "api", "home_controller.go.tmpl"))
+	apiHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "handlers", "api", "home_handler.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}

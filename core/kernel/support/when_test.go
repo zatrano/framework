@@ -1,0 +1,40 @@
+package support_test
+
+import (
+	"testing"
+
+	"github.com/zatrano/framework/v3/core/kernel/support"
+)
+
+func TestWhenUnlessTap(t *testing.T) {
+	if support.When(true, "a", "b") != "a" {
+		t.Fatal("when true")
+	}
+	if support.When(false, "a", "b") != "b" {
+		t.Fatal("when false")
+	}
+	if support.Unless(false, "x", "y") != "x" {
+		t.Fatal("unless")
+	}
+	var seen int
+	out := support.Tap(5, func(n int) { seen = n })
+	if out != 5 || seen != 5 {
+		t.Fatalf("tap out=%d seen=%d", out, seen)
+	}
+	if support.Transform(2, func(n int) int { return n * 3 }) != 6 {
+		t.Fatal("transform")
+	}
+}
+
+func TestBasePathAndValueOr(t *testing.T) {
+	if support.BasePath() == "" {
+		t.Fatal("BasePath")
+	}
+	if support.ValueOr("", "fb") != "fb" || support.ValueOr("x", "fb") != "x" {
+		t.Fatal("ValueOr")
+	}
+	s, err := support.RandomBase64(4)
+	if err != nil || s == "" {
+		t.Fatal(err)
+	}
+}

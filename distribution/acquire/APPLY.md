@@ -43,7 +43,7 @@ Acceptable targets are of the form:
 github.com/zatrano/packages@main
 github.com/zatrano/packages@v1.4.0
 github.com/zatrano/packages/mongo@main
-github.com/zatrano/framework/v2@main
+github.com/zatrano/framework/v3@main
 ```
 
 ## 4. Resolver boundary
