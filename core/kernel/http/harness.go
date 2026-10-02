@@ -7,12 +7,9 @@ import (
 	stdhttp "net/http"
 	"strconv"
 	"strings"
-	"sync/atomic"
 
 	"github.com/zatrano/rawhttp"
 )
-
-var harnessPort = atomic.Uint32{}
 
 // ExchangeResult is one HTTP/1.1 response from ServeConnForTest / ExchangeForTest.
 type ExchangeResult struct {

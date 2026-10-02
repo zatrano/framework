@@ -35,7 +35,7 @@ func Write(app contracts.App) error {
 	for _, pair := range pairs {
 		body, err := stubFiles.ReadFile(pair.stub)
 		if err != nil {
-			return fmt.Errorf("Canvas stub %s: %w", pair.stub, err)
+			return fmt.Errorf("canvas stub %s: %w", pair.stub, err)
 		}
 		dst := filepath.Join(append([]string{root}, pair.dest...)...)
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
