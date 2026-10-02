@@ -2,8 +2,8 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	stdhttp "net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -11,6 +11,7 @@ import (
 	"github.com/zatrano/framework/v3/core/contracts"
 	"github.com/zatrano/framework/v3/core/kernel/http"
 	"github.com/zatrano/framework/v3/core/kernel/routing"
+	"github.com/zatrano/rawhttp"
 )
 
 const exceptionPathSecret = "hunter2-exception-path-secret"
@@ -73,26 +74,32 @@ func bootExceptionPathApp(t *testing.T) contracts.App {
 	return app
 }
 
-func serveExceptionPath(t *testing.T, app contracts.App, path, accept string) *httptest.ResponseRecorder {
+func serveExceptionPath(t *testing.T, app contracts.App, path, accept string) http.ExchangeResult {
 	t.Helper()
-	req := httptest.NewRequest(stdhttp.MethodGet, path, nil)
+	var b strings.Builder
+	fmt.Fprintf(&b, "GET %s HTTP/1.1\r\n", path)
+	b.WriteString("Host: localhost\r\n")
+	b.WriteString("Connection: close\r\n")
 	if accept != "" {
-		req.Header.Set("Accept", accept)
+		fmt.Fprintf(&b, "Accept: %s\r\n", accept)
 	}
-	rec := httptest.NewRecorder()
-	app.ServeHTTP(rec, req)
-	return rec
+	b.WriteString("\r\n")
+	er, err := http.ExchangeForTest(func(ctx *rawhttp.Ctx) { app.Handle(ctx) }, b.String())
+	if err != nil {
+		t.Fatalf("ExchangeForTest: %v (raw=%q)", err, er.Raw)
+	}
+	return er
 }
 
-func assertProductionJSON(t *testing.T, rec *httptest.ResponseRecorder) {
+func assertProductionJSON(t *testing.T, er http.ExchangeResult) {
 	t.Helper()
-	if rec.Code != stdhttp.StatusInternalServerError {
-		t.Fatalf("status=%d want 500", rec.Code)
+	if er.Status != stdhttp.StatusInternalServerError {
+		t.Fatalf("status=%d want 500", er.Status)
 	}
-	body := rec.Body.String()
+	body := string(er.Body)
 	assertNoExceptionLeak(t, body)
 	var payload map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+	if err := json.Unmarshal(er.Body, &payload); err != nil {
 		t.Fatalf("JSON: %v body=%s", err, body)
 	}
 	if payload["message"] != "Server Error" {
@@ -106,12 +113,12 @@ func assertProductionJSON(t *testing.T, rec *httptest.ResponseRecorder) {
 	}
 }
 
-func assertProductionHTML(t *testing.T, rec *httptest.ResponseRecorder) {
+func assertProductionHTML(t *testing.T, er http.ExchangeResult) {
 	t.Helper()
-	if rec.Code != stdhttp.StatusInternalServerError {
-		t.Fatalf("status=%d want 500", rec.Code)
+	if er.Status != stdhttp.StatusInternalServerError {
+		t.Fatalf("status=%d want 500", er.Status)
 	}
-	body := rec.Body.String()
+	body := string(er.Body)
 	assertNoExceptionLeak(t, body)
 	if !strings.Contains(body, "Server Error") {
 		t.Fatalf("HTML missing Server Error: %s", body)
@@ -151,28 +158,28 @@ func assertReportedPanic(t *testing.T, app contracts.App, path string) {
 
 func TestProductionHandlerPanicJSON(t *testing.T) {
 	app := bootExceptionPathApp(t)
-	rec := serveExceptionPath(t, app, "/handler-panic", "application/json")
-	assertProductionJSON(t, rec)
+	er := serveExceptionPath(t, app, "/handler-panic", "application/json")
+	assertProductionJSON(t, er)
 	assertReportedPanic(t, app, "/handler-panic")
 }
 
 func TestProductionHandlerPanicHTML(t *testing.T) {
 	app := bootExceptionPathApp(t)
-	rec := serveExceptionPath(t, app, "/handler-panic", "text/html")
-	assertProductionHTML(t, rec)
+	er := serveExceptionPath(t, app, "/handler-panic", "text/html")
+	assertProductionHTML(t, er)
 	assertReportedPanic(t, app, "/handler-panic")
 }
 
 func TestProductionMiddlewarePanicJSON(t *testing.T) {
 	app := bootExceptionPathApp(t)
-	rec := serveExceptionPath(t, app, "/mw-panic", "application/json")
-	assertProductionJSON(t, rec)
+	er := serveExceptionPath(t, app, "/mw-panic", "application/json")
+	assertProductionJSON(t, er)
 	assertReportedPanic(t, app, "/mw-panic")
 }
 
 func TestProductionMiddlewarePanicHTML(t *testing.T) {
 	app := bootExceptionPathApp(t)
-	rec := serveExceptionPath(t, app, "/mw-panic", "text/html")
-	assertProductionHTML(t, rec)
+	er := serveExceptionPath(t, app, "/mw-panic", "text/html")
+	assertProductionHTML(t, er)
 	assertReportedPanic(t, app, "/mw-panic")
 }

@@ -46,7 +46,7 @@ func FuzzRouterPath(f *testing.F) {
 		if err != nil {
 			return
 		}
-		_ = r.Dispatch(http.NewRequest(raw))
+		_ = r.Dispatch(http.RequestFromHTTP(raw))
 	})
 }
 

@@ -89,7 +89,7 @@ func TestReportNilClearLimitReporter(t *testing.T) {
 		t.Fatal(m.Count())
 	}
 	raw := httptest.NewRequest("POST", "/x", nil)
-	ev := m.Capture(fmt.Errorf("req"), zhttp.NewRequest(raw), "")
+	ev := m.Capture(fmt.Errorf("req"), zhttp.RequestFromHTTP(raw), "")
 	if ev.Path != "/x" || ev.Method != "POST" {
 		t.Fatalf("%+v", ev)
 	}

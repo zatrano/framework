@@ -123,7 +123,7 @@ func TestParseExampleFile(t *testing.T) {
 	if !ok {
 		t.Fatal("caller")
 	}
-	path := filepath.Join(filepath.Dir(this), "..", "..", ".env.example")
+	path := filepath.Join(filepath.Dir(this), "..", "..", "..", ".env.example")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

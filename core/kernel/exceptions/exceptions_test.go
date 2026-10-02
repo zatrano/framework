@@ -60,7 +60,7 @@ func TestReportAndRender(t *testing.T) {
 	}
 
 	raw := httptest.NewRequest("GET", "/x", nil)
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	html := h.Render(req, exceptions.NotFound())
 	if html == nil || html.StatusCode() != 404 || !strings.Contains(string(html.Content()), "Not Found") {
 		t.Fatalf("html=%v", html)
@@ -70,7 +70,7 @@ func TestReportAndRender(t *testing.T) {
 	}
 
 	raw.Header.Set("Accept", "application/json")
-	jsonReq := http.NewRequest(raw)
+	jsonReq := http.RequestFromHTTP(raw)
 	js := h.Render(jsonReq, errors.New("boom"))
 	if js.StatusCode() != 500 || !strings.Contains(string(js.Content()), "Server Error") {
 		t.Fatalf("json prod=%s", js.Content())
@@ -81,7 +81,7 @@ func TestReportAndRender(t *testing.T) {
 	if !strings.Contains(string(debugJSON.Content()), "secret") {
 		t.Fatalf("debug json=%s", debugJSON.Content())
 	}
-	htmlDebug := debug.Render(http.NewRequest(httptest.NewRequest("GET", "/", nil)), errors.New("stack"))
+	htmlDebug := debug.Render(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)), errors.New("stack"))
 	if htmlDebug.StatusCode() != 500 || !strings.Contains(string(htmlDebug.Content()), "stack") {
 		t.Fatal("debug html")
 	}
@@ -109,7 +109,7 @@ func TestExceptionMiddlewareRendersHTTPError(t *testing.T) {
 	})
 	raw := httptest.NewRequest("GET", "/api/x", nil)
 	raw.Header.Set("Accept", "application/json")
-	resp := handler(http.NewRequest(raw))
+	resp := handler(http.RequestFromHTTP(raw))
 	if resp.StatusCode() != 404 {
 		t.Fatalf("status=%d body=%s", resp.StatusCode(), resp.Content())
 	}
@@ -120,7 +120,7 @@ func TestExceptionMiddlewareNonErrorPanic(t *testing.T) {
 	handler := h.Middleware()(func(req *http.Request) *http.Response {
 		panic("plain")
 	})
-	resp := handler(http.NewRequest(httptest.NewRequest("GET", "/", nil)))
+	resp := handler(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
 	if resp.StatusCode() != 500 || !strings.Contains(string(resp.Content()), "plain") {
 		t.Fatalf("status=%d body=%s", resp.StatusCode(), resp.Content())
 	}
