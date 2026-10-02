@@ -204,7 +204,7 @@ func TestPackageResolveLatestFallsBackToMain(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "latest", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var got resolveView
+	var got resolveReport
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestPackageResolveUsesRegistryNotLocalPicking(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "latest", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var got resolveView
+	var got resolveReport
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestPackageResolveFallsBackToMainWhenTagsTooNew(t *testing.T) {
 	if err := cmd.Handle([]string{"mongo", "--framework=2.0.4", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var got resolveView
+	var got resolveReport
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestPackageResolveEmptySelectorIsLatest(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var got resolveView
+	var got resolveReport
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}

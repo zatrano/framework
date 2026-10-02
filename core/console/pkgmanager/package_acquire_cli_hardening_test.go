@@ -96,14 +96,14 @@ func TestPackageAcquireGoGetFailureIsAcquisitionFailure(t *testing.T) {
 	if err == nil || CodeFromError(err) != ExitAcquisition {
 		t.Fatalf("exit=%d err=%v", CodeFromError(err), err)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != acquireStatusFailed || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != acquireStatusFailed || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
-	if view.Inspection == nil {
+	if report.Inspection == nil {
 		t.Fatal("Inspect must not be discarded")
 	}
 }
@@ -127,15 +127,15 @@ func TestPackageAcquireSnapshotFailureIsDistinctFromRecovery(t *testing.T) {
 	if recovered {
 		t.Fatal("snapshot failure must not attempt recovery")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.SnapshotError == "" || view.RecoveryError != "" {
-		t.Fatalf("snapshot vs recovery: %#v", view)
+	if report.SnapshotError == "" || report.RecoveryError != "" {
+		t.Fatalf("snapshot vs recovery: %#v", report)
 	}
-	if view.Recovery != string(acquire.RecoveryUnavailable) {
-		t.Fatalf("recovery=%q", view.Recovery)
+	if report.Recovery != string(acquire.RecoveryUnavailable) {
+		t.Fatalf("recovery=%q", report.Recovery)
 	}
 }
 
@@ -157,24 +157,24 @@ func TestPackageAcquireRecoveryFailureIsReported(t *testing.T) {
 	if err == nil || CodeFromError(err) != ExitAcquisition {
 		t.Fatalf("acquisition remains the primary failure: %v", err)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Recovery != string(acquire.RecoveryFailed) || view.RecoveryError == "" {
-		t.Fatalf("recovery failure must be observable: %#v", view)
+	if report.Recovery != string(acquire.RecoveryFailed) || report.RecoveryError == "" {
+		t.Fatalf("recovery failure must be observable: %#v", report)
 	}
-	if view.Acquisition != acquireStatusFailed {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != acquireStatusFailed {
+		t.Fatalf("%#v", report)
 	}
 	found := false
-	for _, msg := range view.Errors {
+	for _, msg := range report.Errors {
 		if strings.Contains(msg, "restore denied") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("errors=%v", view.Errors)
+		t.Fatalf("errors=%v", report.Errors)
 	}
 }
 
@@ -200,20 +200,20 @@ func TestPackageAcquireJSONPreservesTargetStatusesAndInspection(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--format=json"}); err == nil {
 		t.Fatal("expected acquisition error")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if len(view.Targets) != 3 {
-		t.Fatalf("targets=%#v", view.Targets)
+	if len(report.Targets) != 3 {
+		t.Fatalf("targets=%#v", report.Targets)
 	}
-	if view.Targets[0].Status != string(acquire.StatusSuccess) || view.Targets[1].Status != string(acquire.StatusFailed) || view.Targets[2].Status != string(acquire.StatusUnattempted) {
-		t.Fatalf("target statuses=%#v", view.Targets)
+	if report.Targets[0].Status != string(acquire.StatusSuccess) || report.Targets[1].Status != string(acquire.StatusFailed) || report.Targets[2].Status != string(acquire.StatusUnattempted) {
+		t.Fatalf("target statuses=%#v", report.Targets)
 	}
-	if view.Inspection == nil || view.Inspection.Module != "example.com/app" {
-		t.Fatalf("inspection discarded: %#v", view.Inspection)
+	if report.Inspection == nil || report.Inspection.Module != "example.com/app" {
+		t.Fatalf("inspection discarded: %#v", report.Inspection)
 	}
-	if view.Acquisition == acquireStatusSuccess {
+	if report.Acquisition == acquireStatusSuccess {
 		t.Fatal("partial acquisition must not be complete success")
 	}
 }
@@ -244,11 +244,11 @@ func TestPackageAcquireTimeoutIsCanceled(t *testing.T) {
 	if err == nil || CodeFromError(err) != ExitCanceled {
 		t.Fatalf("exit=%d err=%v", CodeFromError(err), err)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition == acquireStatusSuccess {
+	if report.Acquisition == acquireStatusSuccess {
 		t.Fatal("timeout must not be reported as success")
 	}
 }
@@ -288,12 +288,12 @@ func TestPackageAcquireEnablementFailureKeepsAcquisitionSuccess(t *testing.T) {
 	if CodeFromError(err) != ExitEnablement {
 		t.Fatalf("exit=%d err=%v", CodeFromError(err), err)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != acquireStatusSuccess || view.Enablement != enablementFailed || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != acquireStatusSuccess || report.Enablement != enablementFailed || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 }
 
@@ -319,12 +319,12 @@ func TestPackageAcquireAlreadyPresentIsDeterministic(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--format=json"}); err != nil {
 		t.Fatalf("second acquire of present module: %v\n%s", err, buf.String())
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != acquireStatusSuccess {
-		t.Fatalf("already-present must stay success: %#v", view)
+	if report.Acquisition != acquireStatusSuccess {
+		t.Fatalf("already-present must stay success: %#v", report)
 	}
 }
 

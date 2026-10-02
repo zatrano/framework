@@ -149,7 +149,7 @@ func TestPackageAcquireE2ECatalogResolveAcquireInspect(t *testing.T) {
 	if err := (&PackageResolveCommand{out: &resolveBuf}).Handle([]string{"session", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var resolved resolveView
+	var resolved resolveReport
 	if err := json.Unmarshal(resolveBuf.Bytes(), &resolved); err != nil {
 		t.Fatal(err)
 	}
@@ -162,19 +162,19 @@ func TestPackageAcquireE2ECatalogResolveAcquireInspect(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--format=json"}); err != nil {
 		t.Fatalf("package:acquire: %v\n%s", err, acquireBuf.String())
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(acquireBuf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(acquireBuf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
 	wantArg := manifest.DefaultModule + "@main"
-	if len(view.GoGetArgs) != 1 || view.GoGetArgs[0] != wantArg {
-		t.Fatalf("CLI must pass the same GoGetArg as Resolve, got %v", view.GoGetArgs)
+	if len(report.GoGetArgs) != 1 || report.GoGetArgs[0] != wantArg {
+		t.Fatalf("CLI must pass the same GoGetArg as Resolve, got %v", report.GoGetArgs)
 	}
-	if view.Acquisition != acquireStatusSuccess {
-		t.Fatalf("acquisition=%q view=%#v", view.Acquisition, view)
+	if report.Acquisition != acquireStatusSuccess {
+		t.Fatalf("acquisition=%q report=%#v", report.Acquisition, report)
 	}
-	if view.Enablement != enablementNotRequested || view.Enabled {
-		t.Fatalf("default acquire must not enable: %#v", view)
+	if report.Enablement != enablementNotRequested || report.Enabled {
+		t.Fatalf("default acquire must not enable: %#v", report)
 	}
 	if _, err := os.Stat(filepath.Join(root, "zatrano.lock")); !os.IsNotExist(err) {
 		t.Fatal("acquisition must not create zatrano.lock")
@@ -244,12 +244,12 @@ func TestPackageAcquireE2EEnableThenBoot(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--enable", "--format=json"}); err != nil {
 		t.Fatalf("package:acquire --enable: %v\n%s", err, buf.String())
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != acquireStatusSuccess || view.Enablement != enablementSuccess || !view.Enabled {
-		t.Fatalf("expected acquisition+enablement success: %#v", view)
+	if report.Acquisition != acquireStatusSuccess || report.Enablement != enablementSuccess || !report.Enabled {
+		t.Fatalf("expected acquisition+enablement success: %#v", report)
 	}
 
 	enabled, err := os.ReadFile(filepath.Join(root, "bootstrap", "enabled.go"))
@@ -361,13 +361,13 @@ func TestPackageAcquireE2EHeavyMongoModule(t *testing.T) {
 	if err := cmd.Handle([]string{"mongo", "--format=json"}); err != nil {
 		t.Fatalf("heavy mongo acquire: %v\n%s", err, buf.String())
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
 	want := "github.com/zatrano/packages/mongo@main"
-	if len(view.GoGetArgs) != 1 || view.GoGetArgs[0] != want {
-		t.Fatalf("GoGetArg=%v want %s", view.GoGetArgs, want)
+	if len(report.GoGetArgs) != 1 || report.GoGetArgs[0] != want {
+		t.Fatalf("GoGetArg=%v want %s", report.GoGetArgs, want)
 	}
 	in, err := acquire.Inspect(root)
 	if err != nil {
@@ -395,16 +395,16 @@ func TestPackageAcquireE2ETaggedReleaseUsesGoGetArg(t *testing.T) {
 	if err := cmd.Handle([]string{"session@v1.6.6", "--format=json"}); err != nil {
 		t.Fatalf("tagged acquire: %v\n%s", err, buf.String())
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
 	want := manifest.DefaultModule + "@v1.6.6"
-	if len(view.GoGetArgs) != 1 || view.GoGetArgs[0] != want {
-		t.Fatalf("tagged GoGetArg=%v want %s", view.GoGetArgs, want)
+	if len(report.GoGetArgs) != 1 || report.GoGetArgs[0] != want {
+		t.Fatalf("tagged GoGetArg=%v want %s", report.GoGetArgs, want)
 	}
-	if view.Acquisition != acquireStatusSuccess {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != acquireStatusSuccess {
+		t.Fatalf("%#v", report)
 	}
 }
 

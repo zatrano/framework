@@ -239,7 +239,7 @@ func (c *PackageResolveCommand) Handle(args []string) error {
 	if err != nil {
 		return cliFailed(ExitResolution, "package:resolve", name, err, "run package:info "+name+", check --framework against VERSION, or omit --framework to use the running kernel")
 	}
-	view := resolveView{
+	report := resolveReport{
 		Name:     got.Package.Name,
 		Import:   got.Package.Import,
 		Module:   got.Package.Module,
@@ -250,13 +250,13 @@ func (c *PackageResolveCommand) Handle(args []string) error {
 		Release:  got.Release,
 	}
 	if format == "json" {
-		return writeJSON(c.writer(), view)
+		return writeJSON(c.writer(), report)
 	}
-	fmt.Fprintf(c.writer(), "name: %s\n", view.Name)
-	fmt.Fprintf(c.writer(), "selected: %s\n", view.Selected)
-	fmt.Fprintf(c.writer(), "module: %s\n", view.Module)
-	fmt.Fprintf(c.writer(), "import: %s\n", view.Import)
-	fmt.Fprintf(c.writer(), "kind: %s\n", view.Kind)
+	fmt.Fprintf(c.writer(), "name: %s\n", report.Name)
+	fmt.Fprintf(c.writer(), "selected: %s\n", report.Selected)
+	fmt.Fprintf(c.writer(), "module: %s\n", report.Module)
+	fmt.Fprintf(c.writer(), "import: %s\n", report.Import)
+	fmt.Fprintf(c.writer(), "kind: %s\n", report.Kind)
 	return nil
 }
 
@@ -277,7 +277,7 @@ type searchHit struct {
 	Description string `json:"description"`
 }
 
-type resolveView struct {
+type resolveReport struct {
 	Name     string           `json:"name"`
 	Import   string           `json:"import"`
 	Module   string           `json:"module"`

@@ -11,7 +11,7 @@ func TestEnablementCommandsShareIntentionalDifferences(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquireView, err := os.ReadFile("package_acquire_view.go")
+	acquireReport, err := os.ReadFile("package_acquire_report.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestEnablementCommandsShareIntentionalDifferences(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquireText := string(acquireSrc) + "\n" + string(acquireView)
+	acquireText := string(acquireSrc) + "\n" + string(acquireReport)
 	cmdText := string(cmdSrc)
 	enableText := string(enableSrc)
 

@@ -36,19 +36,19 @@ func TestPackageAcquireDryRunUsesPlanGoGetArg(t *testing.T) {
 	if executed {
 		t.Fatal("dry-run must not call ExecuteTargets")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Mode != "dry-run" || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Mode != "dry-run" || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 	want := manifest.DefaultModule + "@main"
-	if len(view.GoGetArgs) != 1 || view.GoGetArgs[0] != want {
-		t.Fatalf("go_get_args=%v want %s", view.GoGetArgs, want)
+	if len(report.GoGetArgs) != 1 || report.GoGetArgs[0] != want {
+		t.Fatalf("go_get_args=%v want %s", report.GoGetArgs, want)
 	}
-	if len(view.DryRun) != 1 || view.DryRun[0].GoGetArg != want {
-		t.Fatalf("dry_run=%#v", view.DryRun)
+	if len(report.DryRun) != 1 || report.DryRun[0].GoGetArg != want {
+		t.Fatalf("dry_run=%#v", report.DryRun)
 	}
 	rawKeys := jsonTopKeys(t, buf.Bytes())
 	for _, ban := range []string{"installed", "acquired", "applied"} {
@@ -97,18 +97,18 @@ func TestPackageAcquireExecuteDelegatesConcreteGoGetArg(t *testing.T) {
 	if len(gotArgs) != 1 || gotArgs[0] != want {
 		t.Fatalf("delegated args=%v want %s", gotArgs, want)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Enabled || view.Mode != "execute" {
-		t.Fatalf("%#v", view)
+	if report.Enabled || report.Mode != "execute" {
+		t.Fatalf("%#v", report)
 	}
-	if len(view.Successful) != 1 || view.Successful[0] != want {
-		t.Fatalf("successful=%v", view.Successful)
+	if len(report.Successful) != 1 || report.Successful[0] != want {
+		t.Fatalf("successful=%v", report.Successful)
 	}
-	if view.Recovery != string(acquire.RecoveryUnavailable) {
-		t.Fatalf("recovery=%q", view.Recovery)
+	if report.Recovery != string(acquire.RecoveryUnavailable) {
+		t.Fatalf("recovery=%q", report.Recovery)
 	}
 }
 
@@ -144,21 +144,21 @@ func TestPackageAcquirePresentsPartialResultWithoutInventingSuccess(t *testing.T
 	if err == nil {
 		t.Fatal("expected execute error")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Enabled {
+	if report.Enabled {
 		t.Fatal("acquisition must not enable")
 	}
-	if len(view.Successful) != 1 || len(view.Failed) != 1 || len(view.Unattempted) != 1 {
-		t.Fatalf("partial %#v", view)
+	if len(report.Successful) != 1 || len(report.Failed) != 1 || len(report.Unattempted) != 1 {
+		t.Fatalf("partial %#v", report)
 	}
-	if view.Unattempted[0] != "example.com/d@main" {
-		t.Fatalf("unattempted=%v", view.Unattempted)
+	if report.Unattempted[0] != "example.com/d@main" {
+		t.Fatalf("unattempted=%v", report.Unattempted)
 	}
-	if view.Recovery != string(acquire.RecoveryFiles) {
-		t.Fatalf("recovery must stay distinct from success: %q", view.Recovery)
+	if report.Recovery != string(acquire.RecoveryFiles) {
+		t.Fatalf("recovery must stay distinct from success: %q", report.Recovery)
 	}
 	raw := buf.String()
 	if strings.Contains(strings.ToLower(raw), "all targets acquired") {
@@ -232,12 +232,12 @@ func TestPackageAcquireUsesInjectedIndexResolve(t *testing.T) {
 	if err := cmd.Handle([]string{"session", "--dry-run", "--format=json"}); err != nil {
 		t.Fatal(err)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.GoGetArgs[0] != manifest.DefaultModule+"@main" {
-		t.Fatalf("%v", view.GoGetArgs)
+	if report.GoGetArgs[0] != manifest.DefaultModule+"@main" {
+		t.Fatalf("%v", report.GoGetArgs)
 	}
 }
 
@@ -274,12 +274,12 @@ func TestPackageAcquireEnablementNotRequestedByDefault(t *testing.T) {
 	if called {
 		t.Fatal("default acquire must not enable")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != "success" || view.Enablement != "not_requested" || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != "success" || report.Enablement != "not_requested" || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 }
 
@@ -314,12 +314,12 @@ func TestPackageAcquireExplicitEnableAfterSuccess(t *testing.T) {
 	if gotName != "session" {
 		t.Fatalf("enable name=%q", gotName)
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != "success" || view.Enablement != "success" || !view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != "success" || report.Enablement != "success" || !report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 }
 
@@ -355,12 +355,12 @@ func TestPackageAcquireDoesNotEnableWhenAcquisitionFails(t *testing.T) {
 	if called {
 		t.Fatal("acquisition failure must not start enablement")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != "failed" || view.Enablement != "not_requested" || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Acquisition != "failed" || report.Enablement != "not_requested" || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 }
 
@@ -391,15 +391,15 @@ func TestPackageAcquireEnablementFailureDoesNotRollbackAcquisition(t *testing.T)
 	if recovered {
 		t.Fatal("enablement failure must not recover/rollback acquisition")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Acquisition != "success" || view.Enablement != "failed" || view.Enabled {
-		t.Fatalf("must not collapse into acquisition failure: %#v", view)
+	if report.Acquisition != "success" || report.Enablement != "failed" || report.Enabled {
+		t.Fatalf("must not collapse into acquisition failure: %#v", report)
 	}
-	if len(view.Successful) != 1 {
-		t.Fatalf("acquisition success must remain visible: %#v", view)
+	if len(report.Successful) != 1 {
+		t.Fatalf("acquisition success must remain visible: %#v", report)
 	}
 }
 
@@ -426,11 +426,11 @@ func TestPackageAcquireDryRunDoesNotEnableEvenWithFlag(t *testing.T) {
 	if executed || called {
 		t.Fatal("dry-run must not execute or enable")
 	}
-	var view acquireCLIView
-	if err := json.Unmarshal(buf.Bytes(), &view); err != nil {
+	var report acquireCLIReport
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if view.Mode != "dry-run" || view.Acquisition != "not_executed" || view.Enablement != "not_requested" || view.Enabled {
-		t.Fatalf("%#v", view)
+	if report.Mode != "dry-run" || report.Acquisition != "not_executed" || report.Enablement != "not_requested" || report.Enabled {
+		t.Fatalf("%#v", report)
 	}
 }
