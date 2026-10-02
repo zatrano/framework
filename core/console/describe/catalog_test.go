@@ -47,7 +47,7 @@ func TestEcosystemCatalogCoversLayers(t *testing.T) {
 		t.Fatal("kernel must not know auth")
 	}
 	for _, p := range catalogByLayer(kernel.LayerFoundation) {
-		if p.Name == "redisx" {
+		if p.Name == "redisx" || p.Name == "db" {
 			if p.EffectiveKind() != kernel.KindLibrary {
 				t.Errorf("foundation %q Kind=%q want library", p.Name, p.EffectiveKind())
 			}

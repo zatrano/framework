@@ -117,8 +117,8 @@ func loadRegisterHints(t *testing.T) map[string]registerHint {
 	if len(auth.requires) != 3 {
 		t.Fatalf("auth requires=%v", auth.requires)
 	}
-	if !out["factory"].cli || out["factory"].factory {
-		t.Fatalf("factory should be CLI-only, got %+v", out["factory"])
+	if _, ok := out["factory"]; ok {
+		t.Fatal("packages/factory register must be gone (REMOVED in V3)")
 	}
 	return out
 }

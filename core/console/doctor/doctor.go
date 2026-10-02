@@ -113,6 +113,7 @@ func DoctorChecks() []DoctorCheck {
 		{Name: "requests", Run: checkRequests},
 		{Name: "orm", Run: checkORMArchitecture},
 		{Name: "validation", Run: checkValidationArchitecture},
+		{Name: "http-lifecycle", Run: checkHTTPLifecycle},
 	}
 }
 

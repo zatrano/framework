@@ -335,3 +335,72 @@ func hasDoctorRule(findings []Finding, rule string) bool {
 	}
 	return false
 }
+
+func TestDoctorRawHTTPImportFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "web", "home.go"), `package web
+
+import "github.com/zatrano/rawhttp"
+
+func Index(ctx *rawhttp.Ctx) {}
+`)
+	assertDoctorRule(t, root, "APP-HTTP-001")
+}
+
+func TestDoctorResponseWriterFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "web", "home.go"), `package web
+
+import stdhttp "net/http"
+
+func Index(w stdhttp.ResponseWriter) {}
+`)
+	assertDoctorRule(t, root, "APP-HTTP-002")
+}
+
+func TestDoctorRequestCtxCallFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "web", "home.go"), `package web
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+func Index(req *http.Request) *http.Response {
+	_ = req.Ctx()
+	return http.Text("ok")
+}
+`)
+	assertDoctorRule(t, root, "APP-HTTP-003")
+}
+
+func TestDoctorPackageLevelRequestFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "services", "leak.go"), `package services
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+var current *http.Request
+`)
+	assertDoctorRule(t, root, "APP-HTTP-004")
+}
+
+func TestDoctorLegacyDatabaseImportFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "services", "db.go"), `package services
+
+import "github.com/zatrano/packages/database"
+
+func Open() { _ = database.Config{} }
+`)
+	assertDoctorRule(t, root, "APP-DB-001")
+}
+
+func TestDoctorLegacyFactoryImportFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "database", "factories", "user.go"), `package factories
+
+import "github.com/zatrano/packages/factory"
+
+var _ = factory.Nop
+`)
+	assertDoctorRule(t, root, "APP-FAC-001")
+}

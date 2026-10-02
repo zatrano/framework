@@ -93,6 +93,9 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 
 func rejectEnableTarget(name string) error {
 	info, inCatalog := catalogLookup(name)
+	if inCatalog && strings.EqualFold(info.Stability, "deprecated") {
+		return fmt.Errorf("%q is deprecated for V3 and cannot be package:enable'd — %s", name, info.Description)
+	}
 	if inCatalog && info.EffectiveKind() == kernel.KindLibrary {
 		return fmt.Errorf("%q is a library package (import-only); no package:enable needed — see package:list --libraries", name)
 	}
