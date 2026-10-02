@@ -533,18 +533,6 @@ Docs: [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://
 **For:** Emit channel events to log/file/null drivers (not a WebSocket server).  
 Docs: [Broadcasting](https://zatrano.com/docs/broadcasting) · [WebSockets](https://zatrano.com/docs/websockets)
 
-### `httpclient`
-
-**For:** Outbound HTTP with JSON, retries, fakes.  
-**Use:**
-
-```go
-c := httpclient.From(app)
-resp, err := c.BaseURL("https://api.example").Get("/ping")
-```
-
-Docs: [HTTP Client](https://zatrano.com/docs/http-client)
-
 ### `ratelimit`
 
 **For:** In-memory named rate limiters (per process). HTTP 429 headers come from `kernel/middleware.Throttle`.  
