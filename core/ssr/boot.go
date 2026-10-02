@@ -8,6 +8,7 @@ import (
 	"github.com/zatrano/canvas"
 	"github.com/zatrano/framework/v3/core/contracts"
 	"github.com/zatrano/framework/v3/core/kernel/dirs"
+	"github.com/zatrano/framework/v3/core/kernel/http"
 )
 
 func boot(app contracts.App) error {
@@ -19,7 +20,31 @@ func boot(app contracts.App) error {
 	engine.SetEnvironment(app.Environment())
 	app.Container().Instance(ContainerKey, engine)
 	installHTTPBridge(app)
+	wireExceptionHTML(app)
 	return nil
+}
+
+type exceptionHTMLAPI interface {
+	RenderHTMLUsing(fn func(status int, title, message string) *http.Response)
+}
+
+func wireExceptionHTML(app contracts.App) {
+	raw, err := app.Make("exceptions")
+	if err != nil {
+		return
+	}
+	h, ok := raw.(exceptionHTMLAPI)
+	if !ok || h == nil {
+		return
+	}
+	h.RenderHTMLUsing(func(status int, title, message string) *http.Response {
+		fallback := FallbackHTTPErrorPage(status, title, message)
+		return TryRender(app, "errors.http", map[string]any{
+			"status":  status,
+			"title":   title,
+			"message": message,
+		}, status, fallback)
+	})
 }
 
 type translatorAPI interface {

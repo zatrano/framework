@@ -32,7 +32,7 @@ func RenderTemplate(app contracts.App, resp *http.Response) *http.Response {
 	if engine == nil {
 		msg := "Canvas engine not bound (enable template / import framework/v3/core/ssr)"
 		if app != nil && app.IsDebug() {
-			return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%s</pre>", msg)).Status(500)
+			return DebugTemplateErrorHTML(msg)
 		}
 		return http.Abort(500, "Template rendering failed")
 	}
@@ -43,7 +43,11 @@ func RenderTemplate(app contracts.App, resp *http.Response) *http.Response {
 	html, err := engine.Render(resp.TemplateName(), data)
 	if err != nil {
 		if app != nil && app.IsDebug() {
-			return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%v</pre>", err)).Status(500)
+			fallback := DebugTemplateErrorHTML(fmt.Sprint(err))
+			if page := TryRender(app, "errors.template", map[string]any{"error": fmt.Sprint(err)}, 500, string(fallback.Content())); page != nil {
+				return page
+			}
+			return fallback
 		}
 		return http.Abort(500, "Template rendering failed")
 	}

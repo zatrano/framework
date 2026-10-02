@@ -17,8 +17,8 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "3.0.0-dev" {
-		t.Fatalf("VERSION=%q want 3.0.0-dev", version)
+	if version != "3.0.0-rc.1" {
+		t.Fatalf("VERSION=%q want 3.0.0-rc.1", version)
 	}
 
 	log, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md"))
@@ -78,18 +78,19 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal("CHANGELOG.md must keep historical 2.0.28")
 	}
 	unreleased := strings.Index(text, "## Unreleased")
+	rc := strings.Index(text, "## 3.0.0-rc.1")
 	released := strings.Index(text, "## 2.8.1")
 	prev := strings.Index(text, "## 2.8.0")
-	if unreleased < 0 || released < 0 || prev < 0 || !(unreleased < released && released < prev) {
-		t.Fatal("CHANGELOG must keep Unreleased, then 2.8.1, then immutable 2.8.0")
+	if unreleased < 0 || rc < 0 || released < 0 || prev < 0 || !(unreleased < rc && rc < released && released < prev) {
+		t.Fatal("CHANGELOG must keep Unreleased, then 3.0.0-rc.1, then 2.8.1, then immutable 2.8.0")
 	}
 
 	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "version-3.0.0-dev") {
-		t.Fatal("README badge must show 3.0.0-dev")
+	if !strings.Contains(string(readme), "version-3.0.0-rc.1") {
+		t.Fatal("README badge must show 3.0.0-rc.1")
 	}
 }
 

@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.0.0-dev-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.0.0-rc.1-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -749,7 +749,7 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 Framework
   module: github.com/zatrano/framework/v3
   major:  v3
-  current: 3.0.0-dev (branch v3)
+  current: 3.0.0-rc.1 (branch v3)
 
 Packages
   module: github.com/zatrano/packages
@@ -766,7 +766,7 @@ Nested modules (`db/*`, `mongo`, `webauthn`) are separately versioned Go modules
 
 | Line | Meaning |
 | --- | --- |
-| Framework `v3` / `3.0.0-dev` | Current kernel / CLI / contracts (rawhttp + Canvas) |
+| Framework `v3` / `3.0.0-rc.1` | Current kernel / CLI / contracts (rawhttp + Canvas) |
 | Packages `v3` branch | Current official package ecosystem for V3 |
 | Framework `v2.8.1` / Packages `v1.13.1` | Last v2 public line (main) |
 | Framework `v1.x` | Previous tagged kernel line |

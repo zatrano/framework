@@ -67,11 +67,16 @@ type Reporter func(err error, req *http.Request)
 // Renderer customizes HTTP rendering for a status code.
 type Renderer func(req *http.Request, err error) *http.Response
 
+// HTMLPageRenderer customizes the default HTML error page (non-JSON).
+// Used to prefer Canvas errors.http when the template engine is bound.
+type HTMLPageRenderer func(status int, title, message string) *http.Response
+
 // Handler reports and renders exceptions.
 type Handler struct {
 	debug     bool
 	reporters []Reporter
 	renderers map[int]Renderer
+	htmlPage  HTMLPageRenderer
 }
 
 // New creates an exception handler.
@@ -91,6 +96,11 @@ func (h *Handler) ReportUsing(fn Reporter) {
 // RenderUsing registers a status-specific renderer.
 func (h *Handler) RenderUsing(status int, fn Renderer) {
 	h.renderers[status] = fn
+}
+
+// RenderHTMLUsing sets the default HTML error page renderer (Canvas-aware).
+func (h *Handler) RenderHTMLUsing(fn HTMLPageRenderer) {
+	h.htmlPage = fn
 }
 
 // Report notifies all reporters.
@@ -136,6 +146,11 @@ func (h *Handler) Render(req *http.Request, err error) *http.Response {
 	body := message
 	if h.debug && status >= 500 {
 		body = fmt.Sprintf("%s\n\n%v\n\n%s", message, err, string(debug.Stack()))
+	}
+	if h.htmlPage != nil {
+		if resp := h.htmlPage(status, title, body); resp != nil {
+			return resp
+		}
 	}
 	page := fmt.Sprintf(`<!doctype html><html><head><meta charset="utf-8"><title>%d %s</title>
 <style>body{font-family:ui-sans-serif,system-ui;background:#0b1220;color:#e8eef8;padding:2rem;max-width:880px;margin:0 auto}

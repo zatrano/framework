@@ -28,6 +28,9 @@ func Write(app contracts.App) error {
 	}{
 		{"stubs/layouts/app.html", []string{"layouts", "app.html"}},
 		{"stubs/web/welcome.html", []string{"web", "welcome.html"}},
+		{"stubs/errors/http.html", []string{"errors", "http.html"}},
+		{"stubs/errors/maintenance.html", []string{"errors", "maintenance.html"}},
+		{"stubs/errors/template.html", []string{"errors", "template.html"}},
 	}
 	for _, pair := range pairs {
 		body, err := stubFiles.ReadFile(pair.stub)

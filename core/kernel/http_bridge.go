@@ -71,7 +71,7 @@ func finalizeHTTPBridge(app *Application, req *http.Request, resp *http.Response
 		if resp != nil && resp.TemplateName() != "" {
 			msg := "Canvas engine not bound (enable template / import framework/v3/core/ssr)"
 			if app.IsDebug() {
-				return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%s</pre>", msg)).Status(500)
+				return http.DebugTemplateErrorHTML(msg)
 			}
 			return http.Abort(500, "Template rendering failed")
 		}
