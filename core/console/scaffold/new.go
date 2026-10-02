@@ -204,12 +204,23 @@ func newReplaceLine(replace string) string {
 	if rh := siblingRawHTTPDir(replace); rh != "" {
 		b.WriteString("replace github.com/zatrano/rawhttp => " + goModPath(rh) + "\n")
 	}
+	if cv := siblingCanvasDir(replace); cv != "" {
+		b.WriteString("replace github.com/zatrano/canvas => " + goModPath(cv) + "\n")
+	}
 	b.WriteString(packagesReplaceLines(replace))
 	return b.String()
 }
 
 func siblingRawHTTPDir(frameworkReplace string) string {
-	candidate := filepath.Join(filepath.Dir(frameworkReplace), "rawhttp")
+	return siblingModuleDir(frameworkReplace, "rawhttp")
+}
+
+func siblingCanvasDir(frameworkReplace string) string {
+	return siblingModuleDir(frameworkReplace, "canvas")
+}
+
+func siblingModuleDir(frameworkReplace, name string) string {
+	candidate := filepath.Join(filepath.Dir(frameworkReplace), name)
 	st, err := os.Stat(candidate)
 	if err != nil || !st.IsDir() {
 		return ""

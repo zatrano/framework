@@ -396,7 +396,7 @@ Manual equivalent:
 import (
     _ "github.com/zatrano/packages/session"
     _ "github.com/zatrano/packages/auth"
-    _ "github.com/zatrano/packages/database"
+    _ "github.com/zatrano/framework/v3/core/ssr"
 )
 ```
 
@@ -741,32 +741,34 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 - Resource ownership is singular. `redisx`, `rag`, and `agent` are libraries. Cache owns the Redis connection.
 - Framework remains `github.com/zatrano/framework/v3`. Packages remains `github.com/zatrano/packages` (v1.x, no `/v2` suffix).
 
-## v2
+## V3
 
-**Framework `v2.8.1`** is the current public kernel. **Packages `v1.13.1`** is the current public official-packages release. Create applications with `zatrano new`. Do not clone this repository as your application.
+**Framework `v3` (dev)** is the active kernel line (`github.com/zatrano/framework/v3`). **Packages `v3` branch** tracks it. Create applications with `zatrano new`. Do not clone this repository as your application.
 
 ```text
 Framework
   module: github.com/zatrano/framework/v3
-  major:  v2
-  current: v3.0.0-dev
+  major:  v3
+  current: 3.0.0-dev (branch v3)
 
 Packages
   module: github.com/zatrano/packages
-  major:  v1
-  current: v1.13.1
+  major:  v1 module path (no /v2 suffix)
+  current: v3 branch → framework/v3
+
+HTTP carrier: github.com/zatrano/rawhttp @ v0.2.2
+SSR engine:   github.com/zatrano/canvas  @ v0.2.0 (wiring: framework/v3/core/ssr)
 ```
 
 The two modules release independently. Framework does not import Packages. Packages pins a compatible Framework release. Applications do not need a single ZATRANO-wide version.
 
-Nested modules (SQL drivers, `mongo`, `webauthn`, `qr`) are separately versioned Go modules. Their tags follow the nested path (`database/driver/sqlite/v1.0.0`), not a `packages/` prefix. Nested publication is a separate release operation. Root `packages@v1.13.1` does not require those drivers.
-
-Historical `packages@v1.7.0` required an unpublished nested SQLite module. Do not retag it. New apps use `v1.13.1`.
+Nested modules (`db/*`, `mongo`, `webauthn`) are separately versioned Go modules.
 
 | Line | Meaning |
 | --- | --- |
-| Framework `v2.8.1` | Current kernel / CLI / contracts |
-| Packages `v1.13.1` | Current official package ecosystem |
+| Framework `v3` / `3.0.0-dev` | Current kernel / CLI / contracts (rawhttp + Canvas) |
+| Packages `v3` branch | Current official package ecosystem for V3 |
+| Framework `v2.8.1` / Packages `v1.13.1` | Last v2 public line (main) |
 | Framework `v1.x` | Previous tagged kernel line |
 
 Each module follows Go semantic versioning on its own path. Install current stables with the `go get` commands above.

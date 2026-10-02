@@ -35,22 +35,22 @@ const agentsConstitution = `## Application engineering (canonical)
 
 ZATRANO applications are kernel consumers. There is one way:
 
-Route → Middleware → FormRequest (writes) → Controller → optional Service → orm.* / pkg.From(app) → View | JSON | Redirect
+Route → Middleware → FormRequest (writes) → Handler → optional Service → packages/db + sqlc / pkg.From(app) → http.Template | JSON | Redirect
 
 - Web: Canvas SSR (http.Template) via enabled template / framework/v3/core/ssr. API: http.JSON.
-- Controllers: app/http/handlers/web (Template/Redirect) and app/http/handlers/api (JSON). make:handler --api writes the api tree.
+- Handlers: app/http/handlers/web (Template/Redirect) and app/http/handlers/api (JSON). make:handler --api writes the api tree.
 - Mutating HTTP uses validation.FormRequest (StoreRequest / UpdateRequest) and ValidateForm.
 - Services are optional (multi-write, transaction, reuse). Not UseCase, Action, DTO, or Entity layers.
-- Persistence: orm.Query[T](). Repositories are optional concrete wrappers, not interfaces.
-- Transactions: orm.Transaction in a service with QueryTx. Controllers do not start transactions.
+- Persistence: packages/db adapters + app SQL/sqlc. No ORM package. Repositories are optional concrete wrappers.
+- Transactions: database/sql Tx (or adapter helper) in a service. Handlers do not start transactions.
 - Authorization: Gate / Policy. Dashboard role stubs are not the API.
 - Packages: From(app). Never app.Auth().
 - HTML fragment / partial-swap clients are not a ZATRANO API. Do not invent fragment helpers.
-- Do not invent domain/, dtos/, usecases/, or handlers/.
+- Do not invent domain/, dtos/, usecases/, or controllers/ (use handlers/).
 - Use routing.From(app) for Put/Patch/Delete/Resource.
 - Authoritative spec: https://zatrano.com/docs/application-engineering/standard . Follow neighboring generated code.
 
-Forbidden: a second architecture, invented domain folders, copying validation.Make into new write controllers, nested transactions, string eager loads (With("comments")).
+Forbidden: a second architecture, invented domain folders, copying validation.Make into new write handlers, nested transactions, string eager loads.
 
 `
 
@@ -150,7 +150,7 @@ func RenderAgentsMarkdown(doc *DescribeDocument) string {
 
 	b.WriteString("## Doctor\n\n")
 	b.WriteString("Run `zatrano doctor` from an application root (`app/` present). Errors exit 1 (CI-fail). Warnings do not, unless `--strict`. Checks:\n\n")
-	for _, check := range []string{"routes", "concrete", "layout", "providers", "layers", "controllers", "requests", "orm", "validation"} {
+	for _, check := range []string{"routes", "concrete", "layout", "providers", "layers", "controllers", "requests", "http-lifecycle", "validation"} {
 		fmt.Fprintf(&b, "- `%s`\n", check)
 	}
 	b.WriteString("\nEach finding includes **rule ID**, **found**, **why**, and **how** to fix. `--json` prints a machine-readable report. There is no `--fix` flag.\n")

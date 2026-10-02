@@ -228,6 +228,9 @@ func TestNewApplication(t *testing.T) {
 	if !strings.Contains(modText, "replace github.com/zatrano/rawhttp =>") {
 		t.Fatalf("missing rawhttp replace (sibling of --replace):\n%s", modText)
 	}
+	if !strings.Contains(modText, "replace github.com/zatrano/canvas =>") {
+		t.Fatalf("missing canvas replace (sibling of --replace):\n%s", modText)
+	}
 	if !strings.Contains(modText, "replace github.com/zatrano/packages =>") {
 		t.Fatalf("missing packages replace:\n%s", modText)
 	}
