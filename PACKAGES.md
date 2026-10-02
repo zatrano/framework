@@ -419,16 +419,16 @@ page, err := orm.Query[User]().Paginate(1, 15, "/users")
 
 Docs: [ORM](https://zatrano.com/docs/orm) (+ models / querying / relationships / eager / advanced)
 
-### `view`
+### `template`
 
-**For:** HTML templates (`views/`).  
+**For:** Canvas HTML SSR (`templates/`). Wiring: `framework/v3/core/ssr`; enable name `template`.  
 **Use:**
 
 ```go
 return http.Template("dashboard", map[string]any{"name": "Ada"})
 ```
 
-Docs: [Views](https://zatrano.com/docs/views)
+Docs: [Canvas / templates](https://zatrano.com/docs/views)
 
 ### `queue`
 
@@ -749,8 +749,8 @@ if !safepath.Under(root, candidate) { /* reject */ }
 
 ### `dirs`
 
-**For:** Resolve `templates` vs `views/`, `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
-Not a consumer-facing service; CLI and addons import `kernel/dirs` when they need a path. HTML template layouts (`@extends`) live in the `view` package.
+**For:** Resolve `templates/` (Canvas), `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
+Not a consumer-facing service; CLI and addons import `kernel/dirs` when they need a path. HTML layouts (`@extends`) are Canvas templates under `templates/` (enable `template` / `framework/v3/core/ssr`).
 
 ---
 

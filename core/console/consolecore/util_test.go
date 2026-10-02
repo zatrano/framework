@@ -19,9 +19,9 @@ func TestHasFlagAndFormat(t *testing.T) {
 }
 
 func TestParseEnabledAddons(t *testing.T) {
-	src := "var EnabledAddons = []string{\n\t\"view\",\n\t\"validation\",\n}\n"
+	src := "var EnabledAddons = []string{\n\t\"template\",\n\t\"validation\",\n}\n"
 	got := ParseEnabledAddons(src)
-	if len(got) != 2 || got[0] != "view" || got[1] != "validation" {
+	if len(got) != 2 || got[0] != "template" || got[1] != "validation" {
 		t.Fatalf("%v", got)
 	}
 }

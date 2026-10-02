@@ -127,7 +127,7 @@ func TestOverlayReplacesExactKnownStub(t *testing.T) {
 	fsys := fstest.MapFS{
 		"templates/web/new.go":    {Data: []byte("new")},
 		"templates/web/keep.go":   {Data: []byte("web-keep")},
-		"templates/web/home.go":   {Data: []byte("view")},
+		"templates/web/home.go":   {Data: []byte("template")},
 		"templates/empty/keep.go": {Data: []byte("empty-keep")},
 		"templates/empty/home.go": {Data: []byte("html")},
 	}
@@ -155,7 +155,7 @@ func TestOverlayReplacesExactKnownStub(t *testing.T) {
 		t.Fatalf("skipped=%v", res.Skipped)
 	}
 	home, _ := os.ReadFile(filepath.Join(dest, "home.go"))
-	if string(home) != "view" {
+	if string(home) != "template" {
 		t.Fatalf("home=%q", home)
 	}
 	keep, _ := os.ReadFile(filepath.Join(dest, "keep.go"))
@@ -166,7 +166,7 @@ func TestOverlayReplacesExactKnownStub(t *testing.T) {
 
 func TestOverlayDoesNotOverwriteUserCode(t *testing.T) {
 	fsys := fstest.MapFS{
-		"templates/web/home.go":   {Data: []byte("view")},
+		"templates/web/home.go":   {Data: []byte("template")},
 		"templates/empty/home.go": {Data: []byte("html")},
 	}
 	dest := t.TempDir()
@@ -192,7 +192,7 @@ func TestOverlayDoesNotOverwriteUserCode(t *testing.T) {
 
 func TestOverlayRejectsModifiedStub(t *testing.T) {
 	fsys := fstest.MapFS{
-		"templates/web/home.go":   {Data: []byte("view")},
+		"templates/web/home.go":   {Data: []byte("template")},
 		"templates/empty/home.go": {Data: []byte("html")},
 	}
 	dest := t.TempDir()

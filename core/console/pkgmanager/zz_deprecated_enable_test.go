@@ -18,8 +18,8 @@ func TestRejectEnableDeprecatedDatabase(t *testing.T) {
 		t.Fatalf("expected orm deprecated rejection, got %v", err)
 	}
 	err = rejectEnableTarget("view")
-	if err == nil || !strings.Contains(err.Error(), "deprecated") {
-		t.Fatalf("expected view deprecated rejection, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "template") {
+		t.Fatalf("expected view→template rejection, got %v", err)
 	}
 	err = rejectEnableTarget("factory")
 	if err == nil || !strings.Contains(err.Error(), "deprecated") {
