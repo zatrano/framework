@@ -4,15 +4,15 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
-## 3.0.0-rc.1 - 2026-10-02
+## 3.0.0 - 2026-10-02
 
-First V3 release candidate. HTTP carrier is **rawhttp**; SSR is **Canvas** (`framework/v3/core/ssr`). Web apps require Canvas; API handlers stay JSON-capable.
+V3 is stable. HTTP carrier is **rawhttp**; SSR is **Canvas** (`framework/v3/core/ssr`). Web apps require Canvas; API handlers stay JSON-capable.
 
 ### Breaking
 
 - Transport is `rawhttp` only (`Application.Handle`); no `net/http` server path.
 - Web scaffold uses `http.Template` + `templates/`; `http.HTML` in web handlers fails doctor APP-CTL-006.
-- Module path remains `github.com/zatrano/framework/v3`; product VERSION `3.0.0-rc.1`.
+- Module path remains `github.com/zatrano/framework/v3`; product VERSION `3.0.0`.
 
 ### Added
 
@@ -24,6 +24,10 @@ First V3 release candidate. HTTP carrier is **rawhttp**; SSR is **Canvas** (`fra
 
 - rawhttp pin **v0.2.2** (GA for application embedding); canvas pin **v0.2.0**.
 - `WriteTo` production path fails loud (Commit-only).
+
+## 3.0.0-rc.1 - 2026-10-02
+
+First V3 release candidate. Superseded by `3.0.0`.
 
 ## 2.8.1 - 2026-09-20
 

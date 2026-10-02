@@ -72,8 +72,8 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--version: %v\n%s", err, verOut)
 	}
-	if !strings.Contains(verOut, "3.0.0-rc.1") {
-		t.Fatalf("version must report 3.0.0-rc.1:\n%s", verOut)
+	if !strings.Contains(verOut, "3.0.0") {
+		t.Fatalf("version must report 3.0.0:\n%s", verOut)
 	}
 
 	helpOut, err := runApp("--help")
