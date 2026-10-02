@@ -36,7 +36,7 @@ type App interface {
 	HTTPBridge() HTTPBridge
 }
 
-// HTTPBridge is installed by template (Canvas render) and session at boot.
+// HTTPBridge is installed by SSR (Canvas render) and session at boot.
 // Middleware/request/response are untyped so this package does not import
 // core/kernel/http. Kernel asserts concrete types at the HTTP boundary.
 type HTTPBridge interface {

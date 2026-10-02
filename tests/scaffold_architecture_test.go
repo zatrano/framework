@@ -72,7 +72,7 @@ func TestStarterEnablementImportsHealthOnly(t *testing.T) {
 		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/validation"`,
-		`"github.com/zatrano/packages/template"`,
+		`"github.com/zatrano/framework/v3/core/ssr"`,
 	} {
 		if strings.Contains(text, pkg) {
 			t.Errorf("starter addons.go.tmpl must not default-import %s", pkg)

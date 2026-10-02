@@ -22,6 +22,10 @@ const packagesModuleGetArg = "github.com/zatrano/packages@v1.13.1"
 
 func addonImportPath(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
+	// Canvas SSR lives in framework (not packages/template).
+	if name == "template" {
+		return "github.com/zatrano/framework/v3/core/ssr"
+	}
 	return manifest.DefaultModule + "/" + manifest.OfficialImportRel(name)
 }
 
@@ -29,6 +33,9 @@ func addonLegacyImportPath(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if name == "" {
 		return ""
+	}
+	if name == "template" {
+		return manifest.DefaultModule + "/template"
 	}
 	return manifest.DefaultModule + "/" + name
 }
@@ -58,7 +65,11 @@ func wireEnabledAddons(app *kernel.Application, names []string) error {
 	imports := make([]string, 0, len(names))
 	needPackages := false
 	for _, name := range names {
-		imports = append(imports, addonImportPath(name))
+		imp := addonImportPath(name)
+		imports = append(imports, imp)
+		if strings.HasPrefix(imp, "github.com/zatrano/framework/") {
+			continue
+		}
 		info, ok := catalogLookup(name)
 		if !ok || info.Layer != kernel.LayerPrimitive {
 			needPackages = true

@@ -1011,20 +1011,29 @@ func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
 	}
 }
 
-func TestKernelHasOnlyRawHTTPThirdPartyDependency(t *testing.T) {
+func TestKernelHasOnlyAllowedThirdPartyDependencies(t *testing.T) {
 	root := moduleRoot(t)
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowedMod := func(line string) bool {
+		return strings.Contains(line, "github.com/zatrano/rawhttp") ||
+			strings.Contains(line, "github.com/zatrano/canvas")
+	}
 	for _, line := range strings.Split(string(mod), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "require ") && line != "require (" {
-			if strings.Contains(line, "github.com/zatrano/rawhttp") {
+			if allowedMod(line) {
 				continue
 			}
 			t.Errorf("go.mod has a third-party require: %s", line)
 		}
+	}
+
+	allowedImport := func(imp string) bool {
+		return imp == "github.com/zatrano/rawhttp" || strings.HasPrefix(imp, "github.com/zatrano/rawhttp/") ||
+			imp == "github.com/zatrano/canvas" || strings.HasPrefix(imp, "github.com/zatrano/canvas/")
 	}
 
 	fset := token.NewFileSet()
@@ -1055,7 +1064,7 @@ func TestKernelHasOnlyRawHTTPThirdPartyDependency(t *testing.T) {
 			if imp == "github.com/zatrano/framework/v3" || strings.HasPrefix(imp, "github.com/zatrano/framework/v3/") {
 				continue
 			}
-			if imp == "github.com/zatrano/rawhttp" || strings.HasPrefix(imp, "github.com/zatrano/rawhttp/") {
+			if allowedImport(imp) {
 				continue
 			}
 			t.Errorf("%s imports third-party %s", rel, imp)
@@ -1403,7 +1412,7 @@ func TestKernelHTTPProductionImportsStayStdlibAndKernel(t *testing.T) {
 			if strings.HasPrefix(imp, "github.com/zatrano/packages") {
 				t.Errorf("%s imports %s", filepath.Base(path), imp)
 			}
-			if strings.HasPrefix(imp, "github.com/") && !strings.HasPrefix(imp, "github.com/zatrano/framework/") && !strings.HasPrefix(imp, "github.com/zatrano/rawhttp") {
+			if strings.HasPrefix(imp, "github.com/") && !strings.HasPrefix(imp, "github.com/zatrano/framework/") && !strings.HasPrefix(imp, "github.com/zatrano/rawhttp") && !strings.HasPrefix(imp, "github.com/zatrano/canvas") {
 				t.Errorf("%s third-party import %s", filepath.Base(path), imp)
 			}
 		}

@@ -159,7 +159,7 @@ func TestNewApplication(t *testing.T) {
 	for _, pkg := range []string{
 		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/localization"`,
-		`"github.com/zatrano/packages/template"`,
+		`"github.com/zatrano/framework/v3/core/ssr"`,
 		`"github.com/zatrano/packages/validation"`,
 	} {
 		if strings.Contains(addonsText, pkg) {

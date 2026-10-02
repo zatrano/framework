@@ -25,6 +25,9 @@ func TestUpsertAddonBlankImport(t *testing.T) {
 	if addonImportPath("ai") != "github.com/zatrano/packages/ai" {
 		t.Fatalf("ai import path: %s", addonImportPath("ai"))
 	}
+	if addonImportPath("template") != "github.com/zatrano/framework/v3/core/ssr" {
+		t.Fatalf("template import path: %s", addonImportPath("template"))
+	}
 	if addonImportPath("oauth") != "github.com/zatrano/packages/auth/oauth" {
 		t.Fatalf("oauth import path: %s", addonImportPath("oauth"))
 	}
