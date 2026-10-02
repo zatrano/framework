@@ -135,10 +135,10 @@ func Template(name string, data ...map[string]any) *Response {
 		payload = data[0]
 	}
 	return &Response{
-		status:   stdhttp.StatusOK,
+		status:       stdhttp.StatusOK,
 		templateName: name,
 		templateData: payload,
-		headers:  make(stdhttp.Header),
+		headers:      make(stdhttp.Header),
 	}
 }
 

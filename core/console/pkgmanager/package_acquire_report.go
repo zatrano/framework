@@ -11,50 +11,50 @@ import (
 	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
-func (c *PackageAcquireCommand) writeView(format string, view acquireCLIView) error {
+func (c *PackageAcquireCommand) writeReport(format string, report acquireCLIReport) error {
 	if format == "json" {
-		return writeJSON(c.writer(), view)
+		return writeJSON(c.writer(), report)
 	}
 	w := c.writer()
-	fmt.Fprintf(w, "mode: %s\n", view.Mode)
-	fmt.Fprintf(w, "acquisition: %s\n", view.Acquisition)
-	fmt.Fprintf(w, "enablement: %s\n", view.Enablement)
-	fmt.Fprintf(w, "enabled: %t\n", view.Enabled)
-	fmt.Fprintf(w, "root: %s\n", view.Root)
-	for _, arg := range view.GoGetArgs {
+	fmt.Fprintf(w, "mode: %s\n", report.Mode)
+	fmt.Fprintf(w, "acquisition: %s\n", report.Acquisition)
+	fmt.Fprintf(w, "enablement: %s\n", report.Enablement)
+	fmt.Fprintf(w, "enabled: %t\n", report.Enabled)
+	fmt.Fprintf(w, "root: %s\n", report.Root)
+	for _, arg := range report.GoGetArgs {
 		fmt.Fprintf(w, "go_get_arg: %s\n", arg)
 	}
-	if view.Mode == "dry-run" {
-		for _, rep := range view.DryRun {
+	if report.Mode == "dry-run" {
+		for _, rep := range report.DryRun {
 			fmt.Fprintf(w, "module: %s\n", rep.Module)
 			fmt.Fprintf(w, "selected: %s\n", rep.Selected)
 			fmt.Fprintf(w, "command: %s\n", strings.Join(rep.Command, " "))
 		}
 		return nil
 	}
-	for _, arg := range view.Successful {
+	for _, arg := range report.Successful {
 		fmt.Fprintf(w, "successful: %s\n", arg)
 	}
-	for _, arg := range view.Failed {
+	for _, arg := range report.Failed {
 		fmt.Fprintf(w, "failed: %s\n", arg)
 	}
-	for _, arg := range view.Unattempted {
+	for _, arg := range report.Unattempted {
 		fmt.Fprintf(w, "unattempted: %s\n", arg)
 	}
-	fmt.Fprintf(w, "recovery: %s\n", view.Recovery)
-	if view.SnapshotError != "" {
-		fmt.Fprintf(w, "snapshot_error: %s\n", view.SnapshotError)
+	fmt.Fprintf(w, "recovery: %s\n", report.Recovery)
+	if report.SnapshotError != "" {
+		fmt.Fprintf(w, "snapshot_error: %s\n", report.SnapshotError)
 	}
-	if view.RecoveryError != "" {
-		fmt.Fprintf(w, "recovery_error: %s\n", view.RecoveryError)
+	if report.RecoveryError != "" {
+		fmt.Fprintf(w, "recovery_error: %s\n", report.RecoveryError)
 	}
-	if view.Inspection != nil && view.Inspection.Module != "" {
-		fmt.Fprintf(w, "inspect_module: %s\n", view.Inspection.Module)
-		for _, req := range view.Inspection.Requirements {
+	if report.Inspection != nil && report.Inspection.Module != "" {
+		fmt.Fprintf(w, "inspect_module: %s\n", report.Inspection.Module)
+		for _, req := range report.Inspection.Requirements {
 			fmt.Fprintf(w, "inspect_require: %s %s\n", req.Path, req.Version)
 		}
 	}
-	for _, msg := range view.Errors {
+	for _, msg := range report.Errors {
 		fmt.Fprintf(w, "error: %s\n", msg)
 	}
 	return nil
@@ -77,26 +77,26 @@ func (c *PackageAcquireCommand) commandContext(args []string) (context.Context, 
 	return ctx, cancel, nil
 }
 
-func (c *PackageAcquireCommand) attachInspect(root string, view *acquireCLIView) {
+func (c *PackageAcquireCommand) attachInspect(root string, report *acquireCLIReport) {
 	in, err := c.runInspect(root)
 	if err != nil {
-		view.InspectErr = err.Error()
-		view.appendError(err)
+		report.InspectErr = err.Error()
+		report.appendError(err)
 		return
 	}
-	view.Inspection = inspectionView(in)
+	report.Inspection = inspectionReport(in)
 }
 
-func inspectionView(in acquire.Inspection) *inspectCLIView {
-	reqs := make([]inspectReqCLIView, 0, len(in.Requirements))
+func inspectionReport(in acquire.Inspection) *inspectCLIReport {
+	reqs := make([]inspectReqCLIReport, 0, len(in.Requirements))
 	for _, r := range in.Requirements {
-		reqs = append(reqs, inspectReqCLIView{Path: r.Path, Version: r.Version, Indirect: r.Indirect})
+		reqs = append(reqs, inspectReqCLIReport{Path: r.Path, Version: r.Version, Indirect: r.Indirect})
 	}
-	sums := make([]inspectSumCLIView, 0, len(in.Checksums))
+	sums := make([]inspectSumCLIReport, 0, len(in.Checksums))
 	for _, s := range in.Checksums {
-		sums = append(sums, inspectSumCLIView{Module: s.Module, Version: s.Version, Hash: s.Hash})
+		sums = append(sums, inspectSumCLIReport{Module: s.Module, Version: s.Version, Hash: s.Hash})
 	}
-	return &inspectCLIView{
+	return &inspectCLIReport{
 		Module:       in.Module,
 		Go:           in.Go,
 		Requirements: reqs,
@@ -106,18 +106,18 @@ func inspectionView(in acquire.Inspection) *inspectCLIView {
 	}
 }
 
-func targetViews(result acquire.ApplyResult) []targetCLIView {
+func targetReports(result acquire.ApplyResult) []targetCLIReport {
 	if len(result.Reports) == 0 {
 		return nil
 	}
-	out := make([]targetCLIView, 0, len(result.Reports))
+	out := make([]targetCLIReport, 0, len(result.Reports))
 	for _, rep := range result.Reports {
-		out = append(out, targetCLIView{GoGetArg: rep.GoGetArg, Status: string(rep.Status)})
+		out = append(out, targetCLIReport{GoGetArg: rep.GoGetArg, Status: string(rep.Status)})
 	}
 	return out
 }
 
-func (v *acquireCLIView) appendError(err error) {
+func (v *acquireCLIReport) appendError(err error) {
 	if v == nil || err == nil {
 		return
 	}
@@ -205,53 +205,53 @@ func (c *PackageAcquireCommand) runEnable(name string) error {
 	return nil
 }
 
-type acquireCLIView struct {
-	Mode          string          `json:"mode"`
-	Root          string          `json:"root"`
-	GoGetArgs     []string        `json:"go_get_args"`
-	Successful    []string        `json:"successful,omitempty"`
-	Failed        []string        `json:"failed,omitempty"`
-	Unattempted   []string        `json:"unattempted,omitempty"`
-	Targets       []targetCLIView `json:"targets,omitempty"`
-	Recovery      string          `json:"recovery,omitempty"`
-	RecoveryError string          `json:"recovery_error,omitempty"`
-	SnapshotError string          `json:"snapshot_error,omitempty"`
-	Acquisition   string          `json:"acquisition"`
-	Enablement    string          `json:"enablement"`
-	Enabled       bool            `json:"enabled"`
-	DryRun        []dryRunCLIView `json:"dry_run,omitempty"`
-	Inspection    *inspectCLIView `json:"inspection,omitempty"`
-	InspectErr    string          `json:"inspect_error,omitempty"`
-	Errors        []string        `json:"errors,omitempty"`
+type acquireCLIReport struct {
+	Mode          string            `json:"mode"`
+	Root          string            `json:"root"`
+	GoGetArgs     []string          `json:"go_get_args"`
+	Successful    []string          `json:"successful,omitempty"`
+	Failed        []string          `json:"failed,omitempty"`
+	Unattempted   []string          `json:"unattempted,omitempty"`
+	Targets       []targetCLIReport `json:"targets,omitempty"`
+	Recovery      string            `json:"recovery,omitempty"`
+	RecoveryError string            `json:"recovery_error,omitempty"`
+	SnapshotError string            `json:"snapshot_error,omitempty"`
+	Acquisition   string            `json:"acquisition"`
+	Enablement    string            `json:"enablement"`
+	Enabled       bool              `json:"enabled"`
+	DryRun        []dryRunCLIReport `json:"dry_run,omitempty"`
+	Inspection    *inspectCLIReport `json:"inspection,omitempty"`
+	InspectErr    string            `json:"inspect_error,omitempty"`
+	Errors        []string          `json:"errors,omitempty"`
 }
 
-type targetCLIView struct {
+type targetCLIReport struct {
 	GoGetArg string `json:"go_get_arg"`
 	Status   string `json:"status"`
 }
 
-type inspectCLIView struct {
-	Module       string              `json:"module,omitempty"`
-	Go           string              `json:"go,omitempty"`
-	Requirements []inspectReqCLIView `json:"requirements,omitempty"`
-	Checksums    []inspectSumCLIView `json:"checksums,omitempty"`
-	GoModMissing bool                `json:"go_mod_missing,omitempty"`
-	GoSumMissing bool                `json:"go_sum_missing,omitempty"`
+type inspectCLIReport struct {
+	Module       string                `json:"module,omitempty"`
+	Go           string                `json:"go,omitempty"`
+	Requirements []inspectReqCLIReport `json:"requirements,omitempty"`
+	Checksums    []inspectSumCLIReport `json:"checksums,omitempty"`
+	GoModMissing bool                  `json:"go_mod_missing,omitempty"`
+	GoSumMissing bool                  `json:"go_sum_missing,omitempty"`
 }
 
-type inspectReqCLIView struct {
+type inspectReqCLIReport struct {
 	Path     string `json:"path"`
 	Version  string `json:"version"`
 	Indirect bool   `json:"indirect,omitempty"`
 }
 
-type inspectSumCLIView struct {
+type inspectSumCLIReport struct {
 	Module  string `json:"module"`
 	Version string `json:"version"`
 	Hash    string `json:"hash"`
 }
 
-type dryRunCLIView struct {
+type dryRunCLIReport struct {
 	Module   string   `json:"module"`
 	Selected string   `json:"selected"`
 	GoGetArg string   `json:"go_get_arg"`

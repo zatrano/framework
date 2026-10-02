@@ -104,7 +104,7 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if err != nil {
 		return cliFailed(ExitUsage, "package:acquire", name, err, "pass --root to a module directory that contains go.mod")
 	}
-	view := acquireCLIView{
+	report := acquireCLIReport{
 		Root:        root,
 		GoGetArgs:   getArgs,
 		Enabled:     false,
@@ -116,20 +116,20 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 		if err != nil {
 			return cliFailed(ExitPlanning, "package:acquire", name, err, "dry-run could not inspect the planned go get; check --root and go.mod")
 		}
-		view.Mode = "dry-run"
-		view.DryRun = make([]dryRunCLIView, 0, len(reps))
+		report.Mode = "dry-run"
+		report.DryRun = make([]dryRunCLIReport, 0, len(reps))
 		for _, rep := range reps {
-			view.DryRun = append(view.DryRun, dryRunCLIView{
+			report.DryRun = append(report.DryRun, dryRunCLIReport{
 				Module:   rep.Module,
 				Selected: rep.Selected,
 				GoGetArg: rep.GoGetArg,
 				Command:  append([]string(nil), rep.Command...),
 			})
 		}
-		return c.writeView(format, view)
+		return c.writeReport(format, report)
 	}
 
-	view.Mode = "execute"
+	report.Mode = "execute"
 	ctx, cancel, err := c.commandContext(args)
 	if err != nil {
 		return err
@@ -140,8 +140,8 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 	if !hasFlag(args, "--no-recover") {
 		snap, snapErr = c.runSnapshot(root)
 		if snapErr != nil {
-			view.SnapshotError = snapErr.Error()
-			view.appendError(snapErr)
+			report.SnapshotError = snapErr.Error()
+			report.appendError(snapErr)
 		}
 	} else {
 		snapErr = errSkipRecover
@@ -151,39 +151,39 @@ func (c *PackageAcquireCommand) Handle(args []string) error {
 		rec, recErr := c.runRecover(ctx, snap)
 		result = result.WithRecovery(rec)
 		if recErr != nil {
-			view.RecoveryError = recErr.Error()
-			view.appendError(recErr)
+			report.RecoveryError = recErr.Error()
+			report.appendError(recErr)
 		}
 	}
-	view.Successful = result.Successful()
-	view.Failed = result.Failed()
-	view.Unattempted = result.Unattempted()
-	view.Targets = targetViews(result)
-	view.Recovery = string(result.Recovery.Kind)
-	if view.Recovery == "" {
-		view.Recovery = string(acquire.RecoveryUnavailable)
+	report.Successful = result.Successful()
+	report.Failed = result.Failed()
+	report.Unattempted = result.Unattempted()
+	report.Targets = targetReports(result)
+	report.Recovery = string(result.Recovery.Kind)
+	if report.Recovery == "" {
+		report.Recovery = string(acquire.RecoveryUnavailable)
 	}
-	view.Acquisition = acquireStatusFailed
-	if execErr == nil && len(view.Failed) == 0 {
-		view.Acquisition = acquireStatusSuccess
+	report.Acquisition = acquireStatusFailed
+	if execErr == nil && len(report.Failed) == 0 {
+		report.Acquisition = acquireStatusSuccess
 	}
-	view.Enablement = enablementNotRequested
-	view.Enabled = false
-	if hasFlag(args, "--enable") && view.Acquisition == acquireStatusSuccess {
+	report.Enablement = enablementNotRequested
+	report.Enabled = false
+	if hasFlag(args, "--enable") && report.Acquisition == acquireStatusSuccess {
 		if err := c.runEnable(name); err != nil {
-			view.Enablement = enablementFailed
-			view.appendError(err)
-			c.attachInspect(root, &view)
-			if werr := c.writeView(format, view); werr != nil {
+			report.Enablement = enablementFailed
+			report.appendError(err)
+			c.attachInspect(root, &report)
+			if werr := c.writeReport(format, report); werr != nil {
 				return werr
 			}
 			return cliFailed(ExitEnablement, "package:acquire --enable", name, err, "acquisition succeeded; enablement is separate — fix Requires/import then package:enable "+name+" (acquisition is not rolled back)")
 		}
-		view.Enablement = enablementSuccess
-		view.Enabled = true
+		report.Enablement = enablementSuccess
+		report.Enabled = true
 	}
-	c.attachInspect(root, &view)
-	if err := c.writeView(format, view); err != nil {
+	c.attachInspect(root, &report)
+	if err := c.writeReport(format, report); err != nil {
 		return err
 	}
 	if execErr == nil {

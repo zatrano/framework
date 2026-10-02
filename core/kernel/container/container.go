@@ -30,9 +30,10 @@ type sharedSlot struct {
 
 // Container is the ZATRANO factory-based service container.
 //
-// Nested Make uses an explicit resolution view (stack on a child *Container)
-// so cycle detection does not parse goroutine IDs. Shared singleton cycles
-// across goroutines use the slot wait-graph.
+// Nested Make uses an explicit resolution scope (stack on a child *Container)
+// so concurrent Make calls do not share one mutable path/stack on the root and
+// cycle detection does not parse goroutine IDs. Shared singleton cycles across
+// goroutines use the slot wait-graph.
 type Container struct {
 	mu        sync.Mutex
 	bindings  map[string]Binding
@@ -65,7 +66,7 @@ func (c *Container) core() *Container {
 	return c
 }
 
-func (c *Container) view(stack, path []string) *Container {
+func (c *Container) resolution(stack, path []string) *Container {
 	return &Container{root: c.core(), stack: stack, path: path}
 }
 
@@ -199,7 +200,7 @@ func (c *Container) resolve(stack, path []string, abstract string) (any, error) 
 	if !binding.Shared {
 		concrete := binding.Concrete
 		c.mu.Unlock()
-		val, buildErr := c.build(c.view(next, provenance), concrete)
+		val, buildErr := c.build(c.resolution(next, provenance), concrete)
 		return val, annotate(buildErr, requested, provenance)
 	}
 
@@ -252,7 +253,7 @@ func (c *Container) resolve(stack, path []string, abstract string) (any, error) 
 		c.mu.Unlock()
 	}()
 
-	val, buildErr := c.build(c.view(next, provenance), concrete)
+	val, buildErr := c.build(c.resolution(next, provenance), concrete)
 	buildErr = annotate(buildErr, requested, provenance)
 
 	c.mu.Lock()
@@ -371,12 +372,12 @@ func (c *Container) waitCycleLocked(start string) bool {
 	return false
 }
 
-func (c *Container) build(view *Container, concrete any) (any, error) {
+func (c *Container) build(scope *Container, concrete any) (any, error) {
 	switch v := concrete.(type) {
 	case func(*Container) any:
-		return v(view), nil
+		return v(scope), nil
 	case func(*Container) (any, error):
-		return v(view)
+		return v(scope)
 	case func() any:
 		return v(), nil
 	default:

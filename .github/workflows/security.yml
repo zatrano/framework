@@ -18,12 +18,31 @@ jobs:
   vet:
     name: go-vet
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
       - run: go mod download
       - run: go vet ./...
 
@@ -33,12 +52,32 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    defaults:
+      run:
+        working-directory: framework
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
+      - run: go mod download
       - name: Read gosec excludes from .github/gosec.json
         id: gosec_cfg
         run: |
@@ -50,15 +89,15 @@ jobs:
           args: >
             -no-fail
             -fmt=sarif
-            -out=gosec.sarif
-            -conf=.github/gosec.json
+            -out=framework/gosec.sarif
+            -conf=framework/.github/gosec.json
             -exclude=${{ steps.gosec_cfg.outputs.exclude }}
             -exclude-generated
-            ./...
+            ./framework/...
       - name: Upload gosec SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: gosec.sarif
+          sarif_file: framework/gosec.sarif
           category: gosec
       - name: gosec gate (fail on findings)
         run: |
@@ -91,12 +130,31 @@ jobs:
   govulncheck:
     name: govulncheck
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
       - run: go mod download
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
@@ -123,34 +181,40 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout framework
+        uses: actions/checkout@v4
+        with:
+          path: framework
       - name: Semgrep community (report only)
         run: |
           semgrep scan \
             --config=p/golang \
             --config=p/security-audit \
             --metrics=off \
-            . || true
+            framework || true
       - name: Semgrep ZATRANO rules (fail on findings)
         run: |
           semgrep scan \
-            --config=.github/semgrep/zatrano-rules.yml \
+            --config=framework/.github/semgrep/zatrano-rules.yml \
             --severity=ERROR \
             --error \
             --metrics=off \
-            .
+            framework
 
   # Pin v-prefixed tag (post supply-chain recovery). Prefer SHA pin if tags move again.
   trivy:
     name: trivy-fs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
       - name: Trivy FS (report all)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
-          scan-ref: .
+          scan-ref: framework
           scanners: vuln,secret,misconfig
           format: table
           exit-code: '0'
@@ -158,7 +222,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
-          scan-ref: .
+          scan-ref: framework
           scanners: vuln,secret,misconfig
           severity: HIGH,CRITICAL
           exit-code: '1'
@@ -173,12 +237,31 @@ jobs:
         target:
           - FuzzRouterPath
           - FuzzDotenvParse
+    defaults:
+      run:
+        working-directory: framework
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
       - run: go mod download
       - name: Fuzz ${{ matrix.target }} (3m)
         run: bash .github/scripts/run-fuzz.sh ${{ matrix.target }} ./tests/fuzz/ 3m
@@ -187,7 +270,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-crash-${{ matrix.target }}
-          path: tests/fuzz/testdata/fuzz/
+          path: framework/tests/fuzz/testdata/fuzz/
           if-no-files-found: ignore
 
   summary:

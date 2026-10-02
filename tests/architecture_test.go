@@ -784,11 +784,11 @@ func TestCLIAcquireGate(t *testing.T) {
 	if err != nil {
 		t.Fatal("missing core/console/pkgmanager/package_acquire.go — Contract B CLI acquisition")
 	}
-	viewSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_acquire_view.go"))
+	reportSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_acquire_report.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(src) + "\n" + string(viewSrc)
+	text := string(src) + "\n" + string(reportSrc)
 	for _, want := range []string{
 		`"github.com/zatrano/framework/v3/core/distribution/acquire"`,
 		`"github.com/zatrano/framework/v3/core/distribution/registry"`,
@@ -986,7 +986,7 @@ func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 }
 
 func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_acquire_view.go"))
+	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_acquire_report.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1001,12 +1001,12 @@ func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
 		`json:"status"`,
 	} {
 		if !strings.Contains(text, want) {
-			t.Errorf("package_acquire.go JSON missing %s", want)
+			t.Errorf("package_acquire_report.go JSON missing %s", want)
 		}
 	}
 	for _, ban := range []string{"AcquireStateMachine", "type LifecycleService", "func Apply("} {
 		if strings.Contains(text, ban) {
-			t.Errorf("package_acquire.go contains %s — JSON must not invent a second state model", ban)
+			t.Errorf("package_acquire_report.go contains %s — JSON must not invent a second state model", ban)
 		}
 	}
 }
