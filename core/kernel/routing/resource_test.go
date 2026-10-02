@@ -41,7 +41,7 @@ func TestNamePrefixAndResource(t *testing.T) {
 		t.Fatalf("show route: ok=%v path=%v", ok, show)
 	}
 
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/api/notes/42", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/api/notes/42", nil)))
 	if resp.StatusCode() != 200 || got != "42" {
 		t.Fatalf("dispatch show: status=%d got=%q", resp.StatusCode(), got)
 	}
@@ -62,7 +62,7 @@ func TestSubstituteBindings(t *testing.T) {
 		return http.JSON(note)
 	})
 
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/notes/7", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/notes/7", nil)))
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d body=%s", resp.StatusCode(), string(resp.Content()))
 	}
@@ -77,7 +77,7 @@ func TestSubstituteBindings(t *testing.T) {
 	routing.Bind("note", func(value string, req *http.Request) (any, error) {
 		return nil, nil
 	})
-	missing := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/notes/404", nil)))
+	missing := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/notes/404", nil)))
 	if missing.StatusCode() != 404 {
 		t.Fatalf("expected 404, got %d", missing.StatusCode())
 	}
@@ -89,7 +89,7 @@ func TestControllerHelper(t *testing.T) {
 	routing.Controller(r, notes{}, func(rr routing.RouteRegistrar, c notes) {
 		rr.Get("/n", func(req *http.Request) *http.Response { return http.Text("ok") })
 	})
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/n", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/n", nil)))
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
 	}

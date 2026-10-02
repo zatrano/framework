@@ -10,11 +10,14 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel/trustedproxy"
 )
 
+func reqFromStd(raw *stdhttp.Request) *http.Request {
+	return http.RequestFromHTTP(raw)
+}
 func TestResolveIgnoresForwardedWhenUntrusted(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "203.0.113.10:1234"
 	raw.Header.Set("X-Forwarded-For", "198.51.100.1")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 
 	ip := trustedproxy.Resolve(req, false, nil)
 	if ip != "203.0.113.10" {
@@ -22,12 +25,14 @@ func TestResolveIgnoresForwardedWhenUntrusted(t *testing.T) {
 	}
 }
 
+
+
 func TestResolveUsesRightmostClientWhenProxyAppends(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	// Attacker prepends 10.0.0.1; trusted proxy appends the real client.
 	raw.Header.Set("X-Forwarded-For", "10.0.0.1, 198.51.100.7")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 
 	_, n, err := net.ParseCIDR("192.0.2.1/32")
 	if err != nil {
@@ -39,17 +44,21 @@ func TestResolveUsesRightmostClientWhenProxyAppends(t *testing.T) {
 	}
 }
 
+
+
 func TestResolveTrustsForwardedWhenTrusted(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "127.0.0.1:1234"
 	raw.Header.Set("X-Forwarded-For", "198.51.100.1")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 
 	ip := trustedproxy.Resolve(req, true, nil)
 	if ip != "198.51.100.1" {
 		t.Fatalf("got %q", ip)
 	}
 }
+
+
 
 func TestParseStarAcceptedPolicyRejectsProduction(t *testing.T) {
 	cfg, err := trustedproxy.Parse("*")
@@ -67,11 +76,15 @@ func TestParseStarAcceptedPolicyRejectsProduction(t *testing.T) {
 	}
 }
 
+
+
 func TestParseMalformedFails(t *testing.T) {
 	if _, err := trustedproxy.Parse("not-a-proxy"); err == nil {
 		t.Fatal("malformed entry was accepted")
 	}
 }
+
+
 
 func TestFromEnvProductionStarFailsEvenWithAllowFlag(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "*")
@@ -80,6 +93,8 @@ func TestFromEnvProductionStarFailsEvenWithAllowFlag(t *testing.T) {
 		t.Fatal("production FromEnv accepted TRUSTED_PROXIES=*")
 	}
 }
+
+
 
 func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "*")
@@ -93,7 +108,7 @@ func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	raw.Host = "localhost"
 	raw.Header.Set("X-Forwarded-Proto", "https")
 	raw.Header.Set("X-Forwarded-Host", "app.example.test")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 
 	handler := mw(func(r *http.Request) *http.Response {
 		if !r.Secure() || r.Host() != "app.example.test" {
@@ -103,6 +118,8 @@ func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	})
 	_ = handler(req)
 }
+
+
 
 func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "192.0.2.1")
@@ -114,7 +131,7 @@ func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	raw.Header.Set("X-Forwarded-For", "198.51.100.7")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 	handler := mw(func(r *http.Request) *http.Response {
 		if r.IP() != "198.51.100.7" {
 			t.Fatalf("got %q", r.IP())
@@ -123,6 +140,8 @@ func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	})
 	_ = handler(req)
 }
+
+
 
 func TestFromEnvProductionEmptyDoesNotTrustXFF(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "")
@@ -134,7 +153,7 @@ func TestFromEnvProductionEmptyDoesNotTrustXFF(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "203.0.113.10:1234"
 	raw.Header.Set("X-Forwarded-For", "198.51.100.1")
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 	handler := mw(func(r *http.Request) *http.Response {
 		if r.IP() != "203.0.113.10" {
 			t.Fatalf("empty TRUSTED_PROXIES trusted XFF: got %q", r.IP())
@@ -143,6 +162,8 @@ func TestFromEnvProductionEmptyDoesNotTrustXFF(t *testing.T) {
 	})
 	_ = handler(req)
 }
+
+
 
 func TestFromEnvProductionMixedStarFails(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "192.0.2.1, *")
@@ -160,21 +181,25 @@ func cidr(t *testing.T, s string) *net.IPNet {
 	return n
 }
 
+
+
 func TestResolveSingleTrustedProxy(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	raw.Header.Set("X-Forwarded-For", "198.51.100.7")
-	ip := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
+	ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
 	if ip != "198.51.100.7" {
 		t.Fatalf("got %q", ip)
 	}
 }
 
+
+
 func TestResolveMultipleTrustedHops(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.2:443"
 	raw.Header.Set("X-Forwarded-For", "10.0.0.1, 198.51.100.7, 192.0.2.1")
-	ip := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{
+	ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{
 		cidr(t, "192.0.2.1/32"),
 		cidr(t, "192.0.2.2/32"),
 	})
@@ -183,31 +208,37 @@ func TestResolveMultipleTrustedHops(t *testing.T) {
 	}
 }
 
+
+
 func TestResolveHopOverflowPrepend(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	raw.Header.Set("X-Forwarded-For", "10.0.0.1, 10.0.0.2, 10.0.0.3, 10.0.0.4, 198.51.100.7")
-	ip := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
+	ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
 	if ip != "198.51.100.7" {
 		t.Fatalf("got %q", ip)
 	}
 }
+
+
 
 func TestResolveMalformedXFF(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	raw.Header.Set("X-Forwarded-For", "not-an-ip, unknown, 198.51.100.7")
-	ip := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
+	ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
 	if ip != "198.51.100.7" {
 		t.Fatalf("got %q", ip)
 	}
 
 	raw.Header.Set("X-Forwarded-For", "garbage")
-	ip = trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
+	ip = trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
 	if ip != "192.0.2.1" {
 		t.Fatalf("malformed-only XFF got %q", ip)
 	}
 }
+
+
 
 func TestAllowIPNotBypassedByPrependedXFF(t *testing.T) {
 	h := trustedproxy.Middleware("192.0.2.1")(middleware.AllowIP("10.0.0.1")(func(req *http.Request) *http.Response {
@@ -216,11 +247,13 @@ func TestAllowIPNotBypassedByPrependedXFF(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
 	raw.Header.Set("X-Forwarded-For", "10.0.0.1, 203.0.113.50")
-	resp := h(http.NewRequest(raw))
+	resp := h(reqFromStd(raw))
 	if resp.StatusCode() != 403 {
 		t.Fatalf("AllowIP bypassed via XFF prepend: status=%d", resp.StatusCode())
 	}
 }
+
+
 
 func TestRemoteAddrIPv6AndNil(t *testing.T) {
 	if trustedproxy.RemoteAddr(nil) != "" {
@@ -228,12 +261,12 @@ func TestRemoteAddrIPv6AndNil(t *testing.T) {
 	}
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "[2001:db8::1]:443"
-	req := http.NewRequest(raw)
+	req := reqFromStd(raw)
 	if got := trustedproxy.RemoteAddr(req); got != "2001:db8::1" {
 		t.Fatalf("ipv6=%q", got)
 	}
 	raw.RemoteAddr = "203.0.113.9"
-	if got := trustedproxy.RemoteAddr(http.NewRequest(raw)); got != "203.0.113.9" {
+	if got := trustedproxy.RemoteAddr(reqFromStd(raw)); got != "203.0.113.9" {
 		t.Fatalf("no port=%q", got)
 	}
 	raw.Header.Set("X-Real-IP", "198.51.100.9")
@@ -242,7 +275,7 @@ func TestRemoteAddrIPv6AndNil(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := trustedproxy.Resolve(http.NewRequest(raw), false, []*net.IPNet{n}); got != "198.51.100.9" {
+	if got := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{n}); got != "198.51.100.9" {
 		t.Fatalf("x-real-ip=%q", got)
 	}
 	defer func() {

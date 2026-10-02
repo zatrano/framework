@@ -38,7 +38,7 @@ func (s *memSession) ID() string        { return "test" }
 
 func newCSRFRequest(method, target string) (*http.Request, *memSession) {
 	raw := httptest.NewRequest(method, target, nil)
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	if strings.HasPrefix(target, "https://") {
 		req.Set("_forwarded_proto", "https")
 	}
@@ -57,8 +57,8 @@ func TestCSRFValidTokenSameOrigin(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Origin", "https://app.example")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -71,8 +71,8 @@ func TestCSRFInvalidToken(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
-	req.Raw().Header.Set("X-CSRF-TOKEN", "wrong")
+	req.SetHeader("Origin", "https://app.example")
+	req.SetHeader("X-CSRF-TOKEN", "wrong")
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -85,7 +85,7 @@ func TestCSRFMissingToken(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
+	req.SetHeader("Origin", "https://app.example")
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -98,8 +98,8 @@ func TestCSRFOriginValidation(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Origin", "https://evil.example")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Origin", "https://evil.example")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("status=%d want 403 for cross-origin", resp.StatusCode())
@@ -115,8 +115,8 @@ func TestCSRFCrossSiteRequest(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Sec-Fetch-Site", "cross-site")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Sec-Fetch-Site", "cross-site")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -129,8 +129,8 @@ func TestCSRFSameSiteSecFetchAllowed(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Sec-Fetch-Site", "same-origin")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Sec-Fetch-Site", "same-origin")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -155,7 +155,7 @@ func TestCSRFPUTPATCHDELETERequireToken(t *testing.T) {
 	for _, method := range []string{stdhttp.MethodPut, stdhttp.MethodPatch, stdhttp.MethodDelete} {
 		req, _ := newCSRFRequest(method, "https://app.example/resource")
 		_ = seedToken(req)
-		req.Raw().Header.Set("Origin", "https://app.example")
+		req.SetHeader("Origin", "https://app.example")
 		resp := handler(req)
 		if resp.StatusCode() != 403 {
 			t.Fatalf("%s without token status=%d", method, resp.StatusCode())
@@ -169,8 +169,8 @@ func TestCSRFNullOriginBlocked(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Origin", "null")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Origin", "null")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -184,7 +184,7 @@ func TestCSRFNoOriginTokenOnly(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api")
 	token := seedToken(req)
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -297,7 +297,7 @@ func TestCSRFSkipAnonymousSeedWithSessionCookie(t *testing.T) {
 		return http.Text("ok")
 	})
 	req, sess := newCSRFRequest(stdhttp.MethodGet, "https://app.example/")
-	req.Raw().AddCookie(&stdhttp.Cookie{Name: DefaultSessionCookie, Value: "aabbccddeeff00112233445566778899"})
+	req.SetCookie(DefaultSessionCookie, "aabbccddeeff00112233445566778899")
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())
@@ -320,7 +320,7 @@ func postExcept(t *testing.T, target string) *http.Response {
 	t.Helper()
 	req, _ := newCSRFRequest(stdhttp.MethodPost, target)
 	_ = seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
+	req.SetHeader("Origin", "https://app.example")
 	return exceptAPI()(req)
 }
 
@@ -374,8 +374,8 @@ func TestCSRFSeesMethodOverrideDELETE(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
-	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
+	req.SetHeader("Origin", "https://app.example")
+	req.SetHeader("X-HTTP-Method-Override", "DELETE")
 	ApplyMethodOverride(req)
 	resp := handler(req)
 	if resp.StatusCode() != 403 {
@@ -386,8 +386,8 @@ func TestCSRFSeesMethodOverrideDELETE(t *testing.T) {
 func TestCSRFExceptAPIStillBypassesOverriddenDELETE(t *testing.T) {
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/api/users")
 	_ = seedToken(req)
-	req.Raw().Header.Set("Origin", "https://app.example")
-	req.Raw().Header.Set("X-HTTP-Method-Override", "DELETE")
+	req.SetHeader("Origin", "https://app.example")
+	req.SetHeader("X-HTTP-Method-Override", "DELETE")
 	ApplyMethodOverride(req)
 	resp := exceptAPI()(req)
 	if resp.StatusCode() != 200 {
@@ -404,16 +404,16 @@ func TestCSRFSetSessionCookieNameAndReferer(t *testing.T) {
 	})
 	req, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	token := seedToken(req)
-	req.Raw().Header.Set("Referer", "https://app.example/page")
-	req.Raw().Header.Set("X-CSRF-TOKEN", token)
+	req.SetHeader("Referer", "https://app.example/page")
+	req.SetHeader("X-CSRF-TOKEN", token)
 	resp := handler(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("referer same-origin status=%d", resp.StatusCode())
 	}
 	bad, _ := newCSRFRequest(stdhttp.MethodPost, "https://app.example/form")
 	_ = seedToken(bad)
-	bad.Raw().Header.Set("Referer", "https://evil.example/x")
-	bad.Raw().Header.Set("X-CSRF-TOKEN", CSRFToken(bad))
+	bad.SetHeader("Referer", "https://evil.example/x")
+	bad.SetHeader("X-CSRF-TOKEN", CSRFToken(bad))
 	if handler(bad).StatusCode() == 200 {
 		t.Fatal("cross-origin referer must fail")
 	}

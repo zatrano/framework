@@ -24,8 +24,8 @@ func EncryptCookies(encrypter *encryption.Encrypter, names ...string) routing.Mi
 	}
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
-			if encrypter != nil && req.Raw() != nil {
-				decryptRequestCookies(req.Raw(), encrypter, wanted)
+			if encrypter != nil && req != nil {
+				decryptRequestCookies(req, encrypter, wanted)
 			}
 			resp := next(req)
 			if resp == nil || encrypter == nil {
@@ -56,29 +56,22 @@ func EncryptCookies(encrypter *encryption.Encrypter, names ...string) routing.Mi
 	}
 }
 
-func decryptRequestCookies(raw *stdhttp.Request, encrypter *encryption.Encrypter, wanted map[string]bool) {
-	cookies := raw.Cookies()
+func decryptRequestCookies(req *http.Request, encrypter *encryption.Encrypter, wanted map[string]bool) {
+	cookies := req.CookieMap()
 	if len(cookies) == 0 {
 		return
 	}
-	var rebuilt []*stdhttp.Cookie
-	changed := false
-	for _, c := range cookies {
-		clone := *c
-		if (len(wanted) == 0 || wanted[c.Name]) && strings.HasPrefix(c.Value, encryptedPrefix) {
-			plain, err := encrypter.Decrypt(strings.TrimPrefix(c.Value, encryptedPrefix))
-			if err == nil {
-				clone.Value = plain
-				changed = true
-			}
+	for name, value := range cookies {
+		if len(wanted) > 0 && !wanted[name] {
+			continue
 		}
-		rebuilt = append(rebuilt, &clone)
-	}
-	if !changed {
-		return
-	}
-	raw.Header.Del("Cookie")
-	for _, c := range rebuilt {
-		raw.AddCookie(c)
+		if !strings.HasPrefix(value, encryptedPrefix) {
+			continue
+		}
+		plain, err := encrypter.Decrypt(strings.TrimPrefix(value, encryptedPrefix))
+		if err != nil {
+			continue
+		}
+		req.SetCookie(name, plain)
 	}
 }

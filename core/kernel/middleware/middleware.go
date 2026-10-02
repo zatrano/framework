@@ -69,7 +69,7 @@ func RecoverWith(debug bool) routing.MiddlewareFunc {
 // ForceJSON sets Accept to application/json.
 func ForceJSON(next routing.HandlerFunc) routing.HandlerFunc {
 	return func(req *http.Request) *http.Response {
-		req.Raw().Header.Set("Accept", "application/json")
+		req.SetHeader("Accept", "application/json")
 		return next(req)
 	}
 }

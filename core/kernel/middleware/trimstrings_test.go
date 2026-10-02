@@ -13,7 +13,7 @@ import (
 func TestTrimAndEmptyToNull(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", strings.NewReader("name=%20Ada%20&note=&keep=  x  "))
 	raw.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 
 	handler := middleware.TrimStrings()(middleware.ConvertEmptyStringsToNull("keep")(func(r *http.Request) *http.Response {
 		all := r.All()
@@ -34,7 +34,7 @@ func TestTrimAndEmptyToNull(t *testing.T) {
 func TestTrimAndEmptyToNullJSONHandlerUsesRawBody(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", strings.NewReader(`{"name":"  Ada  ","note":""}`))
 	raw.Header.Set("Content-Type", "application/json")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 
 	handler := middleware.TrimStrings()(middleware.ConvertEmptyStringsToNull("keep")(func(r *http.Request) *http.Response {
 		var dest map[string]string

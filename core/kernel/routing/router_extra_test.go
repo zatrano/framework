@@ -21,7 +21,7 @@ func TestCatchAllParamAndFallback(t *testing.T) {
 		return http.JSON(map[string]any{"fallback": true, "path": req.Path()}).Status(404)
 	})
 
-	nested := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs/digging-deeper/queues", nil)))
+	nested := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/docs/digging-deeper/queues", nil)))
 	if nested.StatusCode() != 200 {
 		t.Fatalf("status=%d body=%s", nested.StatusCode(), string(nested.Content()))
 	}
@@ -29,7 +29,7 @@ func TestCatchAllParamAndFallback(t *testing.T) {
 		t.Fatalf("body=%s", string(nested.Content()))
 	}
 
-	missing := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/nope", nil)))
+	missing := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/nope", nil)))
 	if missing.StatusCode() != 404 {
 		t.Fatalf("fallback missing=%d", missing.StatusCode())
 	}
@@ -51,7 +51,7 @@ func TestFrozenRouteComposesMiddlewareOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
-		resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/json", nil)))
+		resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/json", nil)))
 		if resp.StatusCode() != 200 {
 			t.Fatalf("status=%d", resp.StatusCode())
 		}
@@ -69,7 +69,7 @@ func TestRouterRedirectAndNamed(t *testing.T) {
 	r.RegisterName(r.Routes()[0])
 	r.Redirect("/go-home", "/home", 302)
 
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/go-home", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/go-home", nil)))
 	if !resp.IsRedirect() || resp.RedirectURL() != "/home" {
 		t.Fatalf("redirect=%v url=%q", resp.IsRedirect(), resp.RedirectURL())
 	}
@@ -118,11 +118,11 @@ func TestCatchAllEmptyAndRoot(t *testing.T) {
 	if err := r.Freeze(); err != nil {
 		t.Fatal(err)
 	}
-	missing := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs", nil)))
+	missing := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/docs", nil)))
 	if missing.StatusCode() == 200 {
 		t.Fatal("empty catch-all should not match /docs")
 	}
-	ok := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs/x", nil)))
+	ok := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/docs/x", nil)))
 	if ok.StatusCode() != 200 || string(ok.Content()) != "x" {
 		t.Fatalf("got status=%d body=%s", ok.StatusCode(), ok.Content())
 	}
@@ -156,11 +156,11 @@ func TestCompiledStaticBeatsParam(t *testing.T) {
 	if err := r.Freeze(); err != nil {
 		t.Fatal(err)
 	}
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
 	if string(resp.Content()) != "static" {
 		t.Fatalf("got %s", resp.Content())
 	}
-	param := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/42", nil)))
+	param := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users/42", nil)))
 	if string(param.Content()) != "param:42" {
 		t.Fatalf("got %s", param.Content())
 	}
@@ -181,19 +181,19 @@ func TestTrieParamAndCatchAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	meta := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/files/abc/meta", nil)))
+	meta := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/files/abc/meta", nil)))
 	if string(meta.Content()) != "meta:abc" {
 		t.Fatalf("meta=%s", meta.Content())
 	}
-	all := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/files/a/b", nil)))
+	all := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/files/a/b", nil)))
 	if string(all.Content()) != "all:a/b" {
 		t.Fatalf("all=%s", all.Content())
 	}
-	docs := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs", nil)))
+	docs := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/docs", nil)))
 	if string(docs.Content()) != "page:" {
 		t.Fatalf("docs empty optional=%s", docs.Content())
 	}
-	page := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/docs/intro", nil)))
+	page := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/docs/intro", nil)))
 	if string(page.Content()) != "page:intro" {
 		t.Fatalf("page=%s", page.Content())
 	}
@@ -207,7 +207,7 @@ func TestUnfrozenStillFirstMatchWins(t *testing.T) {
 	r.Get("/users/new", func(req *http.Request) *http.Response {
 		return http.Text("static")
 	})
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users/new", nil)))
 	if string(resp.Content()) != "param" {
 		t.Fatalf("unfrozen should keep registration order, got %s", resp.Content())
 	}
@@ -276,11 +276,11 @@ func TestGroupPanicRestoresPrefix(t *testing.T) {
 	if err := r.Freeze(); err != nil {
 		t.Fatal(err)
 	}
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/ok", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/ok", nil)))
 	if resp.StatusCode() != 200 {
 		t.Fatalf("group panic leaked prefix, status=%d", resp.StatusCode())
 	}
-	leaked := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/api/ok", nil)))
+	leaked := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/api/ok", nil)))
 	if leaked.StatusCode() == 200 {
 		t.Fatal("group prefix should have been restored")
 	}
@@ -353,7 +353,7 @@ func TestNamedRouteURLThenDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, path, nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, path, nil)))
 	if resp.StatusCode() != 200 || string(resp.Content()) != "9" {
 		t.Fatalf("status=%d body=%s", resp.StatusCode(), resp.Content())
 	}
@@ -423,7 +423,7 @@ func TestFrozenSnapshotAndCacheIgnoreLaterFieldWrites(t *testing.T) {
 	if items[0].Name != "users.show" || items[0].Path != "/users/{id}" {
 		t.Fatalf("cache=%#v", items)
 	}
-	req := http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/users/1", nil))
+	req := http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users/1", nil))
 	resp := r.Dispatch(req)
 	if resp.StatusCode() != 200 {
 		t.Fatalf("status=%d", resp.StatusCode())

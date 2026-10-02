@@ -25,7 +25,7 @@ func TestNegotiateMiddleware(t *testing.T) {
 
 	raw := httptest.NewRequest(stdhttp.MethodGet, "/item", nil)
 	raw.Header.Set("Accept", "text/html")
-	resp := r.Dispatch(http.NewRequest(raw))
+	resp := r.Dispatch(http.RequestFromHTTP(raw))
 	if resp.StatusCode() != 200 || string(resp.Content()) != http.FormatHTML {
 		t.Fatalf("status=%d body=%s", resp.StatusCode(), resp.Content())
 	}
@@ -45,21 +45,21 @@ func TestNegotiateMiddlewareFallbackAndUnsupported(t *testing.T) {
 	}
 
 	empty := httptest.NewRequest(stdhttp.MethodGet, "/item", nil)
-	resp := r.Dispatch(http.NewRequest(empty))
+	resp := r.Dispatch(http.RequestFromHTTP(empty))
 	if string(resp.Content()) != http.FormatJSON {
 		t.Fatalf("empty Accept fallback=%s", resp.Content())
 	}
 
 	xml := httptest.NewRequest(stdhttp.MethodGet, "/item", nil)
 	xml.Header.Set("Accept", "application/xml")
-	resp = r.Dispatch(http.NewRequest(xml))
+	resp = r.Dispatch(http.RequestFromHTTP(xml))
 	if string(resp.Content()) != http.FormatJSON {
 		t.Fatalf("unsupported fallback=%s", resp.Content())
 	}
 
 	ranked := httptest.NewRequest(stdhttp.MethodGet, "/item", nil)
 	ranked.Header.Set("Accept", "application/json;q=0.2, text/html")
-	resp = r.Dispatch(http.NewRequest(ranked))
+	resp = r.Dispatch(http.RequestFromHTTP(ranked))
 	if string(resp.Content()) != http.FormatHTML {
 		t.Fatalf("q-rank=%s", resp.Content())
 	}

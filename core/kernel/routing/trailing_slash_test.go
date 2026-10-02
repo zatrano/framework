@@ -15,12 +15,12 @@ func TestDispatchTrailingSlashNormalized(t *testing.T) {
 		return http.Text("ok:" + req.Path() + "?" + req.QueryString())
 	})
 
-	plain := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/dashboard", nil)))
+	plain := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/dashboard", nil)))
 	if plain == nil || plain.StatusCode() != 200 || string(plain.Content()) != "ok:/dashboard?" {
 		t.Fatalf("plain path: status=%v body=%q", plain.StatusCode(), plain.Content())
 	}
 
-	slash := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/dashboard/?tab=1", nil)))
+	slash := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/dashboard/?tab=1", nil)))
 	if slash == nil || slash.StatusCode() != 200 {
 		t.Fatalf("trailing slash should match, status=%v", slash.StatusCode())
 	}
@@ -34,7 +34,7 @@ func TestDispatchRootSlashUnchanged(t *testing.T) {
 	r.Get("/", func(req *http.Request) *http.Response {
 		return http.Text("home:" + req.Path())
 	})
-	resp := r.Dispatch(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
+	resp := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
 	if resp == nil || string(resp.Content()) != "home:/" {
 		t.Fatalf("root path broken: %v %q", resp.StatusCode(), resp.Content())
 	}

@@ -28,9 +28,9 @@ func requestHost(req *http.Request) string {
 	if req == nil {
 		return ""
 	}
-	host := req.Header("Host")
-	if host == "" && req.Raw() != nil {
-		host = req.Raw().Host
+	host := req.Host()
+	if host == "" {
+		host = req.Header("Host")
 	}
 	host = strings.ToLower(strings.TrimSpace(host))
 	if i := strings.Index(host, ":"); i >= 0 {

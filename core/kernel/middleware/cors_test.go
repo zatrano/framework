@@ -23,7 +23,7 @@ func TestCORSWithOrigin(t *testing.T) {
 
 	r := httptest.NewRequest(stdhttp.MethodGet, "/api/health", nil)
 	r.Header.Set("Origin", "https://app.example")
-	req := http.NewRequest(r)
+	req := http.RequestFromHTTP(r)
 	resp := handler(req)
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "https://app.example" {
 		t.Fatalf("origin=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
@@ -31,7 +31,7 @@ func TestCORSWithOrigin(t *testing.T) {
 
 	opt := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
 	opt.Header.Set("Origin", "https://app.example")
-	preflight := handler(http.NewRequest(opt))
+	preflight := handler(http.RequestFromHTTP(opt))
 	if preflight.StatusCode() != 204 {
 		t.Fatalf("status=%d", preflight.StatusCode())
 	}
@@ -42,7 +42,7 @@ func TestCORSWildcard(t *testing.T) {
 		return http.NoContent()
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "*" {
 		t.Fatal("expected *")
 	}
@@ -58,7 +58,7 @@ func TestCORSCredentialsNotWithWildcard(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://evil.example")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatalf("origin=%q — wildcard must be dropped when credentials enabled", resp.Headers().Get("Access-Control-Allow-Origin"))
 	}
@@ -77,7 +77,7 @@ func TestCORSWildcardCredentials(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://app.example")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "https://app.example" {
 		t.Fatalf("origin=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
 	}
@@ -87,7 +87,7 @@ func TestCORSWildcardCredentials(t *testing.T) {
 
 	bad := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	bad.Header.Set("Origin", "https://evil.example")
-	resp2 := handler(http.NewRequest(bad))
+	resp2 := handler(http.RequestFromHTTP(bad))
 	if resp2.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("unknown origin must not be reflected")
 	}
@@ -101,7 +101,7 @@ func TestCORSProductionNoWildcardDefault(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://evil.example")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("production must not allow wildcard CORS")
 	}
@@ -110,7 +110,7 @@ func TestCORSProductionNoWildcardDefault(t *testing.T) {
 	handler = mw(func(req *http.Request) *http.Response {
 		return http.NoContent()
 	})
-	resp = handler(http.NewRequest(r))
+	resp = handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("production must sanitize explicit wildcard")
 	}
@@ -124,7 +124,7 @@ func TestCORSFromEnvStagingNoImplicitWildcard(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://app.example")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") == "*" {
 		t.Fatal("staging must not default CORS to *")
 	}
@@ -140,7 +140,7 @@ func TestCORSFromEnvUsesSnapshotNotProcessEnv(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "https://evil.example")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") == "*" {
 		t.Fatal("CORS production snapshot must ignore later APP_ENV")
 	}
@@ -155,7 +155,7 @@ func TestCORSNullOrigin(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.Header.Set("Origin", "null")
-	resp := handler(http.NewRequest(r))
+	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("null Origin must not match")
 	}
@@ -168,7 +168,7 @@ func TestStackLoggerForceJSONDomainMethodOverride(t *testing.T) {
 	h := middleware.Stack(inner, middleware.ForceJSON, middleware.Logger, middleware.MethodOverride)
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", nil)
 	raw.Header.Set("X-HTTP-Method-Override", "PUT")
-	resp := h(http.NewRequest(raw))
+	resp := h(http.RequestFromHTTP(raw))
 	if !strings.Contains(string(resp.Content()), "application/json") || !strings.Contains(string(resp.Content()), "PUT") {
 		t.Fatalf("body=%s", resp.Content())
 	}
@@ -177,23 +177,23 @@ func TestStackLoggerForceJSONDomainMethodOverride(t *testing.T) {
 	})
 	good := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	good.Host = "example.com"
-	if ok(http.NewRequest(good)).StatusCode() != 200 {
+	if ok(http.RequestFromHTTP(good)).StatusCode() != 200 {
 		t.Fatal("exact host")
 	}
 	sub := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	sub.Host = "api.app.test:443"
-	if ok(http.NewRequest(sub)).StatusCode() != 200 {
+	if ok(http.RequestFromHTTP(sub)).StatusCode() != 200 {
 		t.Fatal("wildcard host")
 	}
 	bad := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	bad.Host = "evil.test"
-	if ok(http.NewRequest(bad)).StatusCode() != 404 {
+	if ok(http.RequestFromHTTP(bad)).StatusCode() != 404 {
 		t.Fatal("rejected host")
 	}
 	passthrough := middleware.Domain()(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})
-	if passthrough(http.NewRequest(good)).StatusCode() != 200 {
+	if passthrough(http.RequestFromHTTP(good)).StatusCode() != 200 {
 		t.Fatal("empty domain list")
 	}
 }

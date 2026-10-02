@@ -17,13 +17,13 @@ func TestAllowIP(t *testing.T) {
 
 	okReq := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	okReq.RemoteAddr = "127.0.0.1:1234"
-	if handler(http.NewRequest(okReq)).StatusCode() != 200 {
+	if handler(http.RequestFromHTTP(okReq)).StatusCode() != 200 {
 		t.Fatal("expected allow")
 	}
 
 	denyReq := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	denyReq.RemoteAddr = "8.8.8.8:1234"
-	if handler(http.NewRequest(denyReq)).StatusCode() != 403 {
+	if handler(http.RequestFromHTTP(denyReq)).StatusCode() != 403 {
 		t.Fatal("expected deny")
 	}
 }
@@ -35,7 +35,7 @@ func TestDenyIP(t *testing.T) {
 	})
 	r := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	r.RemoteAddr = "192.168.1.10:9"
-	if handler(http.NewRequest(r)).StatusCode() != 403 {
+	if handler(http.RequestFromHTTP(r)).StatusCode() != 403 {
 		t.Fatal("expected deny")
 	}
 }

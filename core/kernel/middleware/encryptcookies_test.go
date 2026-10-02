@@ -55,7 +55,7 @@ func TestEncryptCookies(t *testing.T) {
 	})
 
 	raw := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	resp := handler(req)
 	if resp == nil || len(resp.Cookies()) == 0 {
 		t.Fatal("expected cookie")
@@ -72,7 +72,7 @@ func TestEncryptCookies(t *testing.T) {
 		seen = req.Cookie("secret")
 		return http.Text("ok")
 	})
-	_ = handler2(http.NewRequest(raw2))
+	_ = handler2(http.RequestFromHTTP(raw2))
 	if seen != "plain-value" {
 		t.Fatalf("decrypted=%q", seen)
 	}
@@ -87,7 +87,7 @@ func TestEncryptCookiesDropsPlaintextOnEncryptError(t *testing.T) {
 	mw := middleware.EncryptCookies(enc, "secret")
 	resp := mw(func(req *http.Request) *http.Response {
 		return http.Text("ok").WithCookie(&stdhttp.Cookie{Name: "secret", Value: "plain-secret", Path: "/"})
-	})(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
+	})(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
 
 	c := cookieByName(resp.Cookies(), "secret")
 	if c != nil && c.Value == "plain-secret" {
@@ -110,7 +110,7 @@ func TestEncryptCookiesPartialEncryptFailureKeepsSuccess(t *testing.T) {
 			WithCookie(&stdhttp.Cookie{Name: "a", Value: "va", Path: "/"}).
 			WithCookie(&stdhttp.Cookie{Name: "b", Value: "vb", Path: "/"}).
 			WithCookie(&stdhttp.Cookie{Name: "c", Value: "vc", Path: "/"})
-	})(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
+	})(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
 
 	a := cookieByName(resp.Cookies(), "a")
 	b := cookieByName(resp.Cookies(), "b")
@@ -138,7 +138,7 @@ func TestEncryptCookiesDecryptFailureKeepsCiphertext(t *testing.T) {
 	mw(func(req *http.Request) *http.Response {
 		seen = req.Cookie("secret")
 		return http.Text("ok")
-	})(http.NewRequest(raw))
+	})(http.RequestFromHTTP(raw))
 	if seen != "ZATRANO:not-valid-ciphertext" {
 		t.Fatalf("decrypt failure must leave ciphertext, got %q", seen)
 	}
@@ -152,7 +152,7 @@ func TestEncryptCookiesEmptyValueStillEncrypts(t *testing.T) {
 	mw := middleware.EncryptCookies(enc, "secret")
 	resp := mw(func(req *http.Request) *http.Response {
 		return http.Text("ok").WithCookie(&stdhttp.Cookie{Name: "secret", Value: "", Path: "/"})
-	})(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
+	})(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
 	c := cookieByName(resp.Cookies(), "secret")
 	if c == nil || !strings.HasPrefix(c.Value, "ZATRANO:") {
 		t.Fatalf("empty value cookie=%+v", c)
@@ -169,7 +169,7 @@ func TestEncryptCookiesLeavesUnlistedCookies(t *testing.T) {
 		return http.Text("ok").
 			WithCookie(&stdhttp.Cookie{Name: "secret", Value: "plain", Path: "/"}).
 			WithCookie(&stdhttp.Cookie{Name: "theme", Value: "dark", Path: "/"})
-	})(http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
+	})(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/", nil)))
 	theme := cookieByName(resp.Cookies(), "theme")
 	if theme == nil || theme.Value != "dark" {
 		t.Fatalf("unlisted cookie mutated: %+v", theme)

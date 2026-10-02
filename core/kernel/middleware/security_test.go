@@ -13,7 +13,7 @@ func TestSecurityHeaders(t *testing.T) {
 	handler := middleware.SecurityHeaders(func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"ok": true})
 	})
-	resp := handler(http.NewRequest(httptest.NewRequest("GET", "/api/health", nil)))
+	resp := handler(http.RequestFromHTTP(httptest.NewRequest("GET", "/api/health", nil)))
 	if resp.Headers().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatal("missing nosniff")
 	}
@@ -27,7 +27,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 func TestSecurityHeadersHSTSOnlyOnHTTPS(t *testing.T) {
 	h := middleware.SecurityHeadersWith(middleware.SecurityHeaderConfig{EnableHSTSOnHTTPS: true})
-	httpReq := http.NewRequest(httptest.NewRequest("GET", "http://app.example/", nil))
+	httpReq := http.RequestFromHTTP(httptest.NewRequest("GET", "http://app.example/", nil))
 	httpResp := h(func(req *http.Request) *http.Response {
 		return http.Text("ok")
 	})(httpReq)
@@ -39,7 +39,7 @@ func TestSecurityHeadersHSTSOnlyOnHTTPS(t *testing.T) {
 	raw.TLS = &tls.ConnectionState{}
 	httpsResp := h(func(req *http.Request) *http.Response {
 		return http.Text("ok")
-	})(http.NewRequest(raw))
+	})(http.RequestFromHTTP(raw))
 	if httpsResp.Headers().Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Fatalf("HSTS=%q", httpsResp.Headers().Get("Strict-Transport-Security"))
 	}
@@ -47,7 +47,7 @@ func TestSecurityHeadersHSTSOnlyOnHTTPS(t *testing.T) {
 
 func TestSecurityHeadersHSTSUsesTrustedForwardedProto(t *testing.T) {
 	h := middleware.SecurityHeadersWith(middleware.SecurityHeaderConfig{EnableHSTSOnHTTPS: true})
-	req := http.NewRequest(httptest.NewRequest("GET", "http://app.example/", nil))
+	req := http.RequestFromHTTP(httptest.NewRequest("GET", "http://app.example/", nil))
 	req.Set("_forwarded_proto", "https")
 	resp := h(func(r *http.Request) *http.Response {
 		return http.Text("ok")

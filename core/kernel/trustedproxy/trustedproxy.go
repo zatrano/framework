@@ -145,20 +145,10 @@ func Resolve(req *http.Request, trustAll bool, nets []*net.IPNet) string {
 
 // RemoteAddr returns the direct connection IP (ignores forwarding headers).
 func RemoteAddr(req *http.Request) string {
-	if req == nil || req.Raw() == nil {
+	if req == nil {
 		return ""
 	}
-	host := req.Raw().RemoteAddr
-	if idx := strings.LastIndex(host, ":"); idx != -1 {
-		// handle [ipv6]:port
-		if strings.HasPrefix(host, "[") {
-			if end := strings.Index(host, "]"); end != -1 {
-				return host[1:end]
-			}
-		}
-		return host[:idx]
-	}
-	return host
+	return req.RemoteIP()
 }
 
 func ipInNets(ip string, nets []*net.IPNet) bool {

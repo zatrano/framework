@@ -577,11 +577,11 @@ func compilePath(path string) ([]string, *regexp.Regexp) {
 // normalizeDispatchPath strips a trailing slash from the request path (except "/")
 // so /dashboard and /dashboard/ match the same route. Query string is untouched.
 func normalizeDispatchPath(req *http.Request) {
-	if req == nil || req.Raw() == nil || req.Raw().URL == nil {
+	if req == nil {
 		return
 	}
-	path := req.Raw().URL.Path
+	path := req.Path()
 	if len(path) > 1 && strings.HasSuffix(path, "/") {
-		req.Raw().URL.Path = strings.TrimRight(path, "/")
+		req.SetPath(strings.TrimRight(path, "/"))
 	}
 }

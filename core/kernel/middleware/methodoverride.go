@@ -21,28 +21,24 @@ func allowedMethodOverride(method string) string {
 // application/x-www-form-urlencoded _method. JSON, multipart, and query
 // are not override sources. A present override header never reads the body.
 func ApplyMethodOverride(req *http.Request) {
-	if req == nil || req.Raw() == nil {
+	if req == nil {
 		return
 	}
-	raw := req.Raw()
-	if !strings.EqualFold(raw.Method, "POST") {
+	if !strings.EqualFold(req.Method(), "POST") {
 		return
 	}
-	if header := strings.TrimSpace(raw.Header.Get("X-HTTP-Method-Override")); header != "" {
+	if header := strings.TrimSpace(req.Header("X-HTTP-Method-Override")); header != "" {
 		if override := allowedMethodOverride(header); override != "" {
-			raw.Method = override
+			req.SetMethod(override)
 		}
 		return
 	}
-	media, _, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
+	media, _, err := mime.ParseMediaType(req.Header("Content-Type"))
 	if err != nil || !strings.EqualFold(media, "application/x-www-form-urlencoded") {
 		return
 	}
-	if err := raw.ParseForm(); err != nil {
-		return
-	}
-	if override := allowedMethodOverride(raw.PostForm.Get("_method")); override != "" {
-		raw.Method = override
+	if override := allowedMethodOverride(req.PostForm("_method")); override != "" {
+		req.SetMethod(override)
 	}
 }
 

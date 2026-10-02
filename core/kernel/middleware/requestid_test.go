@@ -13,7 +13,7 @@ func TestRecoverHidesPanicInProduction(t *testing.T) {
 	h := middleware.Recover(func(req *http.Request) *http.Response {
 		panic("database password hunter2")
 	})
-	resp := h(http.NewRequest(httptest.NewRequest("GET", "/", nil)))
+	resp := h(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
 	if resp.StatusCode() != 500 {
 		t.Fatalf("status=%d", resp.StatusCode())
 	}
@@ -27,7 +27,7 @@ func TestRecoverDebugIncludesPanic(t *testing.T) {
 	h := middleware.RecoverDebug(func(req *http.Request) *http.Response {
 		panic("visible")
 	})
-	resp := h(http.NewRequest(httptest.NewRequest("GET", "/", nil)))
+	resp := h(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
 	if !strings.Contains(string(resp.Content()), "visible") {
 		t.Fatalf("body=%s", resp.Content())
 	}
@@ -40,7 +40,7 @@ func TestRequestIDPropagatesIncoming(t *testing.T) {
 	})
 	raw := httptest.NewRequest("GET", "/", nil)
 	raw.Header.Set("X-Request-ID", "abc-123")
-	resp := h(http.NewRequest(raw))
+	resp := h(http.RequestFromHTTP(raw))
 	if string(resp.Content()) != "abc-123" {
 		t.Fatalf("id=%s", resp.Content())
 	}
@@ -56,7 +56,7 @@ func TestRequestIDRejectsGarbageAndGenerates(t *testing.T) {
 	})
 	raw := httptest.NewRequest("GET", "/", nil)
 	raw.Header.Set("X-Request-ID", "not a valid id because spaces")
-	resp := h(http.NewRequest(raw))
+	resp := h(http.RequestFromHTTP(raw))
 	id := string(resp.Content())
 	if id == "" || strings.Contains(id, " ") {
 		t.Fatalf("id=%q", id)
@@ -73,7 +73,7 @@ func TestRequestIDFromTraceparent(t *testing.T) {
 	})
 	raw := httptest.NewRequest("GET", "/", nil)
 	raw.Header.Set("Traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
-	resp := h(http.NewRequest(raw))
+	resp := h(http.RequestFromHTTP(raw))
 	if string(resp.Content()) != "0af7651916cd43dd8448eb211c80319c" {
 		t.Fatalf("id=%s", resp.Content())
 	}

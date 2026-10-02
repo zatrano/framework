@@ -34,7 +34,7 @@ func applyPOST(t *testing.T, body io.Reader, contentType, header string) *http.R
 	if header != "" {
 		raw.Header.Set("X-HTTP-Method-Override", header)
 	}
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	return req
 }
@@ -69,7 +69,7 @@ func TestMethodOverrideHeaderBeatsForm(t *testing.T) {
 
 func TestMethodOverrideIgnoresQuery(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/?_method=DELETE", nil)
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPost {
 		t.Fatalf("query _method must be ignored: method=%q", req.Method())
@@ -101,7 +101,7 @@ func TestMethodOverrideIgnoresMultipart(t *testing.T) {
 func TestMethodOverrideGETHeaderIgnored(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.Header.Set("X-HTTP-Method-Override", "DELETE")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodGet {
 		t.Fatalf("method=%q", req.Method())
@@ -111,7 +111,7 @@ func TestMethodOverrideGETHeaderIgnored(t *testing.T) {
 func TestMethodOverridePUTHeaderIgnored(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodPut, "/", nil)
 	raw.Header.Set("X-HTTP-Method-Override", "DELETE")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPut {
 		t.Fatalf("method=%q", req.Method())
@@ -137,7 +137,7 @@ func TestMethodOverrideHeaderDoesNotReadBody(t *testing.T) {
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", body)
 	raw.Header.Set("Content-Type", "application/json")
 	raw.Header.Set("X-HTTP-Method-Override", "PATCH")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPatch {
 		t.Fatalf("method=%q", req.Method())
@@ -151,7 +151,7 @@ func TestMethodOverrideJSONDoesNotParseBody(t *testing.T) {
 	body := &countingBody{r: strings.NewReader(`{"_method":"DELETE"}`)}
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", body)
 	raw.Header.Set("Content-Type", "application/json")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPost {
 		t.Fatalf("method=%q", req.Method())
@@ -173,7 +173,7 @@ func TestMethodOverrideMultipartDoesNotParseBody(t *testing.T) {
 	body := &countingBody{r: bytes.NewReader(buf.Bytes())}
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", body)
 	raw.Header.Set("Content-Type", w.FormDataContentType())
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPost {
 		t.Fatalf("method=%q", req.Method())
@@ -187,7 +187,7 @@ func TestMethodOverrideUnsupportedContentTypeDoesNotParseBody(t *testing.T) {
 	body := &countingBody{r: strings.NewReader("_method=DELETE")}
 	raw := httptest.NewRequest(stdhttp.MethodPost, "/", body)
 	raw.Header.Set("Content-Type", "text/plain")
-	req := http.NewRequest(raw)
+	req := http.RequestFromHTTP(raw)
 	middleware.ApplyMethodOverride(req)
 	if req.Method() != stdhttp.MethodPost {
 		t.Fatalf("method=%q", req.Method())
