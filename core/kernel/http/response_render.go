@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	stdhttp "net/http"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -157,79 +155,14 @@ func Abort(status int, message ...string) *Response {
 	}
 }
 
-// WriteTo writes the response to a standard HTTP response writer.
+// WriteTo always rejects. The V3 server path is rawhttp Commit only
+// (Application.Handle → Response.Commit). Kept so call sites fail loud
+// instead of silently writing via net/http.ResponseWriter.
 func (r *Response) WriteTo(w stdhttp.ResponseWriter) error {
-	if r == nil {
-		w.WriteHeader(stdhttp.StatusNoContent)
-		return nil
-	}
-
-	for key, values := range r.Headers() {
-		for _, value := range values {
-			w.Header().Add(key, value)
-		}
-	}
-	for _, cookie := range r.cookies {
-		stdhttp.SetCookie(w, cookie)
-	}
-
-	if r.redirectURL != "" {
-		w.Header().Set("Location", r.redirectURL)
-		w.WriteHeader(r.StatusCode())
-		return nil
-	}
-
-	if r.hijack != nil {
+	if r != nil && r.hijack != nil {
 		return fmt.Errorf("http: Hijack requires rawhttp Commit (net/http ResponseWriter path unsupported)")
 	}
-
-	if r.filePath != "" {
-		info, err := os.Stat(r.filePath)
-		if err != nil {
-			stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
-			return err
-		}
-		if info.IsDir() {
-			stdhttp.Error(w, "cannot serve directory", stdhttp.StatusBadRequest)
-			return fmt.Errorf("cannot serve directory: %s", r.filePath)
-		}
-		if !r.publicFile && w.Header().Get("Content-Disposition") == "" {
-			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(r.filePath))
-		}
-		fileReq, err := stdhttp.NewRequest(stdhttp.MethodGet, "/"+filepath.Base(r.filePath), nil)
-		if err != nil {
-			raw, readErr := os.ReadFile(r.filePath)
-			if readErr != nil {
-				stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
-				return readErr
-			}
-			w.WriteHeader(r.StatusCode())
-			_, writeErr := w.Write(raw)
-			return writeErr
-		}
-		stdhttp.ServeFile(w, fileReq, r.filePath)
-		return nil
-	}
-
-	if r.contentType != "" {
-		w.Header().Set("Content-Type", r.contentType)
-	}
-
-	if r.stream != nil {
-		w.WriteHeader(r.StatusCode())
-		flusher, ok := w.(stdhttp.Flusher)
-		if !ok {
-			return fmt.Errorf("streaming is not supported")
-		}
-		return r.stream(w, flusher)
-	}
-
-	w.WriteHeader(r.StatusCode())
-	if len(r.content) > 0 {
-		_, err := w.Write(r.content)
-		return err
-	}
-	return nil
+	return fmt.Errorf("http: WriteTo is not supported; use Commit(*rawhttp.Ctx) / Application.Handle")
 }
 
 func (r *Response) IsSuccessful() bool {

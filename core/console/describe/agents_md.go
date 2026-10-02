@@ -37,8 +37,8 @@ ZATRANO applications are kernel consumers. There is one way:
 
 Route → Middleware → FormRequest (writes) → Controller → optional Service → orm.* / pkg.From(app) → View | JSON | Redirect
 
-- Web: kernel http.HTML by default; http.View after package:enable template. API: http.JSON.
-- Controllers: app/http/handlers/web (View/Redirect) and app/http/handlers/api (JSON). make:handler --api writes the api tree.
+- Web: Canvas SSR (http.Template) via enabled template / framework/v3/core/ssr. API: http.JSON.
+- Controllers: app/http/handlers/web (Template/Redirect) and app/http/handlers/api (JSON). make:handler --api writes the api tree.
 - Mutating HTTP uses validation.FormRequest (StoreRequest / UpdateRequest) and ValidateForm.
 - Services are optional (multi-write, transaction, reuse). Not UseCase, Action, DTO, or Entity layers.
 - Persistence: orm.Query[T](). Repositories are optional concrete wrappers, not interfaces.

@@ -3,6 +3,7 @@ package doctor
 import (
 	"go/ast"
 	"go/token"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -95,6 +96,21 @@ func checkControllers(root string) ([]Finding, error) {
 					See:      archSee + " §G · ADR-0009",
 				})
 			}
+			kind := controllerDirKind(rel)
+			htmlSurface := kind != "" && kind != "api"
+			if htmlSurface && !scaffoldIsAPI(root) && (funcCallsHTTP(fn, imports, "HTML") || funcCallsHTTP(fn, imports, "View")) {
+				out = append(out, Finding{
+					Rule:     "APP-CTL-006",
+					Check:    "controllers",
+					Severity: "error",
+					File:     rel,
+					Line:     fset.Position(fn.Pos()).Line,
+					Found:    recv + "." + fn.Name.Name + " calls http.HTML/View in an HTML handler",
+					Why:      "Web/panel apps must render HTML through Canvas (http.Template), not raw http.HTML or removed http.View.",
+					How:      "Return http.Template(\"…\") and keep markup under templates/.",
+					See:      archSee + " §G",
+				})
+			}
 			if !authFile && (funcCallsHTTP(fn, imports, "View") || funcCallsHTTP(fn, imports, "Template")) && funcCallsHTTP(fn, imports, "JSON") {
 				out = append(out, Finding{
 					Rule:     "APP-CTL-003",
@@ -182,6 +198,20 @@ func controllerPathAllowed(rel string) bool {
 
 func controllerDirKind(rel string) string {
 	return dirs.HandlerKind(rel)
+}
+
+func scaffoldIsAPI(root string) bool {
+	body, err := os.ReadFile(filepath.Join(root, "bootstrap", "scaffold.go"))
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "ScaffoldName") && strings.Contains(trim, `"api"`) {
+			return true
+		}
+	}
+	return false
 }
 
 func isHTTPTypeName(name string) bool {

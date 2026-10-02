@@ -568,7 +568,7 @@ func (app *Application) stopLifecycleAll(ctx context.Context, started []contract
 func (app *Application) Handle(ctxAny any) {
 	ctx, ok := ctxAny.(*rawhttp.Ctx)
 	if !ok || ctx == nil {
-		return
+		panic(fmt.Sprintf("application.Handle: expected *rawhttp.Ctx, got %T (rawhttp is the only server carrier)", ctxAny))
 	}
 	defer app.recoverHandle(ctx)
 

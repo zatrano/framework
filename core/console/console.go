@@ -269,36 +269,17 @@ type handlerPresentationKind int
 const (
 	handlerJSON handlerPresentationKind = iota
 	handlerTemplate
-	handlerHTML
 )
 
 func handlerPresentation(app *kernel.Application, pkg string) handlerPresentationKind {
 	if pkg == "api" {
 		return handlerJSON
 	}
-	if consumerHasEnabledAddon(app, "template") || consumerHasEnabledAddon(app, "view") {
-		return handlerTemplate
-	}
 	if consumerScaffoldName(app) == "api" {
 		return handlerJSON
 	}
-	return handlerHTML
-}
-
-func consumerHasEnabledAddon(app *kernel.Application, name string) bool {
-	if app == nil {
-		return false
-	}
-	body, err := os.ReadFile(app.BasePath("bootstrap", "enabled.go"))
-	if err != nil {
-		return false
-	}
-	for _, n := range consolecore.ParseEnabledAddons(string(body)) {
-		if n == name {
-			return true
-		}
-	}
-	return false
+	// Web / app scaffold: Canvas Template is mandatory (no raw http.HTML).
+	return handlerTemplate
 }
 
 func consumerScaffoldName(app *kernel.Application) string {
@@ -351,6 +332,8 @@ func (c *%s) Index(req *Request) *Response {
 }
 `, pkg, name, name, view)
 	default:
+		// Unreachable: web always Template, api always JSON.
+		view := toSnake(strings.TrimSuffix(name, "Handler")) + ".index"
 		return fmt.Sprintf(`package %s
 
 import . "github.com/zatrano/framework/v3/core/kernel/http"
@@ -358,9 +341,9 @@ import . "github.com/zatrano/framework/v3/core/kernel/http"
 type %s struct{}
 
 func (c *%s) Index(req *Request) *Response {
-	return HTML("<h1>%s</h1>")
+	return Template(%q, map[string]any{})
 }
-`, pkg, name, name, name)
+`, pkg, name, name, view)
 	}
 }
 

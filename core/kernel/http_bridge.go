@@ -67,6 +67,14 @@ func finalizeHTTPBridge(app *Application, req *http.Request, resp *http.Response
 	}
 	bridge := app.httpBridgeCaptured
 	if bridge == nil {
+		// No SSR/session bridge: Template responses must not silently commit empty HTML.
+		if resp != nil && resp.TemplateName() != "" {
+			msg := "Canvas engine not bound (enable template / import framework/v3/core/ssr)"
+			if app.IsDebug() {
+				return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%s</pre>", msg)).Status(500)
+			}
+			return http.Abort(500, "Template rendering failed")
+		}
 		return resp
 	}
 	out := bridge.Finalize(req, resp)

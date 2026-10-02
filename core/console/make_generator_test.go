@@ -53,7 +53,7 @@ func TestMakeControllerAPIUsesJSON(t *testing.T) {
 	}
 }
 
-func TestMakeControllerEmptyUsesHTML(t *testing.T) {
+func TestMakeControllerWebUsesTemplateByDefault(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "bootstrap", "enabled.go"), "package bootstrap\nvar EnabledAddons = []string{\n}\n")
 	writeFile(t, filepath.Join(dir, "bootstrap", "scaffold.go"), "package bootstrap\nconst (\n\tScaffoldName      = \"empty\"\n)\n")
@@ -63,8 +63,8 @@ func TestMakeControllerEmptyUsesHTML(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := readFile(t, filepath.Join(dir, "app", "http", "handlers", "web", "post_handler.go"))
-	if !strings.Contains(body, "HTML(") || strings.Contains(body, "JSON(") || strings.Contains(body, "Template(") || strings.Contains(body, "View(") {
-		t.Fatalf("empty web controller must use HTML:\n%s", body)
+	if !strings.Contains(body, "Template(") || strings.Contains(body, "HTML(") || strings.Contains(body, "JSON(") {
+		t.Fatalf("web handler must use Template (Canvas mandatory):\n%s", body)
 	}
 }
 
@@ -114,8 +114,11 @@ func TestMakeTestIsKernelOnly(t *testing.T) {
 	if strings.Contains(text, "github.com/zatrano/packages") {
 		t.Fatalf("make:test must not import packages:\n%s", text)
 	}
-	if !strings.Contains(text, "net/http/httptest") || !strings.Contains(text, "bootstrap.App()") {
-		t.Fatalf("make:test must use kernel HTTP test helpers:\n%s", text)
+	if !strings.Contains(text, "ExchangeForTest") || !strings.Contains(text, "bootstrap.App()") {
+		t.Fatalf("make:test must use rawhttp ExchangeForTest harness:\n%s", text)
+	}
+	if strings.Contains(text, "ServeHTTP") || strings.Contains(text, "httptest") {
+		t.Fatalf("make:test must not use ServeHTTP/httptest:\n%s", text)
 	}
 }
 

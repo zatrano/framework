@@ -13,6 +13,7 @@ import (
 	"github.com/zatrano/framework/v3/core/console/describe"
 	"github.com/zatrano/framework/v3/core/console/generator"
 	"github.com/zatrano/framework/v3/core/kernel"
+	"github.com/zatrano/framework/v3/core/ssr"
 )
 
 const newHelp = `Create a new ZATRANO application
@@ -26,8 +27,8 @@ Layout:
   templates/  Canvas SSR templates
   database/   migrations, queries, sqlc, seeders
 
-Handlers live in app/http/handlers/{web,api}. Default enabled package: health.
-template, assets, localization, validation stay opt-in (package:enable).
+Handlers live in app/http/handlers/{web,api}. Default enabled: health + template (Canvas).
+assets, localization, validation stay opt-in (package:enable).
 `
 
 // NewCommand scaffolds a consumer application (zatrano new).
@@ -62,6 +63,9 @@ func (c *NewCommand) Handle(args []string) error {
 		return err
 	}
 	if err := ensureAppLayout(dest, replace); err != nil {
+		return err
+	}
+	if err := writeWebCanvasStarter(dest); err != nil {
 		return err
 	}
 	if c.writeAgents == nil {
@@ -116,6 +120,11 @@ func applyStarter(dest, module, replace, ver string) error {
 		ScaffoldVersion: scaffoldVer,
 		Substitutions:   subs,
 	})
+}
+
+// writeWebCanvasStarter writes Canvas starter templates (layouts + welcome).
+func writeWebCanvasStarter(dest string) error {
+	return ssr.WriteStarterTemplates(kernel.NewApplication(dest))
 }
 
 // ensureAppLayout creates V3 roots (core/, templates/, database/) and optionally

@@ -22,14 +22,19 @@ func (b *httpBridge) Finalize(reqAny any, respAny any) any {
 	return RenderTemplate(b.app, resp)
 }
 
-// RenderTemplate executes a template response when the engine is bound.
+// RenderTemplate executes a template response via the bound Canvas engine.
+// Missing engine with a TemplateName is fail-loud (no silent empty HTML).
 func RenderTemplate(app contracts.App, resp *http.Response) *http.Response {
 	if resp == nil || resp.TemplateName() == "" {
 		return resp
 	}
 	engine := From(app)
 	if engine == nil {
-		return resp
+		msg := "Canvas engine not bound (enable template / import framework/v3/core/ssr)"
+		if app != nil && app.IsDebug() {
+			return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%s</pre>", msg)).Status(500)
+		}
+		return http.Abort(500, "Template rendering failed")
 	}
 	data := resp.TemplateData()
 	if data == nil {
@@ -37,7 +42,7 @@ func RenderTemplate(app contracts.App, resp *http.Response) *http.Response {
 	}
 	html, err := engine.Render(resp.TemplateName(), data)
 	if err != nil {
-		if app.IsDebug() {
+		if app != nil && app.IsDebug() {
 			return http.HTML(fmt.Sprintf("<h1>Template Error</h1><pre>%v</pre>", err)).Status(500)
 		}
 		return http.Abort(500, "Template rendering failed")

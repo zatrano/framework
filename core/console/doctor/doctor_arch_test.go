@@ -246,6 +246,67 @@ func (c *PostHandler) Index(req *http.Request) *http.Response {
 	assertDoctorRule(t, root, "APP-CTL-004")
 }
 
+func TestDoctorWebHTMLFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "web", "home_handler.go"), `package web
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+type HomeHandler struct{}
+
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
+	return http.HTML("<h1>hi</h1>")
+}
+`)
+	assertDoctorRule(t, root, "APP-CTL-006")
+}
+
+func TestDoctorPanelHTMLFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "dashboard", "home_handler.go"), `package dashboard
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+type HomeHandler struct{}
+
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
+	return http.HTML("<h1>hi</h1>")
+}
+`)
+	assertDoctorRule(t, root, "APP-CTL-006")
+}
+
+func TestDoctorHTMLTemplateImportFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "services", "render.go"), `package services
+
+import "html/template"
+
+func Render() *template.Template { return nil }
+`)
+	assertDoctorRule(t, root, "APP-SSR-001")
+}
+
+func TestDoctorWebHTMLAllowedOnAPIScaffold(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("bootstrap", "scaffold.go"), `package bootstrap
+const (
+	ScaffoldName = "api"
+)
+`)
+	writeDoctorFile(t, root, filepath.Join("app", "http", "handlers", "web", "home_handler.go"), `package web
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+type HomeHandler struct{}
+
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
+	return http.HTML("<h1>hi</h1>")
+}
+`)
+	assertDoctorNoRule(t, root, "APP-CTL-006")
+}
+
 func TestDoctorAppRouterPutFails(t *testing.T) {
 	root := t.TempDir()
 	writeDoctorFile(t, root, filepath.Join("app", "providers", "routes.go"), `package providers

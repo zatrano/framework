@@ -215,3 +215,22 @@ func TestFinalizeNilReturnWithoutCommitUsesOriginal(t *testing.T) {
 		t.Fatalf("nil return: status=%d body=%q", er.Status, er.Body)
 	}
 }
+
+func TestTemplateWithoutBridgeFailsLoud(t *testing.T) {
+	app := kernel.NewApplication(t.TempDir())
+	t.Cleanup(func() { closeAppLog(t, app) })
+	app.Router().Get("/page", func(req *zhttp.Request) *zhttp.Response {
+		return zhttp.Template("web.welcome")
+	})
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	er := serveHandle(t, app, http.MethodGet, "/page", nil, "")
+	if er.Status != 500 {
+		t.Fatalf("status=%d body=%s", er.Status, er.Body)
+	}
+	body := string(er.Body)
+	if !strings.Contains(body, "Canvas engine not bound") && !strings.Contains(body, "Template rendering failed") {
+		t.Fatalf("body=%s", body)
+	}
+}

@@ -16,6 +16,7 @@ RUN apk add --no-cache ca-certificates tzdata \
 COPY --from=builder /out/app /app/app
 COPY .env.example /app/.env.example
 COPY public /app/public
+COPY templates /app/templates
 RUN mkdir -p /app/storage/framework/sessions \
              /app/storage/framework/cache \
              /app/storage/framework/schedule \

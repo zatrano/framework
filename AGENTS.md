@@ -22,7 +22,7 @@ Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatr
 3. There is **one canonical way**. If two approaches work, the standard already chose one. Do not preserve a second way.
 4. Repository evidence is authoritative. Do not copy another product's folders, layers, or habits. Follow this repository.
 5. Do not invent layers that generators and packages do not own: UseCase, Action, DTO, DomainService, Entity-as-DDD, ValueObject, Handler-instead-of-Controller.
-6. HTML fragment / partial-swap clients are **not** a ZATRANO API. Web rendering is `http.View` + the `view` package. Do not invent a fragment architecture.
+6. HTML fragment / partial-swap clients are **not** a ZATRANO API. Web rendering is Canvas via `http.Template` + `framework/v3/core/ssr` (enable name `template`). Do not invent a fragment architecture. API handlers use `http.JSON`.
 7. Framework must never import `github.com/zatrano/packages`.
 8. Enablement is **Enabled ∩ Imported**. Blank-import without enablement does not boot. Enablement without import does not boot.
 
@@ -61,7 +61,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 | Transactions | `orm.Transaction` inside an application service. Controllers do not start transactions. |
 | Services | `app/services` only when more than one model write, an explicit transaction, or reuse from HTTP and console/job. Size of the project is not a reason. |
 | Repositories | Optional thin wrappers. Do not invent interfaces for every model. |
-| Responses | Web: `http.View` / `Redirect`. API: `http.JSON`. Do not mix in one method. |
+| Responses | Web: `http.Template` (Canvas) / `Redirect`. API: `http.JSON`. Do not mix in one method. |
 | Packages | `pkg.From(app)`. Never `app.Auth()`. |
 | Tests | `tests/` + `packages/testing.TestCase` for HTTP. |
 

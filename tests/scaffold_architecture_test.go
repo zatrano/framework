@@ -58,21 +58,25 @@ func TestScaffoldBoundaries(t *testing.T) {
 	}
 }
 
-func TestStarterEnablementImportsHealthOnly(t *testing.T) {
+func TestStarterEnablementImportsHealthAndCanvasSSR(t *testing.T) {
 	root := filepath.Join(moduleRoot(t), "core", "console", "scaffold", "templates", "web")
 	addons, err := os.ReadFile(filepath.Join(root, "bootstrap", "addons.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(addons)
-	if !strings.Contains(text, `"github.com/zatrano/packages/health"`) {
-		t.Errorf("starter addons.go.tmpl must blank-import health")
+	for _, pkg := range []string{
+		`"github.com/zatrano/packages/health"`,
+		`"github.com/zatrano/framework/v3/core/ssr"`,
+	} {
+		if !strings.Contains(text, pkg) {
+			t.Errorf("starter addons.go.tmpl must blank-import %s", pkg)
+		}
 	}
 	for _, pkg := range []string{
 		`"github.com/zatrano/packages/assets"`,
 		`"github.com/zatrano/packages/localization"`,
 		`"github.com/zatrano/packages/validation"`,
-		`"github.com/zatrano/framework/v3/core/ssr"`,
 	} {
 		if strings.Contains(text, pkg) {
 			t.Errorf("starter addons.go.tmpl must not default-import %s", pkg)
@@ -99,8 +103,8 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	if strings.Contains(text, "COPY templates") {
-		t.Fatal("web Dockerfile must not copy opt-in templates")
+	if !strings.Contains(text, "COPY templates") {
+		t.Fatal("web Dockerfile must copy Canvas templates")
 	}
 	if strings.Contains(text, "COPY app/database") {
 		t.Fatal("web Dockerfile must not copy opt-in app/database")
@@ -148,10 +152,12 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(enabled)
-	if !strings.Contains(text, `"health"`) {
-		t.Fatalf("starter enablement missing health:\n%s", text)
+	for _, want := range []string{`"health"`, `"template"`} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("starter enablement missing %s:\n%s", want, text)
+		}
 	}
-	for _, deny := range []string{`"assets"`, `"localization"`, `"validation"`, `"template"`} {
+	for _, deny := range []string{`"assets"`, `"localization"`, `"validation"`} {
 		if strings.Contains(text, deny) {
 			t.Fatalf("starter must not default-enable %s:\n%s", deny, text)
 		}
@@ -160,11 +166,11 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(webHome), "http.HTML") {
-		t.Fatal("starter web home must be kernel HTML")
+	if !strings.Contains(string(webHome), `http.Template("web.welcome")`) {
+		t.Fatal("starter web home must use Canvas Template")
 	}
-	if strings.Contains(string(webHome), "http.View") {
-		t.Fatal("starter web home must not use View until package:enable template")
+	if strings.Contains(string(webHome), "http.HTML") {
+		t.Fatal("starter web home must not use raw http.HTML")
 	}
 	apiHome, err := os.ReadFile(filepath.Join(webRoot, "app", "http", "handlers", "api", "home_handler.go.tmpl"))
 	if err != nil {

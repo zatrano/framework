@@ -178,13 +178,13 @@ Bootstrap (synchronous; context per Decision E after increment E)
     router.Freeze + config.Freeze + container.Freeze
         ↓
 HTTP ready (Booted, not necessarily Running)
-  ServeHTTP dispatches; Start is optional
+  Application.Handle(*rawhttp.Ctx) dispatches; Start is optional
         ↓
 Start (synchronous; context per Decision E after increment E)
   LifecycleProvider.Start in provider-slice order
         ↓
 Run / serving
-  kernel.Application.Run → Start + http.Server + SIGINT/SIGTERM
+  kernel.Application.Run → Start + rawhttp.Server + SIGINT/SIGTERM
         ↓
 Stop (context)
   LifecycleProvider.Stop in reverse order of the list passed to stopLifecycle
@@ -201,7 +201,7 @@ Stopped (no restart)
 | Enablement | `RegisterEnablement` / `WithAddons` | `bootstrap/enablement.go`, `bootstrap/app.go` | `RegisterEnablement`, `WithAddons` | empty registered manifest = kernel-only; unknown WithAddons names **skipped** | n/a | process-global `enablement` | `enablementMu` |
 | Config | `bootstrapLocked` | `kernel/application.go` | `Config()`, env | production secrets fail Bootstrap | none today | `.env` on disk | serialized by `transitionMu` |
 | Register/Boot | `bootstrapLocked` loops `app.providers` | `kernel` + each `Provider` | `contracts.Provider` | first error → `lifeBootFailed`; **no retry**; **no rollback** of earlier `Register` | Decision E after increment E | provider side effects | serialized |
-| HTTP ready | `httpReady` | `kernel/application.go` | `ServeHTTP` | 503 until Booted (incl. after Stop) | request ctx only | router freeze | `lifeMu` |
+| HTTP ready | `httpReady` | `kernel/application.go` | `Handle` | 503 until Booted (incl. after Stop) | request ctx only | router freeze | `lifeMu` |
 | Start | `Application.Start` | `kernel/application.go` | `Start()` | Start error stops **successfully started** LPs only; returns to **Booted**; Decision C for Stop errors | Decision E after increment E; today failure cleanup 15s | provider list | `transitionMu` |
 | Run | `Application.Run` | `kernel/application.go` | `Run(addr)` | Listen error then Stop; signal → `server.Shutdown` + `Stop` | 15s timeout hardcoded | OS signals | HTTP goroutine + main |
 | Stop | `Application.Stop` | `kernel/application.go` | `Stop(ctx)` | no-op unless `lifeRunning`; reverse order; first Stop error kept; nil ctx → Background | **yes** | — | `transitionMu`; concurrent Stop once (`TestLifecycleConcurrentStopOnce`) |

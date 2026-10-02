@@ -72,6 +72,30 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 					How:      "Remove the httpclient import; use net/http.Client (or a small app helper).",
 				})
 			}
+			if path == "html/template" || path == "text/template" {
+				out = append(out, Finding{
+					Rule:     "APP-SSR-001",
+					Check:    "http-lifecycle",
+					Severity: "error",
+					File:     rel,
+					Line:     line,
+					Found:    "import " + path,
+					Why:      "App HTML must go through Canvas (http.Template + framework/v3/core/ssr), not std html/template.",
+					How:      "Put markup under templates/ and return http.Template(\"…\").",
+				})
+			}
+			if rivalHTTPServerImport(path) {
+				out = append(out, Finding{
+					Rule:     "APP-HTTP-005",
+					Check:    "http-lifecycle",
+					Severity: "error",
+					File:     rel,
+					Line:     line,
+					Found:    "import " + path,
+					Why:      "V3 server carrier is github.com/zatrano/rawhttp only; competing HTTP servers are forbidden in app code.",
+					How:      "Remove the import; listen via Application.Run / rawhttp at the kernel boundary only.",
+				})
+			}
 			if path == "github.com/zatrano/framework/v3/core/kernel/http" || strings.HasSuffix(path, "/core/kernel/http") {
 				hasKernelHTTP = true
 			}
@@ -123,6 +147,33 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 							Why:      "ServeHTTP is not part of the V3/rawhttp server path.",
 							How:      "Use Application.Handle at the kernel boundary only.",
 						})
+					} else {
+						// app.ServeHTTP / any *.ServeHTTP — removed V3 API
+						out = append(out, Finding{
+							Rule:     "APP-HTTP-002",
+							Check:    "http-lifecycle",
+							Severity: "error",
+							File:     rel,
+							Line:     line,
+							Found:    ".ServeHTTP(...)",
+							Why:      "ServeHTTP was removed; V3 serves via Application.Handle(*rawhttp.Ctx).",
+							How:      "Use kernelhttp.ExchangeForTest / packages/testing, or Application.Handle.",
+						})
+					}
+				}
+				if pkg, ok := sel.X.(*ast.Ident); ok && pkgAlias[pkg.Name] == "net/http" {
+					switch sel.Sel.Name {
+					case "ListenAndServe", "ListenAndServeTLS":
+						out = append(out, Finding{
+							Rule:     "APP-HTTP-005",
+							Check:    "http-lifecycle",
+							Severity: "error",
+							File:     rel,
+							Line:     line,
+							Found:    "net/http." + sel.Sel.Name,
+							Why:      "App code must not open an HTTP listener; kernel Run uses rawhttp.Server.",
+							How:      "Remove the call; use Application.Run / zatrano serve.",
+						})
 					}
 				}
 				if sel.Sel.Name == "Ctx" && len(x.Args) == 0 && hasKernelHTTP && inHandlers {
@@ -164,6 +215,26 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 		})
 	})
 	return out, err
+}
+
+func rivalHTTPServerImport(path string) bool {
+	switch path {
+	case "github.com/gin-gonic/gin",
+		"github.com/labstack/echo",
+		"github.com/labstack/echo/v4",
+		"github.com/go-chi/chi",
+		"github.com/go-chi/chi/v5",
+		"github.com/gofiber/fiber",
+		"github.com/gofiber/fiber/v2",
+		"github.com/valyala/fasthttp",
+		"github.com/gorilla/mux":
+		return true
+	}
+	return strings.HasPrefix(path, "github.com/gin-gonic/") ||
+		strings.HasPrefix(path, "github.com/labstack/echo") ||
+		strings.HasPrefix(path, "github.com/go-chi/") ||
+		strings.HasPrefix(path, "github.com/gofiber/") ||
+		strings.HasPrefix(path, "github.com/valyala/fasthttp")
 }
 
 func importLocalName(spec *ast.ImportSpec, path string) string {

@@ -155,7 +155,7 @@ packages    optional capabilities, package-owned make:*, stubs, config, .env fra
 examples    runnable reference applications — not templates
 ```
 
-`zatrano new myapp` generates one application with HTML at `/` and JSON at `/api`. Use `http.HTML` or `http.JSON` per controller; `make:handler` and `make:handler --api` pick the tree. `health` is enabled by default. `assets`, `localization`, `view`, `validation`, and other capabilities stay opt-in via `package:enable`. First-party templates are embedded in the CLI release; `zatrano new` does not fetch templates from the network.
+`zatrano new myapp` generates one application with Canvas HTML at `/` (`http.Template`) and JSON at `/api` (`http.JSON`). Web handlers must use Canvas; `make:handler` scaffolds `http.Template`, `make:handler --api` scaffolds JSON. Default enabled: `health` + `template` (`framework/v3/core/ssr`). `assets`, `localization`, `validation`, and other capabilities stay opt-in via `package:enable`. First-party starter templates are embedded in the CLI release; `zatrano new` does not fetch them from the network.
 
 ## Architecture
 
@@ -438,15 +438,15 @@ go run ./cmd/app package:doctor
 
 The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives.
 
-Generated web home (`app/http/handlers/web`) returns kernel HTML (`view` is opt-in):
+Generated web home (`app/http/handlers/web`) returns a Canvas template (mandatory on web scaffolds; raw `http.HTML` is doctor-forbidden there):
 
 ```go
 func (c *HomeHandler) Index(req *http.Request) *http.Response {
-    return http.HTML("<h1>__APP_NAME__</h1>")
+    return http.Template("web.welcome")
 }
 ```
 
-JSON is the same `*http.Response` type (API home and `/up` use it):
+JSON is the same `*http.Response` type (API home and `/up` use it; API scaffolds stay JSON-only):
 
 ```go
 return http.JSON(map[string]any{"ok": true})

@@ -68,11 +68,11 @@ func (c *MakeTestCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package tests
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/zatrano/framework/v3/core/bootstrap"
+	kernelhttp "github.com/zatrano/framework/v3/core/kernel/http"
+	"github.com/zatrano/rawhttp"
 )
 
 func Test%s(t *testing.T) {
@@ -82,11 +82,14 @@ func Test%s(t *testing.T) {
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/up", nil)
-	rec := httptest.NewRecorder()
-	app.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /up: status %%d", rec.Code)
+	er, err := kernelhttp.ExchangeForTest(func(ctx *rawhttp.Ctx) {
+		app.Handle(ctx)
+	}, "GET /up HTTP/1.1\r\nHost: localhost\r\n\r\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if er.Status != 200 {
+		t.Fatalf("GET /up: status %%d body=%%s", er.Status, er.Body)
 	}
 }
 `, name)
