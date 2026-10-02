@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>A small, typed, stable Go kernel with machine-readable contracts for humans and AI agents.</em>
+  <em>A small, typed Go application kernel. V3 carries HTTP on rawhttp and renders web pages with Canvas.</em>
 </p>
 
 <p align="center">
@@ -41,63 +41,35 @@
 
 ---
 
-## Benchmarks
+## V3
 
-Kernel `v2.8.1` under concurrent load — full HTTP request path: routing, the default kernel middleware stack (exception handling, trusted proxy, request ID, security headers, CORS, input normalization) and JSON responses.
+This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/requests-8M%2B-2ea44f?style=for-the-badge" alt="Total requests">
-  <img src="https://img.shields.io/badge/errors-0-2ea44f?style=for-the-badge" alt="Errors">
-  <img src="https://img.shields.io/badge/peak-50%2C362_RPS-3498db?style=for-the-badge" alt="Peak RPS">
-  <img src="https://img.shields.io/badge/max_connections-2%2C000_%C2%B7_0_errors-3498db?style=for-the-badge" alt="Max connections">
-  <img src="https://img.shields.io/badge/peak_RSS-13.5_MB-3498db?style=for-the-badge" alt="Peak memory">
-</p>
+| | |
+| --- | --- |
+| Current module tag | `v3.0.1` |
+| Release branch | `3.x` (development continues on `main`) |
+| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.2` |
+| HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.0`, wired at `framework/v3/core/ssr` |
+| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.14.0` |
 
-**Throughput by route** — 64 connections, median of 3 runs
+The kernel requires **rawhttp** and **canvas**. It does not import `github.com/zatrano/packages`. Web handlers return `http.Template`. API handlers return `http.JSON`. `routing.Version` mounts `/api/{version}`.
 
-| Route | RPS | p50 | p99 | CPU / request |
-|:---|---:|---:|---:|---:|
-| `GET /plaintext` | 48,921 | 1.50 ms | 18.89 ms | 14.5 µs |
-| `GET /json` | 49,881 | 1.46 ms | 19.48 ms | 14.3 µs |
-| `GET /users/{id}` (path param + JSON) | 49,221 | 1.49 ms | 19.98 ms | 14.6 µs |
-| `POST /echo` (JSON in, JSON out) | 43,544 | 1.69 ms | 33.90 ms | 16.9 µs |
+Older lines stay on their own branches:
 
-The kernel middleware stack (request ID, security headers, CORS, exception handling, trusted proxy) is always on in production, so every figure above includes it.
+| Branch | Line |
+| --- | --- |
+| `3.x` | V3. Current tag `v3.0.1` |
+| `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
+| `1.x` | V1. Tag `v1.6.6` |
 
-Compared to `v2.6.0` (same machine, same run): **+54%** on `/plaintext`, **+58%** on `/json`, **+62%** on `/users/{id}`, **+9%** on `POST /echo`, with `/json` p99 down from 86 ms to 19.5 ms.
-
-**Scaling with concurrency** (`GET /json`)
-
-| Connections | RPS | p50 | p99 | RSS | Errors |
-|:---:|---:|---:|---:|---:|:---:|
-| 16 | 44,221 | 0.26 ms | 4.93 ms | 13.0 MB | ✅ 0 |
-| 128 | 47,130 | 3.22 ms | 29.85 ms | 13.8 MB | ✅ 0 |
-| 512 | 46,165 | 13.24 ms | 88.27 ms | 26.1 MB | ✅ 0 |
-| 1,000 | 46,506 | 25.53 ms | 142.31 ms | 42.1 MB | ✅ 0 |
-| 2,000 | 42,112 | 55.46 ms | 283.60 ms | 74.9 MB | ✅ 0 |
-
-Zero errors (no non-2xx responses, no socket errors) at every level up to 2,000 connections. Throughput drops only about 5% going from 16 to 2,000 connections.
-
-**Resources and unloaded latency**
-
-| Metric | Value |
-|:---|---:|
-| Idle RSS | 7.5 MB |
-| Peak RSS under load | 13.5 MB |
-| Binary size (stripped) | 7.3 MB |
-| `GET /json` p50 / p99, 1 connection | 20 µs / 158 µs |
-
-Latency at 64+ connections is inflated by the load generator sharing the single core with the server: tail latency grows with CPU time per request. With one connection there is no queueing, which shows the request path itself.
-
-> Environment: 1 vCPU (Intel Xeon 2.1 GHz) / 4 GB RAM, Go 1.26.8, `wrk -t1` running on the same core as the server, ZATRANO in production mode with a `public/` directory present, each result the median of 3 runs of 10 s. Structural/relative measurements, not production capacity figures. Sessions, database, TLS and multi-core workloads are not part of this run. Full methodology and raw output: [releases](https://github.com/zatrano/framework/releases).
-
----
+Create applications with `zatrano new`. Do not clone this repository and treat it as your application.
 
 ## What is ZATRANO?
 
-ZATRANO is a **small, typed, stable kernel** plus opt-in packages. The kernel is HTTP, container, config, routing, lifecycle, and CLI. Packages bind with `From(app)` / `app.Make`. `contracts.App` does not grow package methods.
+ZATRANO is a **small, typed kernel** plus opt-in packages. The kernel is HTTP, container, config, routing, lifecycle, and CLI. Packages bind with `From(app)`. `contracts.App` does not grow package methods.
 
-The same surface is for people and for AI agents: frozen `contracts`, plus three machine-readable CLI tools.
+The same surface is for people and for AI agents:
 
 ```bash
 zatrano describe
@@ -106,12 +78,12 @@ zatrano agents:generate
 ```
 
 - `describe` prints the live catalog, routing primitives, and package inventory.
-- `doctor` checks the application (and this repository) against the frozen architecture rules.
-- `agents:generate` writes an application-root `AGENTS.md` from `describe` so agents read the same facts the CLI does.
+- `doctor` checks the application against the frozen architecture rules.
+- `agents:generate` writes an application-root `AGENTS.md` from `describe`.
 
-`ai`, `rag`, `agent`, and `workflow` are **experimental**: they have not completed the same security review as the rest of the ecosystem.
+`ai`, `rag`, `agent`, and `workflow` are **experimental**.
 
-You import what you run. The kernel has **zero third-party runtime dependencies**.
+You import what you run.
 
 ```text
                            ZATRANO
@@ -125,71 +97,74 @@ You import what you run. The kernel has **zero third-party runtime dependencies*
             ABI            foundation      capabilities
              │                │                │
              │        ┌───────┼───────┐        │
-             │        │       │       │        │
              │      HTTP   Router  Config     AI
-             │        │       │       │        │
-             │   Middleware Container …       RAG
-             │                                Agent
-             │                                Auth
+             │   Middleware Container         RAG
+             │      rawhttp   Canvas         Auth
              │                                Database
              │                                Queue
-             │                                …
              │
              └──────────── Application ────────────┘
                               │
                          bootstrap.App()
-                              │
                               ▼
                          Your application
 ```
 
-ZATRANO is not an application skeleton, and it is not a monolith where every capability is built into the core. The platform is modular by design.
-
-This repository (`github.com/zatrano/framework/v3`) is the **platform runtime**: kernel, contracts, bootstrap, CLI, generator engine, kernel `make:*` commands, and the embedded application starter. It is not intended to be cloned and used as your application. Create applications with `zatrano new`. Production-shaped consumers live in [`github.com/zatrano/examples`](https://github.com/zatrano/examples).
-
-ZATRANO is an application platform, not merely a web toolkit.
-
 ```text
-framework   runtime, contracts, CLI, generator engine, first-party scaffolds
-packages    optional capabilities, package-owned make:*, stubs, config, .env fragments
-examples    runnable reference applications — not templates
+framework   runtime, contracts, CLI, generator, Canvas SSR wiring
+packages    optional capabilities, package-owned make:*, stubs, config
+rawhttp     HTTP/1.1 carrier
+canvas      HTML template engine
 ```
 
-`zatrano new myapp` generates one application with Canvas HTML at `/` (`http.Template`) and JSON at `/api` (`http.JSON`). Web handlers must use Canvas; `make:handler` scaffolds `http.Template`, `make:handler --api` scaffolds JSON. Default enabled: `health` + `template` (`framework/v3/core/ssr`). `assets`, `localization`, `validation`, and other capabilities stay opt-in via `package:enable`. First-party starter templates are embedded in the CLI release; `zatrano new` does not fetch them from the network.
+`zatrano new myapp` generates one application: Canvas HTML at `/` (`http.Template`) and JSON at `/api` (`http.JSON`). Default enabled addons are `health` and `template` (`framework/v3/core/ssr`). `assets`, `localization`, `validation`, database, auth, and queue stay opt-in via `package:enable`.
+
+## Quick start
+
+Requires **Go 1.25+**.
+
+```bash
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.0.1
+zatrano new myapp
+cd myapp
+go mod tidy
+go run ./cmd/app key:generate
+go run ./cmd/app serve
+```
+
+Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
+
+Pin the modules in an existing `go.mod`:
+
+```bash
+go get github.com/zatrano/framework/v3@v3.0.1
+go get github.com/zatrano/packages@v1.14.0
+```
+
+These are the current stable public releases. The two modules version independently. There is no monolithic `zatrano@x.y.z` version.
+
+## Two modules
+
+| Module | Role |
+| --- | --- |
+| [`github.com/zatrano/framework/v3`](https://github.com/zatrano/framework) | Kernel, contracts, bootstrap, CLI, Canvas SSR wiring |
+| [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Optional services and libraries |
+
+Packages depend on this module. This module does not import packages.
+
+Nested modules (`db/*`, `mongo`, `webauthn`, `qr`) have their own tags. Root `packages@v1.14.0` does not require them.
 
 ## Architecture
 
-ZATRANO separates the stable runtime foundation from optional application capabilities.
-
 ### Kernel
 
-The kernel contains the primitives required to run an application:
-
-- Application lifecycle
-- HTTP request / response
-- Routing
-- Middleware
-- Dependency container
-- Configuration
-- Environment
-- Encryption
-- Cookies
-- Logging
-- Exceptions
-- Reports
-- Trusted proxies
-- Safe paths
-- Core support utilities
-
-The kernel does not depend on the packages module.
+`core/kernel` holds the primitives required to run an application: lifecycle, HTTP, routing, middleware, container, configuration, environment, encryption, cookies, logging, exceptions, reports, trusted proxies, and safe paths.
 
 ### Contracts
 
-`contracts` is ZATRANO's dependency-neutral public ABI. It contains stable interfaces such as `App`, `Provider`, `LifecycleProvider`, `Container`, `Router`, and the HTTP bridge.
+`core/contracts` is the dependency-neutral public ABI: `App`, `Provider`, `LifecycleProvider`, `Container`, `Router`, and the HTTP bridge. It does not import kernel implementation packages or the packages module.
 
-The contracts package does not import kernel implementation packages or the packages module. That keeps the ABI stable and prevents dependency cycles.
-
-Typed developer APIs live next to their implementations:
+Typed APIs live next to their implementations:
 
 ```go
 import (
@@ -200,9 +175,7 @@ import (
 r := routing.From(app)
 
 r.Get("/health", func(req *http.Request) *http.Response {
-    return http.JSON(map[string]any{
-        "ok": true,
-    })
+    return http.JSON(map[string]any{"ok": true})
 })
 
 routing.Version(r, "v1", func(api *routing.Router) {
@@ -210,85 +183,19 @@ routing.Version(r, "v1", func(api *routing.Router) {
 })
 ```
 
-`routing.Version` mounts `/api/{version}` and sets `X-API-Version`. There is no `packages/api`.
-
-The distinction is intentional:
-
-```text
-contracts
-    ↓
-stable, dependency-neutral ABI
-
-kernel/*
-    ↓
-strongly typed implementation
-
-From(app)
-    ↓
-typed developer facade
-```
+`routing.Version` mounts `/api/{version}` and sets `X-API-Version`.
 
 ### Packages
 
-Optional capabilities live in the separate [`github.com/zatrano/packages`](https://github.com/zatrano/packages) module.
+Optional capabilities live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages): session, validation, authentication, SQL (`db`), queues, notifications, scheduler, localization, cache, AI, RAG, agents, OAuth, social login, WebAuthn, backups, OpenAPI, GraphQL, and import-only libraries.
 
-Examples include sessions, validation, authentication, database, ORM, views, queues, notifications, scheduler, localization, cache, AI, RAG, agents, OAuth, social login, WebAuthn, backups, OpenAPI, GraphQL, database drivers, and other import-only libraries.
-
-Packages are enabled only when an application needs them.
-
-```text
-Kernel
-  │
-  ├── always available
-  │
-  └── no optional application services
-
-Packages
-  │
-  ├── session
-  ├── auth
-  ├── database
-  ├── queue
-  ├── notification
-  ├── ai
-  ├── rag
-  ├── agent
-  └── …
-```
-
-An application does not pay for capabilities it does not enable. Database, auth, queue, and similar packages stay off until `package:enable`.
-
-## Two modules
-
-| Module | Role |
-| --- | --- |
-| [`github.com/zatrano/framework/v3`](https://github.com/zatrano/framework) | Platform runtime: kernel, contracts, bootstrap, CLI |
-| [`github.com/zatrano/packages`](https://github.com/zatrano/packages) | Optional application services and libraries |
-
-The packages module depends on this module. This module does not import `github.com/zatrano/packages`.
-
-```text
-Application
-    │
-    ├── github.com/zatrano/framework/v3
-    │
-    └── selected packages
-             │
-             ▼
-        framework/contracts
-```
-
-There is no reverse dependency from the kernel into application capabilities.
+Database, auth, queue, and similar packages stay off until `package:enable`. Catalog: **[PACKAGES.md](PACKAGES.md)**.
 
 ## Application model
-
-Applications are created with:
 
 ```bash
 zatrano new myapp
 ```
-
-Generated applications contain application-specific structure. A typical tree looks like:
 
 ```text
 myapp/
@@ -297,148 +204,64 @@ myapp/
 │   ├── routes/
 │   └── providers/
 ├── bootstrap/
-│   ├── addons.go      # blank-imports (process registry)
+│   ├── addons.go      # blank-imports
 │   └── enabled.go     # enablement manifest
-├── cmd/
-│   └── app/
+├── cmd/app/
+├── templates/
 ├── public/
 ├── storage/
 ├── tests/
 └── go.mod
 ```
 
-Default `zatrano new` generates one application: HTML at `/`, JSON at `/api`, and `health` enabled. `assets`, `localization`, `view`, `validation`, database, auth, queue, and other capabilities stay opt-in.
-
-A framework upgrade does not regenerate application source (G-001). Generated apps record scaffold name, version, and digest in `bootstrap/scaffold.go` at `zatrano new` time only.
-
-## Quick start
-
-Requires **Golang 1.25+**.
-
-Create an application from the published modules:
-
-```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v2.8.1
-zatrano new myapp
-cd myapp
-go mod tidy
-go run ./cmd/app key:generate
-go run ./cmd/app serve
-```
-
-Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP_PORT` (8080).
-
-Use the modules in an existing `go.mod`:
-
-```bash
-go get github.com/zatrano/framework/v3@v3.0.1
-go get github.com/zatrano/packages@v1.14.0
-```
-
-These are the **current stable public releases**. The two modules version independently; later applications may pin newer compatible tags. There is no monolithic `zatrano@x.y.z` version.
-
-To generate against this checkout, clone **framework** and **packages** as siblings (CI does the same), then pass the **absolute** framework path to `--replace`. `.` is wrong when the app is a subdirectory: Go resolves replace paths relative to the new module.
-
-```bash
-git clone https://github.com/zatrano/framework.git
-git clone https://github.com/zatrano/packages.git
-cd framework
-
-go run ./cmd/zatrano new myapp --replace "$PWD"
-cd myapp
-go run ./cmd/app key:generate
-go run ./cmd/app serve
-```
-
-`zatrano new` does not accept `..` in the project name. Put the app next to this clone with an absolute destination, or create it as a subdirectory as above.
+A framework upgrade does not regenerate application source. `zatrano new` records the scaffold name, version, and digest in `bootstrap/scaffold.go`.
 
 ## Enabling packages
 
-Acquisition, import, and enablement are separate. `package:enable` does not acquire a module as a resolver, and `package:acquire` does not enable unless you pass `--enable`.
+Acquisition, import, and enablement are separate.
 
 ```text
-Acquire                 go get (package:acquire) — Go modules own resolution
+Acquire                 go get (package:acquire)
    ↓
 Imported                blank-import in the application
    ↓
 Enabled ∩ Imported      bootstrap.App() registers that intersection
    ↓
-Expand Requires         declared addon metadata only (not go get)
+Expand Requires         declared addon metadata only
    ↓
 Bootstrap               Provider.Register + Provider.Boot
 ```
 
-`bootstrap.App()` constructs the application and **registers** the intersection of the enablement list and imported packages (see `bootstrap/app.go`). It does not call `Application.Bootstrap()`:
-
-1. `App(WithAddons(names...))` → names ∩ imported
-2. else consumer `RegisterEnablement` (`bootstrap/enabled.go`) → Enabled ∩ imported
-3. else no manifest (legacy) → all imported
-
-A blank-import (or any import) only registers the package in the process. Generated apps also have `bootstrap/enabled.go`; a name that is imported but not listed there is not registered. `auth.From(app)` is nil unless `auth` is both imported and enabled. Providers run at `Bootstrap` (or the first `Start`/`Run`). Resolve services with `From(app)` — the kernel has no `app.Auth()` / `app.Queue()` / `app.AI()`.
-
-Prefer the CLI, which writes both sides:
+`bootstrap.App()` registers **Enabled ∩ Imported**. It does not call `Application.Bootstrap()`. A name that is imported but absent from `bootstrap/enabled.go` is not registered. `auth.From(app)` is nil unless `auth` is both imported and enabled. Resolve services with `From(app)`. The kernel has no `app.Auth()` / `app.Queue()` / `app.AI()`.
 
 ```bash
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.14.0` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
-
-To add a module that is not yet in `go.mod`, acquire first (enablement is separate; default acquire does not enable):
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.14.0` when that module is not yet required, and merges env keys into `.env.example`. Rebuild or restart after enablement.
 
 ```bash
 go run ./cmd/app package:acquire auth --enable
-```
-
-Manual equivalent:
-
-```go
-import (
-    _ "github.com/zatrano/packages/session"
-    _ "github.com/zatrano/packages/auth"
-    _ "github.com/zatrano/framework/v3/core/ssr"
-)
-```
-
-…and add those names to `EnabledAddons` in `bootstrap/enabled.go`.
-
-Resolve services with typed `From(app)` helpers — they are not methods on `App`:
-
-```go
-authService := auth.From(app)
-```
-
-Do not expect `app.Auth()`, `app.Database()`, or `app.AI()`. That would turn the central application object into a dependency-heavy service locator.
-
-```text
-Application
-    │
-    └── Container
-          │
-          ├── auth
-          ├── database
-          ├── session
-          ├── ai
-          └── …
-```
-
-Each package owns its typed developer API.
-
-### Package management
-
-```bash
 go run ./cmd/app package:list
-go run ./cmd/app package:enable auth
 go run ./cmd/app package:doctor
 ```
 
-`package:doctor` reports framework version, per-imported package state (`imported` / `enabled` / compatibility), and the transitive `Requires` closure. These are distinct states — there is no collapsed `"installed"` flag. Catalog: **[PACKAGES.md](PACKAGES.md)**. The package ecosystem is maintained separately from the kernel.
+`package:doctor` reports framework version, per-imported package state (`imported` / `enabled` / compatibility), and the transitive `Requires` closure.
+
+```text
+Acquire   = go get via package:acquire
+Enable    = enablement files + blank-imports (Requires closure)
+Boot      = Provider.Register + Provider.Boot for Enabled ∩ Imported
+Start     = LifecycleProvider.Start
+Stop      = LifecycleProvider.Stop
+Disable   = remove persistent enablement and that package’s blank-import
+```
+
+`package:enable` expands transitive `Requires` before writing files. `package:disable` refuses when a remaining enabled addon requires the target. Disable does not stop a running process and does not run `go mod tidy`. First-time wiring may `go get github.com/zatrano/packages@v1.14.0`. An existing packages requirement is left alone. Upgrade is `package:acquire name@version`.
 
 ## HTTP
 
-The kernel provides the HTTP runtime. Controllers use strongly typed kernel HTTP primitives.
-
-Generated web home (`app/http/handlers/web`) returns a Canvas template (mandatory on web scaffolds; raw `http.HTML` is doctor-forbidden there):
+Web home returns a Canvas template:
 
 ```go
 func (c *HomeHandler) Index(req *http.Request) *http.Response {
@@ -446,264 +269,75 @@ func (c *HomeHandler) Index(req *http.Request) *http.Response {
 }
 ```
 
-JSON is the same `*http.Response` type (API home and `/up` use it; API scaffolds stay JSON-only):
+JSON uses the same `*http.Response` type:
 
 ```go
 return http.JSON(map[string]any{"ok": true})
 ```
 
-Routes are registered in the generated application (`r.Get("/", c.Index).As("home")`).
+The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
-Kernel middleware provides the HTTP security and infrastructure layer, including CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static-file resolution.
-
-## Routing
-
-The router is mutable during application registration and immutable after bootstrap.
-
-```text
-Registration
-     │
-     ▼
- Mutable route graph
-     │
-     ▼
-   Freeze()
-     │
-     ▼
- Immutable runtime graph
-     │
-     ├── dispatch
-     ├── snapshot
-     └── cache
-```
-
-After freezing, route registration and mutation are rejected. Typed routing APIs are provided by `routing.From(app)`.
+The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`.
 
 ## Application lifecycle
 
-Construction is not Bootstrap:
-
 ```text
-bootstrap.App / bootstrap.Boot
+bootstrap.App
     → Created (providers registered, HTTP 503)
 
 Application.Bootstrap
-    → Booted (HTTP ready; workers not started)
+    → Booted (HTTP ready)
 
 Application.Start
-    → Running (bootstraps first if needed; LifecycleProvider.Start)
+    → Running (LifecycleProvider.Start)
 
 Application.Run
     → Start + listen + SIGINT/SIGTERM → Stop
 
 Application.Stop
-    → Stopped (terminal; no-op unless Running)
+    → Stopped
 ```
 
-Providers can implement `contracts.LifecycleProvider`:
-
-```go
-Start(app contracts.App) error
-Stop(ctx context.Context) error
-```
-
-`Start` / `Stop` (and `Run`) own process lifetime. Lifecycle transitions are serialized and protected against concurrent `Start` / `Stop` calls.
-
-```text
-Created
-   │
-   ▼
-Bootstrapping
-   │
-   ├── fail → BootFailed (terminal)
-   ▼
-Booted
-   │
-   ▼
-Starting
-   │
-   ▼
-Running
-   │
-   ▼
-Stopping
-   │
-   ▼
-Stopped (terminal)
-```
-
-HTTP is not dispatched until `Booted` (Created/Bootstrapping/BootFailed return `503`). `/up` on a generated app is process liveness after Bootstrap. Optional `package:enable health` adds `/health`. `LifecycleProvider.Start` (workers) runs only in `Start()` / `Running`. `Run()` handles `SIGINT`/`SIGTERM` with a 15s bounded HTTP shutdown, then `Stop` in reverse provider order.
-
-Failed bootstrap is terminal for that application instance. Stopped applications cannot restart.
-
-`contracts.App` also exposes context-bearing entry points:
+HTTP is not dispatched until `Booted`. `/up` is process liveness after Bootstrap. `package:enable health` adds `/health`. `Run()` shuts HTTP down within 15s on `SIGINT`/`SIGTERM`, then `Stop` in reverse provider order.
 
 ```go
 BootstrapContext(ctx context.Context) error
 StartContext(ctx context.Context) error
 ```
 
-`Bootstrap()` and `Start()` remain. They call the context methods with `context.Background()`. A nil `ctx` is treated as `context.Background()`. Cancellation is checked between provider operations (`Register`, `Boot`, `LifecycleProvider.Start`). An in-flight provider call is not forcibly killed. Provider method signatures are unchanged. If `StartContext` fails after some lifecycle providers started, those that returned nil from `Start` are stopped; the failed provider is not stopped; cleanup errors are retained with the start error; the application returns to Booted and may retry.
-
-## Dependency container
-
-The kernel includes a concurrency-safe dependency container. It supports bindings, singletons, instances, aliases, lazy resolution, cycle detection, concurrent singleton initialization, and frozen registration.
-
-The public contract exposes the essential resolver operations without exposing the implementation:
-
-```go
-value, err := app.Container().Make("service")
-```
-
-After application bootstrap, registration is frozen. Frozen means registration is immutable; it does not mean that runtime singleton instances can never be initialized.
-
-## Configuration
-
-Configuration is isolated from application ownership. The repository protects callers from accidental aliasing by recursively copying supported mutable configuration structures:
-
-```text
-primitive
-map
-  └── recursive
-slice
-  └── recursive
-```
-
-Pointer and arbitrary struct values are not cloned. Copy semantics cover the configuration value graph managed by the repository, not a universal Go object cloner.
-
-After bootstrap, the configuration repository is frozen. Startup-critical integers such as `APP_PORT` use `env.IntOr`: unset falls back, invalid values fail boot with a named type error and do not echo credential-like keys. `env.GetInt` remains a silent-fallback helper (invalid → default); do not use it where an unparsable value must stop startup.
-
-## Package lifecycle
-
-These operations are separate. Do not collapse them into “install”.
-
-```text
-Acquire   = modify Go module dependencies (go get via package:acquire)
-Enable    = write consumer enablement + blank-imports (Requires closure)
-Boot      = Provider.Register + Provider.Boot for Enabled ∩ Imported
-Start     = LifecycleProvider.Start
-Stop      = LifecycleProvider.Stop
-Disable   = remove persistent enablement + that package’s blank-import
-```
-
-`package:enable` expands transitive `Requires` before writing files. Optional dependencies are not enabled. `package:disable` refuses if a remaining enabled addon requires the target (directly or through that Requires graph). Already-disabled is a successful no-op. Disable is not Stop: it does not shut down a running process.
-
-Disable does not remove Go modules, config stubs, `.env` keys, or database state. Unused module cleanup is Go/user-owned (`go get` / `go mod tidy` are not run automatically).
-
-Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.14.0` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
-
-Upgrade is `package:acquire name@version`. There is no `package:upgrade` or `package:uninstall` command.
+`Bootstrap()` and `Start()` call those with `context.Background()`.
 
 ## CLI
 
-This repository's CLI entrypoint is `cmd/zatrano`. Generated applications use `cmd/app` (`go run ./cmd/app …`).
+This repository's entrypoint is `cmd/zatrano`. Generated applications use `cmd/app`.
 
-Always on the kernel CLI:
+Kernel commands include `new`, `serve`, `doctor`, `describe`, `agents:generate`, `key:generate`, `package:list`, `package:search`, `package:info`, `package:resolve`, `package:enable`, `package:disable`, `package:doctor`, and `make:handler`, `make:middleware`, `make:provider`, `make:command`, `make:service`, `make:exception`, `make:test`.
 
-```bash
-zatrano new
-zatrano serve
-zatrano doctor
-zatrano describe
-zatrano agents:generate
-zatrano key:generate
-zatrano package:list
-zatrano package:search
-zatrano package:info
-zatrano package:resolve
-zatrano package:enable
-zatrano package:disable
-zatrano package:doctor
-zatrano make:handler
-zatrano make:middleware
-zatrano make:provider
-zatrano make:command
-zatrano make:service
-zatrano make:exception
-zatrano make:test
-```
+`make:request` and `make:rule` register when validation is imported. `db:setup`, `migrate`, `queue:work`, and `make:auth` register when their package is imported.
 
-`make:request` and `make:rule` register when the validation package is imported. `db:setup`, `migrate`, `queue:work`, `make:auth`, and similar commands register only when their package is imported. They are not part of a kernel-only CLI.
-
-Process exit codes are classified at the CLI boundary (`cmd/zatrano` via `console.CodeFromError`). Acquisition and runtime use different tables.
-
-Acquisition (`package:search` / `info` / `resolve` / `acquire`, enablement on acquire `--enable` / `package:enable` / `package:install`):
-
-```text
-0  success
-1  general
-2  usage
-3  resolution
-4  planning
-5  acquisition
-6  enablement
-7  canceled
-```
-
-Runtime (`zatrano serve` / `Application.Run`):
-
-```text
-0   success
-20  ExitRuntimeBoot
-21  ExitRuntimeShutdown
-22  ExitRuntimeCanceled
-23  ExitRuntimeTimeout
-```
-
-Runtime `serve` / `Run` failures use 20–23. They never reuse acquisition codes 2–7. Runtime cancellation is `ExitRuntimeCanceled` (22), not acquisition `ExitCanceled` (7). Acquisition JSON is unchanged. There is no runtime `serve --format=json` contract.
+Acquisition exit codes are 0–7 (`success`, `general`, `usage`, `resolution`, `planning`, `acquisition`, `enablement`, `canceled`). Runtime `serve` / `Run` uses 20–23 and does not reuse acquisition codes 2–7.
 
 ## Repository structure
 
 ```text
-kernel/            Application + primitives
-  http/            HTTP request / response
-  routing/         Router
-  middleware/      HTTP middleware
-  config/          Configuration
-  container/       Dependency container
-  context/         Application context
-  env/             Environment
-  encryption/      Encryption primitives
-  cookie/          Cookie handling
-  exceptions/      Exception handling
-  log/             Logging
-  pipeline/        Pipelines
-  report/          Reporting
-  safepath/        Safe path resolution
-  trustedproxy/    Trusted proxy handling
-  dirs/            Application path helpers
-  support/         Support utilities
-contracts/         Public dependency-neutral ABI
-bootstrap/         Application boot and package registry
-console/           Platform CLI commands
-console/doctor/    Application architecture doctor
-console/pkgmanager/ Package enablement, registry, and acquire CLI
-console/scaffold/  zatrano new / make:* and embedded starter templates
-console/describe/  describe, catalog, AGENTS.md
-console/consolecore/ Shared CLI types (no import cycles)
-console/generator/ Generator engine (templates, placeholders, filesystem)
-cmd/zatrano/       CLI entrypoint
-distribution/      Package manifest, registry index, acquisition plan
-tests/             Architecture, compatibility, boot, and fuzz tests
+core/kernel/          HTTP, routing, middleware, config, container, env
+core/contracts/       Public dependency-neutral ABI
+core/bootstrap/       Application boot and package registry
+core/ssr/             Canvas engine binding
+core/console/         CLI, doctor, package manager, scaffold, describe
+cmd/zatrano/          CLI entrypoint
+core/distribution/    Manifest, registry index, acquisition plan
+tests/                Architecture, compatibility, boot, and fuzz tests
 ```
 
-The packages ecosystem is maintained in the separate [packages](https://github.com/zatrano/packages) repository.
+The package ecosystem is [github.com/zatrano/packages](https://github.com/zatrano/packages).
 
 ## Security
 
-Security is a platform concern. Tests CI runs **go test -race**. Security CI runs **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and Go fuzzing. Static analysis runs **go vet**.
-
-The release gate:
+Tests CI runs **go test -race**. Security CI runs **gosec**, **govulncheck**, **Semgrep**, **Trivy**, and Go fuzzing. Static analysis runs **go vet**.
 
 ```bash
 bash .github/scripts/release-gate.sh
-```
-
-Optional extended checks:
-
-```bash
-RACE=1 bash .github/scripts/release-gate.sh
-FUZZ=1 bash .github/scripts/release-gate.sh
 ```
 
 Kernel security primitives include request size limits, safe path resolution, secure request IDs, security headers, trusted proxy handling, production secret validation, exception isolation, and cookie protection.
@@ -713,65 +347,21 @@ Report vulnerabilities privately to Serhan KARAKOÇ — [serhankarakoc@zatrano.c
 ## Architecture principles
 
 1. **Small kernel** — primitives, not every application feature.
-2. **Dependency-neutral contracts** — the ABI does not import kernel implementation packages or optional packages.
+2. **Dependency-neutral contracts** — the ABI does not import kernel implementations or optional packages.
 3. **Opt-in capabilities** — application capabilities are packages.
-4. **Typed developer APIs** — the public developer experience stays strongly typed even where the ABI must remain untyped.
-5. **One-way dependency flow** — application → packages → framework contracts / kernel. The kernel never depends on the packages ecosystem.
-6. **Immutable runtime configuration** — registration structures are mutable during boot and frozen before runtime.
-7. **Explicit application lifecycle** — startup and shutdown are deterministic and concurrency-safe.
-8. **Platform, not monolith** — the runtime foundation and the capability ecosystem without forcing every application to use every subsystem.
+4. **Typed developer APIs** — `From(app)` beside each implementation.
+5. **One-way dependency flow** — application → packages → framework. The kernel does not import packages.
+6. **Immutable runtime configuration** — registration is mutable during boot and frozen before runtime.
+7. **Explicit lifecycle** — startup and shutdown are deterministic.
+8. **Platform** — runtime and capability ecosystem stay separate modules.
 
-```text
-Application
-    ↓
-Packages
-    ↓
-Framework contracts / kernel
-```
+V3 baseline:
 
-### Frozen invariants
-
-These are the public architectural baseline after Framework `v2.1.0` and Packages `v1.7.1`. Do not reopen them for convenience.
-
-- Framework does not depend on Packages. Packages depend on Framework. Applications may import both.
-- `contracts` remains dependency-neutral. Kernel owns runtime lifecycle. Capabilities are not `App` methods; typed facades (`From(app)`) live beside implementations.
-- Packages are opt-in. `Enabled ∩ Imported` controls participation. `Expand` resolves declared package metadata dependencies only.
-- Go modules own dependency resolution. There is no second PackageManager, resolver, ServiceLocator, or lifecycle manager.
-- There is no automatic package enablement, implicit rollback, automatic `go mod tidy`, or `zatrano.lock`.
-- Resource ownership is singular. `redisx`, `rag`, and `agent` are libraries. Cache owns the Redis connection.
-- Framework remains `github.com/zatrano/framework/v3`. Packages remains `github.com/zatrano/packages` (v1.x, no `/v2` suffix).
-
-## V3
-
-**Framework `main` / `v3.0.0`** is the stable kernel line (`github.com/zatrano/framework/v3`). **Packages `main`** tracks it. Create applications with `zatrano new`. Do not clone this repository as your application.
-
-```text
-Framework
-  module: github.com/zatrano/framework/v3
-  major:  v3
-  current: 3.0.0 (branch main)
-
-Packages
-  module: github.com/zatrano/packages
-  major:  v1 module path (no /v2 suffix)
-  current: main → framework/v3
-
-HTTP carrier: github.com/zatrano/rawhttp @ v0.2.2
-SSR engine:   github.com/zatrano/canvas  @ v0.2.0 (wiring: framework/v3/core/ssr)
-```
-
-The two modules release independently. Framework does not import Packages. Packages pins a compatible Framework release. Applications do not need a single ZATRANO-wide version.
-
-Nested modules (`db/*`, `mongo`, `webauthn`) are separately versioned Go modules.
-
-| Line | Meaning |
-| --- | --- |
-| Framework `v3` / `3.0.0` | Current kernel / CLI / contracts (rawhttp + Canvas) |
-| Packages `v1.14.0` | Current official package ecosystem for V3 |
-| Framework `v2.8.1` / Packages `v1.13.1` | Last v2 public tags |
-| Framework `v1.x` | Previous tagged kernel line |
-
-Each module follows Go semantic versioning on its own path. Install current stables with the `go get` commands above.
+- Framework does not depend on Packages. Packages depend on Framework.
+- `contracts` stays dependency-neutral. Capabilities are not `App` methods.
+- **Enabled ∩ Imported** controls participation. **Expand Requires** resolves declared package metadata only.
+- Go modules own dependency resolution. There is no second resolver, no automatic enablement, and no `zatrano.lock`.
+- Framework remains `github.com/zatrano/framework/v3`. Packages remains `github.com/zatrano/packages` (v1 module path).
 
 ## Learning ZATRANO
 
@@ -791,7 +381,7 @@ Issues and pull requests are welcome. Keep changes focused, preserve architectur
 [MIT](LICENSE) · Copyright (c) 2026 Serhan KARAKOÇ
 
 - [zatrano.com](https://zatrano.com/docs)
-- [github.com/zatrano/framework/v3](https://github.com/zatrano/framework)
+- [github.com/zatrano/framework](https://github.com/zatrano/framework)
 - [github.com/zatrano/packages](https://github.com/zatrano/packages)
 - [github.com/zatrano/examples](https://github.com/zatrano/examples)
 - [linkedin.com/company/zatrano](https://www.linkedin.com/company/zatrano)
