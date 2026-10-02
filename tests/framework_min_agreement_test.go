@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/bootstrap/addons"
-	"github.com/zatrano/framework/v2/distribution/registry"
+	"github.com/zatrano/framework/v3/core/bootstrap/addons"
+	"github.com/zatrano/framework/v3/core/distribution/registry"
 )
 
 func TestMeetsFrameworkMinAgreement(t *testing.T) {
@@ -52,9 +52,9 @@ func TestMeetsFrameworkMinMultiplePackageMinimums(t *testing.T) {
 func TestRuntimeDoesNotValidateFrameworkMin(t *testing.T) {
 	root := moduleRoot(t)
 	files := []string{
-		filepath.Join(root, "kernel", "application.go"),
-		filepath.Join(root, "bootstrap", "app.go"),
-		filepath.Join(root, "bootstrap", "enablement.go"),
+		filepath.Join(root, "core", "kernel", "application.go"),
+		filepath.Join(root, "core", "bootstrap", "app.go"),
+		filepath.Join(root, "core", "bootstrap", "enablement.go"),
 	}
 	for _, path := range files {
 		body, err := os.ReadFile(path)
@@ -69,7 +69,7 @@ func TestRuntimeDoesNotValidateFrameworkMin(t *testing.T) {
 
 func TestAcquireDoesNotRevalidateFrameworkMin(t *testing.T) {
 	root := moduleRoot(t)
-	err := filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(filepath.Join(root, "core", "distribution", "acquire"), func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
 		}
@@ -88,7 +88,7 @@ func TestAcquireDoesNotRevalidateFrameworkMin(t *testing.T) {
 }
 
 func TestDoctorReportsFrameworkMinViaAddons(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_doctor_report.go"))
+	body, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_doctor_report.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestDoctorReportsFrameworkMinViaAddons(t *testing.T) {
 }
 
 func TestConsoleHasNoMeetsFrameworkMinImplementation(t *testing.T) {
-	err := filepath.WalkDir(filepath.Join(moduleRoot(t), "console"), func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(filepath.Join(moduleRoot(t), "core", "console"), func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
 		}

@@ -2,7 +2,7 @@
 
 How to choose and use first-party packages.
 
-This repository is the **framework kernel** (`github.com/zatrano/framework/v2`). Foundation, intelligence (AI/RAG/agent/workflow), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
+This repository is the **framework kernel** (`github.com/zatrano/framework/v3`). Foundation, intelligence (AI/RAG/agent/workflow), and other addons live in [`github.com/zatrano/packages`](https://github.com/zatrano/packages).
 
 - **Catalog source:** `kernel/catalog.go` (primitives) plus `console/describe/catalog.go` (foundation / intelligence / addon *names*). Addon *code* is not in this module.
 - **Addon implementations:** blank-import + `bootstrap.WithAddons` / `EnabledAddons`
@@ -14,7 +14,7 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v2   v2.8.1
+github.com/zatrano/framework/v3   v2.8.1
 github.com/zatrano/packages       v1.13.1
 ```
 
@@ -43,7 +43,7 @@ go run ./cmd/zatrano package:acquire session --enable
 
 The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin. First-time wiring may `go get github.com/zatrano/packages@v1.7.2` when the module is not yet required. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public consumption: `go get github.com/zatrano/framework/v2@v2.2.0` and `go get github.com/zatrano/packages@v1.7.2`.
+**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin. First-time wiring may `go get github.com/zatrano/packages@v1.7.2` when the module is not yet required. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public consumption: `go get github.com/zatrano/framework/v3@v2.2.0` and `go get github.com/zatrano/packages@v1.7.2`.
 
 ---
 
@@ -148,7 +148,7 @@ Docs: [Configuration](https://zatrano.com/docs/configuration)
 **Use:** Boot calls `Load`; raw access:
 
 ```go
-import "github.com/zatrano/framework/v2/kernel/env"
+import "github.com/zatrano/framework/v3/core/kernel/env"
 v := env.Get("APP_KEY", "")
 ```
 
@@ -163,9 +163,9 @@ v := env.Get("APP_KEY", "")
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/v2/kernel/http"
+import "github.com/zatrano/framework/v3/core/kernel/http"
 
-func (c *HomeController) Index(req *http.Request) *http.Response {
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
     email := req.Input("email")
     ua := req.Agent() // or http.ParseUserAgent(req.UserAgent())
     format := http.Negotiate(req, http.FormatJSON, http.FormatHTML)
@@ -173,7 +173,7 @@ func (c *HomeController) Index(req *http.Request) *http.Response {
 }
 ```
 
-`Host` / `Scheme` / `Secure` / `Root` / `FullURL` are request primitives. Content negotiation is `http.Negotiate` (one Accept parser on `Request.Prefers`, including `q` values). HTTP upgrade is `http.Hijack` (HTTP/1.1 `Hijacker`; not HTTP/2); WebSocket frames stay in `packages/websocket`.
+`Host` / `Scheme` / `Secure` / `Root` / `FullURL` are request primitives. Content negotiation is `http.Negotiate` (one Accept parser on `Request.Prefers`, including `q` values). HTTP upgrade is `http.Hijack` → `rawhttp.Ctx.Hijack` (`KeepHijackedConns`); WebSocket frames stay in `packages/websocket`.
 
 Docs: [Requests & Responses](https://zatrano.com/docs/requests) · [Content negotiation](https://zatrano.com/docs/negotiate)
 
@@ -196,7 +196,7 @@ Docs: [Helpers](https://zatrano.com/docs/helpers)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/v2/kernel/routing"
+import "github.com/zatrano/framework/v3/core/kernel/routing"
 
 router.Get("/posts/{id}", c.Show).As("posts.show")
 path, _ := router.URL("posts.show", map[string]string{"id": "1"})
@@ -215,7 +215,7 @@ Docs: [Routing](https://zatrano.com/docs/routing)
 **Use:**
 
 ```go
-import "github.com/zatrano/framework/v2/kernel/middleware"
+import "github.com/zatrano/framework/v3/core/kernel/middleware"
 
 router.Use(middleware.Logger, middleware.Recover, middleware.CSRFExcept("/api"))
 router.Use(middleware.Negotiate(http.FormatJSON, http.FormatHTML))
@@ -425,7 +425,7 @@ Docs: [ORM](https://zatrano.com/docs/orm) (+ models / querying / relationships /
 **Use:**
 
 ```go
-return http.View("dashboard", map[string]any{"name": "Ada"})
+return http.Template("dashboard", map[string]any{"name": "Ada"})
 ```
 
 Docs: [Views](https://zatrano.com/docs/views)
@@ -532,18 +532,6 @@ Docs: [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://
 
 **For:** Emit channel events to log/file/null drivers (not a WebSocket server).  
 Docs: [Broadcasting](https://zatrano.com/docs/broadcasting) · [WebSockets](https://zatrano.com/docs/websockets)
-
-### `httpclient`
-
-**For:** Outbound HTTP with JSON, retries, fakes.  
-**Use:**
-
-```go
-c := httpclient.From(app)
-resp, err := c.BaseURL("https://api.example").Get("/ping")
-```
-
-Docs: [HTTP Client](https://zatrano.com/docs/http-client)
 
 ### `ratelimit`
 
@@ -744,7 +732,7 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | `toolkit/process` | OS commands | `process.Command("git","status").Run()` | [Processes](https://zatrano.com/docs/processes) |
 | `toolkit/timing` | Server-Timing | `timing.Measure(req, "db", fn)` | [Timing](https://zatrano.com/docs/timing) |
 | `toolkit/zip` | ZIP create/extract | `zipx.Create` / `Extract` | [Archives](https://zatrano.com/docs/archives) |
-| `websocket` | WS frames on `http.Hijack` | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
+| `websocket` | WS frames on `http.Hijack` → rawhttp | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
 
 ---
 
@@ -761,7 +749,7 @@ if !safepath.Under(root, candidate) { /* reject */ }
 
 ### `dirs`
 
-**For:** Resolve `app/views` vs `views/`, `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
+**For:** Resolve `templates` vs `views/`, `app/localization` vs `lang/`, and `app/database` vs `database/` for boot and scaffolding.  
 Not a consumer-facing service; CLI and addons import `kernel/dirs` when they need a path. HTML template layouts (`@extends`) live in the `view` package.
 
 ---

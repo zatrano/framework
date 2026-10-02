@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zatrano/framework/v2/console/scaffold"
+	"github.com/zatrano/framework/v3/core/console/scaffold"
 )
 
 // TestGoldenAppCompilesAgainstCurrentFramework scaffolds `zatrano new`

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="{{ $locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', $appName)</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1a1a1a;
+            --muted: #5c5c5c;
+            --brand: #e10600;
+            --line: #e6e8ec;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Georgia, "Times New Roman", serif;
+            color: var(--text);
+            background: var(--bg);
+        }
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--line);
+        }
+        .app-brand {
+            color: var(--brand);
+            text-decoration: none;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .app-main {
+            width: min(960px, 92vw);
+            margin: 0 auto;
+            padding: 2.5rem 0 3rem;
+        }
+    </style>
+    @yield('head')
+    @stack('styles')
+</head>
+<body>
+<header class="app-header">
+    <a class="app-brand" href="/">{{ $appName }}</a>
+</header>
+<main class="app-main">
+    @yield('content')
+</main>
+@stack('scripts')
+</body>
+</html>

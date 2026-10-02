@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v3/core/kernel"
 )
 
 func moduleRoot(t *testing.T) string {
@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.8.1" {
-		t.Fatalf("VERSION=%q want 2.8.1", version)
+	if version != "3.0.0-rc.1" {
+		t.Fatalf("VERSION=%q want 3.0.0-rc.1", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -46,7 +46,7 @@ func TestProductAndModuleIdentity(t *testing.T) {
 			break
 		}
 	}
-	if path != "github.com/zatrano/framework/v2" {
+	if path != "github.com/zatrano/framework/v3" {
 		t.Fatalf("module path=%q", path)
 	}
 
@@ -98,7 +98,7 @@ func TestDistributionProtocolLivesUnderDistribution(t *testing.T) {
 		if st, err := os.Stat(filepath.Join(root, name)); err == nil && st.IsDir() {
 			t.Errorf("%s/ must not sit at module root — use distribution/%s", name, name)
 		}
-		dir := filepath.Join(root, "distribution", name)
+		dir := filepath.Join(root, "core", "distribution", name)
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 			t.Errorf("missing distribution/%s", name)
 		}
@@ -106,7 +106,7 @@ func TestDistributionProtocolLivesUnderDistribution(t *testing.T) {
 }
 
 func TestRegistryDoesNotImportConsole(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "distribution", "registry")
+	dir := filepath.Join(moduleRoot(t), "core", "distribution", "registry")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -130,14 +130,14 @@ func TestRegistryDoesNotImportConsole(t *testing.T) {
 }
 
 func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
-	path := filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_registry.go")
+	path := filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_registry.go")
 	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(src)
 	for _, want := range []string{
-		`"github.com/zatrano/framework/v2/distribution/registry"`,
+		`"github.com/zatrano/framework/v3/core/distribution/registry"`,
 		"idx.Search(",
 		"idx.Lookup(",
 		"idx.Resolve(",
@@ -152,7 +152,7 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 		"releaseOK": true, "normalizeVersion": true, "semverParts": true,
 	}
 	fset := token.NewFileSet()
-	err = filepath.WalkDir(filepath.Join(moduleRoot(t), "console"), func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(moduleRoot(t), "core", "console"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return err
 		}
@@ -177,7 +177,7 @@ func TestCLIDoesNotReimplementRegistryResolution(t *testing.T) {
 }
 
 func TestEnablementCommandsDoNotImportRegistry(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "console", "pkgmanager")
+	root := filepath.Join(moduleRoot(t), "core", "console", "pkgmanager")
 	files := []string{"package_cmd.go", "package_doctor.go", "package_wire.go", "package_env.go", "package_enable.go"}
 	fset := token.NewFileSet()
 	for _, name := range files {
@@ -200,7 +200,7 @@ func TestSearchHitHasNoSelectionFields(t *testing.T) {
 		"Name": true, "Import": true, "Module": true, "Kind": true,
 		"Layer": true, "Heavy": true, "Description": true,
 	}
-	got := structFields(t, filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_registry.go"), "searchHit")
+	got := structFields(t, filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_registry.go"), "searchHit")
 	for name := range got {
 		if !allow[name] {
 			t.Errorf("searchHit grew %s — search must not carry selection/release fields", name)
@@ -218,7 +218,7 @@ func TestAcquirePlanStructFreeze(t *testing.T) {
 		"Schema": true, "Name": true, "Import": true, "Module": true,
 		"Query": true, "Selected": true, "Kind": true, "Heavy": true,
 	}
-	got := structFields(t, filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go"), "Plan")
+	got := structFields(t, filepath.Join(moduleRoot(t), "core", "distribution", "acquire", "plan.go"), "Plan")
 	for name := range got {
 		if !allow[name] {
 			t.Errorf("Plan grew %s — Plan is not enablement, lock, or Apply state", name)
@@ -238,7 +238,7 @@ func TestAcquirePlanStructFreeze(t *testing.T) {
 
 func TestApplySurfaceStaysFrozen(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "APPLY.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "core", "distribution", "acquire", "APPLY.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestApplySurfaceStaysFrozen(t *testing.T) {
 		"apply.go": true, "process.go": true, "exec_runner.go": true, "inspect.go": true,
 		"lock.go": true, "recovery.go": true, "plan.go": true, "doc.go": true, "dry_run.go": true,
 	}
-	err = filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(root, "core", "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -287,7 +287,7 @@ func TestApplySurfaceStaysFrozen(t *testing.T) {
 
 func TestDryRunContractGate(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "ORCHESTRATION.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "core", "distribution", "acquire", "ORCHESTRATION.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestDryRunContractGate(t *testing.T) {
 	if strings.Contains(text, "NOT ACCEPTED") {
 		t.Error("ORCHESTRATION.md still says NOT ACCEPTED — SPEC was accepted")
 	}
-	dir := filepath.Join(root, "distribution", "acquire")
+	dir := filepath.Join(root, "core", "distribution", "acquire")
 	if _, err := os.Stat(filepath.Join(dir, "dry_run.go")); err != nil {
 		t.Fatal("missing dry_run.go — Contract A DryRun")
 	}
@@ -347,7 +347,7 @@ func TestDryRunContractGate(t *testing.T) {
 
 func TestApplyProcessInvocationBoundary(t *testing.T) {
 	root := moduleRoot(t)
-	dir := filepath.Join(root, "distribution", "acquire")
+	dir := filepath.Join(root, "core", "distribution", "acquire")
 	for _, name := range []string{"apply.go", "process.go", "exec_runner.go"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Fatalf("missing invocation file %s", name)
@@ -640,7 +640,7 @@ func TestAcquireExportsStayFrozen(t *testing.T) {
 		"Unattempted": true, "Requirement": true, "Sums": true,
 	}
 	fset := token.NewFileSet()
-	dir := filepath.Join(moduleRoot(t), "distribution", "acquire")
+	dir := filepath.Join(moduleRoot(t), "core", "distribution", "acquire")
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return err
@@ -675,7 +675,7 @@ func TestAcquireExportsStayPlanOnly(t *testing.T) {
 	allowFn := map[string]bool{"FromResult": true, "Targets": true}
 	allowMethod := map[string]bool{"GoGetArg": true}
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go"), nil, 0)
+	file, err := parser.ParseFile(fset, filepath.Join(moduleRoot(t), "core", "distribution", "acquire", "plan.go"), nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -697,10 +697,10 @@ func TestAcquireExportsStayPlanOnly(t *testing.T) {
 }
 
 func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
-	path := filepath.Join(moduleRoot(t), "distribution", "acquire", "plan.go")
+	path := filepath.Join(moduleRoot(t), "core", "distribution", "acquire", "plan.go")
 	allowImport := map[string]bool{
 		"fmt": true, "strings": true, "sort": true,
-		"github.com/zatrano/framework/v2/distribution/registry": true,
+		"github.com/zatrano/framework/v3/core/distribution/registry": true,
 	}
 	bannedFn := map[string]bool{
 		"Apply": true, "Install": true, "Tidy": true, "Download": true,
@@ -750,7 +750,7 @@ func TestAcquirePlanLayerDoesNotResolveOrApply(t *testing.T) {
 }
 
 func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "console")
+	dir := filepath.Join(moduleRoot(t), "core", "console")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -779,19 +779,19 @@ func TestConsoleAcquireCLIMayImportAcquire(t *testing.T) {
 
 func TestCLIAcquireGate(t *testing.T) {
 	root := moduleRoot(t)
-	path := filepath.Join(root, "console", "pkgmanager", "package_acquire.go")
+	path := filepath.Join(root, "core", "console", "pkgmanager", "package_acquire.go")
 	src, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatal("missing console/pkgmanager/package_acquire.go — Contract B CLI acquisition")
+		t.Fatal("missing core/console/pkgmanager/package_acquire.go — Contract B CLI acquisition")
 	}
-	viewSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_acquire_view.go"))
+	viewSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_acquire_view.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(src) + "\n" + string(viewSrc)
 	for _, want := range []string{
-		`"github.com/zatrano/framework/v2/distribution/acquire"`,
-		`"github.com/zatrano/framework/v2/distribution/registry"`,
+		`"github.com/zatrano/framework/v3/core/distribution/acquire"`,
+		`"github.com/zatrano/framework/v3/core/distribution/registry"`,
 		"idx.Resolve(",
 		"acquire.FromResult(",
 		"acquire.Targets(",
@@ -824,7 +824,7 @@ func TestCLIAcquireGate(t *testing.T) {
 	if !strings.Contains(text, `"enabled": false`) && !strings.Contains(text, "Enabled: false") && !strings.Contains(text, "enabled: false") && !strings.Contains(text, `json:"enabled"`) {
 		t.Error("package_acquire.go must still report enabled as a distinct field")
 	}
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -835,7 +835,7 @@ func TestCLIAcquireGate(t *testing.T) {
 
 func TestExplicitEnablementAfterAcquire(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "ORCHESTRATION.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "core", "distribution", "acquire", "ORCHESTRATION.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -860,28 +860,28 @@ func TestExplicitEnablementAfterAcquire(t *testing.T) {
 		"enablement.go",
 		"package_acquire_enable.go",
 	} {
-		if _, err := os.Stat(filepath.Join(root, "distribution", "acquire", name)); err == nil {
+		if _, err := os.Stat(filepath.Join(root, "core", "distribution", "acquire", name)); err == nil {
 			t.Errorf("%s — Contract C must not add an acquire-side enablement engine", name)
 		}
-		if _, err := os.Stat(filepath.Join(root, "console", name)); err == nil {
-			t.Errorf("console/%s — Contract C stays in package_acquire.go", name)
+		if _, err := os.Stat(filepath.Join(root, "core", "console", name)); err == nil {
+			t.Errorf("core/console/%s — Contract C stays in package_acquire.go", name)
 		}
 	}
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(cmdSrc), "/acquire") {
 		t.Error("package_cmd.go must not import acquire — package:install stays enablement")
 	}
-	enableSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_enable.go"))
+	enableSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_enable.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(cmdSrc), `return "package:install"`) || !strings.Contains(string(enableSrc), "func enablePackage(") {
 		t.Error("package:install must remain enablement")
 	}
-	dry, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "dry_run.go"))
+	dry, err := os.ReadFile(filepath.Join(root, "core", "distribution", "acquire", "dry_run.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -892,7 +892,7 @@ func TestExplicitEnablementAfterAcquire(t *testing.T) {
 
 func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
 	root := moduleRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "distribution", "acquire", "HARDENING.md"))
+	raw, err := os.ReadFile(filepath.Join(root, "core", "distribution", "acquire", "HARDENING.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -933,8 +933,8 @@ func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
 		"package_acquire_e2e.go",
 	}
 	dirs := []string{
-		filepath.Join(root, "distribution", "acquire"),
-		filepath.Join(root, "console"),
+		filepath.Join(root, "core", "distribution", "acquire"),
+		filepath.Join(root, "core", "console"),
 	}
 	for _, dir := range dirs {
 		for _, name := range bannedProd {
@@ -947,7 +947,7 @@ func TestAcquisitionHardeningSpecIsAccepted(t *testing.T) {
 
 func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 	root := moduleRoot(t)
-	err := filepath.WalkDir(filepath.Join(root, "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filepath.Join(root, "core", "distribution", "acquire"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return err
 		}
@@ -966,9 +966,9 @@ func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli, err := os.ReadFile(filepath.Join(root, "console", "cli_exit.go"))
+	cli, err := os.ReadFile(filepath.Join(root, "core", "console", "cli_exit.go"))
 	if err != nil {
-		t.Fatal("missing console/cli_exit.go — classified exit codes belong to the CLI")
+		t.Fatal("missing core/console/cli_exit.go — classified exit codes belong to the CLI")
 	}
 	text := string(cli)
 	for _, want := range []string{"ExitUsage", "ExitResolution", "ExitPlanning", "ExitAcquisition", "ExitEnablement", "ExitCanceled", "ExitRuntimeBoot", "ExitRuntimeShutdown", "ExitRuntimeCanceled", "ExitRuntimeTimeout", "func CodeFromError"} {
@@ -986,7 +986,7 @@ func TestAcquisitionExitCodesStayAtCLIBoundary(t *testing.T) {
 }
 
 func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "pkgmanager", "package_acquire_view.go"))
+	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "pkgmanager", "package_acquire_view.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1011,17 +1011,29 @@ func TestAcquisitionJSONPresentsExistingState(t *testing.T) {
 	}
 }
 
-func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
+func TestKernelHasOnlyAllowedThirdPartyDependencies(t *testing.T) {
 	root := moduleRoot(t)
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowedMod := func(line string) bool {
+		return strings.Contains(line, "github.com/zatrano/rawhttp") ||
+			strings.Contains(line, "github.com/zatrano/canvas")
+	}
 	for _, line := range strings.Split(string(mod), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "require ") && line != "require (" {
+			if allowedMod(line) {
+				continue
+			}
 			t.Errorf("go.mod has a third-party require: %s", line)
 		}
+	}
+
+	allowedImport := func(imp string) bool {
+		return imp == "github.com/zatrano/rawhttp" || strings.HasPrefix(imp, "github.com/zatrano/rawhttp/") ||
+			imp == "github.com/zatrano/canvas" || strings.HasPrefix(imp, "github.com/zatrano/canvas/")
 	}
 
 	fset := token.NewFileSet()
@@ -1049,7 +1061,10 @@ func TestKernelHasZeroThirdPartyDependencies(t *testing.T) {
 			if !strings.Contains(imp, ".") {
 				continue
 			}
-			if imp == "github.com/zatrano/framework/v2" || strings.HasPrefix(imp, "github.com/zatrano/framework/v2/") {
+			if imp == "github.com/zatrano/framework/v3" || strings.HasPrefix(imp, "github.com/zatrano/framework/v3/") {
+				continue
+			}
+			if allowedImport(imp) {
 				continue
 			}
 			t.Errorf("%s imports third-party %s", rel, imp)
@@ -1075,7 +1090,7 @@ func TestKernelCatalogIsPrimitiveOnly(t *testing.T) {
 }
 
 func TestKernelConfigHasNoPackageSchemas(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "kernel", "config")
+	dir := filepath.Join(moduleRoot(t), "core", "kernel", "config")
 	for _, name := range []string{"auth.go", "database.go", "session.go", "notifications.go"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
 			t.Errorf("package-specific config must not live in kernel: %s", name)
@@ -1112,10 +1127,10 @@ func TestContractsAppMethodFreeze(t *testing.T) {
 		"Environment": true, "IsProduction": true, "IsDebug": true,
 		"RegisterProviders": true, "Bootstrap": true, "BootstrapContext": true,
 		"Start": true, "StartContext": true, "Stop": true,
-		"ServeHTTP": true, "Run": true,
+		"Handle": true, "Run": true,
 		"SetHTTPBridge": true, "HTTPBridge": true,
 	}
-	got := interfaceMethods(t, filepath.Join(moduleRoot(t), "contracts", "app.go"), "App")
+	got := interfaceMethods(t, filepath.Join(moduleRoot(t), "core", "contracts", "app.go"), "App")
 	for name := range got {
 		if !allow[name] {
 			t.Errorf("contracts.App grew %s — add a container From(app) helper instead", name)
@@ -1135,16 +1150,16 @@ func TestRequestCoreFileStaysPrimitive(t *testing.T) {
 		"Enum", "EnumOr", "Date", "DateOr", "Filled", "Has", "Missing",
 		"TransformInputs", "Merge", "Replace", "Forget", "Pull",
 	}
-	got := receiverMethods(t, filepath.Join(moduleRoot(t), "kernel", "http", "request.go"), "Request")
+	got := receiverMethods(t, filepath.Join(moduleRoot(t), "core", "kernel", "http", "request.go"), "Request")
 	for _, name := range banned {
 		if got[name] {
-			t.Errorf("kernel/http/request.go must not grow input helpers; %s belongs in input.go", name)
+			t.Errorf("core/kernel/http/request.go must not grow input helpers; %s belongs in input.go", name)
 		}
 	}
 }
 
 func TestKernelHTTPDoesNotImportRouting(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "kernel", "http")
+	root := filepath.Join(moduleRoot(t), "core", "kernel", "http")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -1235,7 +1250,7 @@ func receiverMethods(t *testing.T, path, recv string) map[string]bool {
 }
 
 func TestContractsSurfacesStayFrozen(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "contracts")
+	root := filepath.Join(moduleRoot(t), "core", "contracts")
 	want := map[string]map[string]bool{
 		"Router": {
 			"Get": true, "Post": true, "Use": true, "Group": true, "Name": true,
@@ -1278,14 +1293,14 @@ func TestContractsSurfacesStayFrozen(t *testing.T) {
 }
 
 func TestRequestStructHasNoSessionField(t *testing.T) {
-	fields := structFields(t, filepath.Join(moduleRoot(t), "kernel", "http", "request.go"), "Request")
+	fields := structFields(t, filepath.Join(moduleRoot(t), "core", "kernel", "http", "request.go"), "Request")
 	if fields["session"] {
 		t.Fatal("session must be a request attribute, not a Request field")
 	}
 }
 
 func TestKernelHTTPDoesNotImportSessionPackage(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "kernel", "http")
+	dir := filepath.Join(moduleRoot(t), "core", "kernel", "http")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -1379,7 +1394,7 @@ func TestRemovedNegotiatePackageHasNoImportPath(t *testing.T) {
 }
 
 func TestKernelHTTPProductionImportsStayStdlibAndKernel(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "kernel", "http")
+	dir := filepath.Join(moduleRoot(t), "core", "kernel", "http")
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -1397,7 +1412,7 @@ func TestKernelHTTPProductionImportsStayStdlibAndKernel(t *testing.T) {
 			if strings.HasPrefix(imp, "github.com/zatrano/packages") {
 				t.Errorf("%s imports %s", filepath.Base(path), imp)
 			}
-			if strings.HasPrefix(imp, "github.com/") && !strings.HasPrefix(imp, "github.com/zatrano/framework/") {
+			if strings.HasPrefix(imp, "github.com/") && !strings.HasPrefix(imp, "github.com/zatrano/framework/") && !strings.HasPrefix(imp, "github.com/zatrano/rawhttp") && !strings.HasPrefix(imp, "github.com/zatrano/canvas") {
 				t.Errorf("%s third-party import %s", filepath.Base(path), imp)
 			}
 		}

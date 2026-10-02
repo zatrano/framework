@@ -10,7 +10,7 @@ import (
 
 func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	root := moduleRoot(t)
-	acquireDir := filepath.Join(root, "distribution", "acquire")
+	acquireDir := filepath.Join(root, "core", "distribution", "acquire")
 	err := filepath.WalkDir(acquireDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
@@ -37,7 +37,7 @@ func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	appSrc, err := os.ReadFile(filepath.Join(root, "bootstrap", "app.go"))
+	appSrc, err := os.ReadFile(filepath.Join(root, "core", "bootstrap", "app.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("App() must not validate framework_min")
 	}
 
-	kernelSrc, err := os.ReadFile(filepath.Join(root, "kernel", "application.go"))
+	kernelSrc, err := os.ReadFile(filepath.Join(root, "core", "kernel", "application.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestRuntimeDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("framework must not import official packages")
 	}
 
-	registrySrc, err := os.ReadFile(filepath.Join(root, "bootstrap", "addons", "registry.go"))
+	registrySrc, err := os.ReadFile(filepath.Join(root, "core", "bootstrap", "addons", "registry.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/zatrano/framework/v2/contracts"
+	"github.com/zatrano/framework/v3/core/contracts"
 )
 
 func closeAppLog(t *testing.T, app contracts.App) {

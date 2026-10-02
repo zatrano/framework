@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zatrano/framework/v2/bootstrap"
-	"github.com/zatrano/framework/v2/console"
-	"github.com/zatrano/framework/v2/kernel"
+	"github.com/zatrano/framework/v3/core/bootstrap"
+	"github.com/zatrano/framework/v3/core/console"
+	"github.com/zatrano/framework/v3/core/kernel"
 )
 
 func main() {

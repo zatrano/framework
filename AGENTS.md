@@ -9,20 +9,20 @@ It is **not** the architecture specification. The specification is on the public
 
 It is **not** the generated `AGENTS.md` that `zatrano agents:generate` writes into an application root (that file is a live describe dump: routing primitives, catalog, doctor checks). Do not confuse the two.
 
-Evidence bases: this repository (`github.com/zatrano/framework/v2`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
+Evidence bases: this repository (`github.com/zatrano/framework/v3`), `github.com/zatrano/packages`, generated `zatrano new` output, CLI generators, tests.
 
-Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel, contracts, and ORM remain frozen. Application generators must match this constitution, the [Standard](https://zatrano.com/docs/application-engineering/standard), and [golden scenarios](https://zatrano.com/docs/application-engineering/golden).
+Status of this standard: **FROZEN (ADR-0011).** ADRs 0001–0011 accepted. `zatrano doctor` enforces the high-confidence subset. Semantic doctor-PASS stacks are recorded in the doctor boundary. `unique`/`exists` fail closed when the database fact cannot be established (ADR-0010). Kernel and contracts remain frozen. Application generators must match this constitution, the [Standard](https://zatrano.com/docs/application-engineering/standard), and [golden scenarios](https://zatrano.com/docs/application-engineering/golden).
 
 ---
 
 ## 1. Architectural constitution
 
 1. ZATRANO is a **kernel + packages** platform. The kernel is HTTP, container, config, routing, lifecycle, CLI. Packages bind with `From(app)` / `app.Make`. `contracts.App` does not grow package methods.
-2. An application is a **consumer**. Shape: Controller → optional FormRequest → optional application Service → `pkg.From(app)` / `orm.*`.
+2. An application is a **consumer**. Shape: Handler → optional FormRequest → optional application Service → `pkg.From(app)` / `packages/db` + sqlc.
 3. There is **one canonical way**. If two approaches work, the standard already chose one. Do not preserve a second way.
 4. Repository evidence is authoritative. Do not copy another product's folders, layers, or habits. Follow this repository.
-5. Do not invent layers that generators and packages do not own: UseCase, Action, DTO, DomainService, Entity-as-DDD, ValueObject, Handler-instead-of-Controller.
-6. HTML fragment / partial-swap clients are **not** a ZATRANO API. Web rendering is `http.View` + the `view` package. Do not invent a fragment architecture.
+5. Do not invent layers that generators and packages do not own: UseCase, Action, DTO, DomainService, Entity-as-DDD, ValueObject, Controller-instead-of-Handler.
+6. HTML fragment / partial-swap clients are **not** a ZATRANO API. Web rendering is Canvas via `http.Template` + `framework/v3/core/ssr` (enable name `template`). Do not invent a fragment architecture. API handlers use `http.JSON`.
 7. Framework must never import `github.com/zatrano/packages`.
 8. Enablement is **Enabled ∩ Imported**. Blank-import without enablement does not boot. Enablement without import does not boot.
 
@@ -35,7 +35,7 @@ Before writing application code:
 1. This file.
 2. [Standard](https://zatrano.com/docs/application-engineering/standard) — the A–Z language (**authoritative**).
 3. [Golden scenarios](https://zatrano.com/docs/application-engineering/golden) — exact files, verbs, Policy API, tests.
-4. Neighboring generated/canonical code in the same application (`app/http/controllers`, `app/routes`, `app/providers`).
+4. Neighboring generated/canonical code in the same application (`app/http/handlers`, `app/routes`, `app/providers`).
 5. The relevant package public API (`From`, `Register`/`Boot`, tests).
 6. [Examples](https://zatrano.com/docs/application-engineering/examples) for short sketches (golden wins on conflict).
 7. [No second way](https://zatrano.com/docs/application-engineering/no-second-way) if a second implementation looks tempting.
@@ -52,16 +52,16 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 |---|---|
 | Directory | `dirs.CanonicalConsumerDirs()` plus generated scaffold dirs. Do not invent `domain/`, `internal/usecase/`, `handlers/`. |
 | Routes | HTTP surfaces `app/routes/{web,api}` plus `app/routes/auth/{web,api}` and `make:panel {name}` folders. Register via `RouteServiceProvider` → `ApplyWeb` / `ApplyAPI`. Controllers match the surface; services stay shared. Use `routing.From(app)` for Put/Patch/Delete/Resource. |
-| Controllers | `app/http/controllers/{web,api}`, `app/http/controllers/auth/{web,api}`, and `make:panel {name}`. Methods: `(req *http.Request) *http.Response`. |
+| Controllers | `app/http/handlers/{web,api}`, `app/http/handlers/auth/{web,api}`, and `make:panel {name}`. Methods: `(req *http.Request) *http.Response`. |
 | Input (writes) | `validation.FormRequest` in `app/http/requests`. `ValidateForm` then controller. |
 | Input (reads) | `{Resource}IndexRequest` when the index accepts any query (`page`, `q`, `sort`, filters). Path-only Show/Destroy: `req.Param` + Policy. |
 | Validation | `packages/validation` only. Do not re-validate the same rules in the ORM or service. |
 | Authorization | Gate/Policy (`packages/auth/authorization`) **before** data access. Dashboard role stubs are not the API. |
-| Persistence | `orm.Query[T]()`, `Find`, `Create`, `With(loader funcs)`. |
-| Transactions | `orm.Transaction` inside an application service. Controllers do not start transactions. |
+| Persistence | `packages/db` + app SQL/sqlc. No ORM package. |
+| Transactions | `database/sql` Tx (or adapter helper) inside an application service. Handlers do not start transactions. |
 | Services | `app/services` only when more than one model write, an explicit transaction, or reuse from HTTP and console/job. Size of the project is not a reason. |
 | Repositories | Optional thin wrappers. Do not invent interfaces for every model. |
-| Responses | Web: `http.View` / `Redirect`. API: `http.JSON`. Do not mix in one method. |
+| Responses | Web: `http.Template` (Canvas) / `Redirect`. API: `http.JSON`. Do not mix in one method. |
 | Packages | `pkg.From(app)`. Never `app.Auth()`. |
 | Tests | `tests/` + `packages/testing.TestCase` for HTTP. |
 
@@ -109,7 +109,7 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 1. Identify the golden flow (CRUD, relationship, filter, auth, authz, transaction, file, async, AI).
 2. Inspect the relevant canonical example in [golden](https://zatrano.com/docs/application-engineering/golden) and neighboring application code.
 3. Enable the required packages (`package:enable`). Do not fake APIs that are not enabled.
-4. Run the canonical generator (`make:controller`, `make:request`, `make:model`, …).
+4. Run the canonical generator (`make:handler`, `make:request`, `make:model`, …).
 5. Edit generated files to match the Standard. Do not leave `Handle() error` stubs as the architecture. Do not invent layers.
 6. Wire routes in the matching route file. Add middleware in route groups, not ad-hoc inside controllers.
 7. Add tests next to the convention in Standard §Y.

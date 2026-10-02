@@ -42,8 +42,8 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if !strings.Contains(text, "module example.com/freshapp") {
 		t.Fatalf("go.mod module:\n%s", text)
 	}
-	if !strings.Contains(text, "github.com/zatrano/framework/v2 v2.8.1") {
-		t.Fatalf("go.mod must require v2.8.1:\n%s", text)
+	if !strings.Contains(text, "github.com/zatrano/framework/v3 v3.0.0") {
+		t.Fatalf("go.mod must require v3.0.0:\n%s", text)
 	}
 	if strings.Contains(text, "v2-dev") {
 		t.Fatalf("go.mod must not use v2-dev:\n%s", text)
@@ -72,8 +72,8 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--version: %v\n%s", err, verOut)
 	}
-	if !strings.Contains(verOut, "2.8.1") {
-		t.Fatalf("version must report 2.8.1:\n%s", verOut)
+	if !strings.Contains(verOut, "3.0.0-dev") {
+		t.Fatalf("version must report 3.0.0-dev:\n%s", verOut)
 	}
 
 	helpOut, err := runApp("--help")
@@ -112,12 +112,12 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		"zatrano.lock",
 	}
 	files := []string{
-		filepath.Join("console", "console.go"),
-		filepath.Join("console", "scaffold", "new.go"),
-		filepath.Join("kernel", "application.go"),
-		filepath.Join("kernel", "env", "env.go"),
-		filepath.Join("contracts", "app.go"),
-		filepath.Join("bootstrap", "app.go"),
+		filepath.Join("core", "console", "console.go"),
+		filepath.Join("core", "console", "scaffold", "new.go"),
+		filepath.Join("core", "kernel", "application.go"),
+		filepath.Join("core", "kernel", "env", "env.go"),
+		filepath.Join("core", "contracts", "app.go"),
+		filepath.Join("core", "bootstrap", "app.go"),
 	}
 	for _, rel := range files {
 		body, err := os.ReadFile(filepath.Join(root, rel))
@@ -140,7 +140,7 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("framework must not require github.com/zatrano/packages")
 	}
 
-	kernelSrc, err := os.ReadFile(filepath.Join(root, "kernel", "application.go"))
+	kernelSrc, err := os.ReadFile(filepath.Join(root, "core", "kernel", "application.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("Bootstrap/Start must not enforce framework_min")
 	}
 
-	acq, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_acquire.go"))
+	acq, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_acquire.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestErgonomicsDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("package:acquire must not run go mod tidy")
 	}
 
-	cli, err := os.ReadFile(filepath.Join(root, "console", "cli_exit.go"))
+	cli, err := os.ReadFile(filepath.Join(root, "core", "console", "cli_exit.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

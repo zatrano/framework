@@ -1,0 +1,11 @@
+package web
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+// HomeHandler serves the welcome page.
+type HomeHandler struct{}
+
+// Index renders the web welcome Canvas template.
+func (c *HomeHandler) Index(req *http.Request) *http.Response {
+	return http.Template("web.welcome")
+}

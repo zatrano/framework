@@ -1,0 +1,171 @@
+package describe
+
+import (
+	"testing"
+
+	"github.com/zatrano/framework/v3/core/kernel"
+)
+
+func TestEcosystemCatalogCoversLayers(t *testing.T) {
+	if len(catalogByLayer(kernel.LayerPrimitive)) < 5 {
+		t.Fatalf("expected primitives in catalogAll, got %d", len(catalogByLayer(kernel.LayerPrimitive)))
+	}
+	if len(catalogByLayer(kernel.LayerFoundation)) < 10 {
+		t.Fatalf("expected foundation packages, got %d", len(catalogByLayer(kernel.LayerFoundation)))
+	}
+	if len(catalogByLayer(kernel.LayerIntelligence)) != 4 {
+		t.Fatalf("expected 4 intelligence packages, got %d", len(catalogByLayer(kernel.LayerIntelligence)))
+	}
+	if len(catalogByLayer(kernel.LayerAddon)) < 20 {
+		t.Fatalf("expected addon packages, got %d", len(catalogByLayer(kernel.LayerAddon)))
+	}
+
+	ai, ok := catalogLookup("ai")
+	if !ok || ai.Layer != kernel.LayerIntelligence || ai.EffectiveKind() != kernel.KindService || ai.Stability != "experimental" {
+		t.Fatal("ai should be an experimental intelligence service")
+	}
+	rag, ok := catalogLookup("rag")
+	if !ok || rag.Layer != kernel.LayerIntelligence || rag.EffectiveKind() != kernel.KindLibrary || rag.Stability != "experimental" {
+		t.Fatal("rag should be an experimental intelligence library")
+	}
+	agent, ok := catalogLookup("agent")
+	if !ok || agent.Layer != kernel.LayerIntelligence || agent.EffectiveKind() != kernel.KindLibrary || agent.Stability != "experimental" {
+		t.Fatal("agent should be an experimental intelligence library")
+	}
+	workflow, ok := catalogLookup("workflow")
+	if !ok || workflow.Layer != kernel.LayerIntelligence || workflow.EffectiveKind() != kernel.KindLibrary || workflow.Stability != "experimental" {
+		t.Fatal("workflow should be an experimental intelligence library")
+	}
+	redisx, ok := catalogLookup("redisx")
+	if !ok || redisx.Layer != kernel.LayerFoundation || redisx.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("redisx should be a foundation library")
+	}
+	if _, ok := catalogLookup("container"); !ok {
+		t.Fatal("primitives must still resolve through catalogLookup")
+	}
+	if _, ok := kernel.LookupPackage("auth"); ok {
+		t.Fatal("kernel must not know auth")
+	}
+	for _, p := range catalogByLayer(kernel.LayerFoundation) {
+		if p.Name == "redisx" || p.Name == "db" {
+			if p.EffectiveKind() != kernel.KindLibrary {
+				t.Errorf("foundation %q Kind=%q want library", p.Name, p.EffectiveKind())
+			}
+			continue
+		}
+		if p.Kind != kernel.KindService {
+			t.Errorf("foundation %q Kind=%q want explicit service", p.Name, p.Kind)
+		}
+	}
+}
+
+func TestEcosystemCatalogNamesUnique(t *testing.T) {
+	seen := map[string]bool{}
+	for _, p := range catalogAll() {
+		if p.Name == "" {
+			t.Fatal("catalog entry missing name")
+		}
+		if seen[p.Name] {
+			t.Fatalf("duplicate catalog name %q", p.Name)
+		}
+		seen[p.Name] = true
+	}
+}
+
+func TestEcosystemCatalogAddonKinds(t *testing.T) {
+	services := 0
+	libraries := 0
+	for _, p := range catalogByLayer(kernel.LayerAddon) {
+		switch p.EffectiveKind() {
+		case kernel.KindService:
+			services++
+		case kernel.KindLibrary:
+			libraries++
+		default:
+			t.Fatalf("addon %q has unexpected kind %q", p.Name, p.EffectiveKind())
+		}
+		if p.Description == "" {
+			t.Fatalf("addon %q missing description", p.Name)
+		}
+	}
+	if services < 5 {
+		t.Fatalf("expected service addons, got %d", services)
+	}
+	if libraries < 10 {
+		t.Fatalf("expected library addons, got %d", libraries)
+	}
+	mongo, ok := catalogLookup("mongo")
+	if !ok || mongo.EffectiveKind() != kernel.KindService {
+		t.Fatal("mongo should be a service addon")
+	}
+	collection, ok := catalogLookup("toolkit/collection")
+	if !ok || collection.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/collection should be a library addon")
+	}
+	md, ok := catalogLookup("toolkit/markdown")
+	if !ok || md.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/markdown should be a library addon")
+	}
+	zipLib, ok := catalogLookup("toolkit/zip")
+	if !ok || zipLib.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/zip should be a library addon")
+	}
+	if _, ok := catalogLookup("useragent"); ok {
+		t.Fatal("useragent is kernel http.ParseUserAgent, not an addon")
+	}
+	if _, ok := catalogLookup("api"); ok {
+		t.Fatal("api versioning is kernel routing.Version, not an addon")
+	}
+	if _, ok := catalogLookup("archive"); ok {
+		t.Fatal("archive moved to toolkit/zip")
+	}
+	if _, ok := catalogLookup("markdown"); ok {
+		t.Fatal("markdown moved to toolkit/markdown")
+	}
+	if _, ok := catalogLookup("jsonschema"); ok {
+		t.Fatal("jsonschema moved to toolkit/jsonschema")
+	}
+	if _, ok := catalogLookup("octane"); ok {
+		t.Fatal("octane was removed")
+	}
+	if _, ok := catalogLookup("pulse"); ok {
+		t.Fatal("pulse was removed")
+	}
+	if _, ok := catalogLookup("inspector"); ok {
+		t.Fatal("inspector was removed")
+	}
+	for _, name := range []string{"version", "search", "shorturl", "sitemap", "wellknown", "geo", "hashid", "lock", "pagination", "totp", "otp", "bus", "features", "tenancy"} {
+		if _, ok := catalogLookup(name); ok {
+			t.Fatalf("%s was removed", name)
+		}
+	}
+	docsPkg, ok := catalogLookup("docs")
+	if !ok || docsPkg.EffectiveKind() != kernel.KindService {
+		t.Fatal("docs should be a service addon")
+	}
+	seoPkg, ok := catalogLookup("seo")
+	if !ok || seoPkg.EffectiveKind() != kernel.KindService {
+		t.Fatal("seo should be a service addon")
+	}
+	breaker, ok := catalogLookup("toolkit/circuit")
+	if !ok || breaker.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/circuit should be a library addon")
+	}
+	str, ok := catalogLookup("toolkit/str")
+	if !ok || str.Layer != kernel.LayerAddon || str.EffectiveKind() != kernel.KindLibrary {
+		t.Fatal("toolkit/str should be an addon library")
+	}
+	oauth, ok := catalogLookup("oauth")
+	if !ok || oauth.EffectiveKind() != kernel.KindService {
+		t.Fatal("oauth should be a service addon")
+	}
+	libs := catalogLibraries()
+	if len(libs) < 10 {
+		t.Fatalf("expected library catalog, got %d", len(libs))
+	}
+	for i := 1; i < len(libs); i++ {
+		if libs[i-1].Name > libs[i].Name {
+			t.Fatalf("catalogLibraries must be sorted by name: %q then %q", libs[i-1].Name, libs[i].Name)
+		}
+	}
+}

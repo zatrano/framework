@@ -12,12 +12,12 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	files := []string{
 		"README.md",
 		"PACKAGES.md",
-		"distribution/registry/SPEC.md",
-		"distribution/acquire/SPEC.md",
+		"core/distribution/registry/SPEC.md",
+		"core/distribution/acquire/SPEC.md",
 	}
 	bans := []string{
 		"github.com/zatrano/packages@main",
-		"github.com/zatrano/framework/v2@latest",
+		"github.com/zatrano/framework/v3@latest",
 		"uses channel `main` until tagged",
 		"the module is not tagged `v2.x`",
 		"Today that stream is channel `main`",
@@ -44,7 +44,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	}
 	text := string(readme)
 	for _, want := range []string{
-		"github.com/zatrano/framework/v2@v2.8.1",
+		"github.com/zatrano/framework/v3@v3.0.0",
 		"github.com/zatrano/packages@v1.13.1",
 		"Enabled ∩ Imported",
 		"Expand Requires",
@@ -54,7 +54,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 		}
 	}
 
-	catalog, err := os.ReadFile(filepath.Join(root, "console", "describe", "catalog.go"))
+	catalog, err := os.ReadFile(filepath.Join(root, "core", "console", "describe", "catalog.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,17 +39,17 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		filepath.Join("console", "pkgmanager", "package_cmd.go"),
-		filepath.Join("console", "pkgmanager", "package_wire.go"),
-		filepath.Join("console", "pkgmanager", "package_acquire.go"),
-		filepath.Join("console", "pkgmanager", "package_doctor.go"),
-		filepath.Join("console", "pkgmanager", "package_enable.go"),
-		filepath.Join("contracts", "app.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_cmd.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_wire.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_acquire.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_doctor.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_enable.go"),
+		filepath.Join("core", "contracts", "app.go"),
 	} {
 		check(filepath.Join(root, rel))
 	}
 
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("console must not copy registry resolution")
 	}
 	if !strings.Contains(text, "addons.Expand(") {
-		enableSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_enable.go"))
+		enableSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_enable.go"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		}
 	}
 
-	wireSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_wire.go"))
+	wireSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_wire.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestEnablementDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 		t.Fatal("framework must not require github.com/zatrano/packages")
 	}
 
-	err = filepath.WalkDir(filepath.Join(root, "console"), func(path string, d fs.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(filepath.Join(root, "core", "console"), func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return walkErr
 		}

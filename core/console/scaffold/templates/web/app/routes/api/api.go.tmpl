@@ -1,0 +1,25 @@
+package api
+
+import (
+	apihandlers "__MODULE__/app/http/handlers/api"
+
+	"github.com/zatrano/framework/v3/core/kernel/routing"
+)
+
+func init() {
+	routing.RegisterAPI(registerAPI)
+}
+
+func registerAPI(router *routing.Router) {
+	if router == nil {
+		return
+	}
+
+	router.Name("api.", func(r *routing.Router) {
+		r.Group("/api", func(r *routing.Router) {
+			routing.Controller(r, &apihandlers.HomeHandler{}, func(r routing.RouteRegistrar, c *apihandlers.HomeHandler) {
+				r.Get("/", c.Index).As("home")
+			})
+		})
+	})
+}

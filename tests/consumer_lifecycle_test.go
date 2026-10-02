@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,14 @@ func packagesCheckout(t *testing.T) string {
 		return sibling
 	}
 	return ""
+}
+
+func quoteGoModReplacePath(p string) string {
+	p = filepath.ToSlash(p)
+	if strings.ContainsAny(p, " \t") {
+		return strconv.Quote(p)
+	}
+	return p
 }
 
 func TestFreshConsumerLifecycle(t *testing.T) {
@@ -62,8 +71,8 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v2 v2.8.1") {
-		t.Fatalf("generated go.mod must require v2.8.1:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.0.0") {
+		t.Fatalf("generated go.mod must require v3.0.0:\n%s", mod)
 	}
 
 	build := exec.CommandContext(ctx, "go", "build", "./...")
@@ -109,7 +118,7 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := f.WriteString("\nreplace github.com/zatrano/packages => " + filepath.ToSlash(pkgDir) + "\n"); err != nil {
+			if _, err := f.WriteString("\nreplace github.com/zatrano/packages => " + quoteGoModReplacePath(pkgDir) + "\n"); err != nil {
 				_ = f.Close()
 				t.Fatal(err)
 			}
