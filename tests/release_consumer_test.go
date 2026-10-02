@@ -17,8 +17,8 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "2.8.1" {
-		t.Fatalf("VERSION=%q want 2.8.1", version)
+	if version != "3.0.0-dev" {
+		t.Fatalf("VERSION=%q want 3.0.0-dev", version)
 	}
 
 	log, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md"))
@@ -88,8 +88,8 @@ func TestReleaseMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "version-2.8.1") {
-		t.Fatal("README badge must show 2.8.1")
+	if !strings.Contains(string(readme), "version-3.0.0-dev") {
+		t.Fatal("README badge must show 3.0.0-dev")
 	}
 }
 
@@ -116,8 +116,8 @@ func TestFreshConsumerLocalReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v2.8.1") {
-		t.Fatalf("generated go.mod must require v2.8.1:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.0.0") {
+		t.Fatalf("generated go.mod must require v3.0.0:\n%s", mod)
 	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(t.TempDir(), "app.exe"), "./cmd/app")
 	build.Dir = dest
@@ -139,18 +139,18 @@ func TestPublishedModuleConsumption(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/zatrano-release-consumer\n\ngo 1.25.0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	get := exec.Command("go", "get", "github.com/zatrano/framework/v3@v2.8.1")
+	get := exec.Command("go", "get", "github.com/zatrano/framework/v3@v3.0.0")
 	get.Dir = dir
 	get.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	gout, err := get.CombinedOutput()
 	if err != nil {
-		t.Skipf("v2.8.1 is not on the module proxy yet (tag/push not done): %v\n%s", err, gout)
+		t.Skipf("v3.0.0 is not on the module proxy yet (tag/push not done): %v\n%s", err, gout)
 	}
 	mod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v2.8.1") {
-		t.Fatalf("consumer go.mod must pin v2.8.1:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.0.0") {
+		t.Fatalf("consumer go.mod must pin v3.0.0:\n%s", mod)
 	}
 }

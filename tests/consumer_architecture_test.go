@@ -18,15 +18,15 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		"zatrano.lock",
 	}
 	for _, rel := range []string{
-		filepath.Join("console", "pkgmanager", "package_cmd.go"),
-		filepath.Join("console", "pkgmanager", "package_wire.go"),
-		filepath.Join("console", "pkgmanager", "package_acquire.go"),
-		filepath.Join("console", "pkgmanager", "package_doctor.go"),
-		filepath.Join("console", "pkgmanager", "package_registry.go"),
-		filepath.Join("console", "pkgmanager", "package_enable.go"),
-		filepath.Join("kernel", "application.go"),
-		filepath.Join("contracts", "app.go"),
-		filepath.Join("bootstrap", "app.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_cmd.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_wire.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_acquire.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_doctor.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_registry.go"),
+		filepath.Join("core", "console", "pkgmanager", "package_enable.go"),
+		filepath.Join("core", "kernel", "application.go"),
+		filepath.Join("core", "contracts", "app.go"),
+		filepath.Join("core", "bootstrap", "app.go"),
 	} {
 		body, err := os.ReadFile(filepath.Join(root, rel))
 		if err != nil {
@@ -48,7 +48,7 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		t.Fatal("framework must not require github.com/zatrano/packages")
 	}
 
-	kernelSrc, err := os.ReadFile(filepath.Join(root, "kernel", "application.go"))
+	kernelSrc, err := os.ReadFile(filepath.Join(root, "core", "kernel", "application.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		t.Fatal("Bootstrap/Start must not enforce framework_min")
 	}
 
-	acq, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_acquire.go"))
+	acq, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_acquire.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		t.Fatal("acquisition must still gate enablement on explicit --enable")
 	}
 
-	cmdSrc, err := os.ReadFile(filepath.Join(root, "console", "pkgmanager", "package_cmd.go"))
+	cmdSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "pkgmanager", "package_cmd.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestConsumerDiagnosticsDoesNotIntroduceForbiddenArchitecture(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	cliExit, err := os.ReadFile(filepath.Join(root, "console", "cli_exit.go"))
+	cliExit, err := os.ReadFile(filepath.Join(root, "core", "console", "cli_exit.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

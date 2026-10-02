@@ -12,30 +12,30 @@ import (
 func TestScaffoldBoundaries(t *testing.T) {
 	root := moduleRoot(t)
 
-	if st, err := os.Stat(filepath.Join(root, "console", "stubs")); err == nil && st.IsDir() {
-		t.Fatal("console/stubs must not exist; auth/dashboard stubs belong in github.com/zatrano/packages/auth")
+	if st, err := os.Stat(filepath.Join(root, "core", "console", "stubs")); err == nil && st.IsDir() {
+		t.Fatal("core/console/stubs must not exist; auth/dashboard stubs belong in github.com/zatrano/packages/auth")
 	}
-	if st, err := os.Stat(filepath.Join(root, "bootstrap", "stubs")); err == nil && st.IsDir() {
-		t.Fatal("bootstrap/stubs must not exist; package config bodies belong on addons.Meta.ConfigFiles")
+	if st, err := os.Stat(filepath.Join(root, "core", "bootstrap", "stubs")); err == nil && st.IsDir() {
+		t.Fatal("core/bootstrap/stubs must not exist; package config bodies belong on addons.Meta.ConfigFiles")
 	}
-	if _, err := os.Stat(filepath.Join(root, "console", "request.go")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, "core", "console", "request.go")); err == nil {
 		t.Fatal("make:request must not live in the framework console")
 	}
-	if _, err := os.Stat(filepath.Join(root, "console", "rule.go")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, "core", "console", "rule.go")); err == nil {
 		t.Fatal("make:rule must not live in the framework console")
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "console", "add.go")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, "core", "console", "add.go")); err == nil {
 		t.Fatal("add:web / add:api must not exist")
 	}
 
-	entries, err := os.ReadDir(filepath.Join(root, "console", "scaffold", "templates"))
+	entries, err := os.ReadDir(filepath.Join(root, "core", "console", "scaffold", "templates"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
 		if !e.IsDir() {
-			t.Errorf("console/templates must contain only scaffold directories, found file %s", e.Name())
+			t.Errorf("core/console/templates must contain only scaffold directories, found file %s", e.Name())
 			continue
 		}
 		switch e.Name() {
@@ -45,7 +45,7 @@ func TestScaffoldBoundaries(t *testing.T) {
 		}
 	}
 
-	doctorSrc, err := os.ReadFile(filepath.Join(root, "console", "doctor", "doctor_checks.go"))
+	doctorSrc, err := os.ReadFile(filepath.Join(root, "core", "console", "doctor", "doctor_checks.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestScaffoldBoundaries(t *testing.T) {
 }
 
 func TestStarterEnablementImportsHealthOnly(t *testing.T) {
-	root := filepath.Join(moduleRoot(t), "console", "scaffold", "templates", "web")
+	root := filepath.Join(moduleRoot(t), "core", "console", "scaffold", "templates", "web")
 	addons, err := os.ReadFile(filepath.Join(root, "bootstrap", "addons.go.tmpl"))
 	if err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestStarterEnablementImportsHealthOnly(t *testing.T) {
 func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 	root := moduleRoot(t)
 	for _, rel := range []string{
-		filepath.Join("console", "scaffold", "templates", "web", "Dockerfile"),
+		filepath.Join("core", "console", "scaffold", "templates", "web", "Dockerfile"),
 	} {
 		body, err := os.ReadFile(filepath.Join(root, rel))
 		if err != nil {
@@ -94,7 +94,7 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 			t.Errorf("%s uses legacy top-level COPY", filepath.ToSlash(rel))
 		}
 	}
-	body, err := os.ReadFile(filepath.Join(root, "console", "scaffold", "templates", "web", "Dockerfile"))
+	body, err := os.ReadFile(filepath.Join(root, "core", "console", "scaffold", "templates", "web", "Dockerfile"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,14 +108,14 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 }
 
 func TestWebScaffoldDoesNotShipPackageMigrations(t *testing.T) {
-	dir := filepath.Join(moduleRoot(t), "console", "scaffold", "templates", "web", "app", "database")
+	dir := filepath.Join(moduleRoot(t), "core", "console", "scaffold", "templates", "web", "app", "database")
 	if _, err := os.Stat(dir); err == nil {
 		t.Fatal("starter must not ship app/database")
 	}
 }
 
 func TestGeneratorEngineHasNoApplicationPolicy(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "generator", "engine.go"))
+	src, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "generator", "engine.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestGeneratorEngineHasNoApplicationPolicy(t *testing.T) {
 			t.Errorf("generator engine contains application policy %q", ban)
 		}
 	}
-	newSrc, err := os.ReadFile(filepath.Join(moduleRoot(t), "console", "scaffold", "new.go"))
+	newSrc, err := os.ReadFile(filepath.Join(moduleRoot(t), "core", "console", "scaffold", "new.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestGeneratorEngineHasNoApplicationPolicy(t *testing.T) {
 
 func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 	root := moduleRoot(t)
-	webRoot := filepath.Join(root, "console", "scaffold", "templates", "web")
+	webRoot := filepath.Join(root, "core", "console", "scaffold", "templates", "web")
 	if len(relFiles(t, webRoot)) == 0 {
 		t.Fatal("web starter inventory")
 	}

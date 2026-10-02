@@ -71,8 +71,8 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v2.8.1") {
-		t.Fatalf("generated go.mod must require v2.8.1:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.0.0") {
+		t.Fatalf("generated go.mod must require v3.0.0:\n%s", mod)
 	}
 
 	build := exec.CommandContext(ctx, "go", "build", "./...")
