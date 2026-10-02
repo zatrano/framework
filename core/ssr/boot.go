@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zatrano/canvas"
 	"github.com/zatrano/framework/v3/core/contracts"
 	"github.com/zatrano/framework/v3/core/kernel/dirs"
 )
@@ -32,7 +33,7 @@ type assetsAPI interface {
 	URL(path string) string
 }
 
-func wireTranslator(engine Engine, app contracts.App) {
+func wireTranslator(engine *canvas.Engine, app contracts.App) {
 	raw, err := app.Make("translator")
 	if err != nil {
 		return
@@ -87,7 +88,7 @@ func wireTranslator(engine Engine, app contracts.App) {
 	})
 }
 
-func wireAssets(engine Engine, app contracts.App) {
+func wireAssets(engine *canvas.Engine, app contracts.App) {
 	raw, err := app.Make("assets")
 	if err != nil {
 		return

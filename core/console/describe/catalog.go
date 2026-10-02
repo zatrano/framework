@@ -23,7 +23,7 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "orm", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Stability: "deprecated", Description: "REMOVED — v2 ORM deleted; use packages/db + sqlc"},
 	{Name: "db", Layer: kernel.LayerFoundation, Kind: kernel.KindLibrary, Description: "V3 SQL-first adapters (db/postgres, db/mysql, …)"},
 	{Name: "view", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Stability: "deprecated", Description: "DEPRECATED — use template (Canvas via framework/core/ssr)"},
-	{Name: "template", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Canvas HTML SSR — framework/core/ssr (packages/template removed)"},
+	{Name: "template", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Canvas HTML SSR — binds *canvas.Engine via framework/core/ssr"},
 	{Name: "queue", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Job queues"},
 	{Name: "facts", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Typed facts and reactions"},
 	{Name: "localization", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Translator / locales"},

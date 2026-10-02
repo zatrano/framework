@@ -146,6 +146,6 @@ func (c *MakeComponentCommand) Handle(args []string) error {
 		return err
 	}
 	fmt.Printf("Component created: %s\n", path)
-	fmt.Printf("Render with: ssr.From(app).Component(%q, map[string]any{\"slot\": \"...\"})\n", slug)
+	fmt.Printf("Render with: canvas.New(templatesDir).Component(%q, map[string]any{\"slot\": \"...\"})\n", slug)
 	return nil
 }

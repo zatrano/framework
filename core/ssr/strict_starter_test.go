@@ -18,11 +18,10 @@ func TestStarterStubsRenderUnderEscapeStrict(t *testing.T) {
 	}
 	root := filepath.Join(dir, "templates")
 	eng := ssr.New(root)
-	cv, ok := ssr.Canvas(eng)
-	if !ok {
-		t.Fatal("default engine must be Canvas")
+	if eng == nil {
+		t.Fatal("nil engine")
 	}
-	if cv.LangEscapeCatalog() {
+	if eng.LangEscapeCatalog() {
 		t.Fatal("boot/default must not force SetLangEscapeCatalog(true)")
 	}
 	eng.Share("appName", "ZATRANO")
@@ -56,10 +55,6 @@ func TestLangEscapePolicyViaCanvasDefault(t *testing.T) {
 	write("lang_attr", `<div title="@lang('k')"></div>`)
 
 	eng := ssr.New(dir)
-	cv, ok := ssr.Canvas(eng)
-	if !ok {
-		t.Fatal("Canvas")
-	}
 
 	out, err := eng.Render("lang_text", map[string]any{
 		"__trans": map[string]string{"k": `<b>ok</b>`},
@@ -98,7 +93,7 @@ func TestLangEscapePolicyViaCanvasDefault(t *testing.T) {
 		t.Fatalf("attr catalog quote must be escaped, got %q", out)
 	}
 
-	cv.SetLangEscapeCatalog(true)
+	eng.SetLangEscapeCatalog(true)
 	out, err = eng.Render("lang_text", map[string]any{
 		"__trans": map[string]string{"k": `<b>ok</b>`},
 	})

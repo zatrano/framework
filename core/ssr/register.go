@@ -9,7 +9,7 @@ func init() {
 	addons.Register(addons.Meta{
 		Name:        "template",
 		Key:         "template",
-		Description: "Canvas HTML SSR (framework core/ssr; engine github.com/zatrano/canvas)",
+		Description: "Canvas HTML SSR (binds *canvas.Engine; motor github.com/zatrano/canvas)",
 		Order:       129,
 		Factory:     func() contracts.Provider { return &ServiceProvider{} },
 		CLI:         Commands,
