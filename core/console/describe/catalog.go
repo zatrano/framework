@@ -31,7 +31,7 @@ var ecosystemCatalog = []kernel.PackageInfo{
 	{Name: "filesystem", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Filesystem disks"},
 	{Name: "notification", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Async multi-channel notifications (mail, SMS, push, database, broadcast)"},
 	{Name: "broadcasting", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Event broadcasting"},
-	{Name: "httpclient", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Outbound HTTP client"},
+	{Name: "httpclient", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Stability: "deprecated", Description: "REMOVED — outbound HTTP wrapper deleted; use net/http (or app helper). Server transport is rawhttp + core/kernel/http"},
 	{Name: "ratelimit", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Rate limiter"},
 	{Name: "url", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "URL generator"},
 	{Name: "health", Layer: kernel.LayerFoundation, Kind: kernel.KindService, Description: "Health checks"},

@@ -404,3 +404,14 @@ var _ = factory.Nop
 `)
 	assertDoctorRule(t, root, "APP-FAC-001")
 }
+
+func TestDoctorLegacyHTTPClientImportFails(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "services", "api.go"), `package services
+
+import "github.com/zatrano/packages/httpclient"
+
+func C() { _ = httpclient.New }
+`)
+	assertDoctorRule(t, root, "APP-HC-001")
+}

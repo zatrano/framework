@@ -60,6 +60,18 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 					How:      "Remove the factory import; seed via app SQL/sqlc repositories.",
 				})
 			}
+			if path == "github.com/zatrano/packages/httpclient" || strings.HasPrefix(path, "github.com/zatrano/packages/httpclient/") {
+				out = append(out, Finding{
+					Rule:     "APP-HC-001",
+					Check:    "http-lifecycle",
+					Severity: "error",
+					File:     rel,
+					Line:     line,
+					Found:    "import " + path,
+					Why:      "packages/httpclient was removed from V3. Outbound calls use net/http; the server transport is rawhttp + core/kernel/http.",
+					How:      "Remove the httpclient import; use net/http.Client (or a small app helper).",
+				})
+			}
 			if path == "github.com/zatrano/framework/v3/core/kernel/http" || strings.HasSuffix(path, "/core/kernel/http") {
 				hasKernelHTTP = true
 			}

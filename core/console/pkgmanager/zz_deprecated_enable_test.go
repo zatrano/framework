@@ -25,4 +25,8 @@ func TestRejectEnableDeprecatedDatabase(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "deprecated") {
 		t.Fatalf("expected factory deprecated rejection, got %v", err)
 	}
+	err = rejectEnableTarget("httpclient")
+	if err == nil || !strings.Contains(err.Error(), "deprecated") {
+		t.Fatalf("expected httpclient deprecated rejection, got %v", err)
+	}
 }
