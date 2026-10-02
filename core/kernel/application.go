@@ -623,7 +623,7 @@ func (app *Application) recoverHandle(ctx *rawhttp.Ctx) {
 // ServeHTTP was removed in V3 (rawhttp). Use Handle / Run.
 
 func (app *Application) publicFile(req *http.Request) *http.Response {
-	if req == nil || req.Raw() == nil {
+	if req == nil {
 		return nil
 	}
 	switch req.Method() {
@@ -662,12 +662,28 @@ func (app *Application) servePublicFile(req *http.Request) *http.Response {
 	if err != nil || info.IsDir() {
 		return nil
 	}
-	return http.PublicFile(publicPath, req.Raw())
+	return http.PublicFile(publicPath)
+}
+
+// ListenOptions controls how RunListen binds the HTTP server.
+// Zero value matches classic ListenAndServe (default path).
+type ListenOptions struct {
+	// Prefork runs rawhttp.Prefork (multi-process when supported).
+	Prefork bool
+	// ReusePort uses SO_REUSEPORT when available (also passed to Prefork).
+	ReusePort bool
+	// Workers is Prefork child count; zero → GOMAXPROCS.
+	Workers int
 }
 
 // Run calls Start (which bootstraps if needed), listens on addr or APP_PORT,
 // and shuts down on SIGINT/SIGTERM (HTTP Shutdown then Stop).
 func (app *Application) Run(addr string) error {
+	return app.RunListen(addr, ListenOptions{})
+}
+
+// RunListen is Run with optional Prefork / reuseport (zatrano serve flags).
+func (app *Application) RunListen(addr string, opts ListenOptions) error {
 	if err := app.Start(); err != nil {
 		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 	}
@@ -689,12 +705,39 @@ func (app *Application) Run(addr string) error {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    1 << 20,
+		TrustedProxies:    trustedProxiesForServer(),
+		KeepHijackedConns: true,
+	}
+
+	serve := func() error {
+		switch {
+		case opts.Prefork:
+			return rawhttp.Prefork(server, rawhttp.PreforkConfig{
+				Addr:      addr,
+				Workers:   opts.Workers,
+				ReusePort: opts.ReusePort,
+			})
+		case opts.ReusePort:
+			ln, err := rawhttp.ListenReusePort("tcp", addr)
+			if err != nil {
+				return err
+			}
+			return server.Serve(ln)
+		default:
+			return server.ListenAndServe(addr)
+		}
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		app.logger.Infof("ZATRANO server listening on %s", addr)
-		if err := server.ListenAndServe(addr); err != nil && err != rawhttp.ErrServerClosed {
+		mode := "ListenAndServe"
+		if opts.Prefork {
+			mode = "Prefork"
+		} else if opts.ReusePort {
+			mode = "ReusePort"
+		}
+		app.logger.Infof("ZATRANO server listening on %s (%s)", addr, mode)
+		if err := serve(); err != nil && err != rawhttp.ErrServerClosed {
 			errCh <- err
 			return
 		}
@@ -738,4 +781,22 @@ func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
 		return app.exceptions.Middleware()
 	}
 	return middleware.Recover
+}
+
+// trustedProxiesForServer maps TRUSTED_PROXIES onto rawhttp.Server.TrustedProxies.
+// "*" (trust-all) is not expressible as CIDRs; leave empty and let app middleware handle it.
+func trustedProxiesForServer() []string {
+	raw := strings.TrimSpace(env.Get("TRUSTED_PROXIES", ""))
+	if raw == "" || raw == "*" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" || p == "*" {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }

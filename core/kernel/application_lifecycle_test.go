@@ -33,7 +33,7 @@ func (p *countingProvider) Boot(app contracts.App) error {
 	return nil
 }
 
-func closeAppLog(t *testing.T, app *kernel.Application) {
+func closeAppLog(t testing.TB, app *kernel.Application) {
 	t.Helper()
 	if c, ok := app.Logger().(interface{ Close() error }); ok && c != nil {
 		_ = c.Close()

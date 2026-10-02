@@ -1,15 +1,21 @@
 package kernel
 
 import (
-	stdhttp "net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/zatrano/framework/v3/core/kernel/http"
+	"github.com/zatrano/rawhttp"
 )
+
+func testHTTPRequest(method, path string) *http.Request {
+	return http.NewRequest(&rawhttp.Ctx{
+		Method: []byte(method),
+		Path:   []byte(path),
+	})
+}
 
 func TestPublicFileLookupKeyMirrorsResolve(t *testing.T) {
 	t.Parallel()
@@ -54,7 +60,7 @@ func TestPublicFileIndexConcurrentOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			req := http.NewRequest(httptest.NewRequest(stdhttp.MethodGet, "/missing.json", nil))
+			req := testHTTPRequest("GET", "/missing.json")
 			_ = app.publicFile(req)
 		}()
 	}
@@ -126,8 +132,7 @@ func TestPublicFileOracleMatchesSlowPath(t *testing.T) {
 		"/css/foo/../app.css",
 	}
 	for _, path := range paths {
-		raw := httptest.NewRequest(stdhttp.MethodGet, path, nil)
-		req := http.NewRequest(raw)
+		req := testHTTPRequest("GET", path)
 		got := app.publicFile(req)
 		slow := app.servePublicFile(req)
 		if !samePublicResponse(got, slow) {
