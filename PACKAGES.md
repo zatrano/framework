@@ -173,7 +173,7 @@ func (c *HomeHandler) Index(req *http.Request) *http.Response {
 }
 ```
 
-`Host` / `Scheme` / `Secure` / `Root` / `FullURL` are request primitives. Content negotiation is `http.Negotiate` (one Accept parser on `Request.Prefers`, including `q` values). HTTP upgrade is `http.Hijack` (HTTP/1.1 `Hijacker`; not HTTP/2); WebSocket frames stay in `packages/websocket`.
+`Host` / `Scheme` / `Secure` / `Root` / `FullURL` are request primitives. Content negotiation is `http.Negotiate` (one Accept parser on `Request.Prefers`, including `q` values). HTTP upgrade is `http.Hijack` → `rawhttp.Ctx.Hijack` (`KeepHijackedConns`); WebSocket frames stay in `packages/websocket`.
 
 Docs: [Requests & Responses](https://zatrano.com/docs/requests) · [Content negotiation](https://zatrano.com/docs/negotiate)
 
@@ -744,7 +744,7 @@ Do **not** add these to `EnabledAddons`. Import and call.
 | `toolkit/process` | OS commands | `process.Command("git","status").Run()` | [Processes](https://zatrano.com/docs/processes) |
 | `toolkit/timing` | Server-Timing | `timing.Measure(req, "db", fn)` | [Timing](https://zatrano.com/docs/timing) |
 | `toolkit/zip` | ZIP create/extract | `zipx.Create` / `Extract` | [Archives](https://zatrano.com/docs/archives) |
-| `websocket` | WS frames on `http.Hijack` | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
+| `websocket` | WS frames on `http.Hijack` → rawhttp | `websocket.Upgrade(handler)` | [WebSockets](https://zatrano.com/docs/websockets) |
 
 ---
 
