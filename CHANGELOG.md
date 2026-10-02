@@ -4,6 +4,17 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.0.1 - 2026-10-02
+
+Patch after `v3.0.0`. Product `VERSION` stays `3.0.0`. Kernel ABI is unchanged.
+
+### Changed
+
+- Drop local `replace` directives for `canvas` and `rawhttp`. The module requires published `canvas v0.2.0` and `rawhttp v0.2.2`.
+- First-time enablement pins `github.com/zatrano/packages@v1.14.0`.
+
+Install with `go get github.com/zatrano/framework/v3@v3.0.1` and `go get github.com/zatrano/packages@v1.14.0`.
+
 ## 3.0.0 - 2026-10-02
 
 V3 is stable. HTTP carrier is **rawhttp**; SSR is **Canvas** (`framework/v3/core/ssr`). Web apps require Canvas; API handlers stay JSON-capable.

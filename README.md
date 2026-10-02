@@ -331,8 +331,8 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.0.0
-go get github.com/zatrano/packages@v1.13.1
+go get github.com/zatrano/framework/v3@v3.0.1
+go get github.com/zatrano/packages@v1.14.0
 ```
 
 These are the **current stable public releases**. The two modules version independently; later applications may pin newer compatible tags. There is no monolithic `zatrano@x.y.z` version.
@@ -382,7 +382,7 @@ Prefer the CLI, which writes both sides:
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.13.1` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.14.0` when that module is not yet required, and merges env keys into `.env.example`. Then rebuild/restart.
 
 To add a module that is not yet in `go.mod`, acquire first (enablement is separate; default acquire does not enable):
 
@@ -590,7 +590,7 @@ Disable   = remove persistent enablement + that package’s blank-import
 
 Disable does not remove Go modules, config stubs, `.env` keys, or database state. Unused module cleanup is Go/user-owned (`go get` / `go mod tidy` are not run automatically).
 
-Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.13.1` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
+Enablement does not overwrite an existing `github.com/zatrano/packages` requirement. A tagged `package:acquire` pin stays in go.mod. First-time wiring may `go get github.com/zatrano/packages@v1.14.0` (current stable tag) when that module is not yet required. That `go get` is a wiring convenience, not registry Resolve and not automatic enablement. `addons.Expand` closes declared `Requires` only.
 
 Upgrade is `package:acquire name@version`. There is no `package:upgrade` or `package:uninstall` command.
 
@@ -767,7 +767,7 @@ Nested modules (`db/*`, `mongo`, `webauthn`) are separately versioned Go modules
 | Line | Meaning |
 | --- | --- |
 | Framework `v3` / `3.0.0` | Current kernel / CLI / contracts (rawhttp + Canvas) |
-| Packages `main` | Current official package ecosystem for V3 |
+| Packages `v1.14.0` | Current official package ecosystem for V3 |
 | Framework `v2.8.1` / Packages `v1.13.1` | Last v2 public tags |
 | Framework `v1.x` | Previous tagged kernel line |
 

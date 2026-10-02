@@ -6,7 +6,3 @@ require (
 	github.com/zatrano/canvas v0.2.0
 	github.com/zatrano/rawhttp v0.2.2
 )
-
-replace github.com/zatrano/rawhttp => ../rawhttp
-
-replace github.com/zatrano/canvas => ../canvas
