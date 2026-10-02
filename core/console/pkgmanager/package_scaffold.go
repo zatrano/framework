@@ -20,16 +20,18 @@ func packageAppDirs(name string) []string {
 		return []string{"app/notifications"}
 	case "authorization":
 		return []string{"app/policies"}
-	case "database":
-		return []string{"app/database", "app/database/migrations", "app/database/seeders", "app/database/factories"}
 	case "orm":
 		return []string{"app/models"}
 	case "validation":
 		return []string{"app/http/requests", "app/rules"}
 	case "localization":
 		return []string{"app/localization"}
-	case "view":
+	case "view", "template":
 		return []string{"templates", "templates/web", "templates/layouts"}
+	case "db":
+		return []string{"database", "database/migrations", "database/queries", "database/sqlc", "database/seeders"}
+	case "database":
+		return []string{"app/database", "app/database/migrations", "app/database/seeders", "app/database/factories"}
 	case "factory":
 		return []string{"app/database/factories"}
 	case "resources":

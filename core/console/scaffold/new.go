@@ -190,7 +190,25 @@ func newReplaceLine(replace string) string {
 	if replace == "" {
 		return ""
 	}
-	return "\nreplace github.com/zatrano/framework/v3 => " + goModPath(replace) + "\n" + packagesReplaceLines(replace)
+	var b strings.Builder
+	b.WriteString("\nreplace github.com/zatrano/framework/v3 => " + goModPath(replace) + "\n")
+	if rh := siblingRawHTTPDir(replace); rh != "" {
+		b.WriteString("replace github.com/zatrano/rawhttp => " + goModPath(rh) + "\n")
+	}
+	b.WriteString(packagesReplaceLines(replace))
+	return b.String()
+}
+
+func siblingRawHTTPDir(frameworkReplace string) string {
+	candidate := filepath.Join(filepath.Dir(frameworkReplace), "rawhttp")
+	st, err := os.Stat(candidate)
+	if err != nil || !st.IsDir() {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(candidate, "go.mod")); err != nil {
+		return ""
+	}
+	return filepath.ToSlash(candidate)
 }
 
 // goModPath quotes filesystem paths that contain spaces (required by go.mod).

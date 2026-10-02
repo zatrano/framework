@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,14 @@ func packagesCheckout(t *testing.T) string {
 		return sibling
 	}
 	return ""
+}
+
+func quoteGoModReplacePath(p string) string {
+	p = filepath.ToSlash(p)
+	if strings.ContainsAny(p, " \t") {
+		return strconv.Quote(p)
+	}
+	return p
 }
 
 func TestFreshConsumerLifecycle(t *testing.T) {
@@ -109,7 +118,7 @@ func TestFreshConsumerLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := f.WriteString("\nreplace github.com/zatrano/packages => " + filepath.ToSlash(pkgDir) + "\n"); err != nil {
+			if _, err := f.WriteString("\nreplace github.com/zatrano/packages => " + quoteGoModReplacePath(pkgDir) + "\n"); err != nil {
 				_ = f.Close()
 				t.Fatal(err)
 			}

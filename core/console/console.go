@@ -89,8 +89,10 @@ func (c *ServeCommand) Handle(args []string) error {
 	// Leave addr empty unless overridden so Application.Run can load .env
 	// first and then resolve APP_PORT (default 8080).
 	addr := ""
+	opts := kernel.ListenOptions{}
 	for i := 0; i < len(args); i++ {
-		if (args[i] == "--port" || args[i] == "-p") && i+1 < len(args) {
+		switch {
+		case (args[i] == "--port" || args[i] == "-p") && i+1 < len(args):
 			raw := strings.TrimSpace(args[i+1])
 			n, err := strconv.Atoi(raw)
 			if err != nil || n < 0 || n > 65535 {
@@ -98,13 +100,22 @@ func (c *ServeCommand) Handle(args []string) error {
 			}
 			addr = ":" + strconv.Itoa(n)
 			i++
-		}
-		if strings.HasPrefix(args[i], "--host=") {
-			host := strings.TrimPrefix(args[i], "--host=")
-			addr = host
+		case strings.HasPrefix(args[i], "--host="):
+			addr = strings.TrimPrefix(args[i], "--host=")
+		case args[i] == "--prefork":
+			opts.Prefork = true
+		case args[i] == "--reuseport":
+			opts.ReusePort = true
+		case args[i] == "--workers" && i+1 < len(args):
+			n, err := strconv.Atoi(strings.TrimSpace(args[i+1]))
+			if err != nil || n < 0 {
+				return cliErr(ExitUsage, fmt.Errorf("serve --workers expected a non-negative int, received %q", args[i+1]))
+			}
+			opts.Workers = n
+			i++
 		}
 	}
-	return classifyRuntimeError(c.app.Run(addr))
+	return classifyRuntimeError(c.app.RunListen(addr, opts))
 }
 
 type AboutCommand struct {
@@ -265,7 +276,7 @@ func handlerPresentation(app *kernel.Application, pkg string) handlerPresentatio
 	if pkg == "api" {
 		return handlerJSON
 	}
-	if consumerHasEnabledAddon(app, "template") {
+	if consumerHasEnabledAddon(app, "template") || consumerHasEnabledAddon(app, "view") {
 		return handlerTemplate
 	}
 	if consumerScaffoldName(app) == "api" {

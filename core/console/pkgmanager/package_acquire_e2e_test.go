@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -60,15 +61,20 @@ func requirePackagesCheckout(t *testing.T) string {
 func writeIsolatedConsumer(t *testing.T, packagesDir string, extraReplace map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
-	fw := filepath.ToSlash(frameworkRoot(t))
+	fwRoot := frameworkRoot(t)
+	fw := quoteGoModPath(fwRoot)
 	var b strings.Builder
 	b.WriteString("module example.com/acq-e2e\n\ngo 1.25.0\n\n")
 	b.WriteString("replace github.com/zatrano/framework/v3 => " + fw + "\n")
+	// Framework replace does not inherit its rawhttp replace; pin sibling checkout.
+	if rh := siblingRawHTTPDir(fwRoot); rh != "" {
+		b.WriteString("replace github.com/zatrano/rawhttp => " + quoteGoModPath(rh) + "\n")
+	}
 	if packagesDir != "" {
-		b.WriteString("replace github.com/zatrano/packages => " + filepath.ToSlash(packagesDir) + "\n")
+		b.WriteString("replace github.com/zatrano/packages => " + quoteGoModPath(packagesDir) + "\n")
 	}
 	for path, dir := range extraReplace {
-		b.WriteString("replace " + path + " => " + filepath.ToSlash(dir) + "\n")
+		b.WriteString("replace " + path + " => " + quoteGoModPath(dir) + "\n")
 	}
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
@@ -78,6 +84,27 @@ func writeIsolatedConsumer(t *testing.T, packagesDir string, extraReplace map[st
 	}
 	t.Setenv("GOTOOLCHAIN", "local")
 	return root
+}
+
+func siblingRawHTTPDir(frameworkRoot string) string {
+	candidate := filepath.Join(filepath.Dir(frameworkRoot), "rawhttp")
+	st, err := os.Stat(candidate)
+	if err != nil || !st.IsDir() {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(candidate, "go.mod")); err != nil {
+		return ""
+	}
+	return candidate
+}
+
+// quoteGoModPath mirrors scaffold.goModPath: spaces/tabs must be quoted in go.mod.
+func quoteGoModPath(p string) string {
+	p = filepath.ToSlash(p)
+	if strings.ContainsAny(p, " \t") {
+		return strconv.Quote(p)
+	}
+	return p
 }
 
 func TestPackageAcquireE2ECatalogResolveAcquireInspect(t *testing.T) {
@@ -282,9 +309,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with packages v1.13.1 (requires framework v2.8.0).
+	// Published kernel tag compatible with local packages (requires framework v3.0.0).
 	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v2.8.0", "github.com/zatrano/packages/session")
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.0", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
@@ -447,9 +474,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with packages v1.13.1 (requires framework v2.8.0).
+	// Published kernel tag compatible with local packages (requires framework v3.0.0).
 	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v2.8.0", "github.com/zatrano/packages/session")
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.0", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {

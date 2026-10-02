@@ -9,7 +9,24 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel"
 )
 
-func TestMakeControllerWebUsesViewWhenViewEnabled(t *testing.T) {
+func TestMakeControllerWebUsesTemplateWhenTemplateEnabled(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "bootstrap", "enabled.go"), "package bootstrap\nvar EnabledAddons = []string{\n\t\"template\",\n}\n")
+	app := kernel.NewApplication(dir)
+	cmd := &MakeHandlerCommand{app: app}
+	if err := cmd.Handle([]string{"Post"}); err != nil {
+		t.Fatal(err)
+	}
+	body := readFile(t, filepath.Join(dir, "app", "http", "handlers", "web", "post_handler.go"))
+	if !strings.Contains(body, "Template(") || strings.Contains(body, "JSON(") {
+		t.Fatalf("web handler with template enabled must use Template:\n%s", body)
+	}
+	if !strings.Contains(body, "post.index") {
+		t.Fatalf("expected template name post.index:\n%s", body)
+	}
+}
+
+func TestMakeControllerWebUsesTemplateWhenLegacyViewEnabled(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "bootstrap", "enabled.go"), "package bootstrap\nvar EnabledAddons = []string{\n\t\"view\",\n}\n")
 	app := kernel.NewApplication(dir)
@@ -18,11 +35,8 @@ func TestMakeControllerWebUsesViewWhenViewEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := readFile(t, filepath.Join(dir, "app", "http", "handlers", "web", "post_handler.go"))
-	if !strings.Contains(body, "View(") || strings.Contains(body, "JSON(") {
-		t.Fatalf("web controller with view enabled must use View:\n%s", body)
-	}
-	if !strings.Contains(body, "post.index") {
-		t.Fatalf("expected view name post.index:\n%s", body)
+	if !strings.Contains(body, "Template(") {
+		t.Fatalf("legacy view enablement must still scaffold Template:\n%s", body)
 	}
 }
 
@@ -34,7 +48,7 @@ func TestMakeControllerAPIUsesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := readFile(t, filepath.Join(dir, "app", "http", "handlers", "api", "post_handler.go"))
-	if !strings.Contains(body, "JSON(") || strings.Contains(body, "View(") {
+	if !strings.Contains(body, "JSON(") || strings.Contains(body, "Template(") || strings.Contains(body, "View(") {
 		t.Fatalf("api controller must use JSON:\n%s", body)
 	}
 }
@@ -49,7 +63,7 @@ func TestMakeControllerEmptyUsesHTML(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := readFile(t, filepath.Join(dir, "app", "http", "handlers", "web", "post_handler.go"))
-	if !strings.Contains(body, "HTML(") || strings.Contains(body, "JSON(") || strings.Contains(body, "View(") {
+	if !strings.Contains(body, "HTML(") || strings.Contains(body, "JSON(") || strings.Contains(body, "Template(") || strings.Contains(body, "View(") {
 		t.Fatalf("empty web controller must use HTML:\n%s", body)
 	}
 }
