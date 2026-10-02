@@ -10,21 +10,21 @@ import (
 
 // Response represents an HTTP response to be sent.
 type Response struct {
-	status      int
-	headers     stdhttp.Header
-	cookies     []*stdhttp.Cookie
-	content     []byte
-	contentType string
-	filePath   string
-	publicFile bool
-	redirectURL string
-	templateName    string
-	templateData    map[string]any
-	err         error
-	stream      StreamWriter
+	status       int
+	headers      stdhttp.Header
+	cookies      []*stdhttp.Cookie
+	content      []byte
+	contentType  string
+	filePath     string
+	publicFile   bool
+	redirectURL  string
+	templateName string
+	templateData map[string]any
+	err          error
+	stream       StreamWriter
 	streamReader io.Reader
 	streamSize   int // >=0 Content-Length; <0 chunked (SetBodyStream)
-	hijack      HijackFunc
+	hijack       HijackFunc
 }
 
 // Status sets the response status code.

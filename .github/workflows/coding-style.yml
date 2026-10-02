@@ -37,22 +37,42 @@ jobs:
   mod-tidy:
     runs-on: ubuntu-24.04
     name: go mod tidy
+    defaults:
+      run:
+        working-directory: framework
 
     steps:
-      - name: Checkout code
+      - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
 
-      - name: Check go.mod
+      - name: Check go.mod and go.sum
         run: |
-          go mod tidy
-          git diff --exit-code -- go.mod
-          if [ -e go.sum ]; then
-            echo "go.sum must not exist while the kernel has no module dependencies"
+          if [ ! -f go.sum ]; then
+            echo "go.sum must exist now that the module has dependencies"
             exit 1
           fi
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum

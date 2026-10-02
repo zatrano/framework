@@ -206,23 +206,23 @@ func (c *PackageAcquireCommand) runEnable(name string) error {
 }
 
 type acquireCLIReport struct {
-	Mode          string          `json:"mode"`
-	Root          string          `json:"root"`
-	GoGetArgs     []string        `json:"go_get_args"`
-	Successful    []string        `json:"successful,omitempty"`
-	Failed        []string        `json:"failed,omitempty"`
-	Unattempted   []string        `json:"unattempted,omitempty"`
+	Mode          string            `json:"mode"`
+	Root          string            `json:"root"`
+	GoGetArgs     []string          `json:"go_get_args"`
+	Successful    []string          `json:"successful,omitempty"`
+	Failed        []string          `json:"failed,omitempty"`
+	Unattempted   []string          `json:"unattempted,omitempty"`
 	Targets       []targetCLIReport `json:"targets,omitempty"`
-	Recovery      string          `json:"recovery,omitempty"`
-	RecoveryError string          `json:"recovery_error,omitempty"`
-	SnapshotError string          `json:"snapshot_error,omitempty"`
-	Acquisition   string          `json:"acquisition"`
-	Enablement    string          `json:"enablement"`
-	Enabled       bool            `json:"enabled"`
+	Recovery      string            `json:"recovery,omitempty"`
+	RecoveryError string            `json:"recovery_error,omitempty"`
+	SnapshotError string            `json:"snapshot_error,omitempty"`
+	Acquisition   string            `json:"acquisition"`
+	Enablement    string            `json:"enablement"`
+	Enabled       bool              `json:"enabled"`
 	DryRun        []dryRunCLIReport `json:"dry_run,omitempty"`
 	Inspection    *inspectCLIReport `json:"inspection,omitempty"`
-	InspectErr    string          `json:"inspect_error,omitempty"`
-	Errors        []string        `json:"errors,omitempty"`
+	InspectErr    string            `json:"inspect_error,omitempty"`
+	Errors        []string          `json:"errors,omitempty"`
 }
 
 type targetCLIReport struct {
@@ -231,12 +231,12 @@ type targetCLIReport struct {
 }
 
 type inspectCLIReport struct {
-	Module       string              `json:"module,omitempty"`
-	Go           string              `json:"go,omitempty"`
+	Module       string                `json:"module,omitempty"`
+	Go           string                `json:"go,omitempty"`
 	Requirements []inspectReqCLIReport `json:"requirements,omitempty"`
 	Checksums    []inspectSumCLIReport `json:"checksums,omitempty"`
-	GoModMissing bool                `json:"go_mod_missing,omitempty"`
-	GoSumMissing bool                `json:"go_sum_missing,omitempty"`
+	GoModMissing bool                  `json:"go_mod_missing,omitempty"`
+	GoSumMissing bool                  `json:"go_sum_missing,omitempty"`
 }
 
 type inspectReqCLIReport struct {

@@ -25,8 +25,6 @@ func TestResolveIgnoresForwardedWhenUntrusted(t *testing.T) {
 	}
 }
 
-
-
 func TestResolveUsesRightmostClientWhenProxyAppends(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
@@ -44,8 +42,6 @@ func TestResolveUsesRightmostClientWhenProxyAppends(t *testing.T) {
 	}
 }
 
-
-
 func TestResolveTrustsForwardedWhenTrusted(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "127.0.0.1:1234"
@@ -57,8 +53,6 @@ func TestResolveTrustsForwardedWhenTrusted(t *testing.T) {
 		t.Fatalf("got %q", ip)
 	}
 }
-
-
 
 func TestParseStarAcceptedPolicyRejectsProduction(t *testing.T) {
 	cfg, err := trustedproxy.Parse("*")
@@ -76,15 +70,11 @@ func TestParseStarAcceptedPolicyRejectsProduction(t *testing.T) {
 	}
 }
 
-
-
 func TestParseMalformedFails(t *testing.T) {
 	if _, err := trustedproxy.Parse("not-a-proxy"); err == nil {
 		t.Fatal("malformed entry was accepted")
 	}
 }
-
-
 
 func TestFromEnvProductionStarFailsEvenWithAllowFlag(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "*")
@@ -93,8 +83,6 @@ func TestFromEnvProductionStarFailsEvenWithAllowFlag(t *testing.T) {
 		t.Fatal("production FromEnv accepted TRUSTED_PROXIES=*")
 	}
 }
-
-
 
 func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "*")
@@ -119,8 +107,6 @@ func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	_ = handler(req)
 }
 
-
-
 func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "192.0.2.1")
 	mw, err := trustedproxy.FromEnv(true)
@@ -140,8 +126,6 @@ func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	})
 	_ = handler(req)
 }
-
-
 
 func TestFromEnvProductionEmptyDoesNotTrustXFF(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "")
@@ -163,8 +147,6 @@ func TestFromEnvProductionEmptyDoesNotTrustXFF(t *testing.T) {
 	_ = handler(req)
 }
 
-
-
 func TestFromEnvProductionMixedStarFails(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "192.0.2.1, *")
 	if _, err := trustedproxy.FromEnv(true); err == nil {
@@ -181,8 +163,6 @@ func cidr(t *testing.T, s string) *net.IPNet {
 	return n
 }
 
-
-
 func TestResolveSingleTrustedProxy(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
@@ -192,8 +172,6 @@ func TestResolveSingleTrustedProxy(t *testing.T) {
 		t.Fatalf("got %q", ip)
 	}
 }
-
-
 
 func TestResolveMultipleTrustedHops(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
@@ -208,8 +186,6 @@ func TestResolveMultipleTrustedHops(t *testing.T) {
 	}
 }
 
-
-
 func TestResolveHopOverflowPrepend(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
 	raw.RemoteAddr = "192.0.2.1:443"
@@ -219,8 +195,6 @@ func TestResolveHopOverflowPrepend(t *testing.T) {
 		t.Fatalf("got %q", ip)
 	}
 }
-
-
 
 func TestResolveMalformedXFF(t *testing.T) {
 	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
@@ -238,8 +212,6 @@ func TestResolveMalformedXFF(t *testing.T) {
 	}
 }
 
-
-
 func TestAllowIPNotBypassedByPrependedXFF(t *testing.T) {
 	h := trustedproxy.Middleware("192.0.2.1")(middleware.AllowIP("10.0.0.1")(func(req *http.Request) *http.Response {
 		return http.Text("ok")
@@ -252,8 +224,6 @@ func TestAllowIPNotBypassedByPrependedXFF(t *testing.T) {
 		t.Fatalf("AllowIP bypassed via XFF prepend: status=%d", resp.StatusCode())
 	}
 }
-
-
 
 func TestRemoteAddrIPv6AndNil(t *testing.T) {
 	if trustedproxy.RemoteAddr(nil) != "" {

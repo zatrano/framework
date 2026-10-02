@@ -14,16 +14,36 @@ jobs:
   vet:
     runs-on: ubuntu-24.04
     name: go vet
+    defaults:
+      run:
+        working-directory: framework
 
     steps:
-      - name: Checkout code
+      - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
 
       - name: Download modules
         run: go mod download
@@ -34,16 +54,36 @@ jobs:
   staticcheck:
     runs-on: ubuntu-24.04
     name: staticcheck
+    defaults:
+      run:
+        working-directory: framework
 
     steps:
-      - name: Checkout code
+      - name: Checkout framework
         uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.13'
           cache: true
+          cache-dependency-path: framework/go.mod
 
       - name: Download modules
         run: go mod download
