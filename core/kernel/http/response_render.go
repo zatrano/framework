@@ -181,7 +181,7 @@ func (r *Response) IsOk() bool {
 	return r.StatusCode() == stdhttp.StatusOK
 }
 
-// IsEmpty reports whether status is 204 or 304, or body is empty without view/file/stream.
+// IsEmpty reports whether status is 204 or 304, or body is empty without template/file/stream.
 func (r *Response) IsEmpty() bool {
 	if r == nil {
 		return true

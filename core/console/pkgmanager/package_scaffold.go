@@ -26,7 +26,7 @@ func packageAppDirs(name string) []string {
 		return []string{"app/http/requests", "app/rules"}
 	case "localization":
 		return []string{"app/localization"}
-	case "view", "template":
+	case "template":
 		return []string{"templates", "templates/web", "templates/layouts"}
 	case "db":
 		return []string{"database", "database/migrations", "database/queries", "database/sqlc", "database/seeders"}

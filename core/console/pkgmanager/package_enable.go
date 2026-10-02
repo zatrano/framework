@@ -92,6 +92,10 @@ func (c *PackageDisableCommand) Handle(args []string) error {
 }
 
 func rejectEnableTarget(name string) error {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "view" {
+		return fmt.Errorf("%q is not a package — use package:enable template (Canvas SSR under templates/)", name)
+	}
 	info, inCatalog := catalogLookup(name)
 	if inCatalog && strings.EqualFold(info.Stability, "deprecated") {
 		return fmt.Errorf("%q is deprecated for V3 and cannot be package:enable'd — %s", name, info.Description)
