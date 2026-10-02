@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-2.8.1-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.0.0-dev-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -331,7 +331,7 @@ Open [http://localhost:8080](http://localhost:8080). Default listen port is `APP
 Use the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v2.8.1
+go get github.com/zatrano/framework/v3@v3.0.0
 go get github.com/zatrano/packages@v1.13.1
 ```
 
@@ -749,7 +749,7 @@ These are the public architectural baseline after Framework `v2.1.0` and Package
 Framework
   module: github.com/zatrano/framework/v3
   major:  v2
-  current: v2.8.1
+  current: v3.0.0-dev
 
 Packages
   module: github.com/zatrano/packages
