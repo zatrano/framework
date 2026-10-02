@@ -1,7 +1,9 @@
 package http
 
 import (
+	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -16,6 +18,17 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 	if r == nil {
 		ctx.SetStatusCode(204)
 		return nil
+	}
+
+	// Hijack takes the conn; RawHTTP writes no HTTP response afterward.
+	if r.hijack != nil {
+		conn, leftover, err := ctx.Hijack()
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			ctx.SetBodyString("hijacking not supported")
+			return err
+		}
+		return r.hijack(conn, leftover)
 	}
 
 	for key, values := range r.Headers() {
@@ -46,24 +59,22 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 	}
 
 	if r.filePath != "" {
-		raw, err := os.ReadFile(r.filePath)
-		if err != nil {
+		if info, err := os.Stat(r.filePath); err != nil {
 			ctx.NotFound()
 			return err
-		}
-		info, _ := os.Stat(r.filePath)
-		if info != nil && info.IsDir() {
+		} else if info.IsDir() {
 			ctx.BadRequest()
 			return fmt.Errorf("cannot serve directory: %s", r.filePath)
 		}
-		if !r.publicFile && ctx.Header("Content-Disposition") == nil {
+		if !r.publicFile {
 			_ = ctx.SetHeader("Content-Disposition", "attachment; filename="+filepath.Base(r.filePath))
 		}
 		ctx.SetStatusCode(r.StatusCode())
 		if r.contentType != "" {
 			ctx.SetContentType(r.contentType)
 		}
-		ctx.SetBody(raw)
+		// Stream from disk via RawHTTP (no full ReadFile into memory).
+		ctx.SendFile(r.filePath)
 		return nil
 	}
 
@@ -71,12 +82,17 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		ctx.SetContentType(r.contentType)
 	}
 	ctx.SetStatusCode(r.StatusCode())
+	if r.streamReader != nil {
+		ctx.SetBodyStream(r.streamReader, r.streamSize)
+		return nil
+	}
 	if r.stream != nil {
-		// Streaming via std Flusher is not available on rawhttp Ctx yet;
-		// fall back to buffered body if content was prepared.
-		if len(r.content) > 0 {
-			ctx.SetBody(r.content)
-		}
+		writer := r.stream
+		ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
+			rw := &streamResponseWriter{buf: w, header: make(http.Header), status: r.StatusCode()}
+			_ = writer(rw, rw)
+			_ = w.Flush()
+		})
 		return nil
 	}
 	if len(r.content) > 0 {
@@ -84,3 +100,16 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 	}
 	return nil
 }
+
+// streamResponseWriter adapts rawhttp's bufio.Writer to the legacy
+// StreamWriter(ResponseWriter, Flusher) signature used by SSE helpers.
+type streamResponseWriter struct {
+	buf    *bufio.Writer
+	header http.Header
+	status int
+}
+
+func (s *streamResponseWriter) Header() http.Header         { return s.header }
+func (s *streamResponseWriter) WriteHeader(code int)        { s.status = code }
+func (s *streamResponseWriter) Write(p []byte) (int, error) { return s.buf.Write(p) }
+func (s *streamResponseWriter) Flush()                      { _ = s.buf.Flush() }

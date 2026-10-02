@@ -76,10 +76,10 @@ func safeBackURL(req *Request, ref string) string {
 		return ""
 	}
 	if u.Scheme != "" || u.Host != "" {
-		if req.Raw() == nil {
+		if req == nil {
 			return ""
 		}
-		host := req.Raw().Host
+		host := req.Host()
 		if host == "" || !strings.EqualFold(u.Host, host) {
 			return ""
 		}

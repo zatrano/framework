@@ -11,18 +11,33 @@ import (
 // StreamWriter writes a streaming response body.
 type StreamWriter func(w stdhttp.ResponseWriter, flusher stdhttp.Flusher) error
 
-// IsStream reports whether the response uses a stream writer.
+// IsStream reports whether the response uses a stream writer or body reader.
 func (r *Response) IsStream() bool {
-	return r != nil && r.stream != nil
+	return r != nil && (r.stream != nil || r.streamReader != nil)
 }
 
-// Stream creates a streaming response.
+// Stream creates a streaming response via SetBodyStreamWriter (SSE / incremental).
 func Stream(contentType string, writer StreamWriter) *Response {
 	return &Response{
 		status:      stdhttp.StatusOK,
 		contentType: contentType,
 		headers:     make(stdhttp.Header),
 		stream:      writer,
+	}
+}
+
+// StreamBody streams an io.Reader as the response body via rawhttp SetBodyStream.
+// size >= 0 sets Content-Length; size < 0 sends Transfer-Encoding: chunked until EOF.
+func StreamBody(contentType string, body io.Reader, size int) *Response {
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return &Response{
+		status:       stdhttp.StatusOK,
+		contentType:  contentType,
+		headers:      make(stdhttp.Header),
+		streamReader: body,
+		streamSize:   size,
 	}
 }
 

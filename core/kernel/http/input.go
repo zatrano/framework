@@ -10,13 +10,12 @@ import (
 // Input returns an input value from form, multipart, JSON, or query.
 func (r *Request) Input(key string, fallback ...string) string {
 	r.applyPendingInputTransforms()
-	if err := r.raw.ParseForm(); err == nil {
-		if value := r.raw.Form.Get(key); value != "" {
-			return value
-		}
+	r.ensureForm()
+	if value := r.form.Get(key); value != "" {
+		return value
 	}
-	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
-		if values := r.raw.MultipartForm.Value[key]; len(values) > 0 && values[0] != "" {
+	if err := r.parseMultipart(); err == nil && r.multipartForm != nil {
+		if values := r.multipartForm.Value[key]; len(values) > 0 && values[0] != "" {
 			return values[0]
 		}
 	}
@@ -29,15 +28,15 @@ func (r *Request) Input(key string, fallback ...string) string {
 // All returns all input values from form and JSON body.
 func (r *Request) All() map[string]string {
 	r.applyPendingInputTransforms()
-	_ = r.raw.ParseForm()
+	r.ensureForm()
 	values := make(map[string]string)
-	for key, items := range r.raw.Form {
+	for key, items := range r.form {
 		if len(items) > 0 {
 			values[key] = items[0]
 		}
 	}
-	if err := r.parseMultipart(); err == nil && r.raw.MultipartForm != nil {
-		for key, items := range r.raw.MultipartForm.Value {
+	if err := r.parseMultipart(); err == nil && r.multipartForm != nil {
+		for key, items := range r.multipartForm.Value {
 			if _, exists := values[key]; exists {
 				continue
 			}
@@ -57,9 +56,8 @@ func (r *Request) All() map[string]string {
 // TransformInputs queues a mutation of form and JSON overlay values.
 // Transforms run on the first Input/All access (and Merge/Replace/Forget).
 // JSON() and Body() read the raw body and do not apply transforms.
-// Raw().Form stays untransformed until those accessors run.
 func (r *Request) TransformInputs(fn func(key, value string) (string, bool)) {
-	if r == nil || r.raw == nil || fn == nil {
+	if r == nil || fn == nil {
 		return
 	}
 	r.inputTransforms = append(r.inputTransforms, fn)
@@ -73,10 +71,10 @@ func (r *Request) applyPendingInputTransforms() {
 		return
 	}
 	r.inputTransformed = true
-	if r.raw == nil || len(r.inputTransforms) == 0 {
+	if len(r.inputTransforms) == 0 {
 		return
 	}
-	_ = r.raw.ParseForm()
+	r.ensureForm()
 	r.ensureJSONParsed()
 	for _, fn := range r.inputTransforms {
 		r.applyOneInputTransform(fn)
@@ -84,26 +82,26 @@ func (r *Request) applyPendingInputTransforms() {
 }
 
 func (r *Request) applyOneInputTransform(fn func(key, value string) (string, bool)) {
-	if r == nil || r.raw == nil || fn == nil {
+	if r == nil || fn == nil {
 		return
 	}
-	_ = r.raw.ParseForm()
-	if r.raw.Form != nil {
-		for key, items := range r.raw.Form {
+	r.ensureForm()
+	if r.form != nil {
+		for key, items := range r.form {
 			if len(items) == 0 {
 				continue
 			}
 			next, keep := fn(key, items[0])
 			if !keep {
-				r.raw.Form.Del(key)
-				if r.raw.PostForm != nil {
-					r.raw.PostForm.Del(key)
+				r.form.Del(key)
+				if r.postForm != nil {
+					r.postForm.Del(key)
 				}
 				continue
 			}
-			r.raw.Form.Set(key, next)
-			if r.raw.PostForm != nil {
-				r.raw.PostForm.Set(key, next)
+			r.form.Set(key, next)
+			if r.postForm != nil {
+				r.postForm.Set(key, next)
 			}
 		}
 	}
@@ -224,18 +222,18 @@ func (r *Request) WhenEmptyAll(keys []string, fn func(*Request)) *Request {
 
 // Forget removes input keys from form and JSON overlays.
 func (r *Request) Forget(keys ...string) {
-	if r == nil || r.raw == nil || len(keys) == 0 {
+	if r == nil || len(keys) == 0 {
 		return
 	}
 	r.applyPendingInputTransforms()
-	_ = r.raw.ParseForm()
+	r.ensureForm()
 	data := r.jsonInput()
 	for _, key := range keys {
-		if r.raw.Form != nil {
-			r.raw.Form.Del(key)
+		if r.form != nil {
+			r.form.Del(key)
 		}
-		if r.raw.PostForm != nil {
-			r.raw.PostForm.Del(key)
+		if r.postForm != nil {
+			r.postForm.Del(key)
 		}
 		delete(data, key)
 	}

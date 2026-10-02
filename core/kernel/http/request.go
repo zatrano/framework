@@ -1,11 +1,14 @@
 package http
 
 import (
-	"bytes"
+	"context"
 	"errors"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net"
 	stdhttp "net/http"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
@@ -21,10 +24,32 @@ import (
 // ErrBodyTooLarge is returned when JSON/Body reads exceed MaxBodyBytes.
 var ErrBodyTooLarge = errors.New("http: request body too large")
 
-// Request wraps rawhttp.Ctx (with a synthetic net/http adapter during V3 migration).
+// Request wraps rawhttp.Ctx with optional mutable overlays for middleware/tests.
 type Request struct {
-	ctx              *rawhttp.Ctx
-	raw              *stdhttp.Request // synthetic adapter for legacy helpers
+	ctx *rawhttp.Ctx
+
+	method     string
+	methodSet  bool
+	path       string
+	pathSet    bool
+	query      string
+	querySet   bool
+	host       string
+	remoteAddr string
+	secure     bool
+	secureSet  bool
+
+	headerOverlay stdhttp.Header
+	headerDeleted map[string]bool
+	cookieOverlay map[string]string
+
+	stdCtx context.Context
+
+	form          url.Values
+	postForm      url.Values
+	formParsed    bool
+	multipartForm *multipart.Form
+
 	route            map[string]string
 	attrs            map[string]any
 	cookies          *cookie.Jar
@@ -36,6 +61,9 @@ type Request struct {
 	bodyCached       []byte
 	bodyErr          error
 	bodyRead         bool
+	bodyOverride     []byte
+	bodyOverrideSet  bool
+	bodyReader       io.ReadCloser
 	maxBodyBytes     int64
 }
 
@@ -53,40 +81,69 @@ type SessionStore interface {
 }
 
 // NewRequest creates a ZATRANO request from a rawhttp context.
-// A synthetic net/http.Request is built so existing helpers can migrate gradually.
 func NewRequest(ctx *rawhttp.Ctx) *Request {
-	if ctx == nil {
-		return &Request{}
+	return &Request{ctx: ctx, stdCtx: context.Background()}
+}
+
+// RequestFromHTTP copies a net/http request into overlays for unit tests.
+// It does not keep a synthetic *http.Request adapter.
+func RequestFromHTTP(sr *stdhttp.Request) *Request {
+	if sr == nil {
+		return NewRequest(nil)
 	}
-	method := string(ctx.Method)
+	method := sr.Method
 	if method == "" {
 		method = stdhttp.MethodGet
 	}
-	host := string(ctx.Host())
-	if host == "" {
-		host = "localhost"
+	path := "/"
+	query := ""
+	host := sr.Host
+	if sr.URL != nil {
+		if sr.URL.Path != "" {
+			path = sr.URL.Path
+		} else if sr.URL.Opaque == "" {
+			path = "/"
+		}
+		query = sr.URL.RawQuery
+		if host == "" {
+			host = sr.URL.Host
+		}
 	}
-	uri := string(ctx.RequestURI())
-	if uri == "" {
-		uri = "/"
+	ctx := &rawhttp.Ctx{
+		Method: []byte(method),
+		Path:   []byte(path),
+		Query:  []byte(query),
 	}
-	scheme := "http"
-	if ctx.IsTLS() {
-		scheme = "https"
+	req := NewRequest(ctx)
+	req.host = host
+	req.remoteAddr = sr.RemoteAddr
+	if sr.TLS != nil || (sr.URL != nil && strings.EqualFold(sr.URL.Scheme, "https")) {
+		req.secure = true
+		req.secureSet = true
 	}
-	raw, err := stdhttp.NewRequest(method, scheme+"://"+host+uri, bytes.NewReader(ctx.Body()))
-	if err != nil {
-		raw, _ = stdhttp.NewRequest(method, "/", bytes.NewReader(ctx.Body()))
+	if sr.Header != nil {
+		req.headerOverlay = sr.Header.Clone()
 	}
-	raw.RemoteAddr = ctx.RemoteAddr()
-	raw.RequestURI = uri
-	ctx.VisitHeader(func(k, v []byte) {
-		raw.Header.Add(string(k), string(v))
-	})
-	return &Request{ctx: ctx, raw: raw}
+	for _, c := range sr.Cookies() {
+		if c == nil {
+			continue
+		}
+		req.SetCookie(c.Name, c.Value)
+	}
+	if sr.Body != nil {
+		// Keep the reader lazy so middleware that must not touch the body
+		// (e.g. method override via header) can still be tested.
+		req.bodyReader = sr.Body
+	}
+	if sr.Context() != nil {
+		req.SetContext(sr.Context())
+	}
+	return req
 }
 
-// Ctx returns the rawhttp context.
+// Ctx returns the rawhttp context for this request.
+// Valid only during Application.Handle → Commit. Do not store or pass to
+// async work; use Method/Path/Body (owned) or copy fields into a DTO.
 func (r *Request) Ctx() *rawhttp.Ctx {
 	if r == nil {
 		return nil
@@ -94,12 +151,154 @@ func (r *Request) Ctx() *rawhttp.Ctx {
 	return r.ctx
 }
 
-// Raw returns the synthetic net/http request adapter (migration aid).
-func (r *Request) Raw() *stdhttp.Request {
-	if r == nil {
-		return nil
+// Context returns the request-scoped context (default Background).
+func (r *Request) Context() context.Context {
+	if r == nil || r.stdCtx == nil {
+		return context.Background()
 	}
-	return r.raw
+	return r.stdCtx
+}
+
+// SetContext replaces the request-scoped context.
+func (r *Request) SetContext(ctx context.Context) {
+	if r == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.stdCtx = ctx
+}
+
+// SetMethod overrides the HTTP method.
+func (r *Request) SetMethod(method string) {
+	if r == nil {
+		return
+	}
+	r.method = method
+	r.methodSet = true
+}
+
+// SetPath overrides the request path (query string stripped if present).
+func (r *Request) SetPath(path string) {
+	if r == nil {
+		return
+	}
+	if i := strings.IndexByte(path, '?'); i >= 0 {
+		r.query = path[i+1:]
+		r.querySet = true
+		path = path[:i]
+	}
+	r.path = path
+	r.pathSet = true
+}
+
+// SetQueryString overrides the raw query string (without leading ?).
+func (r *Request) SetQueryString(raw string) {
+	if r == nil {
+		return
+	}
+	r.query = strings.TrimPrefix(raw, "?")
+	r.querySet = true
+}
+
+// SetHeader sets a request header overlay value.
+func (r *Request) SetHeader(key, value string) {
+	if r == nil {
+		return
+	}
+	if r.headerOverlay == nil {
+		r.headerOverlay = make(stdhttp.Header)
+	}
+	canon := textproto.CanonicalMIMEHeaderKey(key)
+	delete(r.headerDeleted, canon)
+	r.headerOverlay.Set(key, value)
+}
+
+// AddHeader appends a request header overlay value.
+func (r *Request) AddHeader(key, value string) {
+	if r == nil {
+		return
+	}
+	if r.headerOverlay == nil {
+		r.headerOverlay = make(stdhttp.Header)
+	}
+	canon := textproto.CanonicalMIMEHeaderKey(key)
+	delete(r.headerDeleted, canon)
+	r.headerOverlay.Add(key, value)
+}
+
+// DelHeader removes a request header (overlay + hides ctx value).
+func (r *Request) DelHeader(key string) {
+	if r == nil {
+		return
+	}
+	canon := textproto.CanonicalMIMEHeaderKey(key)
+	if r.headerOverlay != nil {
+		r.headerOverlay.Del(key)
+	}
+	if r.headerDeleted == nil {
+		r.headerDeleted = make(map[string]bool)
+	}
+	r.headerDeleted[canon] = true
+}
+
+// SetCookie sets a request cookie overlay value.
+func (r *Request) SetCookie(name, value string) {
+	if r == nil || name == "" {
+		return
+	}
+	if r.cookieOverlay == nil {
+		r.cookieOverlay = make(map[string]string)
+	}
+	r.cookieOverlay[name] = value
+}
+
+// SetBody replaces the request body used by Body/JSON/form parsers.
+func (r *Request) SetBody(b []byte) {
+	if r == nil {
+		return
+	}
+	if b == nil {
+		r.bodyOverride = nil
+	} else {
+		r.bodyOverride = append([]byte(nil), b...)
+	}
+	r.bodyOverrideSet = true
+	r.bodyReader = nil
+	r.bodyRead = false
+	r.bodyCached = nil
+	r.bodyErr = nil
+	r.formParsed = false
+	r.multipartForm = nil
+	r.jsonRead = false
+	r.jsonData = nil
+	r.jsonRaw = nil
+}
+
+// SetRemoteAddr overrides the direct connection address (host:port or IP).
+func (r *Request) SetRemoteAddr(addr string) {
+	if r == nil {
+		return
+	}
+	r.remoteAddr = addr
+}
+
+// SetHost overrides the request host.
+func (r *Request) SetHost(host string) {
+	if r == nil {
+		return
+	}
+	r.host = host
+}
+
+// SetSecure overrides TLS detection for this request.
+func (r *Request) SetSecure(secure bool) {
+	if r == nil {
+		return
+	}
+	r.secure = secure
+	r.secureSet = true
 }
 
 // Method returns the HTTP method.
@@ -107,11 +306,11 @@ func (r *Request) Method() string {
 	if r == nil {
 		return ""
 	}
+	if r.methodSet {
+		return r.method
+	}
 	if r.ctx != nil && len(r.ctx.Method) > 0 {
 		return string(r.ctx.Method)
-	}
-	if r.raw != nil {
-		return r.raw.Method
 	}
 	return ""
 }
@@ -121,11 +320,11 @@ func (r *Request) Path() string {
 	if r == nil {
 		return ""
 	}
+	if r.pathSet {
+		return r.path
+	}
 	if r.ctx != nil && len(r.ctx.Path) > 0 {
 		return string(r.ctx.Path)
-	}
-	if r.raw != nil && r.raw.URL != nil {
-		return r.raw.URL.Path
 	}
 	return ""
 }
@@ -135,50 +334,56 @@ func (r *Request) URL() string {
 	if r == nil {
 		return ""
 	}
-	if r.ctx != nil {
-		host := string(r.ctx.Host())
-		if host == "" {
-			host = "localhost"
-		}
-		scheme := "http"
-		if r.ctx.IsTLS() {
-			scheme = "https"
-		}
-		uri := string(r.ctx.RequestURI())
-		if uri == "" {
-			uri = "/"
-		}
-		return scheme + "://" + host + uri
+	host := r.Host()
+	if host == "" {
+		host = "localhost"
 	}
-	if r.raw != nil {
-		return r.raw.URL.String()
+	uri := r.RequestURI()
+	if uri == "" {
+		uri = "/"
 	}
-	return ""
+	return r.Scheme() + "://" + host + uri
 }
 
 // Query returns a query parameter.
 func (r *Request) Query(key string, fallback ...string) string {
-	value := r.raw.URL.Query().Get(key)
+	values := r.queryValues()
+	value := ""
+	if values != nil {
+		value = values.Get(key)
+	}
 	if value == "" && len(fallback) > 0 {
 		return fallback[0]
 	}
 	return value
 }
 
-// IP returns the client IP (trusted proxy / _client_ip attribute, else remote).
-func (r *Request) IP() string {
-	if v, ok := r.Get("_client_ip").(string); ok && v != "" {
-		return v
+func (r *Request) queryValues() url.Values {
+	qs := r.QueryString()
+	if qs == "" {
+		return url.Values{}
 	}
-	return r.RemoteIP()
+	values, err := url.ParseQuery(qs)
+	if err != nil {
+		return url.Values{}
+	}
+	return values
 }
 
 // RemoteIP returns the direct connection IP (ignores forwarding headers).
 func (r *Request) RemoteIP() string {
-	if r.raw == nil {
+	if r == nil {
 		return ""
 	}
-	host := r.raw.RemoteAddr
+	if r.ctx != nil {
+		if ip := r.ctx.RemoteIP(); ip != "" {
+			return ip
+		}
+	}
+	host := r.remoteAddr
+	if host == "" {
+		return ""
+	}
 	if strings.HasPrefix(host, "[") {
 		if end := strings.Index(host, "]"); end != -1 {
 			return host[1:end]
@@ -190,7 +395,25 @@ func (r *Request) RemoteIP() string {
 	return host
 }
 
-// Body returns the raw request body.
+// IP returns the client IP. Prefers RawHTTP ClientIP (TrustedProxies), then
+// the _client_ip attribute set by trustedproxy middleware, else RemoteIP.
+func (r *Request) IP() string {
+	if r == nil {
+		return ""
+	}
+	if r.ctx != nil {
+		if ip := r.ctx.ClientIP(); ip != "" {
+			return ip
+		}
+	}
+	if v, ok := r.Get("_client_ip").(string); ok && v != "" {
+		return v
+	}
+	return r.RemoteIP()
+}
+
+// Body returns an owned copy of the raw request body.
+// It never aliases rawhttp's connection buffer (zero-copy lifecycle).
 func (r *Request) Body() ([]byte, error) {
 	return r.readBody()
 }
@@ -219,31 +442,42 @@ func (r *Request) readBody() ([]byte, error) {
 	}
 	r.bodyRead = true
 	limit := r.bodyLimit()
+	if r.bodyOverrideSet {
+		if int64(len(r.bodyOverride)) > limit {
+			r.bodyErr = ErrBodyTooLarge
+			return nil, ErrBodyTooLarge
+		}
+		r.bodyCached = r.bodyOverride
+		return r.bodyCached, nil
+	}
 	if r.ctx != nil {
 		if raw := r.ctx.Body(); len(raw) > 0 {
 			if int64(len(raw)) > limit {
 				r.bodyErr = ErrBodyTooLarge
 				return nil, ErrBodyTooLarge
 			}
-			r.bodyCached = raw
-			return raw, nil
+			// Owned copy: ctx.Body() may alias the connection read buffer
+			// (rawhttp zero-copy). Do not return/cache that slice.
+			r.bodyCached = append([]byte(nil), raw...)
+			return r.bodyCached, nil
 		}
 	}
-	if r.raw == nil || r.raw.Body == nil {
-		return nil, nil
+	if r.bodyReader != nil {
+		raw, err := io.ReadAll(io.LimitReader(r.bodyReader, limit+1))
+		_ = r.bodyReader.Close()
+		r.bodyReader = nil
+		if err != nil {
+			r.bodyErr = err
+			return nil, err
+		}
+		if int64(len(raw)) > limit {
+			r.bodyErr = ErrBodyTooLarge
+			return nil, ErrBodyTooLarge
+		}
+		r.bodyCached = raw
+		return raw, nil
 	}
-	raw, err := io.ReadAll(io.LimitReader(r.raw.Body, limit+1))
-	if err != nil {
-		r.bodyErr = err
-		return nil, err
-	}
-	if int64(len(raw)) > limit {
-		r.bodyErr = ErrBodyTooLarge
-		return nil, ErrBodyTooLarge
-	}
-	r.bodyCached = raw
-	r.raw.Body = io.NopCloser(bytes.NewReader(raw))
-	return raw, nil
+	return nil, nil
 }
 
 // Route returns a route parameter.
@@ -336,23 +570,42 @@ func (r *Request) Session() SessionStore {
 
 // Cookie returns a cookie value.
 func (r *Request) Cookie(name string, fallback ...string) string {
-	c, err := r.raw.Cookie(name)
-	if err != nil {
+	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
 		}
 		return ""
 	}
-	return c.Value
+	if r.cookieOverlay != nil {
+		if value, ok := r.cookieOverlay[name]; ok {
+			return value
+		}
+	}
+	if r.ctx != nil {
+		if v := r.ctx.Cookie(name); len(v) > 0 {
+			return string(v)
+		}
+	}
+	if len(fallback) > 0 {
+		return fallback[0]
+	}
+	return ""
 }
 
 // HasCookie reports whether a cookie is present.
 func (r *Request) HasCookie(name string) bool {
-	if r == nil || r.raw == nil {
+	if r == nil {
 		return false
 	}
-	_, err := r.raw.Cookie(name)
-	return err == nil
+	if r.cookieOverlay != nil {
+		if _, ok := r.cookieOverlay[name]; ok {
+			return true
+		}
+	}
+	if r.ctx != nil {
+		return r.ctx.Cookie(name) != nil
+	}
+	return false
 }
 
 // MissingCookie reports whether a cookie is absent.
@@ -395,7 +648,6 @@ func (r *Request) DrainCookies() []*stdhttp.Cookie {
 	return out
 }
 
-// HasHeader reports whether a header exists.
 // IsGet reports whether the method is GET.
 func (r *Request) IsGet() bool { return r.IsMethod("GET") }
 
@@ -429,10 +681,10 @@ func (r *Request) IsMethodIdempotent() bool {
 
 // HasQuery reports whether a query parameter exists (even if empty).
 func (r *Request) HasQuery(key string) bool {
-	if r == nil || r.raw == nil || r.raw.URL == nil {
+	if r == nil {
 		return false
 	}
-	_, ok := r.raw.URL.Query()[key]
+	_, ok := r.queryValues()[key]
 	return ok
 }
 
@@ -517,22 +769,31 @@ func (r *Request) DecodedPath() string {
 
 // QueryString returns the raw URL query string without leading ?.
 func (r *Request) QueryString() string {
-	if r == nil || r.raw == nil || r.raw.URL == nil {
+	if r == nil {
 		return ""
 	}
-	return r.raw.URL.RawQuery
+	if r.querySet {
+		return r.query
+	}
+	if r.ctx != nil {
+		return string(r.ctx.Query)
+	}
+	return ""
 }
 
 // RequestURI returns path + query (RequestURI).
 func (r *Request) RequestURI() string {
-	if r == nil || r.raw == nil || r.raw.URL == nil {
+	if r == nil {
 		return "/"
 	}
-	uri := r.raw.URL.RequestURI()
-	if uri == "" {
-		return "/"
+	path := r.Path()
+	if path == "" {
+		path = "/"
 	}
-	return uri
+	if qs := r.QueryString(); qs != "" {
+		return path + "?" + qs
+	}
+	return path
 }
 
 // FullUrlWithQuery returns FullURL with additional/overridden query parameters.
@@ -603,4 +864,61 @@ func (r *Request) Ips() []string {
 // IsSecure is an alias for Secure.
 func (r *Request) IsSecure() bool {
 	return r.Secure()
+}
+
+func (r *Request) parseForm() error {
+	if r == nil {
+		return nil
+	}
+	if r.formParsed {
+		return nil
+	}
+	r.formParsed = true
+	r.form = url.Values{}
+	r.postForm = url.Values{}
+
+	if qs := r.QueryString(); qs != "" {
+		if q, err := url.ParseQuery(qs); err == nil {
+			r.form = q
+		}
+	}
+
+	ct := r.Header("Content-Type")
+	media, _, _ := mime.ParseMediaType(ct)
+	switch {
+	case strings.EqualFold(media, "application/x-www-form-urlencoded"):
+		body, err := r.readBody()
+		if err != nil {
+			return err
+		}
+		post, err := url.ParseQuery(string(body))
+		if err != nil {
+			return err
+		}
+		r.postForm = post
+		for key, values := range post {
+			r.form[key] = append(r.form[key], values...)
+		}
+	case strings.EqualFold(media, "multipart/form-data"):
+		if err := r.parseMultipart(); err != nil {
+			return err
+		}
+		if r.multipartForm != nil {
+			for key, values := range r.multipartForm.Value {
+				r.postForm[key] = append(r.postForm[key], values...)
+				r.form[key] = append(r.form[key], values...)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Request) ensureForm() {
+	_ = r.parseForm()
+	if r.form == nil {
+		r.form = url.Values{}
+	}
+	if r.postForm == nil {
+		r.postForm = url.Values{}
+	}
 }

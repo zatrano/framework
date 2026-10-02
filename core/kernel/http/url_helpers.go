@@ -9,13 +9,21 @@ import (
 
 // Host returns the request host (prefers trusted forwarded host).
 func (r *Request) Host() string {
+	if r == nil {
+		return ""
+	}
 	if v, ok := r.Get("_forwarded_host").(string); ok && v != "" {
 		return v
 	}
-	if r.raw == nil {
-		return ""
+	if r.host != "" {
+		return r.host
 	}
-	return r.raw.Host
+	if r.ctx != nil {
+		if host := string(r.ctx.Host()); host != "" {
+			return host
+		}
+	}
+	return r.Header("Host")
 }
 
 // Scheme returns "https" or "http".
@@ -28,11 +36,17 @@ func (r *Request) Scheme() string {
 
 // Secure reports whether the request is HTTPS (TLS or trusted forwarded proto).
 func (r *Request) Secure() bool {
+	if r == nil {
+		return false
+	}
 	if v, ok := r.Get("_forwarded_proto").(string); ok {
 		return strings.EqualFold(v, "https")
 	}
-	if r.raw != nil && r.raw.TLS != nil {
-		return true
+	if r.secureSet {
+		return r.secure
+	}
+	if r.ctx != nil {
+		return r.ctx.IsTLS()
 	}
 	return false
 }
@@ -48,10 +62,7 @@ func (r *Request) Root() string {
 
 // FullURL returns the full request URL including query string.
 func (r *Request) FullURL() string {
-	if r.raw == nil || r.raw.URL == nil {
-		return r.Root()
-	}
-	uri := r.raw.URL.RequestURI()
+	uri := r.RequestURI()
 	if uri == "" {
 		uri = "/"
 	}
@@ -371,10 +382,10 @@ func matchPattern(value, pattern string) bool {
 
 // QueryAll returns all query parameters (multi-value).
 func (r *Request) QueryAll() map[string][]string {
-	if r == nil || r.raw == nil || r.raw.URL == nil {
+	if r == nil {
 		return map[string][]string{}
 	}
-	values := r.raw.URL.Query()
+	values := r.queryValues()
 	out := make(map[string][]string, len(values))
 	for key, items := range values {
 		copied := make([]string, len(items))

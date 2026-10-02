@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"io"
 	stdhttp "net/http"
 	"strings"
 	"time"
@@ -14,15 +15,16 @@ type Response struct {
 	cookies     []*stdhttp.Cookie
 	content     []byte
 	contentType string
-	filePath    string
-	fileHTTPReq *stdhttp.Request
-	publicFile  bool
+	filePath   string
+	publicFile bool
 	redirectURL string
 	templateName    string
 	templateData    map[string]any
 	err         error
 	stream      StreamWriter
-	hijack      func(w stdhttp.ResponseWriter) error
+	streamReader io.Reader
+	streamSize   int // >=0 Content-Length; <0 chunked (SetBodyStream)
+	hijack      HijackFunc
 }
 
 // Status sets the response status code.

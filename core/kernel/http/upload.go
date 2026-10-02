@@ -1,8 +1,10 @@
 package http
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -96,11 +98,14 @@ func (r *Request) File(key string) (*UploadedFile, error) {
 	if err := r.parseMultipart(); err != nil {
 		return nil, err
 	}
-	_, header, err := r.raw.FormFile(key)
-	if err != nil {
-		return nil, err
+	if r.multipartForm == nil {
+		return nil, fmt.Errorf("no multipart form")
 	}
-	return &UploadedFile{Header: header}, nil
+	files := r.multipartForm.File[key]
+	if len(files) == 0 {
+		return nil, fmt.Errorf("http: no such file")
+	}
+	return &UploadedFile{Header: files[0]}, nil
 }
 
 // Files returns all uploaded files for a form field.
@@ -108,10 +113,10 @@ func (r *Request) Files(key string) ([]*UploadedFile, error) {
 	if err := r.parseMultipart(); err != nil {
 		return nil, err
 	}
-	if r.raw.MultipartForm == nil {
+	if r.multipartForm == nil {
 		return nil, fmt.Errorf("no multipart form")
 	}
-	headers := r.raw.MultipartForm.File[key]
+	headers := r.multipartForm.File[key]
 	out := make([]*UploadedFile, 0, len(headers))
 	for _, header := range headers {
 		out = append(out, &UploadedFile{Header: header})
@@ -120,7 +125,10 @@ func (r *Request) Files(key string) ([]*UploadedFile, error) {
 }
 
 func (r *Request) parseMultipart() error {
-	if r.raw.MultipartForm != nil {
+	if r == nil {
+		return fmt.Errorf("nil request")
+	}
+	if r.multipartForm != nil {
 		return nil
 	}
 	max := maxUploadBytes()
@@ -130,7 +138,37 @@ func (r *Request) parseMultipart() error {
 			max = n
 		}
 	}
-	return r.raw.ParseMultipartForm(int64(max))
+	if r.ctx != nil && !r.bodyOverrideSet {
+		mf, err := r.ctx.MultipartForm(int64(max))
+		if err == nil && mf != nil {
+			r.multipartForm = &multipart.Form{Value: mf.Value, File: mf.File}
+			return nil
+		}
+	}
+	return r.parseMultipartFromBody(max)
+}
+
+func (r *Request) parseMultipartFromBody(max int) error {
+	ct := r.Header("Content-Type")
+	mediatype, params, err := mime.ParseMediaType(ct)
+	if err != nil || mediatype != "multipart/form-data" {
+		return fmt.Errorf("not multipart")
+	}
+	boundary := params["boundary"]
+	if boundary == "" {
+		return fmt.Errorf("missing boundary")
+	}
+	body, err := r.readBody()
+	if err != nil {
+		return err
+	}
+	reader := multipart.NewReader(bytes.NewReader(body), boundary)
+	form, err := reader.ReadForm(int64(max))
+	if err != nil {
+		return err
+	}
+	r.multipartForm = form
+	return nil
 }
 
 func maxUploadBytes() int {

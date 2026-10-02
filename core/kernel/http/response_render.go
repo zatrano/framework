@@ -180,7 +180,7 @@ func (r *Response) WriteTo(w stdhttp.ResponseWriter) error {
 	}
 
 	if r.hijack != nil {
-		return r.hijack(w)
+		return fmt.Errorf("http: Hijack requires rawhttp Commit (net/http ResponseWriter path unsupported)")
 	}
 
 	if r.filePath != "" {
@@ -196,20 +196,16 @@ func (r *Response) WriteTo(w stdhttp.ResponseWriter) error {
 		if !r.publicFile && w.Header().Get("Content-Disposition") == "" {
 			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(r.filePath))
 		}
-		fileReq := r.fileHTTPReq
-		if fileReq == nil {
-			var err error
-			fileReq, err = stdhttp.NewRequest(stdhttp.MethodGet, "/"+filepath.Base(r.filePath), nil)
-			if err != nil {
-				raw, readErr := os.ReadFile(r.filePath)
-				if readErr != nil {
-					stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
-					return readErr
-				}
-				w.WriteHeader(r.StatusCode())
-				_, writeErr := w.Write(raw)
-				return writeErr
+		fileReq, err := stdhttp.NewRequest(stdhttp.MethodGet, "/"+filepath.Base(r.filePath), nil)
+		if err != nil {
+			raw, readErr := os.ReadFile(r.filePath)
+			if readErr != nil {
+				stdhttp.Error(w, "file not found", stdhttp.StatusNotFound)
+				return readErr
 			}
+			w.WriteHeader(r.StatusCode())
+			_, writeErr := w.Write(raw)
+			return writeErr
 		}
 		stdhttp.ServeFile(w, fileReq, r.filePath)
 		return nil
@@ -261,7 +257,7 @@ func (r *Response) IsEmpty() bool {
 	if code == stdhttp.StatusNoContent || code == stdhttp.StatusNotModified {
 		return true
 	}
-	return len(r.content) == 0 && r.filePath == "" && r.templateName == "" && r.stream == nil && r.redirectURL == ""
+	return len(r.content) == 0 && r.filePath == "" && r.templateName == "" && r.stream == nil && r.streamReader == nil && r.redirectURL == ""
 }
 
 // IsRedirection reports whether status is 3xx or a redirect URL is set.

@@ -20,7 +20,7 @@ func dropEmpty(_ string, value string) (string, bool) {
 func TestTransformInputsLazyJSONDoesNotParseOverlay(t *testing.T) {
 	body := []byte(`{"name":"  Ada  ","note":""}`)
 	req := testRequest("POST", "/", body)
-	req.Raw().Header.Set("Content-Type", "application/json")
+	req.SetHeader("Content-Type", "application/json")
 	req.TransformInputs(trimSpaces)
 	req.TransformInputs(dropEmpty)
 
@@ -36,7 +36,7 @@ func TestTransformInputsLazyJSONDoesNotParseOverlay(t *testing.T) {
 func TestTransformInputsAffectsInputHelpers(t *testing.T) {
 	body := []byte(`{"name":"  Ada  ","note":""}`)
 	req := testRequest("POST", "/", body)
-	req.Raw().Header.Set("Content-Type", "application/json")
+	req.SetHeader("Content-Type", "application/json")
 	req.TransformInputs(trimSpaces)
 	req.TransformInputs(dropEmpty)
 	if got := req.Input("name"); got != "Ada" {
@@ -47,7 +47,7 @@ func TestTransformInputsAffectsInputHelpers(t *testing.T) {
 func TestTransformInputsIdempotent(t *testing.T) {
 	body := []byte(`{"name":"  Ada  "}`)
 	req := testRequest("POST", "/", body)
-	req.Raw().Header.Set("Content-Type", "application/json")
+	req.SetHeader("Content-Type", "application/json")
 	req.TransformInputs(trimSpaces)
 	_ = req.Input("name")
 	req.TransformInputs(trimSpaces)
@@ -60,7 +60,7 @@ func TestJSONRoundTrip(t *testing.T) {
 	payload := map[string]any{"ok": true}
 	raw, _ := json.Marshal(payload)
 	req := testRequest("POST", "/", raw)
-	req.Raw().Header.Set("Content-Type", "application/json")
+	req.SetHeader("Content-Type", "application/json")
 	var dest map[string]any
 	if err := req.JSON(&dest); err != nil {
 		t.Fatal(err)

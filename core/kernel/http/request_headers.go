@@ -2,16 +2,42 @@ package http
 
 import (
 	"encoding/json"
+	"net/textproto"
 	"strings"
 )
 
 // Header returns a request header.
 func (r *Request) Header(key string, fallback ...string) string {
-	value := r.raw.Header.Get(key)
-	if value == "" && len(fallback) > 0 {
+	if r == nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
+	canon := textproto.CanonicalMIMEHeaderKey(key)
+	if r.headerDeleted[canon] {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
+	if r.headerOverlay != nil {
+		if vals, ok := r.headerOverlay[canon]; ok {
+			if len(vals) > 0 {
+				return vals[0]
+			}
+			return ""
+		}
+	}
+	if r.ctx != nil {
+		if v := r.ctx.Header(key); len(v) > 0 {
+			return string(v)
+		}
+	}
+	if len(fallback) > 0 {
 		return fallback[0]
 	}
-	return value
+	return ""
 }
 
 // BearerToken extracts a bearer token from the Authorization header.
@@ -56,7 +82,7 @@ func (r *Request) JSON(dest any) error {
 
 // HasHeader reports whether a header is present and non-empty.
 func (r *Request) HasHeader(key string) bool {
-	return r.raw.Header.Get(key) != ""
+	return r.Header(key) != ""
 }
 
 // MissingHeader reports whether a header is absent or empty.
@@ -144,11 +170,26 @@ func (r *Request) WhenMissingAnyHeader(keys []string, fn func(*Request)) *Reques
 
 // HeadersMap returns the first value for each request header.
 func (r *Request) HeadersMap() map[string]string {
-	if r == nil || r.raw == nil {
+	if r == nil {
 		return map[string]string{}
 	}
-	out := make(map[string]string, len(r.raw.Header))
-	for key, values := range r.raw.Header {
+	out := make(map[string]string)
+	if r.ctx != nil {
+		r.ctx.VisitHeader(func(k, v []byte) {
+			key := string(k)
+			canon := textproto.CanonicalMIMEHeaderKey(key)
+			if r.headerDeleted[canon] {
+				return
+			}
+			if _, exists := out[canon]; !exists {
+				out[canon] = string(v)
+			}
+		})
+	}
+	for key, values := range r.headerOverlay {
+		if r.headerDeleted[key] {
+			continue
+		}
 		if len(values) > 0 {
 			out[key] = values[0]
 		}
@@ -240,12 +281,17 @@ func (r *Request) WhenMissingAnyCookie(names []string, fn func(*Request)) *Reque
 
 // CookieMap returns request cookies as name→value.
 func (r *Request) CookieMap() map[string]string {
-	if r == nil || r.raw == nil {
+	if r == nil {
 		return map[string]string{}
 	}
 	out := make(map[string]string)
-	for _, c := range r.raw.Cookies() {
-		out[c.Name] = c.Value
+	if r.ctx != nil {
+		r.ctx.VisitCookie(func(name, val []byte) {
+			out[string(name)] = string(val)
+		})
+	}
+	for name, value := range r.cookieOverlay {
+		out[name] = value
 	}
 	return out
 }

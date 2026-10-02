@@ -195,22 +195,36 @@ func (r *Request) Floats(key string) []float64 {
 	return out
 }
 
+// PostForm returns a value from the POST body form only (not query).
+func (r *Request) PostForm(key string, fallback ...string) string {
+	if r == nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
+	r.ensureForm()
+	value := ""
+	if r.postForm != nil {
+		value = r.postForm.Get(key)
+	}
+	if value == "" && len(fallback) > 0 {
+		return fallback[0]
+	}
+	return value
+}
+
 // Merge merges values into the request input (form + JSON overlay).
 func (r *Request) Merge(values map[string]string) {
 	if r == nil || len(values) == 0 {
 		return
 	}
 	r.applyPendingInputTransforms()
-	_ = r.raw.ParseForm()
-	if r.raw.Form == nil {
-		r.raw.Form = url.Values{}
-	}
+	r.ensureForm()
 	data := r.jsonInput()
 	for key, value := range values {
-		r.raw.Form.Set(key, value)
-		if r.raw.PostForm != nil {
-			r.raw.PostForm.Set(key, value)
-		}
+		r.form.Set(key, value)
+		r.postForm.Set(key, value)
 		data[key] = value
 	}
 }
@@ -235,18 +249,14 @@ func (r *Request) Replace(values map[string]string) {
 		return
 	}
 	r.applyPendingInputTransforms()
-	_ = r.raw.ParseForm()
-	r.raw.Form = url.Values{}
-	if r.raw.PostForm != nil {
-		r.raw.PostForm = url.Values{}
-	}
+	r.ensureForm()
+	r.form = url.Values{}
+	r.postForm = url.Values{}
 	r.jsonRead = true
 	r.jsonData = make(map[string]string, len(values))
 	for key, value := range values {
-		r.raw.Form.Set(key, value)
-		if r.raw.PostForm != nil {
-			r.raw.PostForm.Set(key, value)
-		}
+		r.form.Set(key, value)
+		r.postForm.Set(key, value)
 		r.jsonData[key] = value
 	}
 }

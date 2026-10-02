@@ -25,7 +25,7 @@ func (r *Request) ensureJSONParsed() {
 	r.jsonRead = true
 	r.jsonData = map[string]string{}
 	r.jsonRaw = map[string]any{}
-	if r.raw == nil || r.raw.Body == nil || !r.IsJSON() {
+	if !r.IsJSON() {
 		return
 	}
 	raw, err := r.readBody()
