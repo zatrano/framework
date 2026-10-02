@@ -6,41 +6,6 @@ import (
 	"testing"
 )
 
-type baseOnly struct{ base string }
-
-func (s baseOnly) BasePath(parts ...string) string {
-	return filepath.Join(append([]string{s.base}, parts...)...)
-}
-
-// minimalApp embeds enough methods? TemplatesDir only calls BasePath via contracts.App.
-// Use a fake by temporarily testing path join logic through Dir helpers with a wrapper.
-
-type fakeApp struct{ baseOnly }
-
-func (fakeApp) Container() interface{}             { return nil }
-func (fakeApp) Make(string) (any, error)           { return nil, nil }
-func (fakeApp) Bound(string) bool                  { return false }
-func (fakeApp) Config() interface{}                { return nil }
-func (fakeApp) Router() interface{}                { return nil }
-func (fakeApp) Logger() interface{}                { return nil }
-func (fakeApp) Context() interface{}               { return nil }
-func (fakeApp) Encrypter() interface{}             { return nil }
-func (fakeApp) Exceptions() interface{}            { return nil }
-func (fakeApp) Reports() interface{}               { return nil }
-func (fakeApp) Environment() string                { return "testing" }
-func (fakeApp) IsProduction() bool                 { return false }
-func (fakeApp) IsDebug() bool                      { return true }
-func (fakeApp) RegisterProviders(...interface{})   {}
-func (fakeApp) Bootstrap() error                   { return nil }
-func (fakeApp) BootstrapContext(interface{}) error { return nil }
-func (fakeApp) Start() error                       { return nil }
-func (fakeApp) StartContext(interface{}) error     { return nil }
-func (fakeApp) Stop(interface{}) error             { return nil }
-func (fakeApp) Handle(any)                         {}
-func (fakeApp) Run(string) error                   { return nil }
-func (fakeApp) SetHTTPBridge(interface{})          {}
-func (fakeApp) HTTPBridge() interface{}            { return nil }
-
 func TestTemplatesDir(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(dir, "templates"), 0o755)
