@@ -277,7 +277,19 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
-The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`. `Route.BodyLimit(n)` on that concrete route sets one route's body cap in bytes. A negative `n` uses the server ceiling.
+The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`. `Route.BodyLimit(n)` on that concrete route sets one route's body cap in bytes. A negative `n` uses the server ceiling. A positive `n` is sent as `RequestConfig.MaxRequestBodySize` and can be larger than the server ceiling; rawhttp then allows that request up to `n`. If `n` is also larger than `HTTP_MAX_INFLIGHT_BODY_BYTES`, the request cannot be reserved and is rejected with 413 rather than a retryable 503.
+
+```go
+func init() {
+    routing.RegisterAPI(func(r *routing.Router) {
+        r.Post("/hook", receive).BodyLimit(8 << 20)
+    })
+}
+
+routing.From(app).Post("/hook", receive).BodyLimit(8 << 20)
+```
+
+Header-time matching uses the same resolver as `Dispatch`: method override from `X-HTTP-Method-Override`, and a trailing slash is ignored. Percent-encoding, letter case, `/./`, and extra slashes are not rewritten. When the method can still change because `_method` is in an unread urlencoded body, or more than one route could match, the cap stays at the tightest candidate and is never raised.
 
 Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form-urlencoded`, and `text/*` stop at `MAX_BODY_BYTES` (2 MiB). Multipart and every other type, including a missing `Content-Type`, stop at `MaxRequestBytes` (32 MiB unless `MAX_UPLOAD_BYTES` is higher). `Request.Body` and `Request.JSON` still stop at 2 MiB. The router is consulted for a `BodyLimit` only when `Content-Length` is above that default or the body is chunked.
 
@@ -288,7 +300,7 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 | `HTTP_IDLE_TIMEOUT` | 120s | deadline off |
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
-| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB (not enforced until the engine can reject before reading) | negative disables the budget |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A route cap above both this and the server ceiling is rejected with 413. |
 | `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
 | `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
 

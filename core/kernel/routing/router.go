@@ -57,6 +57,7 @@ type Router struct {
 	frozenFallback      HandlerFunc
 	frozenFallbackChain HandlerFunc
 	byMethod            map[string]*methodTable
+	minBodyLimit        int64 // smallest positive BodyLimit; 0 if none
 }
 
 // New creates a new router.
@@ -288,9 +289,14 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 }
 
 // BodyLimit sets the header-time body cap for this route, in bytes.
-// A negative value uses the server ceiling. The router is consulted only for
-// requests that can exceed the content-type default (Content-Length above that
-// default, or a chunked body). GET and HEAD never consult it.
+// A negative value uses the server ceiling. A positive value is passed to
+// rawhttp as RequestConfig.MaxRequestBodySize and may exceed the server
+// ceiling. The router is consulted only for requests that can exceed the
+// content-type default (Content-Length above that default, or a chunked body).
+// GET and HEAD never consult it. The match is lookupRoute, the same resolver
+// Dispatch uses. An unknown method override or several candidate routes keeps
+// the tightest cap. A cap above both the server ceiling and the in-flight
+// budget is not granted.
 // Callers use routing.From(app) so the concrete *Route is returned.
 func (route *Route) BodyLimit(n int64) *Route {
 	if route == nil {
@@ -301,7 +307,17 @@ func (route *Route) BodyLimit(n int64) *Route {
 	}
 	route.bodyLimit = n
 	route.bodyLimitSet = true
+	if route.router != nil && n > 0 && (route.router.minBodyLimit == 0 || n < route.router.minBodyLimit) {
+		route.router.minBodyLimit = n
+	}
 	return route
+}
+
+// HasTighterBodyLimit reports whether some route cap is below the content-type
+// default. Header-time lookup must run in that case so a small body is not
+// granted more than the route Dispatch will use.
+func (r *Router) HasTighterBodyLimit(than int64) bool {
+	return r != nil && r.minBodyLimit > 0 && r.minBodyLimit < than
 }
 
 // As assigns a name to the route (with any active group name prefix).
@@ -408,8 +424,9 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 
 // BodyLimitFor reports the route cap for method+path.
 // set is false when no route matches or the route did not call BodyLimit.
+// Path and method rules are lookupRoute, the same resolver Dispatch uses.
 func (r *Router) BodyLimitFor(method, path string) (limit int64, set bool) {
-	route := r.lookupRoute(strings.ToUpper(method), normalizeRoutePath(path))
+	route, _ := r.lookupRoute(method, path)
 	if route == nil {
 		return 0, false
 	}
@@ -419,32 +436,43 @@ func (r *Router) BodyLimitFor(method, path string) (limit int64, set bool) {
 	return route.bodyLimit, route.bodyLimitSet
 }
 
-func (r *Router) lookupRoute(method, path string) *Route {
+// lookupRoute is the single method+path resolver. Dispatch (via match) and
+// header-time BodyLimit both call it. The path loses a trailing slash except
+// for "/". Case, percent-encoding, "." and ".." segments, and extra slashes
+// are left as the carrier delivered them. params is non-nil only when a
+// frozen pattern route matched.
+func (r *Router) lookupRoute(method, path string) (*Route, map[string]string) {
 	if r == nil {
-		return nil
+		return nil, nil
 	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	path = normalizeRoutePath(path)
 	if r.byMethod != nil {
 		t := r.byMethod[method]
 		if t == nil {
-			return nil
+			return nil, nil
 		}
 		if route := t.static[path]; route != nil {
-			return route
+			return route, nil
 		}
 		if t.tree == nil {
-			return nil
+			return nil, nil
 		}
-		return t.tree.lookup(requestSegs(path), map[string]string{})
+		params := map[string]string{}
+		if route := t.tree.lookup(requestSegs(path), params); route != nil {
+			return route, params
+		}
+		return nil, nil
 	}
 	for _, route := range r.routes {
 		if route == nil || route.Method != method || route.pattern == nil {
 			continue
 		}
 		if route.pattern.MatchString(path) {
-			return route
+			return route, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func normalizeRoutePath(path string) string {
@@ -455,35 +483,23 @@ func normalizeRoutePath(path string) string {
 }
 
 func (r *Router) match(req *http.Request) *Route {
-	path := req.Path()
-	method := req.Method()
-	if r.byMethod != nil {
-		if t := r.byMethod[method]; t != nil {
-			if route := t.static[path]; route != nil {
-				req.SetRouteParams(nil)
-				req.SetRouteName(route.dispatchName())
-				return route
-			}
-			if t.tree != nil {
-				params := map[string]string{}
-				if route := t.tree.lookup(requestSegs(path), params); route != nil {
-					req.SetRouteParams(params)
-					req.SetRouteName(route.dispatchName())
-					return route
-				}
-			}
-		}
+	if req == nil {
 		return nil
 	}
-	for _, route := range r.routes {
-		if route.Method != method {
-			continue
-		}
-		if r.bind(req, route, path) {
-			return route
-		}
+	path := normalizeRoutePath(req.Path())
+	route, params := r.lookupRoute(req.Method(), path)
+	if route == nil {
+		return nil
 	}
-	return nil
+	if r.byMethod == nil {
+		if !r.bind(req, route, path) {
+			return nil
+		}
+		return route
+	}
+	req.SetRouteParams(params)
+	req.SetRouteName(route.dispatchName())
+	return route
 }
 
 func (r *Router) bind(req *http.Request, route *Route, path string) bool {

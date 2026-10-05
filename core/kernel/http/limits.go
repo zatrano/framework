@@ -2,6 +2,7 @@ package http
 
 import (
 	"mime"
+	"strconv"
 	"strings"
 
 	"github.com/zatrano/framework/v3/core/kernel/env"
@@ -57,8 +58,27 @@ func HeaderBodyLimit(contentType string) int64 {
 	return MaxRequestBytes()
 }
 
+// DefaultMaxInflightBodyBytes is the in-flight reservation ceiling.
+const DefaultMaxInflightBodyBytes = 256 << 20 // 256 MiB
+
+// MaxInflightBodyBytes reads HTTP_MAX_INFLIGHT_BODY_BYTES.
+// Unset means 256 MiB. A negative value disables the budget. Zero is a
+// budget of zero. An invalid value keeps the default.
+func MaxInflightBodyBytes() int64 {
+	raw := strings.TrimSpace(env.Get("HTTP_MAX_INFLIGHT_BODY_BYTES", ""))
+	if raw == "" {
+		return DefaultMaxInflightBodyBytes
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return DefaultMaxInflightBodyBytes
+	}
+	return n
+}
+
 // BodyLimitConfig builds a HeaderReceived override. Non-positive n keeps the
-// server ceiling (rawhttp treats 0 as "no override").
+// server ceiling (rawhttp treats 0 as "no override"). A positive n replaces
+// the server ceiling for that request, including values above MaxRequestBytes.
 func BodyLimitConfig(n int64) rawhttp.RequestConfig {
 	if n <= 0 {
 		return rawhttp.RequestConfig{}

@@ -61,29 +61,31 @@ func TestHTTPServerBodyLimits(t *testing.T) {
 
 	mpCT, mpBody := multipartPayload(t, 5<<20)
 	status, body = postRaw(t, addr, mpCT, mpBody)
-	if status != 200 || body != "ok" || hit.Load() != 2 || lookups.Load() != 0 {
+	// /hook's 8 MiB cap is tighter than the 32 MiB multipart default, so the
+	// lookup runs even though this body is under that default.
+	if status != 200 || body != "ok" || hit.Load() != 2 || lookups.Load() != 1 {
 		t.Fatalf("5 MiB multipart status=%d body=%q hit=%d lookups=%d", status, body, hit.Load(), lookups.Load())
 	}
 
 	status, body = postRaw(t, addr, "application/octet-stream", bytes.Repeat([]byte("o"), 20<<20))
-	if status != 200 || body != "ok" || hit.Load() != 3 || lookups.Load() != 0 {
+	if status != 200 || body != "ok" || hit.Load() != 3 || lookups.Load() != 2 {
 		t.Fatalf("20 MiB octet-stream status=%d body=%q hit=%d lookups=%d", status, body, hit.Load(), lookups.Load())
 	}
 
 	status, body = postRaw(t, addr, "image/png", bytes.Repeat([]byte("p"), 20<<20))
-	if status != 200 || body != "ok" || hit.Load() != 4 || lookups.Load() != 0 {
+	if status != 200 || body != "ok" || hit.Load() != 4 || lookups.Load() != 3 {
 		t.Fatalf("20 MiB png status=%d body=%q hit=%d lookups=%d", status, body, hit.Load(), lookups.Load())
 	}
 
 	status, body = postRawPath(t, addr, "/upload", "", bytes.Repeat([]byte("m"), 3<<20))
-	if status != 200 || body != "ok" || hit.Load() != 5 || lookups.Load() != 0 {
+	if status != 200 || body != "ok" || hit.Load() != 5 || lookups.Load() != 4 {
 		t.Fatalf("3 MiB missing content-type status=%d body=%q hit=%d lookups=%d", status, body, hit.Load(), lookups.Load())
 	}
 
 	// Oversized Content-Length is rejected before the body is read.
 	before := hit.Load()
 	status = postDeclared(t, addr, "application/json", 3<<20)
-	if status != 413 || hit.Load() != before || lookups.Load() != 1 {
+	if status != 413 || hit.Load() != before || lookups.Load() != 5 {
 		t.Fatalf("3 MiB JSON status=%d hit=%d lookups=%d", status, hit.Load(), lookups.Load())
 	}
 	status = postDeclared(t, addr, "application/json; charset=utf-8", 3<<20)

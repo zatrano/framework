@@ -4,6 +4,11 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Header-time `BodyLimit` uses the same method and path resolver as `Dispatch`. A trailing slash is ignored. Case, percent-encoding, `/./`, and extra slashes are not rewritten. `X-HTTP-Method-Override` is applied before the lookup. An unread urlencoded `_method`, or more than one candidate route, keeps the tightest cap and never a larger one.
+- `RequestConfig.MaxRequestBodySize` can exceed the server ceiling when `BodyLimit` does. A cap that also exceeds `HTTP_MAX_INFLIGHT_BODY_BYTES` is not granted: the request is cut so the engine returns 413, not 503.
+
 ## 3.0.2 - 2026-10-03
 
 Correctness patch before the performance work. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`, so `zatrano version` printed the wrong number; that split is closed.
