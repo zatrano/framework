@@ -442,37 +442,56 @@ func (r *Router) BodyLimitFor(method, path string) (limit int64, set bool) {
 // are left as the carrier delivered them. params is non-nil only when a
 // frozen pattern route matched.
 func (r *Router) lookupRoute(method, path string) (*Route, map[string]string) {
+	hit := r.resolve(method, path, true)
+	return hit.route, hit.params
+}
+
+// routeHit is one resolver result. subs is the unfrozen regexp capture,
+// including the full match at index 0, so bind does not run the pattern again.
+type routeHit struct {
+	route  *Route
+	params map[string]string
+	subs   []string
+}
+
+// resolve matches method+path. normalize folds a trailing slash once.
+// Callers that already folded the path pass normalize false.
+func (r *Router) resolve(method, path string, normalize bool) routeHit {
 	if r == nil {
-		return nil, nil
+		return routeHit{}
 	}
 	method = strings.ToUpper(strings.TrimSpace(method))
-	path = normalizeRoutePath(path)
+	if normalize {
+		path = normalizeRoutePath(path)
+	}
 	if r.byMethod != nil {
 		t := r.byMethod[method]
 		if t == nil {
-			return nil, nil
+			return routeHit{}
 		}
 		if route := t.static[path]; route != nil {
-			return route, nil
+			return routeHit{route: route}
 		}
 		if t.tree == nil {
-			return nil, nil
+			return routeHit{}
 		}
 		params := map[string]string{}
 		if route := t.tree.lookup(requestSegs(path), params); route != nil {
-			return route, params
+			return routeHit{route: route, params: params}
 		}
-		return nil, nil
+		return routeHit{}
 	}
 	for _, route := range r.routes {
 		if route == nil || route.Method != method || route.pattern == nil {
 			continue
 		}
-		if route.pattern.MatchString(path) {
-			return route, nil
+		subs := route.pattern.FindStringSubmatch(path)
+		if subs == nil {
+			continue
 		}
+		return routeHit{route: route, subs: subs}
 	}
-	return nil, nil
+	return routeHit{}
 }
 
 func normalizeRoutePath(path string) string {
@@ -486,25 +505,39 @@ func (r *Router) match(req *http.Request) *Route {
 	if req == nil {
 		return nil
 	}
-	path := normalizeRoutePath(req.Path())
-	route, params := r.lookupRoute(req.Method(), path)
-	if route == nil {
+	path := req.Path()
+	method := req.Method()
+	// Frozen exact static hit. Dispatch already stripped a trailing slash, and
+	// registration stores the method uppercase, so GET /plaintext does not
+	// normalize or call lookupRoute. A miss falls through and folds the path
+	// once.
+	if r.byMethod != nil {
+		if t := r.byMethod[method]; t != nil {
+			if route := t.static[path]; route != nil {
+				req.SetRouteParams(nil)
+				req.SetRouteName(route.dispatchName())
+				return route
+			}
+		}
+	}
+	hit := r.resolve(method, normalizeRoutePath(path), false)
+	if hit.route == nil {
 		return nil
 	}
 	if r.byMethod == nil {
-		if !r.bind(req, route, path) {
+		if !r.bindSubs(req, hit.route, hit.subs) {
 			return nil
 		}
-		return route
+		return hit.route
 	}
-	req.SetRouteParams(params)
-	req.SetRouteName(route.dispatchName())
-	return route
+	req.SetRouteParams(hit.params)
+	req.SetRouteName(hit.route.dispatchName())
+	return hit.route
 }
 
-func (r *Router) bind(req *http.Request, route *Route, path string) bool {
-	matches := route.pattern.FindStringSubmatch(path)
-	if matches == nil {
+// bindSubs fills route params from a match resolve already computed.
+func (r *Router) bindSubs(req *http.Request, route *Route, matches []string) bool {
+	if len(matches) == 0 {
 		return false
 	}
 	params := make(map[string]string, len(route.paramNames))
