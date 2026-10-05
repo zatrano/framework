@@ -277,7 +277,37 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
-The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`.
+The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`. `Route.BodyLimit(n)` on that concrete route sets one route's body cap in bytes. A negative `n` uses the server ceiling.
+
+Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form-urlencoded`, and `text/*` stop at `MAX_BODY_BYTES` (2 MiB). Multipart and every other type, including a missing `Content-Type`, stop at `MaxRequestBytes` (32 MiB unless `MAX_UPLOAD_BYTES` is higher). `Request.Body` and `Request.JSON` still stop at 2 MiB. The router is consulted for a `BodyLimit` only when `Content-Length` is above that default or the body is chunked.
+
+| Variable | Unset | `0` or negative |
+| --- | --- | --- |
+| `HTTP_READ_TIMEOUT` | 60s | deadline off |
+| `HTTP_WRITE_TIMEOUT` | 60s | deadline off |
+| `HTTP_IDLE_TIMEOUT` | 120s | deadline off |
+| `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
+| `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB (not enforced until the engine can reject before reading) | negative disables the budget |
+| `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
+| `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
+
+A unitless integer is seconds (`30`). Go durations (`30s`, `1m`) are accepted. An invalid value (`abc`, `1x`) aborts boot. The 60s read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s. Raise `HTTP_READ_TIMEOUT`, or set it to `0`, for large uploads on a slow link.
+
+`Stream` and `StreamBody` re-arm the write deadline before each chunk. `ClearWriteDeadline` removes it and accepts a peer that stops reading. `Hijack` always clears it.
+
+WebSocket admission, first match wins:
+
+| Order | Source |
+| --- | --- |
+| 1 | `HTTP_ALLOW_UPGRADE=false` forces admission off |
+| 2 | `ListenOptions.AllowUpgrade`, including `serve --allow-upgrade` |
+| 3 | `HTTP_ALLOW_UPGRADE=true` |
+| 4 | `RegisterUpgradeProtocol` |
+| 5 | linked `websocket` addon |
+| 6 | `EnabledAddons` contains `websocket` |
+
+Default is off. `Upgrade: h2c` is rejected even when admission is open. A valid websocket handshake to a route that does not hijack the connection is answered, then the connection is closed.
 
 ## Application lifecycle
 
