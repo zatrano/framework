@@ -1,9 +1,11 @@
 package http
 
 import (
+	"mime"
 	"strings"
 
 	"github.com/zatrano/framework/v3/core/kernel/env"
+	"github.com/zatrano/rawhttp"
 )
 
 // DefaultMaxBodyBytes is the JSON/raw body cap unless MAX_BODY_BYTES is set.
@@ -28,4 +30,72 @@ func MaxRequestBytes() int64 {
 		return upload
 	}
 	return body
+}
+
+// MaxRequestBodySize is MaxRequestBytes clamped to int for rawhttp.Server.
+func MaxRequestBodySize() int {
+	n := MaxRequestBytes()
+	maxInt := int64(^uint(0) >> 1)
+	if n > maxInt {
+		return int(maxInt)
+	}
+	if n <= 0 {
+		return int(DefaultMaxBodyBytes)
+	}
+	return int(n)
+}
+
+// HeaderBodyLimit is the header-time cap for a Content-Type.
+// JSON (application/json and any +json suffix), form urlencoded, and text/*
+// are cut at MaxBodyBytes. Multipart and every other type, including a missing
+// Content-Type, stay at the server ceiling (MaxRequestBytes). Request.Body
+// and Request.JSON still apply MaxBodyBytes when the handler reads them.
+func HeaderBodyLimit(contentType string) int64 {
+	if earlyBodyMedia(contentType) {
+		return MaxBodyBytes()
+	}
+	return MaxRequestBytes()
+}
+
+// BodyLimitConfig builds a HeaderReceived override. Non-positive n keeps the
+// server ceiling (rawhttp treats 0 as "no override").
+func BodyLimitConfig(n int64) rawhttp.RequestConfig {
+	if n <= 0 {
+		return rawhttp.RequestConfig{}
+	}
+	maxInt := int64(^uint(0) >> 1)
+	if n > maxInt {
+		n = maxInt
+	}
+	return rawhttp.RequestConfig{MaxRequestBodySize: int(n)}
+}
+
+func earlyBodyMedia(contentType string) bool {
+	media := mediaType(contentType)
+	if media == "" {
+		return false
+	}
+	if media == "application/json" || media == "application/x-www-form-urlencoded" {
+		return true
+	}
+	if strings.HasSuffix(media, "+json") {
+		return true
+	}
+	return strings.HasPrefix(media, "text/")
+}
+
+func mediaType(contentType string) string {
+	ct := strings.TrimSpace(contentType)
+	if ct == "" {
+		return ""
+	}
+	media, _, err := mime.ParseMediaType(ct)
+	if err != nil {
+		media = ct
+		if i := strings.IndexByte(media, ';'); i >= 0 {
+			media = media[:i]
+		}
+		media = strings.TrimSpace(media)
+	}
+	return strings.ToLower(media)
 }

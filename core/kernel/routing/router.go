@@ -17,21 +17,25 @@ type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
 // Route represents a registered route.
 type Route struct {
-	Method        string
-	Path          string
-	Name          string
-	Handler       HandlerFunc
-	Middleware    []MiddlewareFunc
-	paramNames    []string
-	pattern       *regexp.Regexp
-	namePrefix    string
-	router        *Router
-	frozenName    string
-	frozenPath    string
-	frozenMethod  string
-	frozenHandler HandlerFunc
-	frozenMW      []MiddlewareFunc
-	frozenChain   HandlerFunc
+	Method             string
+	Path               string
+	Name               string
+	Handler            HandlerFunc
+	Middleware         []MiddlewareFunc
+	paramNames         []string
+	pattern            *regexp.Regexp
+	namePrefix         string
+	router             *Router
+	frozenName         string
+	frozenPath         string
+	frozenMethod       string
+	frozenHandler      HandlerFunc
+	frozenMW           []MiddlewareFunc
+	frozenChain        HandlerFunc
+	bodyLimit          int64
+	bodyLimitSet       bool
+	frozenBodyLimit    int64
+	frozenBodyLimitSet bool
 }
 
 type methodTable struct {
@@ -105,6 +109,8 @@ func (r *Router) Freeze() error {
 		route.frozenMW = append([]MiddlewareFunc{}, route.Middleware...)
 		stack := append(append([]MiddlewareFunc{}, r.frozenGlobalMW...), route.frozenMW...)
 		route.frozenChain = composeHandler(route.frozenHandler, stack)
+		route.frozenBodyLimit = route.bodyLimit
+		route.frozenBodyLimitSet = route.bodyLimitSet
 	}
 	r.frozen = true
 	return nil
@@ -281,6 +287,23 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 	return route
 }
 
+// BodyLimit sets the header-time body cap for this route, in bytes.
+// A negative value uses the server ceiling. The router is consulted only for
+// requests that can exceed the content-type default (Content-Length above that
+// default, or a chunked body). GET and HEAD never consult it.
+// Callers use routing.From(app) so the concrete *Route is returned.
+func (route *Route) BodyLimit(n int64) *Route {
+	if route == nil {
+		return nil
+	}
+	if route.router != nil {
+		route.router.mutate()
+	}
+	route.bodyLimit = n
+	route.bodyLimitSet = true
+	return route
+}
+
 // As assigns a name to the route (with any active group name prefix).
 func (route *Route) As(name string) *Route {
 	if route != nil && route.router != nil {
@@ -381,6 +404,54 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 		return r.invokeHandler(req, fallback, mw)
 	}
 	return http.Abort(404, "Not Found")
+}
+
+// BodyLimitFor reports the route cap for method+path.
+// set is false when no route matches or the route did not call BodyLimit.
+func (r *Router) BodyLimitFor(method, path string) (limit int64, set bool) {
+	route := r.lookupRoute(strings.ToUpper(method), normalizeRoutePath(path))
+	if route == nil {
+		return 0, false
+	}
+	if r.frozen {
+		return route.frozenBodyLimit, route.frozenBodyLimitSet
+	}
+	return route.bodyLimit, route.bodyLimitSet
+}
+
+func (r *Router) lookupRoute(method, path string) *Route {
+	if r == nil {
+		return nil
+	}
+	if r.byMethod != nil {
+		t := r.byMethod[method]
+		if t == nil {
+			return nil
+		}
+		if route := t.static[path]; route != nil {
+			return route
+		}
+		if t.tree == nil {
+			return nil
+		}
+		return t.tree.lookup(requestSegs(path), map[string]string{})
+	}
+	for _, route := range r.routes {
+		if route == nil || route.Method != method || route.pattern == nil {
+			continue
+		}
+		if route.pattern.MatchString(path) {
+			return route
+		}
+	}
+	return nil
+}
+
+func normalizeRoutePath(path string) string {
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		return strings.TrimRight(path, "/")
+	}
+	return path
 }
 
 func (r *Router) match(req *http.Request) *Route {

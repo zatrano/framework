@@ -698,15 +698,9 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 		addr = ":" + strconv.Itoa(port)
 	}
 
-	server := &rawhttp.Server{
-		Handler:           func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    1 << 20,
-		TrustedProxies:    trustedProxiesForServer(),
-		KeepHijackedConns: true,
+	server, err := app.httpServer(opts)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 	}
 
 	serve := func() error {
@@ -774,6 +768,24 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 		app.logger.Infof("server stopped")
 		return nil
 	}
+}
+
+// httpServer is the production rawhttp.Server used by RunListen.
+// Timeouts stay at the historical defaults in this layer; HeaderReceived
+// applies the content-type body cap and any Route.BodyLimit override.
+func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) {
+	return &rawhttp.Server{
+		Handler:            func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
+		ReadHeaderTimeout:  10 * time.Second,
+		ReadTimeout:        60 * time.Second,
+		WriteTimeout:       60 * time.Second,
+		IdleTimeout:        120 * time.Second,
+		MaxHeaderBytes:     1 << 20,
+		MaxRequestBodySize: http.MaxRequestBodySize(),
+		HeaderReceived:     app.headerBodyConfig,
+		TrustedProxies:     trustedProxiesForServer(),
+		KeepHijackedConns:  true,
+	}, nil
 }
 
 func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
