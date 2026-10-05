@@ -1,0 +1,36 @@
+name: bench-tcp
+
+# Informational TCP comparison. The regression numbers are the in-process
+# ServeConn harness under bench/, not this workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tcp:
+    name: informational TCP
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: framework/bench
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.13"
+
+      - name: TCP comparison
+        env:
+          GOWORK: "off"
+          APP_KEY: zatrano-ci-test-key-not-prod!!!!
+          APP_ENV: production
+          APP_DEBUG: "false"
+          LOG_LEVEL: error
+        run: go run ./cmd/tcp -mode all
