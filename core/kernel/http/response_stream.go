@@ -3,6 +3,7 @@ package http
 import (
 	"net"
 	stdhttp "net/http"
+	"time"
 )
 
 // File creates a file-download response (attachment).
@@ -37,10 +38,40 @@ type HijackFunc func(conn net.Conn, leftover []byte) error
 // Close the connection after the handler returns.
 func Hijack(fn HijackFunc) *Response {
 	return &Response{
-		status:  101,
-		hijack:  fn,
-		headers: make(stdhttp.Header),
+		status:             101,
+		hijack:             fn,
+		headers:            make(stdhttp.Header),
+		clearWriteDeadline: true,
 	}
+}
+
+// ClearWriteDeadline drops the server write deadline before this response is
+// written. The caller accepts the slow-reader risk: a peer that stops reading
+// can hold the connection open. Hijack always clears the deadline. Stream and
+// StreamBody re-arm now+HTTP_WRITE_TIMEOUT before each write and flush unless
+// this is called or the write timeout is disabled. The read deadline is unchanged.
+func (r *Response) ClearWriteDeadline() *Response {
+	if r == nil {
+		return nil
+	}
+	r.clearWriteDeadline = true
+	r.chunkWriteTimeout = 0
+	return r
+}
+
+// PrepareStreamDeadline arms a streaming response from the server write timeout.
+// A positive duration is re-applied before each write and flush. Zero or
+// negative clears the deadline (the timeout is off). Hijack and an explicit
+// ClearWriteDeadline are left unchanged. Non-stream responses are ignored.
+func (r *Response) PrepareStreamDeadline(serverWrite time.Duration) {
+	if r == nil || !r.IsStream() || r.hijack != nil || r.clearWriteDeadline {
+		return
+	}
+	if serverWrite <= 0 {
+		r.clearWriteDeadline = true
+		return
+	}
+	r.chunkWriteTimeout = serverWrite
 }
 
 // PartialContent creates a 206 response with raw content.

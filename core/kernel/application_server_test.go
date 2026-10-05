@@ -226,6 +226,26 @@ func TestHTTPServerAllowUpgradeSources(t *testing.T) {
 	})
 }
 
+func TestHTTPServerTimeoutsFromEnv(t *testing.T) {
+	t.Setenv("HTTP_READ_TIMEOUT", "-1s")
+	t.Setenv("HTTP_WRITE_TIMEOUT", "0")
+	t.Setenv("HTTP_IDLE_TIMEOUT", "2m")
+	t.Setenv("HTTP_READ_HEADER_TIMEOUT", "5s")
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if srv.ReadTimeout != -1 || srv.WriteTimeout != -1 || srv.IdleTimeout != 2*time.Minute || srv.ReadHeaderTimeout != 5*time.Second {
+		t.Fatalf("timeouts read=%v write=%v idle=%v header=%v", srv.ReadTimeout, srv.WriteTimeout, srv.IdleTimeout, srv.ReadHeaderTimeout)
+	}
+
+	t.Setenv("HTTP_READ_TIMEOUT", "nope")
+	if _, err := app.httpServer(ListenOptions{}); err == nil || !strings.Contains(err.Error(), "HTTP_READ_TIMEOUT") {
+		t.Fatalf("invalid duration err=%v", err)
+	}
+}
+
 func TestUpgradeH2CRejectedWhileOpen(t *testing.T) {
 	on := true
 	app := NewApplication(t.TempDir())
@@ -274,6 +294,43 @@ func TestUpgradeOnPlainRouteCloses(t *testing.T) {
 	text := string(buf)
 	if !strings.Contains(text, "200") || !strings.Contains(text, "plain") {
 		t.Fatalf("response %q", text)
+	}
+}
+
+func TestWriteTimeoutZeroAllowsLongWrite(t *testing.T) {
+	t.Setenv("HTTP_WRITE_TIMEOUT", "0")
+	t.Setenv("HTTP_READ_TIMEOUT", "-1")
+	t.Setenv("HTTP_IDLE_TIMEOUT", "-1")
+	t.Setenv("HTTP_READ_HEADER_TIMEOUT", "10s")
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if srv.WriteTimeout >= 0 {
+		t.Fatalf("write timeout %v, want unlimited", srv.WriteTimeout)
+	}
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		time.Sleep(70 * time.Second)
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("late-ok")
+	}
+	ln := serveTestServer(t, srv)
+	c, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(90 * time.Second))
+	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	buf, err := io.ReadAll(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(buf), "late-ok") {
+		t.Fatalf("70s write was cut: %q", buf)
 	}
 }
 

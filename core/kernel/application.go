@@ -60,26 +60,28 @@ var (
 // Foundation and addon services live in the container (see accessors / package From helpers).
 // Kernel fields below are set by BootKernelServices.
 type Application struct {
-	basePath           string
-	container          *container.Container
-	config             *config.Repository
-	router             *routing.Router
-	logger             *log.Logger
-	ctx                *appcontext.Store
-	encrypter          *encryption.Encrypter
-	exceptions         *exceptions.Handler
-	reports            *report.Manager
-	httpBridge         contracts.HTTPBridge
-	httpBridgeCaptured contracts.HTTPBridge
-	httpBridgeFrozen   bool
-	providers          []contracts.Provider
-	life               lifeState
-	lifeMu             sync.Mutex
-	transitionMu       sync.Mutex
-	environment        string
-	enabledAddons      []string
-	publicFilesOnce    sync.Once
-	publicFiles        *publicFileIndex
+	basePath            string
+	container           *container.Container
+	config              *config.Repository
+	router              *routing.Router
+	logger              *log.Logger
+	ctx                 *appcontext.Store
+	encrypter           *encryption.Encrypter
+	exceptions          *exceptions.Handler
+	reports             *report.Manager
+	httpBridge          contracts.HTTPBridge
+	httpBridgeCaptured  contracts.HTTPBridge
+	httpBridgeFrozen    bool
+	providers           []contracts.Provider
+	life                lifeState
+	lifeMu              sync.Mutex
+	transitionMu        sync.Mutex
+	environment         string
+	enabledAddons       []string
+	publicFilesOnce     sync.Once
+	publicFiles         *publicFileIndex
+	httpWriteTimeout    time.Duration
+	httpWriteTimeoutSet bool
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -599,6 +601,9 @@ func (app *Application) Handle(ctxAny any) {
 		resp.WithCookie(c)
 	}
 
+	if app.httpWriteTimeoutSet {
+		resp.PrepareStreamDeadline(app.httpWriteTimeout)
+	}
 	_ = resp.Commit(ctx)
 }
 
@@ -667,6 +672,15 @@ func (app *Application) servePublicFile(req *http.Request) *http.Response {
 
 // ListenOptions controls how RunListen binds the HTTP server.
 // Zero value matches classic ListenAndServe (default path).
+//
+// Read and write deadlines come from the environment, read when the server
+// is built (after .env load):
+//
+//	HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, HTTP_IDLE_TIMEOUT, HTTP_READ_HEADER_TIMEOUT
+//
+// Unset keeps 60s, 60s, 120s, and 10s. "0", "0s", and a negative value disable
+// that deadline (passed to rawhttp as -1). A unitless integer is seconds.
+// Go durations ("30s", "1m") are accepted. An invalid value fails the boot.
 //
 // WebSocket admission (Server.AllowUpgrade) resolution order:
 //
@@ -785,15 +799,31 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 }
 
 // httpServer is the production rawhttp.Server used by RunListen.
-// Timeouts stay at the historical defaults in this layer; HeaderReceived
-// applies the content-type body cap and any Route.BodyLimit override.
 func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) {
+	readTO, err := serverTimeout("HTTP_READ_TIMEOUT", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	writeTO, err := serverTimeout("HTTP_WRITE_TIMEOUT", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	idleTO, err := serverTimeout("HTTP_IDLE_TIMEOUT", 120*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	headerTO, err := serverTimeout("HTTP_READ_HEADER_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	app.httpWriteTimeout = writeTO
+	app.httpWriteTimeoutSet = true
 	return &rawhttp.Server{
 		Handler:            func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
-		ReadHeaderTimeout:  10 * time.Second,
-		ReadTimeout:        60 * time.Second,
-		WriteTimeout:       60 * time.Second,
-		IdleTimeout:        120 * time.Second,
+		ReadHeaderTimeout:  headerTO,
+		ReadTimeout:        readTO,
+		WriteTimeout:       writeTO,
+		IdleTimeout:        idleTO,
 		MaxHeaderBytes:     1 << 20,
 		MaxRequestBodySize: http.MaxRequestBodySize(),
 		HeaderReceived:     app.headerBodyConfig,
