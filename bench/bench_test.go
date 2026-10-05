@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func BenchmarkCanonT0(b *testing.B)     { benchN(b, serveZatranoTier0Canon, request) }
+func BenchmarkCanonT1(b *testing.B)     { benchN(b, serveZatranoTier1Run, requestNoID) }
+func BenchmarkCanonT1Echo(b *testing.B) { benchN(b, serveZatranoTier1Run, request) }
+
 func BenchmarkT0Old(b *testing.B)       { benchN(b, serveZatranoTier0, request) }
 func BenchmarkT0Run(b *testing.B)       { benchN(b, serveZatranoTier0Run, request) }
 func BenchmarkT0RunV301(b *testing.B)   { benchN(b, serveZatranoTier0RunV301, request) }

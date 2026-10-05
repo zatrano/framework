@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	khttp "github.com/zatrano/framework/v3/core/kernel/http"
 	"github.com/zatrano/rawhttp"
 )
 
@@ -66,15 +67,59 @@ func serverRunHead(h rawhttp.Handler) *rawhttp.Server {
 }
 
 func headFastPath(ctx *rawhttp.Ctx) rawhttp.RequestConfig {
+	return ceilingFromCtx(ctx, nil)
+}
+
+// ceilingFromCtx mirrors Application.decideBodyLimit for the header hook.
+// routeLimits is "METHOD /path" → BodyLimit. Nil means no route cap, which is
+// the plaintext benchmark. GET and HEAD never consult it. A positive cap below
+// the content-type default forces a lookup on other methods, including a small
+// body. The framework golden test checks these numbers against the real hook.
+func ceilingFromCtx(ctx *rawhttp.Ctx, routeLimits map[string]int64) rawhttp.RequestConfig {
 	if ctx == nil {
 		return rawhttp.RequestConfig{}
 	}
-	// GET and HEAD return the content-type ceiling without matching a route.
-	// A missing Content-Type uses the server ceiling (32 MiB), same as
-	// HeaderBodyLimit. Other methods on the plaintext bench are not used.
-	method := strings.ToUpper(string(ctx.Method))
-	if method == "GET" || method == "HEAD" || method == "POST" || method == "OPTIONS" {
-		return rawhttp.RequestConfig{MaxRequestBodySize: runMaxBodyBytes}
+	return ceiling(string(ctx.Method), string(ctx.Path), string(ctx.Header("Content-Type")), ctx.ContentLength(), routeLimits)
+}
+
+func ceiling(method, path, contentType string, contentLength int, routeLimits map[string]int64) rawhttp.RequestConfig {
+	limit := khttp.HeaderBodyLimit(contentType)
+	if isSafeBodyMethod(method) {
+		return khttp.BodyLimitConfig(limit)
 	}
-	return rawhttp.RequestConfig{MaxRequestBodySize: runMaxBodyBytes}
+	tighter := false
+	for _, n := range routeLimits {
+		if n > 0 && n < limit {
+			tighter = true
+			break
+		}
+	}
+	needs := contentLength < 0 || int64(contentLength) > limit
+	chosen := limit
+	if needs || tighter {
+		key := strings.ToUpper(strings.TrimSpace(method)) + " " + normalizeBenchPath(path)
+		if n, ok := routeLimits[key]; ok && n > 0 {
+			chosen = n
+			if chosen > khttp.MaxRequestBytes() && chosen > khttp.MaxInflightBodyBytes() {
+				return khttp.BodyLimitConfig(1)
+			}
+		}
+	}
+	return khttp.BodyLimitConfig(chosen)
+}
+
+func isSafeBodyMethod(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case "GET", "HEAD":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeBenchPath(path string) string {
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		return strings.TrimRight(path, "/")
+	}
+	return path
 }

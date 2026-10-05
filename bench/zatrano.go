@@ -30,6 +30,26 @@ func serveZatranoTier0(conn net.Conn) error {
 	return serveZatranoTier0With(conn, serverOld)
 }
 
+// serveZatranoTier0Canon is the published tier-0 row: a frozen router, the
+// same shape Bootstrap builds, and the Run-shaped server.
+func serveZatranoTier0Canon(conn net.Conn) error {
+	r, err := tier0CanonRouter()
+	if err != nil {
+		return err
+	}
+	srv := serverRunHead(func(ctx *rawhttp.Ctx) {
+		req := khttp.NewRequest(ctx)
+		resp := r.Dispatch(req)
+		if resp == nil {
+			ctx.SetStatusCode(404)
+			ctx.SetBodyString("Not Found")
+			return
+		}
+		_ = resp.Commit(ctx)
+	})
+	return srv.ServeConn(conn)
+}
+
 func serveZatranoTier0Run(conn net.Conn) error {
 	return serveZatranoTier0With(conn, serverRunHead)
 }
@@ -67,6 +87,24 @@ func tier0Router() *routing.Router {
 		tier0Once.r = r
 	})
 	return tier0Once.r
+}
+
+var tier0Canon struct {
+	once sync.Once
+	r    *routing.Router
+	err  error
+}
+
+func tier0CanonRouter() (*routing.Router, error) {
+	tier0Canon.once.Do(func() {
+		r := routing.New()
+		r.Get("/plaintext", func(*khttp.Request) *khttp.Response {
+			return khttp.Text(hello)
+		})
+		tier0Canon.err = r.Freeze()
+		tier0Canon.r = r
+	})
+	return tier0Canon.r, tier0Canon.err
 }
 
 type routeProvider struct{}
