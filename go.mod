@@ -6,3 +6,7 @@ require (
 	github.com/zatrano/canvas v0.2.0
 	github.com/zatrano/rawhttp v0.2.2
 )
+
+// v3.0.0 was published with local replace directives, so
+// go install github.com/zatrano/framework/v3@v3.0.0 is rejected.
+retract v3.0.0

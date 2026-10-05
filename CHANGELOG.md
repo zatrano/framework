@@ -4,6 +4,33 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.0.2 - 2026-10-03
+
+Correctness patch before the performance work. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`, so `zatrano version` printed the wrong number; that split is closed.
+
+### Fixed
+
+- Header-time body cap matches V2 for non-text bodies. `application/json` (and `+json`), `application/x-www-form-urlencoded`, and `text/*` are rejected at `MaxBodyBytes` (2 MiB) when the headers arrive. Multipart, `application/octet-stream`, `image/*`, an unknown type, and a missing `Content-Type` keep the server ceiling `MaxRequestBytes` (32 MiB). `Request.Body` and `Request.JSON` still stop at 2 MiB.
+- `Route.BodyLimit(n)` overrides that cap for one route (`n` bytes; negative uses the server ceiling). The router is matched only when `Content-Length` is above the content-type default or the body is chunked. GET, HEAD, and smaller bodies do not pay for a lookup.
+- WebSocket handshakes can reach `Hijack`. Admission order: `HTTP_ALLOW_UPGRADE=false` forces it off; then `ListenOptions.AllowUpgrade` and `serve --allow-upgrade`; then `HTTP_ALLOW_UPGRADE=true`; then `RegisterUpgradeProtocol`; then a linked `websocket` addon; then `EnabledAddons`. Default is off. `Upgrade: h2c` is still rejected. A websocket handshake that is not hijacked closes after the response.
+- `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, `HTTP_IDLE_TIMEOUT`, and `HTTP_READ_HEADER_TIMEOUT` configure the server. Unset keeps 60s, 60s, 120s, and 10s. `0`, `0s`, and any negative value disable that deadline. A unitless integer is seconds. `30s` and `1m` are accepted. An invalid value aborts boot. The default read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s.
+- `Stream` and `StreamBody` re-arm `now+HTTP_WRITE_TIMEOUT` before each write and flush. A client that stops reading is closed within that timeout. A slow reader that keeps making progress is not cut. When the write timeout is off, the deadline is cleared. Only `Hijack` always clears it. `ClearWriteDeadline` opts out and accepts the slow-reader risk.
+
+### Changed
+
+- Retract `v3.0.0` (its `go.mod` contained local `replace` directives). Release CI rejects a module with `replace`, checks that `VERSION` equals the tag without the `v` prefix, installs `zatrano@<tag>`, runs `zatrano new`, and builds the generated app.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MAX_BODY_BYTES` | 2 MiB | JSON, urlencoded, and `text/*` header cap. Also `Request.Body` / `JSON`. |
+| `MAX_UPLOAD_BYTES` | 32 MiB | Multipart ceiling. The server ceiling is the larger of this and `MAX_BODY_BYTES`. |
+| `HTTP_READ_TIMEOUT` | 60s | Request read deadline. `0` or negative disables it. |
+| `HTTP_WRITE_TIMEOUT` | 60s | Response write deadline, re-armed per stream chunk. `0` or negative disables it. |
+| `HTTP_IDLE_TIMEOUT` | 120s | Keep-alive idle deadline. `0` or negative disables it. |
+| `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
+| `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | Reserved for the in-flight body budget. Not enforced until rawhttp can reject before reading the body. |
+
 ## 3.0.1 - 2026-10-02
 
 Patch after `v3.0.0`. Product `VERSION` stays `3.0.0`. Kernel ABI is unchanged.

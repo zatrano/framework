@@ -1,0 +1,66 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.13"
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Module has no replace directives
+        run: |
+          json=$(go mod edit -json)
+          echo "$json" | jq -e '(.Replace // []) | length == 0' >/dev/null
+
+      - name: Install the tagged module and build a new app
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            v*) ;;
+            *) echo "tag must look like vX.Y.Z" >&2; exit 1 ;;
+          esac
+          version=$(tr -d '[:space:]' < VERSION)
+          want="${tag#v}"
+          if [ "$version" != "$want" ]; then
+            echo "VERSION file is ${version}, tag is ${want}" >&2
+            exit 1
+          fi
+          gopath="${RUNNER_TEMP}/gopath"
+          mkdir -p "$gopath"
+          export GOPATH="$gopath"
+          export PATH="$gopath/bin:$PATH"
+          # The proxy can lag a fresh tag; direct falls through to the VCS.
+          for attempt in 1 2 3 4 5; do
+            if go install "github.com/zatrano/framework/v3/cmd/zatrano@${tag}"; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          dest="${RUNNER_TEMP}/smokeapp"
+          zatrano new "$dest" --module example.com/smokeapp
+          (cd "$dest" && go build -o "${RUNNER_TEMP}/smokeapp.bin" ./cmd/app)

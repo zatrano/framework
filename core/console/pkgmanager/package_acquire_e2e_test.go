@@ -309,9 +309,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with local packages (requires framework v3.0.0).
+	// Published kernel tag compatible with local packages. v3.0.0 is retracted.
 	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.0", "github.com/zatrano/packages/session")
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.1", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
@@ -474,9 +474,9 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with local packages (requires framework v3.0.0).
+	// Published kernel tag compatible with local packages. v3.0.0 is retracted.
 	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.0", "github.com/zatrano/packages/session")
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.1", "github.com/zatrano/packages/session")
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
