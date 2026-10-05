@@ -2,6 +2,9 @@ package kernel
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -11,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zatrano/framework/v3/core/bootstrap/addons"
 	"github.com/zatrano/framework/v3/core/kernel/http"
 	"github.com/zatrano/rawhttp"
 )
@@ -123,6 +127,280 @@ func TestHTTPServerBodyLimits(t *testing.T) {
 	status = postChunked(t, addr, "/upload", "multipart/form-data; boundary=chunk", 33<<20)
 	if status != 413 || hit.Load() != before+1 {
 		t.Fatalf("chunked 33 MiB multipart status=%d hit=%d", status, hit.Load())
+	}
+}
+
+func TestHTTPServerUpgradeStaysClosed(t *testing.T) {
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if srv.AllowUpgrade {
+		t.Fatal("AllowUpgrade must stay off by default")
+	}
+	called := false
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		called = true
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("nope")
+	}
+	ln := serveTestServer(t, srv)
+	raw := wsHandshake("/ws", wsClientKey(), "")
+	status, _ := exchangeRaw(t, ln.Addr().String(), []byte(raw))
+	if status != 400 || called {
+		t.Fatalf("status=%d called=%v, want 400 before the handler", status, called)
+	}
+}
+
+func TestHTTPServerAllowUpgradeSources(t *testing.T) {
+	t.Run("listen option", func(t *testing.T) {
+		on := true
+		app := NewApplication(t.TempDir())
+		srv, err := app.httpServer(ListenOptions{AllowUpgrade: &on})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !srv.AllowUpgrade {
+			t.Fatal("ListenOptions.AllowUpgrade must force admission on")
+		}
+	})
+	t.Run("env", func(t *testing.T) {
+		t.Setenv("HTTP_ALLOW_UPGRADE", "true")
+		app := NewApplication(t.TempDir())
+		srv, err := app.httpServer(ListenOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !srv.AllowUpgrade {
+			t.Fatal("HTTP_ALLOW_UPGRADE=true must admit upgrades")
+		}
+	})
+	t.Run("env false wins over linked package", func(t *testing.T) {
+		t.Setenv("HTTP_ALLOW_UPGRADE", "false")
+		addons.Register(addons.Meta{Name: "websocket", Description: "test"})
+		t.Cleanup(addons.ClearRegistry)
+		app := NewApplication(t.TempDir())
+		srv, err := app.httpServer(ListenOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if srv.AllowUpgrade {
+			t.Fatal("HTTP_ALLOW_UPGRADE=false must keep admission off")
+		}
+	})
+	t.Run("enabled addon", func(t *testing.T) {
+		app := NewApplication(t.TempDir())
+		app.SetEnabledAddons([]string{"websocket"})
+		srv, err := app.httpServer(ListenOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !srv.AllowUpgrade {
+			t.Fatal("EnabledAddons websocket must admit upgrades")
+		}
+	})
+	t.Run("env false overrides listen option", func(t *testing.T) {
+		t.Setenv("HTTP_ALLOW_UPGRADE", "false")
+		on := true
+		app := NewApplication(t.TempDir())
+		srv, err := app.httpServer(ListenOptions{AllowUpgrade: &on})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if srv.AllowUpgrade {
+			t.Fatal("HTTP_ALLOW_UPGRADE=false must override ListenOptions")
+		}
+	})
+	t.Run("option forces off", func(t *testing.T) {
+		off := false
+		app := NewApplication(t.TempDir())
+		app.SetEnabledAddons([]string{"websocket"})
+		srv, err := app.httpServer(ListenOptions{AllowUpgrade: &off})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if srv.AllowUpgrade {
+			t.Fatal("explicit AllowUpgrade false must override the addon")
+		}
+	})
+}
+
+func TestUpgradeH2CRejectedWhileOpen(t *testing.T) {
+	on := true
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{AllowUpgrade: &on})
+	if err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		called = true
+		ctx.SetStatusCode(200)
+	}
+	ln := serveTestServer(t, srv)
+	raw := "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"
+	status, _ := exchangeRaw(t, ln.Addr().String(), []byte(raw))
+	if status != 400 || called {
+		t.Fatalf("h2c status=%d called=%v, want 400 before the handler", status, called)
+	}
+}
+
+func TestUpgradeOnPlainRouteCloses(t *testing.T) {
+	on := true
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{AllowUpgrade: &on})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("plain")
+	}
+	ln := serveTestServer(t, srv)
+	c, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(3 * time.Second))
+	if _, err := io.WriteString(c, wsHandshake("/", wsClientKey(), "")); err != nil {
+		t.Fatal(err)
+	}
+	buf, err := io.ReadAll(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(buf)
+	if !strings.Contains(text, "200") || !strings.Contains(text, "plain") {
+		t.Fatalf("response %q", text)
+	}
+}
+
+func TestHTTPServerUpgradeEchoOriginAndShutdown(t *testing.T) {
+	dir := t.TempDir()
+	app := NewApplication(dir)
+	t.Cleanup(func() {
+		if app.logger != nil {
+			_ = app.logger.Close()
+		}
+	})
+	app.router.Get("/ws", func(req *http.Request) *http.Response {
+		origin := strings.TrimSpace(req.Header("Origin"))
+		if origin != "" {
+			if !strings.EqualFold(originHost(origin), req.Host()) {
+				return http.Abort(403, "origin not allowed")
+			}
+		}
+		return http.Hijack(func(conn net.Conn, leftover []byte) error {
+			key := req.Header("Sec-WebSocket-Key")
+			_, err := io.WriteString(conn, "HTTP/1.1 101 Switching Protocols\r\n"+
+				"Upgrade: websocket\r\n"+
+				"Connection: Upgrade\r\n"+
+				"Sec-WebSocket-Accept: "+wsAccept(key)+"\r\n\r\n")
+			if err != nil {
+				return err
+			}
+			buf := append([]byte(nil), leftover...)
+			tmp := make([]byte, 64)
+			for len(buf) < 6+4 { // 2 header + 4 mask + "ping"
+				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				n, rerr := conn.Read(tmp)
+				if n > 0 {
+					buf = append(buf, tmp[:n]...)
+				}
+				if rerr != nil {
+					return rerr
+				}
+			}
+			payload := make([]byte, 4)
+			mask := buf[2:6]
+			for i := range payload {
+				payload[i] = buf[6+i] ^ mask[i%4]
+			}
+			echo := []byte{0x81, byte(len(payload))}
+			echo = append(echo, payload...)
+			_, err = conn.Write(echo)
+			return err
+		})
+	})
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	on := true
+	srv, err := app.httpServer(ListenOptions{AllowUpgrade: &on})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln := serveTestServer(t, srv)
+	addr := ln.Addr().String()
+	key := wsClientKey()
+
+	c, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if _, err := io.WriteString(c, wsHandshake("/ws", key, "")); err != nil {
+		t.Fatal(err)
+	}
+	_ = c.SetReadDeadline(time.Now().Add(3 * time.Second))
+	head, err := readHeaders(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(head, "101") || !strings.Contains(head, "Sec-WebSocket-Accept: "+wsAccept(key)) {
+		t.Fatalf("handshake: %q", head)
+	}
+	frame := maskFrame([]byte("ping"), [4]byte{1, 2, 3, 4})
+	if _, err := c.Write(frame); err != nil {
+		t.Fatal(err)
+	}
+	echo := make([]byte, 16)
+	n, err := io.ReadFull(c, echo[:6])
+	if err != nil || n < 6 || echo[0] != 0x81 || string(echo[2:6]) != "ping" {
+		t.Fatalf("echo n=%d err=%v bytes=%x", n, err, echo[:n])
+	}
+	_ = c.Close()
+
+	bad, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bad.Close()
+	if _, err := io.WriteString(bad, wsHandshake("/ws", key, "https://evil.example")); err != nil {
+		t.Fatal(err)
+	}
+	_ = bad.SetReadDeadline(time.Now().Add(3 * time.Second))
+	badHead, err := readHeaders(bad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(badHead, "403") {
+		t.Fatalf("bad origin: %q", badHead)
+	}
+
+	block, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer block.Close()
+	if _, err := io.WriteString(block, wsHandshake("/ws", key, "")); err != nil {
+		t.Fatal(err)
+	}
+	_ = block.SetReadDeadline(time.Now().Add(3 * time.Second))
+	if h, err := readHeaders(block); err != nil || !strings.Contains(h, "101") {
+		t.Fatalf("block handshake %q err=%v", h, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err == nil {
+		t.Fatal("Shutdown should return when the hijacked handler is still blocked")
+	}
+	_ = block.SetReadDeadline(time.Now().Add(2 * time.Second))
+	tmp := make([]byte, 8)
+	if _, err := block.Read(tmp); err == nil {
+		t.Fatal("hijacked connection stayed open after Shutdown")
 	}
 }
 
@@ -309,4 +587,68 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(b[i:])
+}
+
+func wsClientKey() string {
+	raw := make([]byte, 16)
+	for i := range raw {
+		raw[i] = byte(i + 1)
+	}
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
+func wsAccept(key string) string {
+	sum := sha1.Sum([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func wsHandshake(path, key, origin string) string {
+	b := "GET " + path + " HTTP/1.1\r\n" +
+		"Host: localhost\r\n" +
+		"Connection: keep-alive, Upgrade\r\n" +
+		"Upgrade: websocket\r\n" +
+		"Sec-WebSocket-Key: " + key + "\r\n" +
+		"Sec-WebSocket-Version: 13\r\n"
+	if origin != "" {
+		b += "Origin: " + origin + "\r\n"
+	}
+	return b + "\r\n"
+}
+
+func maskFrame(payload []byte, mask [4]byte) []byte {
+	out := make([]byte, 2+4+len(payload))
+	out[0] = 0x81
+	out[1] = 0x80 | byte(len(payload))
+	copy(out[2:6], mask[:])
+	for i, b := range payload {
+		out[6+i] = b ^ mask[i%4]
+	}
+	return out
+}
+
+func originHost(origin string) string {
+	origin = strings.TrimPrefix(origin, "https://")
+	origin = strings.TrimPrefix(origin, "http://")
+	if i := strings.IndexByte(origin, '/'); i >= 0 {
+		origin = origin[:i]
+	}
+	return origin
+}
+
+func readHeaders(c net.Conn) (string, error) {
+	var buf []byte
+	tmp := make([]byte, 256)
+	for !bytes.Contains(buf, []byte("\r\n\r\n")) {
+		n, err := c.Read(tmp)
+		if n > 0 {
+			buf = append(buf, tmp[:n]...)
+		}
+		if err != nil {
+			return string(buf), err
+		}
+		if len(buf) > 1<<20 {
+			return string(buf), io.ErrShortBuffer
+		}
+	}
+	return string(buf), nil
 }

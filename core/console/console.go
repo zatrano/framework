@@ -104,6 +104,9 @@ func (c *ServeCommand) Handle(args []string) error {
 			addr = strings.TrimPrefix(args[i], "--host=")
 		case args[i] == "--prefork":
 			opts.Prefork = true
+		case args[i] == "--allow-upgrade":
+			on := true
+			opts.AllowUpgrade = &on
 		case args[i] == "--reuseport":
 			opts.ReusePort = true
 		case args[i] == "--workers" && i+1 < len(args):

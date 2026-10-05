@@ -667,6 +667,16 @@ func (app *Application) servePublicFile(req *http.Request) *http.Response {
 
 // ListenOptions controls how RunListen binds the HTTP server.
 // Zero value matches classic ListenAndServe (default path).
+//
+// WebSocket admission (Server.AllowUpgrade) resolution order:
+//
+//  1. HTTP_ALLOW_UPGRADE=false forces it off.
+//  2. A non-nil AllowUpgrade, including serve --allow-upgrade.
+//  3. HTTP_ALLOW_UPGRADE=true.
+//  4. RegisterUpgradeProtocol.
+//  5. A linked websocket addon.
+//  6. EnabledAddons contains "websocket".
+//  7. Otherwise off.
 type ListenOptions struct {
 	// Prefork runs rawhttp.Prefork (multi-process when supported).
 	Prefork bool
@@ -674,6 +684,10 @@ type ListenOptions struct {
 	ReusePort bool
 	// Workers is Prefork child count; zero → GOMAXPROCS.
 	Workers int
+	// AllowUpgrade, when non-nil, forces WebSocket admission on or off.
+	// HTTP_ALLOW_UPGRADE=false still wins. Nil follows the env var, then a
+	// registered upgrade protocol, then a linked websocket package.
+	AllowUpgrade *bool
 }
 
 // Run calls Start (which bootstraps if needed), listens on addr or APP_PORT,
@@ -785,6 +799,7 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 		HeaderReceived:     app.headerBodyConfig,
 		TrustedProxies:     trustedProxiesForServer(),
 		KeepHijackedConns:  true,
+		AllowUpgrade:       resolveAllowUpgrade(app, opts),
 	}, nil
 }
 
