@@ -19,3 +19,4 @@ vendor/
 tests/database/*.sqlite
 # Accidental nested trees (not the V3 platform package core/)
 /packages/
+bench/cmd/tcp/results.txt
