@@ -128,8 +128,25 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 				return resp
 			}
 
-			if req.Method() == "OPTIONS" {
-				return apply(http.NoContent())
+			if req.Method() == "OPTIONS" && origin != "" && req.Header("Access-Control-Request-Method") != "" {
+				if allowOrigin == "" {
+					return http.Abort(404, "Not Found")
+				}
+				resp := http.NoContent()
+				resp.Header("Access-Control-Allow-Origin", allowOrigin)
+				resp.Header("Access-Control-Allow-Methods", cfg.AllowMethods)
+				resp.Header("Access-Control-Allow-Headers", cfg.AllowHeaders)
+				if cfg.ExposeHeaders != "" {
+					resp.Header("Access-Control-Expose-Headers", cfg.ExposeHeaders)
+				}
+				if cfg.AllowCredentials && allowOrigin != "*" {
+					resp.Header("Access-Control-Allow-Credentials", "true")
+				}
+				if cfg.MaxAge > 0 {
+					resp.Header("Access-Control-Max-Age", strconv.Itoa(cfg.MaxAge))
+				}
+				resp.Header("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+				return resp
 			}
 			return apply(next(req))
 		}

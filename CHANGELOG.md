@@ -6,6 +6,9 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Fixed
 
+- Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
+- A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) is answered before later middleware and before the route. An allowed origin gets 204, `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Max-Age`, and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. Any other origin gets no CORS headers and 404. Auth registered after CORS does not see the preflight. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origin and credentials are never sent together.
+- rawhttp answers 400, 413, and 431 before the framework handler. Those responses do not carry security headers, `X-Request-ID`, or CORS headers.
 - Header-time `BodyLimit` uses the same method and path resolver as `Dispatch`. A trailing slash is ignored. Case, percent-encoding, `/./`, and extra slashes are not rewritten. `X-HTTP-Method-Override` is applied before the lookup. An unread urlencoded `_method`, or more than one candidate route, keeps the tightest cap and never a larger one.
 - `RequestConfig.MaxRequestBodySize` can exceed the server ceiling when `BodyLimit` does. A cap that also exceeds `HTTP_MAX_INFLIGHT_BODY_BYTES` is not granted: the request is cut so the engine returns 413, not 503.
 

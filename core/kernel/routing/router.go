@@ -56,6 +56,7 @@ type Router struct {
 	frozenGlobalMW      []MiddlewareFunc
 	frozenFallback      HandlerFunc
 	frozenFallbackChain HandlerFunc
+	frozenNotFound      HandlerFunc
 	byMethod            map[string]*methodTable
 	minBodyLimit        int64 // smallest positive BodyLimit; 0 if none
 }
@@ -98,6 +99,8 @@ func (r *Router) Freeze() error {
 	r.frozenFallback = r.fallback
 	if r.frozenFallback != nil {
 		r.frozenFallbackChain = composeHandler(r.frozenFallback, r.frozenGlobalMW)
+	} else {
+		r.frozenNotFound = composeHandler(routerNotFound, r.frozenGlobalMW)
 	}
 	for _, route := range r.routes {
 		if route == nil {
@@ -419,6 +422,13 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 		}
 		return r.invokeHandler(req, fallback, mw)
 	}
+	if r.frozen && r.frozenNotFound != nil {
+		return r.frozenNotFound(req)
+	}
+	return r.invokeHandler(req, routerNotFound, r.middleware)
+}
+
+func routerNotFound(*http.Request) *http.Response {
 	return http.Abort(404, "Not Found")
 }
 

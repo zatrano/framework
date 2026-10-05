@@ -51,9 +51,7 @@ func TestCompatBlackBox(t *testing.T) {
 	servers := []*live{mustFiber(t), mustGin(t), mustEcho(t)}
 	for _, s := range servers {
 		t.Run(s.name, func(t *testing.T) {
-			// Product gaps are recorded, not treated as a harness compile failure.
-			// ZATRANO's unmatched 404 skips global middleware, so OPTIONS and the
-			// 404 security headers fail the spec until a later approved change.
+			// Differences are logged. They are not a harness compile failure.
 			checkPanic(t, z, s)
 			checkOptions(t, z, s)
 			checkForwarded(t, z, s)

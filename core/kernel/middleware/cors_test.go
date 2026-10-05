@@ -31,9 +31,58 @@ func TestCORSWithOrigin(t *testing.T) {
 
 	opt := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
 	opt.Header.Set("Origin", "https://app.example")
+	opt.Header.Set("Access-Control-Request-Method", "GET")
 	preflight := handler(http.RequestFromHTTP(opt))
 	if preflight.StatusCode() != 204 {
 		t.Fatalf("status=%d", preflight.StatusCode())
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Origin") != "https://app.example" {
+		t.Fatalf("acao=%q", preflight.Headers().Get("Access-Control-Allow-Origin"))
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Methods") != "GET, OPTIONS" {
+		t.Fatalf("methods=%q", preflight.Headers().Get("Access-Control-Allow-Methods"))
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Headers") != "Content-Type" {
+		t.Fatalf("headers=%q", preflight.Headers().Get("Access-Control-Allow-Headers"))
+	}
+	if preflight.Headers().Get("Access-Control-Max-Age") != "60" {
+		t.Fatalf("max-age=%q", preflight.Headers().Get("Access-Control-Max-Age"))
+	}
+	if preflight.Headers().Get("Vary") != "Origin, Access-Control-Request-Method, Access-Control-Request-Headers" {
+		t.Fatalf("vary=%q", preflight.Headers().Get("Vary"))
+	}
+
+	plain := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
+	plain.Header.Set("Origin", "https://app.example")
+	hit := handler(http.RequestFromHTTP(plain))
+	if hit.StatusCode() != 200 {
+		t.Fatalf("non-preflight OPTIONS status=%d", hit.StatusCode())
+	}
+
+	deniedHit := false
+	denied := mw(func(req *http.Request) *http.Response {
+		deniedHit = true
+		return http.Text("no")
+	})
+	bad := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
+	bad.Header.Set("Origin", "https://evil.example")
+	bad.Header.Set("Access-Control-Request-Method", "POST")
+	deniedResp := denied(http.RequestFromHTTP(bad))
+	if deniedHit {
+		t.Fatal("disallowed preflight must not reach later middleware")
+	}
+	if deniedResp.StatusCode() != 404 {
+		t.Fatalf("denied status=%d", deniedResp.StatusCode())
+	}
+	for _, h := range []string{
+		"Access-Control-Allow-Origin",
+		"Access-Control-Allow-Methods",
+		"Access-Control-Allow-Headers",
+		"Access-Control-Max-Age",
+	} {
+		if deniedResp.Headers().Get(h) != "" {
+			t.Fatalf("denied %s=%q", h, deniedResp.Headers().Get(h))
+		}
 	}
 }
 
