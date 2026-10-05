@@ -22,10 +22,6 @@ func init() {
 	_ = os.Setenv("LOG_LEVEL", "error")
 }
 
-func rawServer(h rawhttp.Handler) *rawhttp.Server {
-	return serverOld(h)
-}
-
 func serveZatranoTier0(conn net.Conn) error {
 	return serveZatranoTier0With(conn, serverOld)
 }
@@ -145,10 +141,6 @@ func serveZatranoTier1(conn net.Conn) error {
 
 func serveZatranoTier1Run(conn net.Conn) error {
 	return serveZatranoTier1With(conn, serverRunHead)
-}
-
-func serveZatranoTier1RunV301(conn net.Conn) error {
-	return serveZatranoTier1With(conn, serverRunV301)
 }
 
 func serveZatranoTier1With(conn net.Conn, newServer func(rawhttp.Handler) *rawhttp.Server) error {

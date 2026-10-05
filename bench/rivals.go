@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofiber/fiber/v2"
@@ -67,6 +68,19 @@ func serveFiber(app *fiber.App, conn net.Conn) error {
 	return srv.ServeConn(conn)
 }
 
+// serveFiberEqual sets the same read, write, and idle durations as ZATRANO
+// production. fasthttp has no ReadHeaderTimeout; header time is inside
+// ReadTimeout (60s), not a separate 10s.
+func serveFiberEqual(app *fiber.App, conn net.Conn) error {
+	srv := &fasthttp.Server{
+		Handler:      app.Handler(),
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	return srv.ServeConn(conn)
+}
+
 func serveFiberTier0(conn net.Conn) error {
 	if err := fiberReady(); err != nil {
 		return err
@@ -86,6 +100,27 @@ func serveFiberTier1Gen(conn net.Conn) error {
 		return err
 	}
 	return serveFiber(fiberApps.t1gen, conn)
+}
+
+func serveFiberTier0Eq(conn net.Conn) error {
+	if err := fiberReady(); err != nil {
+		return err
+	}
+	return serveFiberEqual(fiberApps.t0, conn)
+}
+
+func serveFiberTier1Eq(conn net.Conn) error {
+	if err := fiberReady(); err != nil {
+		return err
+	}
+	return serveFiberEqual(fiberApps.t1, conn)
+}
+
+func serveFiberTier1GenEq(conn net.Conn) error {
+	if err := fiberReady(); err != nil {
+		return err
+	}
+	return serveFiberEqual(fiberApps.t1gen, conn)
 }
 
 func fiberPlaintext(c *fiber.Ctx, probe captured, generate bool) error {

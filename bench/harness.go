@@ -83,6 +83,84 @@ func (c *memConn) SetDeadline(time.Time) error      { return nil }
 func (c *memConn) SetReadDeadline(time.Time) error  { return nil }
 func (c *memConn) SetWriteDeadline(time.Time) error { return nil }
 
+// faithConn reads and writes the in-memory stream. Deadline methods are
+// forwarded to one idle loopback TCP connection so the runtime timer cost is
+// real. Nothing is read from or written to that socket. Close does not close
+// the shared socket; the next ServeConn reuses it.
+type faithConn struct {
+	mem *memConn
+	tcp net.Conn
+}
+
+func (c *faithConn) Read(p []byte) (int, error)  { return c.mem.Read(p) }
+func (c *faithConn) Write(p []byte) (int, error) { return c.mem.Write(p) }
+func (c *faithConn) Close() error                { return nil }
+func (c *faithConn) LocalAddr() net.Addr         { return c.tcp.LocalAddr() }
+func (c *faithConn) RemoteAddr() net.Addr        { return c.tcp.RemoteAddr() }
+func (c *faithConn) SetDeadline(t time.Time) error {
+	return c.tcp.SetDeadline(t)
+}
+func (c *faithConn) SetReadDeadline(t time.Time) error {
+	return c.tcp.SetReadDeadline(t)
+}
+func (c *faithConn) SetWriteDeadline(t time.Time) error {
+	return c.tcp.SetWriteDeadline(t)
+}
+
+var (
+	faithOnce sync.Once
+	faithTCP  net.Conn
+	faithErr  error
+)
+
+func idleLoopback() (net.Conn, error) {
+	faithOnce.Do(func() {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			faithErr = err
+			return
+		}
+		accepted := make(chan struct{})
+		go func() {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			close(accepted)
+			_, _ = io.Copy(io.Discard, c)
+		}()
+		c, err := net.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			faithErr = err
+			return
+		}
+		faithTCP = c
+		select {
+		case <-accepted:
+		case <-time.After(2 * time.Second):
+			faithErr = strError("loopback accept timed out")
+		}
+	})
+	return faithTCP, faithErr
+}
+
+func newFaith(r *bytes.Reader, w *bytes.Buffer) (net.Conn, error) {
+	tcp, err := idleLoopback()
+	if err != nil {
+		return nil, err
+	}
+	return &faithConn{mem: &memConn{r: r, w: w}, tcp: tcp}, nil
+}
+
+func captureFaith(req []byte) (net.Conn, *bytes.Buffer, error) {
+	var buf bytes.Buffer
+	c, err := newFaith(bytes.NewReader(req), &buf)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, &buf, nil
+}
+
 // countConn counts deadline arms. The benchmark path does not use it.
 type countConn struct {
 	*memConn
@@ -97,10 +175,6 @@ func (c *countConn) SetReadDeadline(time.Time) error {
 func (c *countConn) SetWriteDeadline(time.Time) error {
 	c.writeDL++
 	return nil
-}
-
-func discardConn(n int) *memConn {
-	return &memConn{r: bytes.NewReader(bytes.Repeat(request, n))}
 }
 
 func captureConn() (*memConn, *bytes.Buffer) {
