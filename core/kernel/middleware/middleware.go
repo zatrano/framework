@@ -85,8 +85,11 @@ func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 		resp := next(req)
 		if resp != nil {
 			resp.Header("X-Request-ID", id)
-			if tp := strings.TrimSpace(req.Header("Traceparent")); tp != "" {
-				resp.Header("Traceparent", tp)
+			if tp, ok := req.HeaderValue("Traceparent"); ok {
+				tp = strings.TrimSpace(tp)
+				if tp != "" {
+					resp.Header("Traceparent", tp)
+				}
 			}
 		}
 		return resp
@@ -98,12 +101,19 @@ func incomingRequestID(req *http.Request) string {
 		return ""
 	}
 	for _, key := range []string{"X-Request-ID", "X-Correlation-ID"} {
-		if id := strings.TrimSpace(req.Header(key)); requestIDPattern.MatchString(id) {
+		id, ok := req.HeaderValue(key)
+		if !ok {
+			continue
+		}
+		id = strings.TrimSpace(id)
+		if requestIDPattern.MatchString(id) {
 			return id
 		}
 	}
-	if id := traceIDFromTraceparent(req.Header("Traceparent")); id != "" {
-		return id
+	if tp, ok := req.HeaderValue("Traceparent"); ok {
+		if id := traceIDFromTraceparent(tp); id != "" {
+			return id
+		}
 	}
 	return ""
 }

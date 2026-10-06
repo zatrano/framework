@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-// Header returns a request header.
+// Header returns a request header. The first call builds a canonical map;
+// later calls read that map. HeaderValue does not build it.
 func (r *Request) Header(key string, fallback ...string) string {
 	if r == nil {
 		if len(fallback) > 0 {
@@ -14,11 +15,31 @@ func (r *Request) Header(key string, fallback ...string) string {
 		}
 		return ""
 	}
+	if r.builtHeaders == nil {
+		r.builtHeaders = make(map[string]string)
+	}
 	canon := textproto.CanonicalMIMEHeaderKey(key)
-	if r.headerDeleted[canon] {
-		if len(fallback) > 0 {
+	if v, ok := r.builtHeaders[canon]; ok {
+		if v == "" && len(fallback) > 0 {
 			return fallback[0]
 		}
+		return v
+	}
+	v := r.headerLookup(canon, key)
+	r.builtHeaders[canon] = v
+	if v == "" && len(fallback) > 0 {
+		return fallback[0]
+	}
+	return v
+}
+
+// HeaderCacheBuilt reports whether Header has materialized its map.
+func (r *Request) HeaderCacheBuilt() bool {
+	return r != nil && r.builtHeaders != nil
+}
+
+func (r *Request) headerLookup(canon, key string) string {
+	if r.headerDeleted[canon] {
 		return ""
 	}
 	if r.headerOverlay != nil {
@@ -34,10 +55,45 @@ func (r *Request) Header(key string, fallback ...string) string {
 			return string(v)
 		}
 	}
-	if len(fallback) > 0 {
-		return fallback[0]
-	}
 	return ""
+}
+
+// HeaderValue returns one header without building Header's map.
+// A missing header allocates nothing. The bool is false when the header is absent.
+func (r *Request) HeaderValue(name string) (string, bool) {
+	b := r.headerBytes(name)
+	if len(b) == 0 {
+		return "", false
+	}
+	return string(b), true
+}
+
+// headerBytes returns the carrier's header bytes. The slice is borrowed from
+// the request buffer and is valid only until the handler returns. An overlay
+// value is an owned copy. Do not retain the slice.
+func (r *Request) headerBytes(name string) []byte {
+	if r == nil || name == "" {
+		return nil
+	}
+	if r.headerDeleted != nil {
+		canon := textproto.CanonicalMIMEHeaderKey(name)
+		if r.headerDeleted[canon] {
+			return nil
+		}
+	}
+	if r.headerOverlay != nil {
+		canon := textproto.CanonicalMIMEHeaderKey(name)
+		if vals, ok := r.headerOverlay[canon]; ok {
+			if len(vals) == 0 || vals[0] == "" {
+				return nil
+			}
+			return []byte(vals[0])
+		}
+	}
+	if r.ctx != nil {
+		return r.ctx.Header(name)
+	}
+	return nil
 }
 
 // HeaderValues returns every value of a request header.
@@ -46,6 +102,13 @@ func (r *Request) Header(key string, fallback ...string) string {
 func (r *Request) HeaderValues(key string) []string {
 	if r == nil {
 		return nil
+	}
+	if r.headerOverlay == nil && r.headerDeleted == nil {
+		b := r.headerBytes(key)
+		if len(b) == 0 {
+			return nil
+		}
+		return []string{string(b)}
 	}
 	canon := textproto.CanonicalMIMEHeaderKey(key)
 	if r.headerDeleted[canon] {

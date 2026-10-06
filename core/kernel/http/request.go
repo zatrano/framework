@@ -41,6 +41,8 @@ type Request struct {
 
 	headerOverlay stdhttp.Header
 	headerDeleted map[string]bool
+	// builtHeaders is filled by Header. HeaderValue does not create it.
+	builtHeaders  map[string]string
 	cookieOverlay map[string]string
 
 	stdCtx context.Context
@@ -213,6 +215,7 @@ func (r *Request) SetHeader(key, value string) {
 	canon := textproto.CanonicalMIMEHeaderKey(key)
 	delete(r.headerDeleted, canon)
 	r.headerOverlay.Set(key, value)
+	r.builtHeaders = nil
 }
 
 // AddHeader appends a request header overlay value.
@@ -226,6 +229,7 @@ func (r *Request) AddHeader(key, value string) {
 	canon := textproto.CanonicalMIMEHeaderKey(key)
 	delete(r.headerDeleted, canon)
 	r.headerOverlay.Add(key, value)
+	r.builtHeaders = nil
 }
 
 // DelHeader removes a request header (overlay + hides ctx value).
@@ -241,6 +245,7 @@ func (r *Request) DelHeader(key string) {
 		r.headerDeleted = make(map[string]bool)
 	}
 	r.headerDeleted[canon] = true
+	r.builtHeaders = nil
 }
 
 // SetCookie sets a request cookie overlay value.

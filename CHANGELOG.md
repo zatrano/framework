@@ -8,6 +8,10 @@ All notable changes to ZATRANO are documented in this file.
 
 - `Access-Control-Allow-*` headers are no longer written on responses whose request does not carry `Origin`, or on applications with no origin configured.
 
+### Performance
+
+- The default request chain reads headers with `HeaderValue` and does not build a header map. `Header` still builds that map on its first call.
+
 ### Fixed
 
 - Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.

@@ -160,7 +160,8 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 				}
 			}
 
-			if req.Method() == "OPTIONS" && originPresent(values) && req.Header("Access-Control-Request-Method") != "" {
+			acrMethod, _ := req.HeaderValue("Access-Control-Request-Method")
+			if req.Method() == "OPTIONS" && originPresent(values) && acrMethod != "" {
 				if !matched {
 					resp := http.Abort(404, "Not Found")
 					if varyOrigin {
@@ -169,7 +170,8 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 					return resp
 				}
 				resp := http.NoContent()
-				hv, hs := allowHeadersValue(cfg.AllowHeaders, req.Header("Access-Control-Request-Headers"))
+				acrHeaders, _ := req.HeaderValue("Access-Control-Request-Headers")
+				hv, hs := allowHeadersValue(cfg.AllowHeaders, acrHeaders)
 				writeAllow(resp, hv, hs)
 				if wildcard {
 					return resp

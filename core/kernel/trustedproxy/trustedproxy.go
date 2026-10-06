@@ -69,11 +69,15 @@ func (c Config) Middleware() routing.MiddlewareFunc {
 		return func(req *http.Request) *http.Response {
 			req.Set(clientIPKey, Resolve(req, trustAll, nets))
 			if trustAll || ipInNets(RemoteAddr(req), nets) {
-				if proto := firstHeaderValue(req.Header("X-Forwarded-Proto")); proto != "" {
-					req.Set(forwardedProtoKey, proto)
+				if proto, ok := req.HeaderValue("X-Forwarded-Proto"); ok {
+					if proto = firstHeaderValue(proto); proto != "" {
+						req.Set(forwardedProtoKey, proto)
+					}
 				}
-				if host := firstHeaderValue(req.Header("X-Forwarded-Host")); host != "" {
-					req.Set(forwardedHostKey, host)
+				if host, ok := req.HeaderValue("X-Forwarded-Host"); ok {
+					if host = firstHeaderValue(host); host != "" {
+						req.Set(forwardedHostKey, host)
+					}
 				}
 			}
 			return next(req)
@@ -125,10 +129,13 @@ func Resolve(req *http.Request, trustAll bool, nets []*net.IPNet) string {
 	if !trustAll && !ipInNets(remote, nets) {
 		return remote
 	}
-	hops := parseForwardedIPs(req.Header("X-Forwarded-For"))
+	forwarded, _ := req.HeaderValue("X-Forwarded-For")
+	hops := parseForwardedIPs(forwarded)
 	if len(hops) == 0 {
-		if realIP := parseSingleIP(req.Header("X-Real-IP")); realIP != "" {
-			return realIP
+		if real, ok := req.HeaderValue("X-Real-IP"); ok {
+			if realIP := parseSingleIP(real); realIP != "" {
+				return realIP
+			}
 		}
 		return remote
 	}

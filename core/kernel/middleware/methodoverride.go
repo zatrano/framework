@@ -48,7 +48,13 @@ func ApplyMethodOverride(req *http.Request) {
 	if req == nil {
 		return
 	}
-	resolved, ambiguous := MethodOverrideFromHeader(req.Method(), req.Header("X-HTTP-Method-Override"), req.Header("Content-Type"))
+	method := req.Method()
+	if !strings.EqualFold(method, "POST") {
+		return
+	}
+	override, _ := req.HeaderValue("X-HTTP-Method-Override")
+	contentType, _ := req.HeaderValue("Content-Type")
+	resolved, ambiguous := MethodOverrideFromHeader(method, override, contentType)
 	if !strings.EqualFold(resolved, req.Method()) {
 		req.SetMethod(resolved)
 	}
