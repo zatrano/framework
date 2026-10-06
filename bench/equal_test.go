@@ -41,8 +41,10 @@ func TestTier1HeaderBodyEqual(t *testing.T) {
 	if z.requestID != requestID {
 		t.Fatalf("zatrano X-Request-ID=%q", z.requestID)
 	}
-	if len(z.headers) < 6 {
-		t.Fatalf("zatrano tier-1 security/CORS headers = %d (%v), want at least 6", len(z.headers), z.headers)
+	// Four security headers. CORS headers are absent: production has no
+	// allow-list, and this probe does not send Origin.
+	if len(z.headers) < 4 {
+		t.Fatalf("zatrano tier-1 security headers = %d (%v), want at least 4", len(z.headers), z.headers)
 	}
 	check := func(name string, serve serveFunc) {
 		t.Helper()
