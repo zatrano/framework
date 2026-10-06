@@ -438,7 +438,6 @@ func (r *Request) URL() string {
 // Query returns a query parameter.
 func (r *Request) Query(key string, fallback ...string) string {
 	r.poisonCheck()
-	r.applyPendingInputTransforms()
 	values := r.queryValues()
 	value := ""
 	if values != nil {

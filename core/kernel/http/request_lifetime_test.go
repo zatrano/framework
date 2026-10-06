@@ -24,7 +24,11 @@ func TestPoolOffKeepsRequestAfterRelease(t *testing.T) {
 	panicked := make(chan any, 1)
 	go func() {
 		<-release
-		defer func() { panicked <- recover() }()
+		defer func() {
+			if p := recover(); p != nil {
+				panicked <- p
+			}
+		}()
 		value, _ := req.HeaderValue("X-Trace")
 		got <- value
 	}()

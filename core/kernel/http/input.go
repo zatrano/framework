@@ -56,9 +56,8 @@ func (r *Request) All() map[string]string {
 }
 
 // TransformInputs queues a mutation of form and JSON overlay values.
-// Transforms run on the first Input, Query, All, Only, Except, Merge, Replace,
-// or Forget. A request with no query and no body does not parse.
-// JSON() and Body() stay raw. Query returns the raw query value.
+// Transforms run on the first Input/All access (and Merge/Replace/Forget).
+// JSON() and Body() read the raw body and do not apply transforms.
 func (r *Request) TransformInputs(fn func(key, value string) (string, bool)) {
 	r.poisonCheck()
 	if r == nil || fn == nil {
@@ -75,43 +74,15 @@ func (r *Request) applyPendingInputTransforms() {
 	if r == nil || r.inputTransformed {
 		return
 	}
-	if len(r.inputTransforms) == 0 || !r.hasTransformSource() {
-		if len(r.inputTransforms) == 0 {
-			r.inputTransformed = true
-		}
+	r.inputTransformed = true
+	if len(r.inputTransforms) == 0 {
 		return
 	}
-	r.inputTransformed = true
 	r.ensureForm()
 	r.ensureJSONParsed()
 	for _, fn := range r.inputTransforms {
 		r.applyOneInputTransform(fn)
 	}
-}
-
-// hasTransformSource is true when a query string or body can carry inputs.
-// A request with neither skips form and JSON parsing.
-func (r *Request) hasTransformSource() bool {
-	r.poisonCheck()
-	if r.querySet && r.query != "" {
-		return true
-	}
-	if !r.querySet && r.ctx != nil && len(r.ctx.Query) > 0 {
-		return true
-	}
-	if r.bodyOverrideSet && len(r.bodyOverride) > 0 {
-		return true
-	}
-	if r.bodyReader != nil {
-		return true
-	}
-	if len(r.bodyCached) > 0 {
-		return true
-	}
-	if r.ctx != nil && r.ctx.ContentLength() != 0 {
-		return true
-	}
-	return false
 }
 
 func (r *Request) applyOneInputTransform(fn func(key, value string) (string, bool)) {

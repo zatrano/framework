@@ -17,17 +17,14 @@ func trimEmpty(key, value string) (string, bool) {
 	return value, true
 }
 
-func TestTransformInputsNoSourceDoesNoWork(t *testing.T) {
-	req := testRequest("GET", "/", nil)
-	req.TransformInputs(trimEmpty)
-	allocs := testing.AllocsPerRun(200, func() {
-		req.applyPendingInputTransforms()
-	})
-	if allocs != 0 {
-		t.Fatalf("allocs=%v", allocs)
-	}
-	if req.formParsed || req.jsonRead || req.inputTransformed {
-		t.Fatalf("parsed form=%v json=%v done=%v", req.formParsed, req.jsonRead, req.inputTransformed)
+func TestInputThenSetBodyMatchesV301(t *testing.T) {
+	later := testRequest(stdhttp.MethodGet, "/", nil)
+	later.TransformInputs(trimEmpty)
+	_ = later.Input("missing")
+	later.SetBody([]byte("name=%20Ada%20"))
+	later.SetHeader("Content-Type", "application/x-www-form-urlencoded")
+	if got := later.Input("name"); got != " Ada " {
+		t.Fatalf("input after SetBody=%q", got)
 	}
 }
 
@@ -137,7 +134,7 @@ func TestAccessorMatrix(t *testing.T) {
 	_ = later.Input("missing")
 	later.SetBody([]byte("name=%20Ada%20"))
 	later.SetHeader("Content-Type", "application/x-www-form-urlencoded")
-	if later.Input("name") != "Ada" {
+	if later.Input("name") != " Ada " {
 		t.Fatalf("set body after empty=%q", later.Input("name"))
 	}
 }

@@ -61,23 +61,13 @@ json.all{tags="[\" a \",\"b\"]",user="{\"name\":\"  Ada  \"}",user.name="Ada"}
 file.all{title="Ada"}
 file.name="notes.txt"
 merge input.name="  Ada  " attr=kept
+later input.name=" Ada "
 `
 
 func TestHeaderAndAccessorsMatchV301(t *testing.T) {
 	got := goldenDump(t)
-	const later = "later input.name="
-	head, tail, ok := strings.Cut(got, later)
-	if !ok {
-		t.Fatalf("missing later line:\n%s", got)
-	}
-	if head != goldenV301 {
-		t.Fatalf("v3.0.1 mismatch\n got:\n%s\nwant:\n%s", head, goldenV301)
-	}
-	// v3.0.1 returns " Ada " (the raw form value). Input on an empty request
-	// marked transforms finished, so SetBody was not trimmed. This tree
-	// leaves the transform pending until a query or body exists.
-	if tail != "\"Ada\"\n" {
-		t.Fatalf("later input=%s", tail)
+	if got != goldenV301 {
+		t.Fatalf("v3.0.1 mismatch\n got:\n%s\nwant:\n%s", got, goldenV301)
 	}
 }
 
