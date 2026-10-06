@@ -277,7 +277,14 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
-`HTTP_POOL_REQUESTS` defaults to false. Each request is a new `*http.Request`, which stays readable after the handler returns (the v3.0.1 behavior). Set it to true to reuse request objects after the response is committed. A pooled `*Request` must not be kept: the next request can reuse the same pointer.
+`HTTP_POOL_REQUESTS` defaults to false. Each request is a new `*http.Request`, which stays readable after the handler returns (the v3.0.1 behavior). Set it to true to reuse request objects after the response is committed. A pooled `*Request` must not be kept: the next request can reuse the same pointer. `Request.Clone` copies the method, path, query, headers, cookies, and body into an object that is safe to use after the handler returns, including from another goroutine:
+
+```go
+clone := req.Clone()
+go func() {
+    log.Print(clone.Path())
+}()
+```
 
 Poison builds (`-tags zatrano_poison`, and also `-tags rawhttp_poison` or `-tags canvas_poison`) panic with `request used after handler returned` if any request accessor runs after the handler returns. Production binaries delete that check.
 
