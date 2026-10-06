@@ -320,7 +320,8 @@ func (r *Request) Method() string {
 	return ""
 }
 
-// Path returns the request path.
+// Path returns a copy of the request path. The string does not alias the
+// request buffer, so it stays valid after the handler returns.
 func (r *Request) Path() string {
 	if r == nil {
 		return ""
@@ -352,6 +353,7 @@ func (r *Request) URL() string {
 
 // Query returns a query parameter.
 func (r *Request) Query(key string, fallback ...string) string {
+	r.applyPendingInputTransforms()
 	values := r.queryValues()
 	value := ""
 	if values != nil {

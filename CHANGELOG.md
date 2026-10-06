@@ -11,6 +11,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Performance
 
 - The default request chain reads headers with `HeaderValue` and does not build a header map. `Header` still builds that map on its first call.
+- `TransformInputs` parses form and JSON on the first `Input`, `Query`, `All`, `Only`, `Except`, `Merge`, `Replace`, or `Forget`. A request with no query and no body does not parse. `Body` and `JSON` stay raw.
 
 ### Fixed
 

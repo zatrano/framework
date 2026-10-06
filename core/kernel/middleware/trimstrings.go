@@ -8,7 +8,9 @@ import (
 )
 
 // TrimStrings queues whitespace trimming for request inputs, skipping excepted keys.
-// The transform runs when Input/All (or Merge/Replace/Forget) is first used.
+// The transform runs on the first Input, Query, All, Only, Except, Merge, Replace,
+// or Forget. A request with no query and no body does no parsing. Body and JSON
+// stay raw. Query keeps the raw query value; form and JSON input maps are trimmed.
 func TrimStrings(except ...string) routing.MiddlewareFunc {
 	skip := exceptSet(except...)
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
