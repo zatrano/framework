@@ -13,7 +13,7 @@ All notable changes to ZATRANO are documented in this file.
 - The default request chain reads headers with `HeaderValue` and does not build a header map. `Header` still builds that map on its first call.
 - Request objects are pooled and reset after the response is committed. `Path`, `QueryString`, and `HeaderValue` are copies. `PathBytes` and `headerBytes` alias the request buffer and are invalid after the handler returns.
 - A missing `public/` directory skips the static-file check. A clean path is looked up from its bytes. Trusted-proxy address checks use `netip`.
-- Response headers are stored in a small inline list until `Headers` is called. Security, CORS, and request-id middleware append boot-time pairs. `Commit` writes that list straight to the carrier. Header names and values are checked for CR, LF, and NUL in the carrier, once.
+- Response headers are stored in an inline list of eight pairs until `Headers` is called. Further pairs spill into a slice. The default chain writes five or six headers, so it does not allocate that slice. `Response` values are not pooled: a handler may retain the pointer it returns. Security, CORS, and request-id middleware append boot-time pairs. `Commit` writes the list straight to the carrier. Header names and values are checked for CR, LF, and NUL in the carrier, once.
 - `HTTP_POOL_REQUESTS` defaults to false. Request objects are allocated per request, as in v3.0.1. `true` returns them to a pool after the response is committed.
 - `Request.Clone` copies the method, path, query, headers, cookies, and body into a value that stays valid after the handler returns.
 

@@ -10,9 +10,12 @@ import (
 
 // Response represents an HTTP response to be sent.
 type Response struct {
-	status             int
-	headers            stdhttp.Header
-	headerList         [16]headerKV
+	status  int
+	headers stdhttp.Header
+	// headerList holds the first headers inline. The default chain writes
+	// five or six. Further headers spill into headerMore. Response values
+	// are not pooled: a handler may return this pointer and keep it.
+	headerList         [8]headerKV
 	headerLen          int
 	headerMore         []headerKV
 	cookies            []*stdhttp.Cookie

@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -45,6 +46,32 @@ func TestInlineHeaderListMatchesMapPath(t *testing.T) {
 	}
 	if left.Header.Get("X-Frame-Options") != "SAMEORIGIN" || left.Header.Get("X-Request-ID") != "abc" {
 		t.Fatalf("headers=%v", left.Header)
+	}
+}
+
+func TestInlineHeaderOverflowMatchesMap(t *testing.T) {
+	list := Text("ok")
+	mapped := Text("ok")
+	mapped.Headers()
+	for i := 0; i < 12; i++ {
+		name := fmt.Sprintf("X-N-%d", i)
+		value := fmt.Sprintf("v%d", i)
+		list.SetHeader(name, value)
+		mapped.SetHeader(name, value)
+	}
+	if list.HeaderMapBuilt() {
+		t.Fatal("overflow built a map")
+	}
+	left, leftBody := commitResponse(t, list)
+	right, _ := commitResponse(t, mapped)
+	if leftBody != "ok" || left.StatusCode != 200 {
+		t.Fatalf("status=%d body=%q", left.StatusCode, leftBody)
+	}
+	for i := 0; i < 12; i++ {
+		name := fmt.Sprintf("X-N-%d", i)
+		if left.Header.Get(name) != right.Header.Get(name) {
+			t.Fatalf("%s list=%q map=%q", name, left.Header.Get(name), right.Header.Get(name))
+		}
 	}
 }
 
