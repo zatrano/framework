@@ -494,6 +494,14 @@ func postDeclared(t *testing.T, addr, contentType string, n int) int {
 
 func postDeclaredPath(t *testing.T, addr, path, contentType string, n int) int {
 	t.Helper()
+	status, err := postDeclaredPathErr(addr, path, contentType, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return status
+}
+
+func postDeclaredPathErr(addr, path, contentType string, n int) (int, error) {
 	var head bytes.Buffer
 	head.WriteString("POST " + path + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n")
 	if contentType != "" {
@@ -502,8 +510,8 @@ func postDeclaredPath(t *testing.T, addr, path, contentType string, n int) int {
 	head.WriteString("Content-Length: ")
 	head.WriteString(itoa(n))
 	head.WriteString("\r\n\r\n")
-	status, _ := exchangeRaw(t, addr, head.Bytes())
-	return status
+	status, _, err := exchangeRawErr(addr, head.Bytes())
+	return status, err
 }
 
 func postRaw(t *testing.T, addr, contentType string, body []byte) (int, string) {
@@ -513,6 +521,14 @@ func postRaw(t *testing.T, addr, contentType string, body []byte) (int, string) 
 
 func postRawPath(t *testing.T, addr, path, contentType string, body []byte) (int, string) {
 	t.Helper()
+	code, text, err := postRawPathErr(addr, path, contentType, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return code, text
+}
+
+func postRawPathErr(addr, path, contentType string, body []byte) (int, string, error) {
 	var head bytes.Buffer
 	head.WriteString("POST " + path + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n")
 	if contentType != "" {
@@ -522,7 +538,7 @@ func postRawPath(t *testing.T, addr, path, contentType string, body []byte) (int
 	head.WriteString(itoa(len(body)))
 	head.WriteString("\r\n\r\n")
 	raw := append(head.Bytes(), body...)
-	return exchangeRaw(t, addr, raw)
+	return exchangeRawErr(addr, raw)
 }
 
 func postChunked(t *testing.T, addr, path, contentType string, n int) int {
@@ -584,11 +600,19 @@ func postChunked(t *testing.T, addr, path, contentType string, n int) int {
 
 func exchangeRaw(t *testing.T, addr string, raw []byte) (int, string) {
 	t.Helper()
-	c, err := net.Dial("tcp", addr)
+	code, body, err := exchangeRawErr(addr, raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	return code, body
+}
+
+func exchangeRawErr(addr string, raw []byte) (int, string, error) {
+	c, err := net.Dial("tcp", addr)
+	if err != nil {
+		return -1, "", fmt.Errorf("dial: %w", err)
+	}
+	defer rstClose(c)
 	_ = c.SetDeadline(time.Now().Add(30 * time.Second))
 	_, werr := c.Write(raw)
 	if tc, ok := c.(*net.TCPConn); ok {
@@ -597,22 +621,26 @@ func exchangeRaw(t *testing.T, addr string, raw []byte) (int, string) {
 	buf, rerr := io.ReadAll(c)
 	if len(buf) == 0 {
 		if werr != nil {
-			t.Fatal(werr)
+			return -1, "", fmt.Errorf("write: %w", werr)
 		}
 		if rerr != nil {
-			t.Fatal(rerr)
+			return -1, "", fmt.Errorf("read: %w", rerr)
 		}
+		return -1, "", fmt.Errorf("read: %w", io.ErrUnexpectedEOF)
 	}
 	text := string(buf)
 	if len(text) < 12 || !strings.HasPrefix(text, "HTTP/1.") {
-		t.Fatalf("bad response %q", text[:min(len(text), 80)])
+		return -1, "", fmt.Errorf("read: bad response %q", text[:min(len(text), 80)])
 	}
 	code := statusCode(text)
+	if code == 0 {
+		return -1, "", fmt.Errorf("read: no status in %q", text[:min(len(text), 80)])
+	}
 	body := ""
 	if i := strings.Index(text, "\r\n\r\n"); i >= 0 {
 		body = text[i+4:]
 	}
-	return code, body
+	return code, body, nil
 }
 
 func statusCode(text string) int {

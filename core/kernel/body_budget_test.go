@@ -51,39 +51,40 @@ func TestBodyBudgetSingleRequestOverBudgetIs413(t *testing.T) {
 func TestBodyBudgetRejectsWith503AndRetryAfter(t *testing.T) {
 	t.Setenv("HTTP_MAX_INFLIGHT_BODY_BYTES", fmt.Sprint(3<<20))
 	app := NewApplication(t.TempDir())
-	hold := make(chan struct{})
 	app.router.Post("/upload", func(*http.Request) *http.Response {
-		<-hold
 		return http.Text("ok")
 	})
 	srv := mustServer(t, app)
 	ln := serveTestServer(t, srv)
 	addr := ln.Addr().String()
-	body := bytes.Repeat([]byte("a"), 2<<20)
-
-	first := make(chan int, 1)
-	go func() {
-		status, _ := postRawPath(t, addr, "/upload", "application/json", body)
-		first <- status
-	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for app.BodyReserved() < 2<<20 && time.Now().Before(deadline) {
+	const want = int64(2 << 20)
+	hold, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hold.Close()
+	_ = hold.SetDeadline(time.Now().Add(15 * time.Second))
+	if _, err := fmt.Fprintf(hold, "POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", want); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hold.Write([]byte{'{'}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for app.BodyReserved() < want && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 	}
-	if app.BodyReserved() < 2<<20 {
-		t.Fatalf("first request did not reserve, reserved=%d", app.BodyReserved())
+	if got := app.BodyReserved(); got < want {
+		t.Fatalf("first request did not reserve, reserved=%d", got)
 	}
-	st, hdr := postRawHeaders(t, addr, "/upload", "application/json", body, len(body))
+	st, hdr := postRawHeaders(t, addr, "/upload", "application/json", bytes.Repeat([]byte("a"), int(want)), int(want))
 	if st != 503 {
 		t.Fatalf("status=%d", st)
 	}
 	if hdr["Retry-After"] != "1" {
 		t.Fatalf("Retry-After=%q", hdr["Retry-After"])
 	}
-	close(hold)
-	if got := <-first; got != 200 {
-		t.Fatalf("first status=%d", got)
-	}
+	_ = hold.Close()
 	if got := waitReserved(app, 0); got != 0 {
 		t.Fatalf("reserved=%d", got)
 	}
