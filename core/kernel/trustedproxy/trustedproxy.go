@@ -3,6 +3,7 @@ package trustedproxy
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,7 @@ const forwardedHostKey = "_forwarded_host"
 type Config struct {
 	TrustAll bool
 	nets     []*net.IPNet
+	prefixes []netip.Prefix
 }
 
 // Parse accepts CIDRs, IPs, or "*". Malformed entries fail-loud.
@@ -48,7 +50,12 @@ func Parse(proxies ...string) (Config, error) {
 		if err != nil {
 			return Config{}, fmt.Errorf("invalid trusted proxy %q", p)
 		}
+		prefix, err := netip.ParsePrefix(network.String())
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid trusted proxy %q", p)
+		}
 		cfg.nets = append(cfg.nets, network)
+		cfg.prefixes = append(cfg.prefixes, prefix.Masked())
 	}
 	return cfg, nil
 }
@@ -64,11 +71,11 @@ func (c Config) Validate(production bool) error {
 
 // Middleware trusts X-Forwarded-* headers only when the remote peer is a trusted proxy.
 func (c Config) Middleware() routing.MiddlewareFunc {
-	trustAll, nets := c.TrustAll, c.nets
+	trustAll, nets, prefixes := c.TrustAll, c.nets, c.prefixes
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
-			req.Set(clientIPKey, Resolve(req, trustAll, nets))
-			if trustAll || ipInNets(RemoteAddr(req), nets) {
+			req.Set(clientIPKey, resolve(req, trustAll, nets, prefixes))
+			if trustAll || ipInPrefixes(RemoteAddr(req), prefixes) {
 				if proto, ok := req.HeaderValue("X-Forwarded-Proto"); ok {
 					if proto = firstHeaderValue(proto); proto != "" {
 						req.Set(forwardedProtoKey, proto)
@@ -125,8 +132,13 @@ func FromEnv(production bool) (routing.MiddlewareFunc, error) {
 // proxy appended), skipping trusted proxy addresses. Leftmost attacker
 // prepending is ignored.
 func Resolve(req *http.Request, trustAll bool, nets []*net.IPNet) string {
+	return resolve(req, trustAll, nets, nil)
+}
+
+func resolve(req *http.Request, trustAll bool, nets []*net.IPNet, prefixes []netip.Prefix) string {
 	remote := RemoteAddr(req)
-	if !trustAll && !ipInNets(remote, nets) {
+	trusted := trustAll || ipInPrefixes(remote, prefixes) || (len(prefixes) == 0 && ipInNets(remote, nets))
+	if !trusted {
 		return remote
 	}
 	forwarded, _ := req.HeaderValue("X-Forwarded-For")
@@ -143,7 +155,7 @@ func Resolve(req *http.Request, trustAll bool, nets []*net.IPNet) string {
 		return hops[0]
 	}
 	for i := len(hops) - 1; i >= 0; i-- {
-		if !ipInNets(hops[i], nets) {
+		if !hopTrusted(hops[i], nets, prefixes) {
 			return hops[i]
 		}
 	}
@@ -156,6 +168,30 @@ func RemoteAddr(req *http.Request) string {
 		return ""
 	}
 	return req.RemoteIP()
+}
+
+func hopTrusted(ip string, nets []*net.IPNet, prefixes []netip.Prefix) bool {
+	if len(prefixes) > 0 {
+		return ipInPrefixes(ip, prefixes)
+	}
+	return ipInNets(ip, nets)
+}
+
+func ipInPrefixes(ip string, prefixes []netip.Prefix) bool {
+	if ip == "" || len(prefixes) == 0 {
+		return false
+	}
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	addr = addr.Unmap()
+	for _, prefix := range prefixes {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 func ipInNets(ip string, nets []*net.IPNet) bool {
@@ -191,7 +227,7 @@ func parseSingleIP(raw string) string {
 		raw = host
 	}
 	raw = strings.Trim(raw, "[]")
-	if net.ParseIP(raw) == nil {
+	if _, err := netip.ParseAddr(raw); err != nil {
 		return ""
 	}
 	return raw

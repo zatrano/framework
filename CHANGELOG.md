@@ -12,6 +12,8 @@ All notable changes to ZATRANO are documented in this file.
 
 - The default request chain reads headers with `HeaderValue` and does not build a header map. `Header` still builds that map on its first call.
 - `TransformInputs` parses form and JSON on the first `Input`, `Query`, `All`, `Only`, `Except`, `Merge`, `Replace`, or `Forget`. A request with no query and no body does not parse. `Body` and `JSON` stay raw.
+- Request objects are pooled and reset after the response is committed. `Path`, `QueryString`, and `HeaderValue` are copies. `PathBytes` and `headerBytes` alias the request buffer and are invalid after the handler returns.
+- A missing `public/` directory skips the static-file check. A clean path is looked up from its bytes. Trusted-proxy address checks use `netip`.
 
 ### Fixed
 

@@ -80,6 +80,8 @@ type Application struct {
 	enabledAddons       []string
 	publicFilesOnce     sync.Once
 	publicFiles         *publicFileIndex
+	publicDirOnce       sync.Once
+	publicDir           bool
 	httpWriteTimeout    time.Duration
 	httpWriteTimeoutSet bool
 	// bodyLimitReady freezes the header-hook ceilings at boot. A later
@@ -590,6 +592,7 @@ func (app *Application) Handle(ctxAny any) {
 	}
 
 	req := http.NewRequest(ctx)
+	defer http.ReleaseRequest(req)
 	middleware.ApplyMethodOverride(req)
 
 	var resp *http.Response
@@ -636,8 +639,19 @@ func (app *Application) recoverHandle(ctx *rawhttp.Ctx) {
 
 // ServeHTTP was removed in V3 (rawhttp). Use Handle / Run.
 
+func (app *Application) hasPublicDir() bool {
+	if app == nil {
+		return false
+	}
+	app.publicDirOnce.Do(func() {
+		info, err := os.Stat(app.BasePath("public"))
+		app.publicDir = err == nil && info.IsDir()
+	})
+	return app.publicDir
+}
+
 func (app *Application) publicFile(req *http.Request) *http.Response {
-	if req == nil {
+	if req == nil || !app.hasPublicDir() {
 		return nil
 	}
 	switch req.Method() {
@@ -654,9 +668,16 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 	// are not served until restart; symlink/junction trees stay on the slow path.
 	if app.IsProduction() {
 		app.ensurePublicFileIndex()
-		key, ok := publicFileLookupKey(path)
-		if !ok || app.publicFiles == nil || !app.publicFiles.mayServe(key) {
-			return nil
+		raw := req.PathBytes()
+		if len(raw) > 0 && pathBytesAreLookupKey(raw) {
+			if app.publicFiles == nil || !app.publicFiles.mayServeRaw(raw) {
+				return nil
+			}
+		} else {
+			key, ok := publicFileLookupKey(path)
+			if !ok || app.publicFiles == nil || !app.publicFiles.mayServe(key) {
+				return nil
+			}
 		}
 	}
 	return app.servePublicFile(req)

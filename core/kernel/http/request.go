@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/zatrano/framework/v3/core/kernel/cookie"
 
@@ -23,6 +24,8 @@ import (
 
 // ErrBodyTooLarge is returned when JSON/Body reads exceed MaxBodyBytes.
 var ErrBodyTooLarge = errors.New("http: request body too large")
+
+var requestPool = sync.Pool{New: func() any { return new(Request) }}
 
 // Request wraps rawhttp.Ctx with optional mutable overlays for middleware/tests.
 type Request struct {
@@ -83,8 +86,32 @@ type SessionStore interface {
 }
 
 // NewRequest creates a ZATRANO request from a rawhttp context.
+// The object comes from a pool. Application.Handle releases it after Commit.
+// A handler must not keep the *Request after it returns: ReleaseRequest
+// clears every field and the next request may reuse the same object.
+// Path, QueryString, and HeaderValue strings are copies. headerBytes and
+// PathBytes alias the request buffer and are invalid after return.
 func NewRequest(ctx *rawhttp.Ctx) *Request {
-	return &Request{ctx: ctx, stdCtx: context.Background()}
+	r := requestPool.Get().(*Request)
+	r.reset()
+	r.ctx = ctx
+	r.stdCtx = context.Background()
+	return r
+}
+
+// ReleaseRequest clears every field and returns the request to the pool.
+// Call it only after the response has been committed and no caller still
+// uses the pointer.
+func ReleaseRequest(r *Request) {
+	if r == nil {
+		return
+	}
+	r.reset()
+	requestPool.Put(r)
+}
+
+func (r *Request) reset() {
+	*r = Request{}
 }
 
 // RequestFromHTTP copies a net/http request into overlays for unit tests.
@@ -322,6 +349,7 @@ func (r *Request) Method() string {
 
 // Path returns a copy of the request path. The string does not alias the
 // request buffer, so it stays valid after the handler returns.
+// PathBytes is the borrowed slice and must not be retained.
 func (r *Request) Path() string {
 	if r == nil {
 		return ""
@@ -333,6 +361,16 @@ func (r *Request) Path() string {
 		return string(r.ctx.Path)
 	}
 	return ""
+}
+
+// PathBytes returns the request path as a slice of the request buffer.
+// It is valid only until the handler returns. Do not retain it.
+// When a path overlay is set, PathBytes returns nil and Path returns the overlay.
+func (r *Request) PathBytes() []byte {
+	if r == nil || r.pathSet || r.ctx == nil {
+		return nil
+	}
+	return r.ctx.Path
 }
 
 // URL returns the full request URL string.

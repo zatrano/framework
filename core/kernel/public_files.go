@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -126,6 +127,55 @@ func (idx *publicFileIndex) mayServe(key string) bool {
 		}
 	}
 	return false
+}
+
+// mayServeRaw looks up a path that is already a clean URL key.
+// map[string(b)] is the compiler's copy-free lookup: the key is not allocated
+// when the caller does not retain the converted string.
+func (idx *publicFileIndex) mayServeRaw(path []byte) bool {
+	if idx == nil || len(path) == 0 {
+		return false
+	}
+	if _, ok := idx.files[string(path)]; ok {
+		return true
+	}
+	if len(idx.dynamicPrefixes) == 0 {
+		return false
+	}
+	key := string(path)
+	for _, prefix := range idx.dynamicPrefixes {
+		if key == prefix || strings.HasPrefix(key, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// pathBytesAreLookupKey reports whether path can be used as a map key with no
+// cleaning. Windows indexes are lowercased, so an uppercase byte falls back
+// to publicFileLookupKey.
+func pathBytesAreLookupKey(path []byte) bool {
+	if len(path) < 2 || path[0] != '/' || path[len(path)-1] == '/' {
+		return false
+	}
+	prevSlash := true
+	for _, c := range path {
+		if c == 0 || c == '\\' || c == ':' {
+			return false
+		}
+		if runtime.GOOS == "windows" && c >= 'A' && c <= 'Z' {
+			return false
+		}
+		if c == '/' {
+			if prevSlash {
+				return false
+			}
+			prevSlash = true
+			continue
+		}
+		prevSlash = false
+	}
+	return !bytes.Contains(path, []byte(".."))
 }
 
 // publicFileLookupKey mirrors safepath.Resolve cleaning without joining the
