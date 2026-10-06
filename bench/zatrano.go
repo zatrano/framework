@@ -22,6 +22,18 @@ func init() {
 	_ = os.Setenv("LOG_LEVEL", "error")
 }
 
+func canonicalHook(ctx *rawhttp.Ctx) rawhttp.RequestConfig {
+	limitApp.once.Do(func() {
+		limitApp.app = kernel.NewApplication("")
+	})
+	return limitApp.app.HeaderBodyConfig(ctx)
+}
+
+var limitApp struct {
+	once sync.Once
+	app  *kernel.Application
+}
+
 func serveZatranoTier0(conn net.Conn) error {
 	return serveZatranoTier0With(conn, serverOld)
 }
@@ -34,6 +46,26 @@ func serveZatranoTier0Canon(conn net.Conn) error {
 		return err
 	}
 	srv := serverRunHead(func(ctx *rawhttp.Ctx) {
+		req := khttp.NewRequest(ctx)
+		resp := r.Dispatch(req)
+		if resp == nil {
+			ctx.SetStatusCode(404)
+			ctx.SetBodyString("Not Found")
+			return
+		}
+		_ = resp.Commit(ctx)
+	})
+	return srv.ServeConn(conn)
+}
+
+// serveZatranoTier0FrozenOld is the frozen router on the unlimited-timeout
+// server. It is the baseline for the header-hook gate.
+func serveZatranoTier0FrozenOld(conn net.Conn) error {
+	r, err := tier0CanonRouter()
+	if err != nil {
+		return err
+	}
+	srv := serverOld(func(ctx *rawhttp.Ctx) {
 		req := khttp.NewRequest(ctx)
 		resp := r.Dispatch(req)
 		if resp == nil {
@@ -151,5 +183,8 @@ func serveZatranoTier1With(conn net.Conn, newServer func(rawhttp.Handler) *rawht
 	srv := newServer(func(ctx *rawhttp.Ctx) {
 		app.Handle(ctx)
 	})
+	if srv.HeaderReceived != nil {
+		srv.HeaderReceived = app.HeaderBodyConfig
+	}
 	return srv.ServeConn(conn)
 }

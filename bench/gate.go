@@ -12,4 +12,9 @@ const (
 	// GateRegression is the maximum slowdown of tier-0 and tier-1 against
 	// the previous tag (5%).
 	GateRegression = 1.05
+	// GateRunVsOld is the header-hook budget. Run-shaped tier-0 must stay
+	// within 1.10× the unlimited-timeout shape. allocs/op must match that
+	// shape. B/op matches aside from the amortized +1 of the 1 MiB header
+	// buffer (MaxHeaderBytes), which is not the hook. Informative until Phase 6.
+	GateRunVsOld = 1.10
 )

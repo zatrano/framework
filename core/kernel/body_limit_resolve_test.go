@@ -153,9 +153,6 @@ func TestBodyLimitMatchesDispatchCorpus(t *testing.T) {
 	}
 }
 
-// routingRoute keeps the test file from needing a named import alias dance.
-type routingRoute = struct{}
-
 func TestBodyLimitOverrideAndPathVariants(t *testing.T) {
 	app := NewApplication(t.TempDir())
 	app.router.Put("/hook", func(*http.Request) *http.Response {

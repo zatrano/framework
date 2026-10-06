@@ -55,14 +55,13 @@ func serverRunV301(h rawhttp.Handler) *rawhttp.Server {
 }
 
 // serverRunHead matches Application.Run on perf/v3 HEAD with the same unset
-// environment. HeaderReceived is a harness copy of the GET/HEAD fast path
-// (ceiling, no route lookup). The production method is unexported, and this
-// module does not change the framework.
+// environment. HeaderReceived is the production hook (boot snapshot, bodyless
+// fast path). headFastPath remains the diagnostic copy used by AblateHook.
 func serverRunHead(h rawhttp.Handler) *rawhttp.Server {
 	s := serverRunV301(h)
 	s.MaxRequestBodySize = runMaxBodyBytes
 	s.AllowUpgrade = false
-	s.HeaderReceived = headFastPath
+	s.HeaderReceived = canonicalHook
 	return s
 }
 

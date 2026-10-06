@@ -23,7 +23,7 @@ The router is frozen the way `Bootstrap` freezes it. The `rawhttp.Server` matche
 | IdleTimeout | 120s |
 | MaxHeaderBytes | 1 MiB |
 | MaxRequestBodySize | 32 MiB |
-| HeaderReceived | body-limit hook (GET/HEAD skip route lookup) |
+| HeaderReceived | production hook; bodyless requests allocate nothing |
 | AllowUpgrade | false |
 | ConnState, Concurrency, buffer sizes | unset (carrier defaults) |
 | KeepHijackedConns | true |
@@ -59,19 +59,13 @@ Fiber tier-1 sets the same security and CORS headers, recovers panics, and eithe
 
 ## Where the Run shape spends the time
 
-On the free-deadline driver, frozen tier-0 with every timeout off is about 1.1 µs faster than the frozen Run shape, and the allocation counts differ (6 allocs/op and 704 B/op versus 10 allocs/op and about 1200 B/op). A single-factor matrix pins that on `HeaderReceived`.
+The published Run row uses `Application.HeaderBodyConfig`. A bodyless request returns the carrier default and does not allocate. `headFastPath` / `ceiling` stay as the diagnostic copy (`BenchmarkAblateHook` only).
 
-`HeaderReceived` runs on every request, including GET `/plaintext`. With no `Content-Type`, `HeaderBodyLimit` takes the server ceiling and calls `env.Get` for `MAX_BODY_BYTES` and `MAX_UPLOAD_BYTES`. That is the extra allocations and the extra microsecond. The production `decideBodyLimit` (measured from `core/kernel`, because the method is unexported) lands on the same numbers, within one allocation. The harness copy is not serving a different request.
+`GateRunVsOld` (1.10) requires Run-shaped tier-0 to stay within 1.10× the unlimited-timeout shape, with the same allocs/op. B/op matches that shape aside from the amortized +1 of `MaxHeaderBytes` (one 1 MiB buffer per connection). The hook itself is 0 B and 0 allocs on a bodyless GET, inside about 100 ns. `TestGateDesign` only logs the gate. Phase 6 enforces it on Linux CI. Windows numbers are informational.
 
-The other Run fields do not explain it:
+On the free-deadline driver, before this hook, frozen tier-0 with every timeout off was about 1.1 µs faster than the frozen Run shape, and the allocation counts differed (6 allocs/op and 704 B/op versus 10 allocs/op and about 1200 B/op). That gap was `HeaderReceived` calling `env.Get` on every GET. It is not the comparison row anymore.
 
-| Factor | Allocations versus the old server |
-|---|---|
-| ReadHeader, Read, Write, Idle, or all four | same 704 B/op, 6 allocs/op. A small ns delta, in the noise on this machine |
-| `MaxHeaderBytes` or `ReadBufferSize` 1 MiB | +1 B/op. One 1 MiB buffer per connection, not pooled (`defaultBufSize` is 8 KiB), amortized across `b.N` |
-| `KeepHijackedConns`, explicit `Concurrency` 262144, `AllowUpgrade` false, `MaxRequestBodySize` 32 MiB | same 704 B/op, 6 allocs/op. Production leaves `Concurrency` at 0 |
-
-`bench/shape` and `bench/dl` are bare rawhttp checks (no framework). Linux reference points, for a free in-memory connection: Run minus RunNoTimeouts about +210 ns; `time.Now` 57 ns; `SetDeadline` about 185 ns. This Windows laptop does not reproduce those constants. Publish the machine's own medians. The shape file's `-count=10` is sequential inside one process, so the last benchmark runs hottest; the rotating matrix above is the attribution.
+`bench/shape` and `bench/dl` are bare rawhttp checks (no framework). Linux reference points, for a free in-memory connection: Run minus RunNoTimeouts about +210 ns; `time.Now` 57 ns; `SetDeadline` about 185 ns. This Windows laptop does not reproduce those constants. The shape file's `-count=10` is sequential inside one process; the rotating matrix is the attribution.
 
 ## Targets
 

@@ -82,6 +82,11 @@ type Application struct {
 	publicFiles         *publicFileIndex
 	httpWriteTimeout    time.Duration
 	httpWriteTimeoutSet bool
+	// bodyLimitReady freezes the header-hook ceilings at boot. A later
+	// environment change is ignored until process restart.
+	bodyLimitMu    sync.Mutex
+	bodyLimitReady uint32
+	bodyLimitSnap  bodyLimitSnap
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -391,6 +396,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	app.config.Freeze()
 	app.container.Freeze()
 	app.ensurePublicFileIndex()
+	app.ensureBodyLimits()
 
 	app.logger.Infof("%s application bootstrapped (%s)", app.config.GetString("app.name"), app.environment)
 	return nil
@@ -818,6 +824,7 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 	}
 	app.httpWriteTimeout = writeTO
 	app.httpWriteTimeoutSet = true
+	app.ensureBodyLimits()
 	return &rawhttp.Server{
 		Handler:            func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
 		ReadHeaderTimeout:  headerTO,

@@ -277,6 +277,8 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
+`MAX_BODY_BYTES`, `MAX_UPLOAD_BYTES`, and `HTTP_MAX_INFLIGHT_BODY_BYTES` are read once at boot for the header hook. Changing them requires a process restart. `Request.Body` and `Request.JSON` still read `MAX_BODY_BYTES` on each call.
+
 A path with no route and no fallback runs that global middleware and then returns 404. The matched path is unchanged. A method that does not match a route is 404 with no `Allow` header. A browser CORS preflight (`OPTIONS` plus `Origin` plus `Access-Control-Request-Method`) is answered by CORS before later middleware, whether or not a route exists: an allowed origin is 204 with the allow headers and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`; any other origin gets no CORS headers and 404. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origins and credentials are never sent together.
 
 rawhttp writes 400, 413, and 431 before `Handle`. Those responses do not include framework headers.

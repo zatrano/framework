@@ -11,6 +11,10 @@ func BenchmarkCanonT0(b *testing.B)     { benchFaith(b, serveZatranoTier0Canon, 
 func BenchmarkCanonT1(b *testing.B)     { benchFaith(b, serveZatranoTier1Run, requestNoID) }
 func BenchmarkCanonT1Echo(b *testing.B) { benchFaith(b, serveZatranoTier1Run, request) }
 
+func BenchmarkFaithOldT0(b *testing.B)     { benchFaith(b, serveZatranoTier0FrozenOld, request) }
+func BenchmarkFaithOldT1(b *testing.B)     { benchFaith(b, serveZatranoTier1, requestNoID) }
+func BenchmarkFaithOldT1Echo(b *testing.B) { benchFaith(b, serveZatranoTier1, request) }
+
 func BenchmarkCanonT0Fiber(b *testing.B)       { benchFaith(b, serveFiberTier0, request) }
 func BenchmarkCanonT0FiberEq(b *testing.B)     { benchFaith(b, serveFiberTier0Eq, request) }
 func BenchmarkCanonT1FiberEcho(b *testing.B)   { benchFaith(b, serveFiberTier1, request) }
