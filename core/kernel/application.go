@@ -365,6 +365,9 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 		middleware.ConvertEmptyStringsToNull("password", "password_confirmation", "current_password"),
 	)
 	if env.GetBool("CORS_ENABLED", true) {
+		if err := middleware.ValidateCORSEnv(app.Environment()); err != nil {
+			return err
+		}
 		app.router.Use(middleware.CORSFromEnv(app.Environment()))
 	}
 	if o := middlewareFrom(app, "maintenance"); o != nil {

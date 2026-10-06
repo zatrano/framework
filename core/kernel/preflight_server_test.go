@@ -35,6 +35,29 @@ func (p preflightAuth) Boot(app contracts.App) error {
 	return nil
 }
 
+func TestBootstrapRejectsCORSCredentialsWildcard(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_DEBUG", "false")
+	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("LOG_LEVEL", "error")
+	t.Setenv("CORS_ALLOW_CREDENTIALS", "true")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "public"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	app := NewApplication(dir)
+	t.Cleanup(func() {
+		if c, ok := app.Logger().(interface{ Close() error }); ok && c != nil {
+			_ = c.Close()
+		}
+	})
+	err := app.Bootstrap()
+	if err == nil || !strings.Contains(err.Error(), "wildcard") {
+		t.Fatalf("boot err=%v", err)
+	}
+}
+
 func TestRealServerPreflightAndUnmatched(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
@@ -103,13 +126,28 @@ func TestRealServerPreflightAndUnmatched(t *testing.T) {
 			t.Fatalf("denied %s=%q", h, denied.Header.Get(h))
 		}
 	}
+	if denied.Header.Get("Vary") != "Origin" {
+		t.Fatalf("denied vary=%q", denied.Header.Get("Vary"))
+	}
 	if guard.Load() != 0 {
 		t.Fatal("auth saw a denied preflight")
+	}
+
+	matchedMiss := readRaw(t, addr, "GET /missing HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nOrigin: https://allowed.example\r\n\r\n")
+	if matchedMiss.StatusCode != 404 || matchedMiss.Header.Get("Vary") != "Origin" || matchedMiss.Header.Get("Access-Control-Allow-Origin") != "https://allowed.example" {
+		t.Fatalf("matched 404 status=%d vary=%q acao=%q", matchedMiss.StatusCode, matchedMiss.Header.Get("Vary"), matchedMiss.Header.Get("Access-Control-Allow-Origin"))
+	}
+	otherMiss := readRaw(t, addr, "GET /missing HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nOrigin: https://evil.example\r\n\r\n")
+	if otherMiss.StatusCode != 404 || otherMiss.Header.Get("Vary") != "Origin" || otherMiss.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("other 404 status=%d vary=%q acao=%q", otherMiss.StatusCode, otherMiss.Header.Get("Vary"), otherMiss.Header.Get("Access-Control-Allow-Origin"))
 	}
 
 	missing := readRaw(t, addr, "GET /missing HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
 	if missing.StatusCode != 404 {
 		t.Fatalf("missing status=%d", missing.StatusCode)
+	}
+	if missing.Header.Get("Vary") != "" || missing.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("origin-less 404 vary=%q acao=%q", missing.Header.Get("Vary"), missing.Header.Get("Access-Control-Allow-Origin"))
 	}
 	for _, h := range []string{"X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Request-ID"} {
 		if missing.Header.Get(h) == "" {
