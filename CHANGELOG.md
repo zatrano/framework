@@ -19,6 +19,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Added
 
 - In-flight body budget. `HTTP_MAX_INFLIGHT_BODY_BYTES` defaults to 256 MiB; a negative value turns it off. At header time a known `Content-Length` reserves that many bytes, and a chunked body reserves the worst case (JSON, urlencoded, and `text/*` use `MAX_BODY_BYTES`; everything else uses the effective cap). If the remainder cannot hold it, the engine returns 503 with `Retry-After: 1` and does not read the body. One request whose effective cap is larger than the whole budget is 413. The reservation is released once, from the handler or from connection close. A route `BodyLimit` above the budget logs a warning at boot, fails boot in production, and fails boot in every environment when `HTTP_STRICT_LIMITS` is set. `zatrano doctor` reports the same case as APP-HTTP-006.
+- `Expect: 100-continue` is covered on the live server. A `Content-Length` over the effective cap, or a reservation that does not fit, is 413 or 503 with no `100 Continue`. The connection lingers so the client can read that response. rawhttp 0.2.3 caps lingering closes at 1024 (`MaxLingering`; negative is unlimited).
 
 ## 3.0.2 - 2026-10-03
 

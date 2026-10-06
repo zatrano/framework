@@ -307,11 +307,24 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
 | `HTTP_MAX_HEADER_BYTES` | 16 KiB | positive byte count. Invalid values abort boot. Above 64 KiB logs a per-connection buffer warning |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
-| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A route cap above both this and the server ceiling is rejected with 413. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A known length reserves that length. A chunked body reserves the worst case. Not enough room is 503 with `Retry-After: 1` and the body is not read. One request whose cap is larger than the whole budget is 413. |
+| `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot in every environment. Production fails boot either way. |
 | `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
 | `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
 
 A unitless integer is seconds (`30`). Go durations (`30s`, `1m`) are accepted. An invalid value (`abc`, `1x`) aborts boot. The 60s read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s. Raise `HTTP_READ_TIMEOUT`, or set it to `0`, for large uploads on a slow link.
+
+The in-flight budget is checked when the headers arrive. A known `Content-Length` reserves that many bytes. A chunked body has no length yet, so JSON, urlencoded, and `text/*` reserve `MAX_BODY_BYTES` and every other type reserves its effective cap. If that reservation does not fit what is already in flight, the response is 503 with `Retry-After: 1` and the body is not read. The hold is released once: when the handler returns, or when the connection closes, including after a panic or a client that disconnects mid-body. A route `BodyLimit` larger than the budget logs a warning and is rejected with 413; production refuses to boot, and `HTTP_STRICT_LIMITS` does the same in every environment. `zatrano doctor` reports it as APP-HTTP-006.
+
+An early 413 or 503 does not drop the TCP connection before the client can read it. rawhttp 0.2.3 lingers on that close. `MaxLingering` defaults to 1024 connections; a negative value is unlimited. Connections past the cap are closed immediately.
+
+| Body | V2 | V3 |
+| --- | --- | --- |
+| JSON, urlencoded, `text/*` | 2 MiB | 2 MiB at header time (`MAX_BODY_BYTES`). `Request.JSON` still stops at 2 MiB. |
+| Multipart, octet-stream, other, missing type | route / php limit | 32 MiB server ceiling unless `BodyLimit` or `MAX_UPLOAD_BYTES` says otherwise |
+| Chunked over the cap | 413 | 413. v3.0.0–v3.0.1 could return 431 when the body exceeded the read buffer (rawhttp 0.2.2). |
+| Over the in-flight budget | not applied | 503 and `Retry-After: 1`. One request that cannot fit the budget at all is 413. |
+| Header block | bufio 4 KiB | 16 KiB (`HTTP_MAX_HEADER_BYTES`). Over the limit is 431. v3.0.0–v3.0.1 used 1 MiB. |
 
 `Stream` and `StreamBody` re-arm the write deadline before each chunk. `ClearWriteDeadline` removes it and accepts a peer that stops reading. `Hijack` always clears it.
 
