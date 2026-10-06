@@ -21,7 +21,7 @@ The router is frozen the way `Bootstrap` freezes it. The `rawhttp.Server` matche
 | ReadHeaderTimeout | 10s |
 | ReadTimeout / WriteTimeout | 60s |
 | IdleTimeout | 120s |
-| MaxHeaderBytes | 1 MiB |
+| MaxHeaderBytes | 16 KiB (v3.0.0–v3.0.1 was 1 MiB) |
 | MaxRequestBodySize | 32 MiB |
 | HeaderReceived | production hook; bodyless requests allocate nothing |
 | AllowUpgrade | false |
@@ -61,7 +61,7 @@ Fiber tier-1 sets the same security and CORS headers, recovers panics, and eithe
 
 The published Run row uses `Application.HeaderBodyConfig`. A bodyless request returns the carrier default and does not allocate. `headFastPath` / `ceiling` stay as the diagnostic copy (`BenchmarkAblateHook` only).
 
-`GateRunVsOld` (1.10) requires Run-shaped tier-0 to stay within 1.10× the unlimited-timeout shape, with the same allocs/op. B/op matches that shape aside from the amortized +1 of `MaxHeaderBytes` (one 1 MiB buffer per connection). The hook itself is 0 B and 0 allocs on a bodyless GET, inside about 100 ns. `TestGateDesign` only logs the gate. Phase 6 enforces it on Linux CI. Windows numbers are informational.
+`GateRunVsOld` (1.10) requires Run-shaped tier-0 to stay within 1.10× the unlimited-timeout shape, with the same allocs/op. B/op matches that shape aside from the amortized +1 of `MaxHeaderBytes` (one 16 KiB buffer per connection; v3.0.0–v3.0.1 allocated 1 MiB). The hook itself is 0 B and 0 allocs on a bodyless GET, inside about 100 ns. `TestGateDesign` only logs the gate. Phase 6 enforces it on Linux CI. Windows numbers are informational.
 
 On the free-deadline driver, before this hook, frozen tier-0 with every timeout off was about 1.1 µs faster than the frozen Run shape, and the allocation counts differed (6 allocs/op and 704 B/op versus 10 allocs/op and about 1200 B/op). That gap was `HeaderReceived` calling `env.Get` on every GET. It is not the comparison row anymore.
 

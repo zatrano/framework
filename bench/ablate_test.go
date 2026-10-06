@@ -71,11 +71,11 @@ func BenchmarkAblateTimeouts(b *testing.B) {
 }
 
 func BenchmarkAblateMaxHeader(b *testing.B) {
-	benchN(b, ablate(func(s *rawhttp.Server) { s.MaxHeaderBytes = runMaxHeaderBytes }), request)
+	benchN(b, ablate(func(s *rawhttp.Server) { s.MaxHeaderBytes = headerBytesV301 }), request)
 }
 
 func BenchmarkAblateReadBuffer(b *testing.B) {
-	benchN(b, ablate(func(s *rawhttp.Server) { s.ReadBufferSize = runMaxHeaderBytes }), request)
+	benchN(b, ablate(func(s *rawhttp.Server) { s.ReadBufferSize = headerBytesV301 }), request)
 }
 
 func BenchmarkAblateHijack(b *testing.B) {

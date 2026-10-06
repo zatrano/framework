@@ -6,6 +6,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Fixed
 
+- The production header ceiling is 16 KiB (`HTTP_MAX_HEADER_BYTES`, a unitless byte count; an invalid value aborts boot). v3.0.0–v3.0.1 set `MaxHeaderBytes` to 1 MiB, and rawhttp allocates the per-connection read buffer from that value. Clients that open a new connection per request lost about 60% of their throughput versus the rawhttp 8 KiB default (Linux, 64 concurrent clients, no keep-alive: about 10.1k rps at 8 KiB, about 4.0k rps at 1 MiB). A value above 64 KiB logs a warning until rawhttp v0.2.4 grows the buffer from 4 KiB. A header block over the limit is still 431 from the engine.
 - Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
 - A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) is answered before later middleware and before the route. An allowed origin gets 204, `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Max-Age`, and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. Any other origin gets no CORS headers and 404. Auth registered after CORS does not see the preflight. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origin and credentials are never sent together.
 - rawhttp answers 400, 413, and 431 before the framework handler. Those responses do not carry security headers, `X-Request-ID`, or CORS headers.
@@ -38,6 +39,7 @@ Correctness patch before the performance work. Product `VERSION` matches the rel
 | `HTTP_WRITE_TIMEOUT` | 60s | Response write deadline, re-armed per stream chunk. `0` or negative disables it. |
 | `HTTP_IDLE_TIMEOUT` | 120s | Keep-alive idle deadline. `0` or negative disables it. |
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
+| `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. rawhttp allocates the connection read buffer from it. Above 64 KiB logs a warning. Over the limit the engine returns 431. |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | Reserved for the in-flight body budget. Not enforced until rawhttp can reject before reading the body. |
 

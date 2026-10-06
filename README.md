@@ -281,7 +281,7 @@ The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CO
 
 A path with no route and no fallback runs that global middleware and then returns 404. The matched path is unchanged. A method that does not match a route is 404 with no `Allow` header. A browser CORS preflight (`OPTIONS` plus `Origin` plus `Access-Control-Request-Method`) is answered by CORS before later middleware, whether or not a route exists: an allowed origin is 204 with the allow headers and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`; any other origin gets no allow headers and 404. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Only an exact allowed origin is reflected. When the allow list is not a wildcard, every response to a request that carries `Origin` includes `Vary: Origin`, including 404. No configured origin means no CORS headers and no `Vary`. Preflight `Access-Control-Allow-Headers` is the intersection of `Access-Control-Request-Headers` with the configured list. `Access-Control-Max-Age` defaults to 600. Credentials combined with a wildcard origin, including the implicit development wildcard, fails boot. `CORSWith` still will not emit both.
 
-rawhttp writes 400, 413, and 431 before `Handle`. Those responses do not include framework headers.
+rawhttp writes 400, 413, and 431 before `Handle`. Those responses do not include framework headers. `HTTP_MAX_HEADER_BYTES` defaults to 16 KiB. v3.0.0 and v3.0.1 used 1 MiB, and rawhttp allocates the connection read buffer from that ceiling, so a new connection per request paid for a megabyte. A header block over the limit is 431. A configured value above 64 KiB logs a warning.
 
 The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`. `Route.BodyLimit(n)` on that concrete route sets one route's body cap in bytes. A negative `n` uses the server ceiling. A positive `n` is sent as `RequestConfig.MaxRequestBodySize` and can be larger than the server ceiling; rawhttp then allows that request up to `n`. If `n` is also larger than `HTTP_MAX_INFLIGHT_BODY_BYTES`, the request cannot be reserved and is rejected with 413 rather than a retryable 503.
 
@@ -305,6 +305,7 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 | `HTTP_WRITE_TIMEOUT` | 60s | deadline off |
 | `HTTP_IDLE_TIMEOUT` | 120s | deadline off |
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
+| `HTTP_MAX_HEADER_BYTES` | 16 KiB | positive byte count. Invalid values abort boot. Above 64 KiB logs a per-connection buffer warning |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A route cap above both this and the server ceiling is rejected with 413. |
 | `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |

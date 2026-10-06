@@ -828,13 +828,20 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 	app.httpWriteTimeout = writeTO
 	app.httpWriteTimeoutSet = true
 	app.ensureBodyLimits()
+	headerBytes, err := serverMaxHeaderBytes()
+	if err != nil {
+		return nil, err
+	}
+	if headerBytes > MaxHeaderBytesWarnAbove && app.logger != nil {
+		app.logger.Warningf("HTTP_MAX_HEADER_BYTES is %d, above %d: per-connection buffer cost until rawhttp v0.2.4 grows the read buffer", headerBytes, MaxHeaderBytesWarnAbove)
+	}
 	return &rawhttp.Server{
 		Handler:            func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
 		ReadHeaderTimeout:  headerTO,
 		ReadTimeout:        readTO,
 		WriteTimeout:       writeTO,
 		IdleTimeout:        idleTO,
-		MaxHeaderBytes:     1 << 20,
+		MaxHeaderBytes:     headerBytes,
 		MaxRequestBodySize: http.MaxRequestBodySize(),
 		HeaderReceived:     app.headerBodyConfig,
 		TrustedProxies:     trustedProxiesForServer(),

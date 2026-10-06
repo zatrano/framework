@@ -3,7 +3,7 @@
   "readTimeoutNs": 60000000000,
   "writeTimeoutNs": 60000000000,
   "idleTimeoutNs": 120000000000,
-  "maxHeaderBytes": 1048576,
+  "maxHeaderBytes": 16384,
   "maxRequestBodySize": 33554432,
   "keepHijackedConns": true,
   "allowUpgrade": false,

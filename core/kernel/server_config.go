@@ -42,6 +42,33 @@ func serverTimeout(key string, fallback time.Duration) (time.Duration, error) {
 	return time.Duration(n) * time.Second, nil
 }
 
+// DefaultMaxHeaderBytes is the production header-block ceiling.
+// rawhttp sizes the per-connection read buffer from this value, so the
+// v3.0.0–v3.0.1 default of 1 MiB made connection setup allocate and zero a
+// megabyte on every new connection.
+const DefaultMaxHeaderBytes = 16 << 10
+
+// MaxHeaderBytesWarnAbove is the size that logs a startup warning.
+// nginx and Apache keep a single header line near 8 KiB. Above 64 KiB the
+// connection buffer cost is worth saying out loud until rawhttp grows the
+// buffer from 4 KiB.
+const MaxHeaderBytesWarnAbove = 64 << 10
+
+// serverMaxHeaderBytes reads HTTP_MAX_HEADER_BYTES.
+// Unset or blank uses DefaultMaxHeaderBytes. The value is a unitless byte
+// count. Zero, negative, and non-integers are boot errors.
+func serverMaxHeaderBytes() (int, error) {
+	n, err := env.IntOr("HTTP_MAX_HEADER_BYTES", DefaultMaxHeaderBytes)
+	if err != nil {
+		return 0, err
+	}
+	if n <= 0 {
+		raw, _ := env.Lookup("HTTP_MAX_HEADER_BYTES")
+		return 0, env.ConfigError("HTTP_MAX_HEADER_BYTES", "a positive number of bytes", strings.TrimSpace(raw))
+	}
+	return n, nil
+}
+
 // resolveAllowUpgrade decides Server.AllowUpgrade.
 //
 //  1. HTTP_ALLOW_UPGRADE=false forces admission off.

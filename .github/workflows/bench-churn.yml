@@ -1,0 +1,33 @@
+name: bench-churn
+
+# Informational connection-setup cost of MaxHeaderBytes. Windows laptop
+# numbers are not the gate; this job is the Linux measurement.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  churn:
+    name: connection churn
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework/bench
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.13"
+
+      - name: Rotating connection churn
+        env:
+          GOWORK: "off"
+          ZATRANO_CHURN: "1"
+        run: go test -count=1 -timeout 30m -run TestConnectionChurnRotating -v
