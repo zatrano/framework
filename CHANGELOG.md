@@ -7,6 +7,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Fixed
 
 - The production header ceiling is 16 KiB (`HTTP_MAX_HEADER_BYTES`, a unitless byte count; an invalid value aborts boot). v3.0.0–v3.0.1 set `MaxHeaderBytes` to 1 MiB, and rawhttp allocates the per-connection read buffer from that value. Clients that open a new connection per request lost about 60% of their throughput versus the rawhttp 8 KiB default (Linux, 64 concurrent clients, no keep-alive: about 10.1k rps at 8 KiB, about 4.0k rps at 1 MiB). A value above 64 KiB logs a warning until rawhttp v0.2.4 grows the buffer from 4 KiB. A header block over the limit is still 431 from the engine.
+- v3.0.0–v3.0.1 rejected a chunked body larger than the read buffer with 431 (rawhttp 0.2.2). rawhttp 0.2.3 applies the body cap instead, so a chunked JSON body over 2 MiB and a chunked multipart body over 32 MiB are 413.
 - Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
 - A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) is answered before later middleware and before the route. An allowed origin gets 204, `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Max-Age`, and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. Any other origin gets no CORS headers and 404. Auth registered after CORS does not see the preflight. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origin and credentials are never sent together.
 - rawhttp answers 400, 413, and 431 before the framework handler. Those responses do not carry security headers, `X-Request-ID`, or CORS headers.
@@ -29,6 +30,7 @@ Correctness patch before the performance work. Product `VERSION` matches the rel
 
 ### Changed
 
+- Require rawhttp v0.2.4. There is no `replace` directive.
 - Retract `v3.0.0` (its `go.mod` contained local `replace` directives). Release CI rejects a module with `replace`, checks that `VERSION` equals the tag without the `v` prefix, installs `zatrano@<tag>`, runs `zatrano new`, and builds the generated app.
 
 | Variable | Default | Meaning |

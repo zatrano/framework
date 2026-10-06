@@ -215,10 +215,6 @@ func TestBodyLimitAboveCeiling(t *testing.T) {
 		ctx.SetStatusCode(200)
 		ctx.SetBodyString("ok")
 	}
-	// A known length above the read buffer must still be accepted when the
-	// route cap is above the server ceiling. v0.2.2 answers 431 before the cap
-	// unless the buffer can hold the body.
-	srv.ReadBufferSize = 40 << 20
 	ln := serveTestServer(t, srv)
 	addr := ln.Addr().String()
 

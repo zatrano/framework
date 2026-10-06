@@ -37,10 +37,6 @@ func TestHTTPServerBodyLimits(t *testing.T) {
 	if srv.HeaderReceived == nil {
 		t.Fatal("HeaderReceived must apply the body cap")
 	}
-	// v0.2.2 keeps request headers pinned in the connection buffer, so a chunked
-	// body larger than that buffer becomes 431 before the size cap is reached.
-	// The cap itself is what this test checks; the reader limit is an engine fix.
-	srv.ReadBufferSize = 40 << 20
 
 	var hit atomic.Int32
 	var lookups atomic.Int32
