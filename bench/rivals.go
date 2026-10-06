@@ -179,7 +179,11 @@ func (c *closeConn) Close() error {
 func serveHTTP(h http.Handler, conn net.Conn) error {
 	done := make(chan struct{})
 	srv := &http.Server{
-		Handler: h,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 		// Empty map keeps the server on HTTP/1.1 for this one connection.
 		TLSNextProto: map[string]func(*http.Server, *tls.Conn, http.Handler){},
 	}

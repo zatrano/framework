@@ -42,7 +42,7 @@ The published driver is `faithConn`. Reads and writes stay in memory. `SetReadDe
 
 `BenchmarkT0Old`, `BenchmarkT0Run`, `BenchmarkT0RunV301`, `BenchmarkT1OldEcho`, `BenchmarkT1RunEcho`, and `BenchmarkT1RunGen` keep the unlimited-timeout server or the unfrozen router. They are not published numbers.
 
-Gin and Echo use `net/http` on one connection. They stay informational beside `rawhttp` and fasthttp `ServeConn`.
+Gin and Echo use `net/http` on one connection, with the same deadlines as production ZATRANO: read-header 10s, read 60s, write 60s, idle 120s. They stay informational beside `rawhttp` and fasthttp `ServeConn`.
 
 ## Fiber rows
 
