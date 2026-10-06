@@ -2,13 +2,13 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"math/rand"
 	"net"
 	stdhttp "net/http"
 	"net/textproto"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -158,62 +158,50 @@ func FuzzResponseHeaderInjection(f *testing.F) {
 	})
 }
 
-// fuzzGate is one server for the whole process. Fuzz workers serialize on mu
-// so a failed dial is not saved as a crashing input.
-var fuzzGate struct {
-	once sync.Once
-	ln   net.Listener
-	mu   sync.Mutex
-	resp *Response
-}
-
+// fuzzCommit writes the response through an in-memory ServeConn.
+// Fuzz workers do not share a listener, so the run is not limited by ports.
 func fuzzCommit(t *testing.T, resp *Response) (*stdhttp.Response, string) {
 	t.Helper()
-	fuzzGate.once.Do(func() {
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			panic(err)
-		}
-		fuzzGate.ln = ln
-		srv := &rawhttp.Server{
-			ReadTimeout:  time.Second,
-			WriteTimeout: time.Second,
-			IdleTimeout:  time.Second,
-			Handler: func(ctx *rawhttp.Ctx) {
-				_ = fuzzGate.resp.Commit(ctx)
-			},
-		}
-		go func() { _ = srv.Serve(ln) }()
-	})
-	fuzzGate.mu.Lock()
-	defer fuzzGate.mu.Unlock()
-	fuzzGate.resp = resp
-
-	var conn net.Conn
-	var err error
-	for attempt := 0; attempt < 20; attempt++ {
-		conn, err = net.DialTimeout("tcp", fuzzGate.ln.Addr().String(), time.Second)
-		if err == nil {
-			break
-		}
-		time.Sleep(2 * time.Millisecond)
+	conn := &fuzzConn{r: bytes.NewReader([]byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"))}
+	srv := &rawhttp.Server{
+		ReadTimeout:  -1,
+		WriteTimeout: -1,
+		IdleTimeout:  -1,
+		Handler: func(ctx *rawhttp.Ctx) {
+			_ = resp.Commit(ctx)
+		},
 	}
-	if err != nil {
-		t.Fatal(err)
+	err := srv.ServeConn(conn)
+	if conn.w.Len() == 0 {
+		t.Fatalf("empty response: %v", err)
 	}
-	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-	if _, err := io.WriteString(conn, "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"); err != nil {
-		t.Fatal(err)
-	}
-	parsed, err := stdhttp.ReadResponse(bufio.NewReader(conn), nil)
-	if err != nil {
-		t.Fatal(err)
+	parsed, rerr := stdhttp.ReadResponse(bufio.NewReader(bytes.NewReader(conn.w.Bytes())), nil)
+	if rerr != nil {
+		t.Fatal(rerr)
 	}
 	defer parsed.Body.Close()
-	raw, err := io.ReadAll(parsed.Body)
-	if err != nil {
-		t.Fatal(err)
+	raw, rerr := io.ReadAll(parsed.Body)
+	if rerr != nil {
+		t.Fatal(rerr)
 	}
 	return parsed, string(raw)
 }
+
+type fuzzConn struct {
+	r *bytes.Reader
+	w bytes.Buffer
+}
+
+func (c *fuzzConn) Read(p []byte) (int, error)         { return c.r.Read(p) }
+func (c *fuzzConn) Write(p []byte) (int, error)        { return c.w.Write(p) }
+func (c *fuzzConn) Close() error                       { return nil }
+func (c *fuzzConn) LocalAddr() net.Addr                { return fuzzAddr{} }
+func (c *fuzzConn) RemoteAddr() net.Addr               { return fuzzAddr{} }
+func (c *fuzzConn) SetDeadline(time.Time) error        { return nil }
+func (c *fuzzConn) SetReadDeadline(time.Time) error    { return nil }
+func (c *fuzzConn) SetWriteDeadline(time.Time) error   { return nil }
+
+type fuzzAddr struct{}
+
+func (fuzzAddr) Network() string { return "tcp" }
+func (fuzzAddr) String() string  { return "127.0.0.1:9" }
