@@ -7,12 +7,14 @@ import (
 )
 
 func (r *Request) jsonInput() map[string]string {
+	r.poisonCheck()
 	r.applyPendingInputTransforms()
 	r.ensureJSONParsed()
 	return r.jsonData
 }
 
 func (r *Request) ensureJSONParsed() {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}

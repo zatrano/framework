@@ -89,12 +89,14 @@ func (f *UploadedFile) StoreAs(directory, filename string) (string, error) {
 
 // HasFile reports whether a multipart file field exists.
 func (r *Request) HasFile(key string) bool {
+	r.poisonCheck()
 	_, err := r.File(key)
 	return err == nil
 }
 
 // File returns an uploaded file for the given form field.
 func (r *Request) File(key string) (*UploadedFile, error) {
+	r.poisonCheck()
 	if err := r.parseMultipart(); err != nil {
 		return nil, err
 	}
@@ -110,6 +112,7 @@ func (r *Request) File(key string) (*UploadedFile, error) {
 
 // Files returns all uploaded files for a form field.
 func (r *Request) Files(key string) ([]*UploadedFile, error) {
+	r.poisonCheck()
 	if err := r.parseMultipart(); err != nil {
 		return nil, err
 	}
@@ -125,6 +128,7 @@ func (r *Request) Files(key string) ([]*UploadedFile, error) {
 }
 
 func (r *Request) parseMultipart() error {
+	r.poisonCheck()
 	if r == nil {
 		return fmt.Errorf("nil request")
 	}
@@ -149,6 +153,7 @@ func (r *Request) parseMultipart() error {
 }
 
 func (r *Request) parseMultipartFromBody(max int) error {
+	r.poisonCheck()
 	ct := r.Header("Content-Type")
 	mediatype, params, err := mime.ParseMediaType(ct)
 	if err != nil || mediatype != "multipart/form-data" {

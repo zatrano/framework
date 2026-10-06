@@ -9,6 +9,7 @@ import (
 
 // JSONMap returns the decoded JSON object body (nested maps preserved).
 func (r *Request) JSONMap() map[string]any {
+	r.poisonCheck()
 	_ = r.jsonInput()
 	if r.jsonRaw == nil {
 		return map[string]any{}
@@ -23,6 +24,7 @@ func (r *Request) JSONMap() map[string]any {
 // InputAny returns a nested JSON value by dotted path (e.g. "user.profile.name").
 // Falls back to string Input for form/query keys when path has no dots or JSON miss.
 func (r *Request) InputAny(path string, fallback ...any) any {
+	r.poisonCheck()
 	if path == "" {
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -50,6 +52,7 @@ func (r *Request) InputAny(path string, fallback ...any) any {
 
 // Dot returns a nested value as string via dotted path.
 func (r *Request) Dot(path string, fallback ...string) string {
+	r.poisonCheck()
 	v := r.InputAny(path)
 	if v == nil {
 		if len(fallback) > 0 {
@@ -80,6 +83,7 @@ func (r *Request) Dot(path string, fallback ...string) string {
 
 // HasNested reports whether a dotted JSON path exists.
 func (r *Request) HasNested(path string) bool {
+	r.poisonCheck()
 	_ = r.jsonInput()
 	if r.jsonRaw == nil {
 		return false

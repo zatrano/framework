@@ -9,6 +9,7 @@ import (
 // Header returns a request header. The first call builds a canonical map;
 // later calls read that map. HeaderValue does not build it.
 func (r *Request) Header(key string, fallback ...string) string {
+	r.poisonCheck()
 	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -35,10 +36,12 @@ func (r *Request) Header(key string, fallback ...string) string {
 
 // HeaderCacheBuilt reports whether Header has materialized its map.
 func (r *Request) HeaderCacheBuilt() bool {
+	r.poisonCheck()
 	return r != nil && r.builtHeaders != nil
 }
 
 func (r *Request) headerLookup(canon, key string) string {
+	r.poisonCheck()
 	if r.headerDeleted[canon] {
 		return ""
 	}
@@ -61,6 +64,7 @@ func (r *Request) headerLookup(canon, key string) string {
 // HeaderValue returns one header without building Header's map.
 // A missing header allocates nothing. The bool is false when the header is absent.
 func (r *Request) HeaderValue(name string) (string, bool) {
+	r.poisonCheck()
 	b := r.headerBytes(name)
 	if len(b) == 0 {
 		return "", false
@@ -72,6 +76,7 @@ func (r *Request) HeaderValue(name string) (string, bool) {
 // the request buffer and is valid only until the handler returns. An overlay
 // value is an owned copy. Do not retain the slice.
 func (r *Request) headerBytes(name string) []byte {
+	r.poisonCheck()
 	if r == nil || name == "" {
 		return nil
 	}
@@ -100,6 +105,7 @@ func (r *Request) headerBytes(name string) []byte {
 // An overlay stores each value; the carrier stores one.
 // The rawhttp path keeps the last Origin when the request repeats it.
 func (r *Request) HeaderValues(key string) []string {
+	r.poisonCheck()
 	if r == nil {
 		return nil
 	}
@@ -129,6 +135,7 @@ func (r *Request) HeaderValues(key string) []string {
 
 // BearerToken extracts a bearer token from the Authorization header.
 func (r *Request) BearerToken() string {
+	r.poisonCheck()
 	header := r.Header("Authorization")
 	if strings.HasPrefix(strings.ToLower(header), "bearer ") {
 		return strings.TrimSpace(header[7:])
@@ -139,6 +146,7 @@ func (r *Request) BearerToken() string {
 // WantsJSON reports whether the client explicitly accepts JSON or sent a JSON body.
 // Empty Accept and */* are not treated as JSON-specific; q=0 JSON is not a match.
 func (r *Request) WantsJSON() bool {
+	r.poisonCheck()
 	if r.IsJSON() {
 		return true
 	}
@@ -155,11 +163,13 @@ func (r *Request) WantsJSON() bool {
 
 // IsJSON reports whether the request content type is JSON.
 func (r *Request) IsJSON() bool {
+	r.poisonCheck()
 	return strings.Contains(r.Header("Content-Type"), "application/json")
 }
 
 // JSON decodes the request body into dest. The raw body is not closed.
 func (r *Request) JSON(dest any) error {
+	r.poisonCheck()
 	raw, err := r.readBody()
 	if err != nil {
 		return err
@@ -169,16 +179,19 @@ func (r *Request) JSON(dest any) error {
 
 // HasHeader reports whether a header is present and non-empty.
 func (r *Request) HasHeader(key string) bool {
+	r.poisonCheck()
 	return r.Header(key) != ""
 }
 
 // MissingHeader reports whether a header is absent or empty.
 func (r *Request) MissingHeader(key string) bool {
+	r.poisonCheck()
 	return !r.HasHeader(key)
 }
 
 // WhenHasHeader runs fn when the header is present and non-empty.
 func (r *Request) WhenHasHeader(key string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.HasHeader(key) {
 		fn(r)
 	}
@@ -187,6 +200,7 @@ func (r *Request) WhenHasHeader(key string, fn func(*Request)) *Request {
 
 // WhenMissingHeader runs fn when the header is absent or empty.
 func (r *Request) WhenMissingHeader(key string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.MissingHeader(key) {
 		fn(r)
 	}
@@ -195,6 +209,7 @@ func (r *Request) WhenMissingHeader(key string, fn func(*Request)) *Request {
 
 // HasAnyHeader reports whether any of the given headers are present.
 func (r *Request) HasAnyHeader(keys ...string) bool {
+	r.poisonCheck()
 	for _, key := range keys {
 		if r.HasHeader(key) {
 			return true
@@ -205,6 +220,7 @@ func (r *Request) HasAnyHeader(keys ...string) bool {
 
 // HasAllHeaders reports whether all of the given headers are present.
 func (r *Request) HasAllHeaders(keys ...string) bool {
+	r.poisonCheck()
 	if len(keys) == 0 {
 		return true
 	}
@@ -218,6 +234,7 @@ func (r *Request) HasAllHeaders(keys ...string) bool {
 
 // MissingAnyHeader reports whether any of the given headers are missing.
 func (r *Request) MissingAnyHeader(keys ...string) bool {
+	r.poisonCheck()
 	for _, key := range keys {
 		if r.MissingHeader(key) {
 			return true
@@ -228,6 +245,7 @@ func (r *Request) MissingAnyHeader(keys ...string) bool {
 
 // MissingAllHeaders reports whether all of the given headers are missing.
 func (r *Request) MissingAllHeaders(keys ...string) bool {
+	r.poisonCheck()
 	if len(keys) == 0 {
 		return true
 	}
@@ -241,6 +259,7 @@ func (r *Request) MissingAllHeaders(keys ...string) bool {
 
 // WhenHasAnyHeader runs fn when any header is present.
 func (r *Request) WhenHasAnyHeader(keys []string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.HasAnyHeader(keys...) {
 		fn(r)
 	}
@@ -249,6 +268,7 @@ func (r *Request) WhenHasAnyHeader(keys []string, fn func(*Request)) *Request {
 
 // WhenMissingAnyHeader runs fn when any header is missing.
 func (r *Request) WhenMissingAnyHeader(keys []string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.MissingAnyHeader(keys...) {
 		fn(r)
 	}
@@ -257,6 +277,7 @@ func (r *Request) WhenMissingAnyHeader(keys []string, fn func(*Request)) *Reques
 
 // HeadersMap returns the first value for each request header.
 func (r *Request) HeadersMap() map[string]string {
+	r.poisonCheck()
 	if r == nil {
 		return map[string]string{}
 	}
@@ -286,26 +307,31 @@ func (r *Request) HeadersMap() map[string]string {
 
 // ContentType returns the request Content-Type header.
 func (r *Request) ContentType() string {
+	r.poisonCheck()
 	return r.Header("Content-Type")
 }
 
 // AcceptsXml reports whether the client accepts XML.
 func (r *Request) AcceptsXml() bool {
+	r.poisonCheck()
 	return r.Accepts("xml", "application/xml", "text/xml")
 }
 
 // PrefersHtml reports whether HTML is preferred among common web types.
 func (r *Request) PrefersHtml() bool {
+	r.poisonCheck()
 	return r.Prefers("html", "json", "xml") == "html"
 }
 
 // IsXmlHttpRequest is an alias for Ajax.
 func (r *Request) IsXmlHttpRequest() bool {
+	r.poisonCheck()
 	return r.Ajax()
 }
 
 // HasAnyCookie reports whether any of the given cookies are present.
 func (r *Request) HasAnyCookie(names ...string) bool {
+	r.poisonCheck()
 	for _, name := range names {
 		if r.HasCookie(name) {
 			return true
@@ -316,6 +342,7 @@ func (r *Request) HasAnyCookie(names ...string) bool {
 
 // HasAllCookies reports whether all of the given cookies are present.
 func (r *Request) HasAllCookies(names ...string) bool {
+	r.poisonCheck()
 	if len(names) == 0 {
 		return true
 	}
@@ -329,6 +356,7 @@ func (r *Request) HasAllCookies(names ...string) bool {
 
 // MissingAnyCookie reports whether any of the given cookies are absent.
 func (r *Request) MissingAnyCookie(names ...string) bool {
+	r.poisonCheck()
 	for _, name := range names {
 		if r.MissingCookie(name) {
 			return true
@@ -339,6 +367,7 @@ func (r *Request) MissingAnyCookie(names ...string) bool {
 
 // MissingAllCookies reports whether all of the given cookies are absent.
 func (r *Request) MissingAllCookies(names ...string) bool {
+	r.poisonCheck()
 	if len(names) == 0 {
 		return true
 	}
@@ -352,6 +381,7 @@ func (r *Request) MissingAllCookies(names ...string) bool {
 
 // WhenHasAnyCookie runs fn when any cookie is present.
 func (r *Request) WhenHasAnyCookie(names []string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.HasAnyCookie(names...) {
 		fn(r)
 	}
@@ -360,6 +390,7 @@ func (r *Request) WhenHasAnyCookie(names []string, fn func(*Request)) *Request {
 
 // WhenMissingAnyCookie runs fn when any cookie is absent.
 func (r *Request) WhenMissingAnyCookie(names []string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.MissingAnyCookie(names...) {
 		fn(r)
 	}
@@ -368,6 +399,7 @@ func (r *Request) WhenMissingAnyCookie(names []string, fn func(*Request)) *Reque
 
 // CookieMap returns request cookies as name→value.
 func (r *Request) CookieMap() map[string]string {
+	r.poisonCheck()
 	if r == nil {
 		return map[string]string{}
 	}

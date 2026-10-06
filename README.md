@@ -277,6 +277,10 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
+`HTTP_POOL_REQUESTS` defaults to false. Each request is a new `*http.Request`, which stays readable after the handler returns (the v3.0.1 behavior). Set it to true to reuse request objects after the response is committed. A pooled `*Request` must not be kept: the next request can reuse the same pointer.
+
+Poison builds (`-tags zatrano_poison`, and also `-tags rawhttp_poison` or `-tags canvas_poison`) panic with `request used after handler returned` if any request accessor runs after the handler returns. Production binaries delete that check.
+
 `MAX_BODY_BYTES`, `MAX_UPLOAD_BYTES`, and `HTTP_MAX_INFLIGHT_BODY_BYTES` are read once at boot for the header hook. Changing them requires a process restart. `Request.Body` and `Request.JSON` still read `MAX_BODY_BYTES` on each call.
 
 A path with no route and no fallback runs that global middleware and then returns 404. The matched path is unchanged. A method that does not match a route is 404 with no `Allow` header. A browser CORS preflight (`OPTIONS` plus `Origin` plus `Access-Control-Request-Method`) is answered by CORS before later middleware, whether or not a route exists: an allowed origin is 204 with the allow headers and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`; any other origin gets no allow headers and 404. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Only an exact allowed origin is reflected. When the allow list is not a wildcard, every response to a request that carries `Origin` includes `Vary: Origin`, including 404. No configured origin means no CORS headers and no `Vary`. Preflight `Access-Control-Allow-Headers` is the intersection of `Access-Control-Request-Headers` with the configured list. `Access-Control-Max-Age` defaults to 600. Credentials combined with a wildcard origin, including the implicit development wildcard, fails boot. `CORSWith` still will not emit both.
@@ -307,6 +311,7 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A route cap above both this and the server ceiling is rejected with 413. |
+| `HTTP_POOL_REQUESTS` | false | `true` reuses `*Request` after the response is committed. Do not retain the pointer. |
 | `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
 | `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
 

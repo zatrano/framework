@@ -129,6 +129,150 @@ jobs:
           PACKAGES_DIR: ${{ github.workspace }}/packages
         run: go test -race ./... -count=1
 
+  rawhttp_poison:
+    name: rawhttp_poison
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: main
+          path: packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go test -tags rawhttp_poison
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test -tags rawhttp_poison ./... -count=1
+
+  canvas_poison:
+    name: canvas_poison
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: main
+          path: packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go test -tags canvas_poison
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test -tags canvas_poison ./... -count=1
+
+  zatrano_poison:
+    name: zatrano_poison
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: main
+          path: packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go test -tags zatrano_poison
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test -tags zatrano_poison ./... -count=1
+
   windows_tests:
     runs-on: windows-2022
     strategy:

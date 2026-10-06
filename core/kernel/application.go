@@ -325,6 +325,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 		app.environment = "local"
 	}
 	cookie.SetProductionPolicy(app.IsProduction())
+	http.ConfigureRequestPool(env.GetBool("HTTP_POOL_REQUESTS", false))
 
 	if err := ensureProductionSecrets(app); err != nil {
 		return err

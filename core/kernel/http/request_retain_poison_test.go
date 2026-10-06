@@ -1,5 +1,3 @@
-//go:build rawhttp_poison
-
 package http
 
 import (
@@ -16,6 +14,9 @@ import (
 // Path and HeaderValue are copies. headerBytes aliases the request buffer
 // and is filled with 0xDE after the response is written.
 func TestRetainedRequestBytesAfterHandler(t *testing.T) {
+	if !rawhttp.PoisonBuildEnabled() {
+		t.Skip("headerBytes poison check needs -tags rawhttp_poison")
+	}
 	var (
 		path     string
 		copied   string

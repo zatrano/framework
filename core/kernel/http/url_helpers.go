@@ -9,6 +9,7 @@ import (
 
 // Host returns the request host (prefers trusted forwarded host).
 func (r *Request) Host() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -28,6 +29,7 @@ func (r *Request) Host() string {
 
 // Scheme returns "https" or "http".
 func (r *Request) Scheme() string {
+	r.poisonCheck()
 	if r.Secure() {
 		return "https"
 	}
@@ -36,6 +38,7 @@ func (r *Request) Scheme() string {
 
 // Secure reports whether the request is HTTPS (TLS or trusted forwarded proto).
 func (r *Request) Secure() bool {
+	r.poisonCheck()
 	if r == nil {
 		return false
 	}
@@ -53,6 +56,7 @@ func (r *Request) Secure() bool {
 
 // Root returns scheme://host.
 func (r *Request) Root() string {
+	r.poisonCheck()
 	host := r.Host()
 	if host == "" {
 		return r.Scheme() + "://"
@@ -62,6 +66,7 @@ func (r *Request) Root() string {
 
 // FullURL returns the full request URL including query string.
 func (r *Request) FullURL() string {
+	r.poisonCheck()
 	uri := r.RequestURI()
 	if uri == "" {
 		uri = "/"
@@ -71,32 +76,38 @@ func (r *Request) FullURL() string {
 
 // Ajax reports whether the request was made via XMLHttpRequest.
 func (r *Request) Ajax() bool {
+	r.poisonCheck()
 	return strings.EqualFold(r.Header("X-Requested-With"), "XMLHttpRequest")
 }
 
 // Pjax reports whether the request was made via PJAX (X-PJAX).
 func (r *Request) Pjax() bool {
+	r.poisonCheck()
 	return r.Header("X-PJAX") != ""
 }
 
 // PrefersJSON is an alias for WantsJSON.
 func (r *Request) PrefersJSON() bool {
+	r.poisonCheck()
 	return r.WantsJSON()
 }
 
 // Accepts reports whether the Accept header matches any of the given types.
 // Types may be short names ("json", "html", "xml", "text") or full MIME types.
 func (r *Request) Accepts(types ...string) bool {
+	r.poisonCheck()
 	return r.Prefers(types...) != ""
 }
 
 // AcceptsJSON reports whether the client accepts JSON.
 func (r *Request) AcceptsJSON() bool {
+	r.poisonCheck()
 	return r.Accepts("json", "application/json")
 }
 
 // AcceptsHtml reports whether the client accepts HTML.
 func (r *Request) AcceptsHtml() bool {
+	r.poisonCheck()
 	return r.Accepts("html", "text/html")
 }
 
@@ -105,6 +116,7 @@ func (r *Request) AcceptsHtml() bool {
 // A missing Accept header means any type is acceptable (first offered).
 // q=0 media ranges are not acceptable.
 func (r *Request) Prefers(types ...string) string {
+	r.poisonCheck()
 	if len(types) == 0 {
 		return ""
 	}
@@ -127,6 +139,7 @@ func (r *Request) Prefers(types ...string) string {
 
 // ExpectsJSON reports whether the client expects a JSON response.
 func (r *Request) ExpectsJSON() bool {
+	r.poisonCheck()
 	if r.WantsJSON() {
 		return true
 	}
@@ -143,6 +156,7 @@ type acceptOffer struct {
 // acceptableTypes is the single Accept parser for Prefers, Accepts, Negotiate, and WantsJSON.
 // A nil result means the header is absent. An empty slice means the client listed only q=0 ranges.
 func (r *Request) acceptableTypes() []string {
+	r.poisonCheck()
 	accept := r.Header("Accept")
 	if accept == "" {
 		return nil
@@ -265,6 +279,7 @@ func typeMatchesAccept(offered, acceptMedia string) bool {
 
 // IsMethod reports whether the request method matches any of the given methods.
 func (r *Request) IsMethod(methods ...string) bool {
+	r.poisonCheck()
 	current := r.Method()
 	for _, method := range methods {
 		if strings.EqualFold(current, method) {
@@ -276,11 +291,13 @@ func (r *Request) IsMethod(methods ...string) bool {
 
 // ExactPath reports whether the request path equals path (trailing slashes ignored).
 func (r *Request) ExactPath(path string) bool {
+	r.poisonCheck()
 	return normalizePath(r.Path()) == normalizePath(path)
 }
 
 // PathIs reports whether the request path matches any pattern (* wildcards supported).
 func (r *Request) PathIs(patterns ...string) bool {
+	r.poisonCheck()
 	path := normalizePath(r.Path())
 	for _, pattern := range patterns {
 		if matchPattern(path, normalizePath(pattern)) {
@@ -292,6 +309,7 @@ func (r *Request) PathIs(patterns ...string) bool {
 
 // Segments returns non-empty path segments.
 func (r *Request) Segments() []string {
+	r.poisonCheck()
 	trimmed := strings.Trim(r.Path(), "/")
 	if trimmed == "" {
 		return []string{}
@@ -301,6 +319,7 @@ func (r *Request) Segments() []string {
 
 // Segment returns the 1-based path segment.
 func (r *Request) Segment(n int, fallback ...string) string {
+	r.poisonCheck()
 	segs := r.Segments()
 	if n < 1 || n > len(segs) {
 		if len(fallback) > 0 {
@@ -313,6 +332,7 @@ func (r *Request) Segment(n int, fallback ...string) string {
 
 // SetRouteName stores the matched route name on the request.
 func (r *Request) SetRouteName(name string) {
+	r.poisonCheck()
 	if name == "" {
 		return
 	}
@@ -321,6 +341,7 @@ func (r *Request) SetRouteName(name string) {
 
 // RouteName returns the matched route name.
 func (r *Request) RouteName() string {
+	r.poisonCheck()
 	if v, ok := r.Get("_route").(string); ok {
 		return v
 	}
@@ -329,6 +350,7 @@ func (r *Request) RouteName() string {
 
 // RouteIs reports whether the matched route name matches any pattern (* wildcards supported).
 func (r *Request) RouteIs(patterns ...string) bool {
+	r.poisonCheck()
 	name := r.RouteName()
 	for _, pattern := range patterns {
 		if matchPattern(name, pattern) {
@@ -382,6 +404,7 @@ func matchPattern(value, pattern string) bool {
 
 // QueryAll returns all query parameters (multi-value).
 func (r *Request) QueryAll() map[string][]string {
+	r.poisonCheck()
 	if r == nil {
 		return map[string][]string{}
 	}
@@ -397,6 +420,7 @@ func (r *Request) QueryAll() map[string][]string {
 
 // Queries returns the first value for each query parameter.
 func (r *Request) Queries() map[string]string {
+	r.poisonCheck()
 	all := r.QueryAll()
 	out := make(map[string]string, len(all))
 	for key, items := range all {
@@ -409,16 +433,19 @@ func (r *Request) Queries() map[string]string {
 
 // UserAgent returns the raw User-Agent header.
 func (r *Request) UserAgent() string {
+	r.poisonCheck()
 	return r.Header("User-Agent")
 }
 
 // Agent returns a parsed User-Agent summary.
 func (r *Request) Agent() Agent {
+	r.poisonCheck()
 	return ParseUserAgent(r.UserAgent())
 }
 
 // Old returns a previously flashed input value (same key as flash.OldValue).
 func (r *Request) Old(key string, fallback ...string) string {
+	r.poisonCheck()
 	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]

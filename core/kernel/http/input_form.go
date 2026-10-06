@@ -8,6 +8,7 @@ import (
 )
 
 func (r *Request) IntegerOK(key string) (int, bool) {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		return 0, false
@@ -21,6 +22,7 @@ func (r *Request) IntegerOK(key string) (int, bool) {
 
 // FloatOK parses a float and reports success.
 func (r *Request) FloatOK(key string) (float64, bool) {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		return 0, false
@@ -34,6 +36,7 @@ func (r *Request) FloatOK(key string) (float64, bool) {
 
 // BooleanOK reports whether the key is present and a recognized boolean-ish value.
 func (r *Request) BooleanOK(key string) (bool, bool) {
+	r.poisonCheck()
 	if r.Missing(key) {
 		return false, false
 	}
@@ -50,6 +53,7 @@ func (r *Request) BooleanOK(key string) (bool, bool) {
 
 // DateOr parses a date input or returns fallback.
 func (r *Request) DateOr(key string, fallback time.Time, layout ...string) time.Time {
+	r.poisonCheck()
 	if t, ok := r.Date(key, layout...); ok {
 		return t
 	}
@@ -58,6 +62,7 @@ func (r *Request) DateOr(key string, fallback time.Time, layout ...string) time.
 
 // EnumOr returns the enum value or fallback.
 func (r *Request) EnumOr(key, fallback string, options ...string) string {
+	r.poisonCheck()
 	if value, ok := r.Enum(key, options...); ok {
 		return value
 	}
@@ -66,6 +71,7 @@ func (r *Request) EnumOr(key, fallback string, options ...string) string {
 
 // Boolean returns a boolean-ish input (missing/unknown is false).
 func (r *Request) Boolean(key string) bool {
+	r.poisonCheck()
 	switch strings.ToLower(strings.TrimSpace(r.Input(key))) {
 	case "1", "true", "on", "yes":
 		return true
@@ -76,6 +82,7 @@ func (r *Request) Boolean(key string) bool {
 
 // Integer parses an integer input with optional fallback.
 func (r *Request) Integer(key string, fallback ...int) int {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		if len(fallback) > 0 {
@@ -95,6 +102,7 @@ func (r *Request) Integer(key string, fallback ...int) int {
 
 // Float parses a float input with optional fallback.
 func (r *Request) Float(key string, fallback ...float64) float64 {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		if len(fallback) > 0 {
@@ -114,6 +122,7 @@ func (r *Request) Float(key string, fallback ...float64) float64 {
 
 // String returns a trimmed input string with optional fallback.
 func (r *Request) String(key string, fallback ...string) string {
+	r.poisonCheck()
 	value := strings.TrimSpace(r.Input(key))
 	if value == "" && len(fallback) > 0 {
 		return fallback[0]
@@ -123,6 +132,7 @@ func (r *Request) String(key string, fallback ...string) string {
 
 // Enum returns the input value when it matches one of the options.
 func (r *Request) Enum(key string, options ...string) (string, bool) {
+	r.poisonCheck()
 	value := r.Input(key)
 	for _, opt := range options {
 		if value == opt {
@@ -134,6 +144,7 @@ func (r *Request) Enum(key string, options ...string) (string, bool) {
 
 // Date parses an input value as time.Time using layout (default 2006-01-02).
 func (r *Request) Date(key string, layout ...string) (time.Time, bool) {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		return time.Time{}, false
@@ -151,6 +162,7 @@ func (r *Request) Date(key string, layout ...string) (time.Time, bool) {
 
 // Strings splits a comma-separated input into trimmed non-empty parts.
 func (r *Request) Strings(key string) []string {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Input(key))
 	if raw == "" {
 		return []string{}
@@ -169,6 +181,7 @@ func (r *Request) Strings(key string) []string {
 
 // Integers parses a comma-separated list of integers (invalid parts skipped).
 func (r *Request) Integers(key string) []int {
+	r.poisonCheck()
 	parts := r.Strings(key)
 	out := make([]int, 0, len(parts))
 	for _, part := range parts {
@@ -183,6 +196,7 @@ func (r *Request) Integers(key string) []int {
 
 // Floats parses a comma-separated list of floats (invalid parts skipped).
 func (r *Request) Floats(key string) []float64 {
+	r.poisonCheck()
 	parts := r.Strings(key)
 	out := make([]float64, 0, len(parts))
 	for _, part := range parts {
@@ -197,6 +211,7 @@ func (r *Request) Floats(key string) []float64 {
 
 // PostForm returns a value from the POST body form only (not query).
 func (r *Request) PostForm(key string, fallback ...string) string {
+	r.poisonCheck()
 	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -216,6 +231,7 @@ func (r *Request) PostForm(key string, fallback ...string) string {
 
 // Merge merges values into the request input (form + JSON overlay).
 func (r *Request) Merge(values map[string]string) {
+	r.poisonCheck()
 	if r == nil || len(values) == 0 {
 		return
 	}
@@ -231,6 +247,7 @@ func (r *Request) Merge(values map[string]string) {
 
 // MergeIfMissing merges only keys that are currently absent from the request.
 func (r *Request) MergeIfMissing(values map[string]string) {
+	r.poisonCheck()
 	if r == nil || len(values) == 0 {
 		return
 	}
@@ -245,6 +262,7 @@ func (r *Request) MergeIfMissing(values map[string]string) {
 
 // Replace replaces all request inputs with the given values.
 func (r *Request) Replace(values map[string]string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}

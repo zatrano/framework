@@ -15,6 +15,11 @@ All notable changes to ZATRANO are documented in this file.
 - Request objects are pooled and reset after the response is committed. `Path`, `QueryString`, and `HeaderValue` are copies. `PathBytes` and `headerBytes` alias the request buffer and are invalid after the handler returns.
 - A missing `public/` directory skips the static-file check. A clean path is looked up from its bytes. Trusted-proxy address checks use `netip`.
 - Response headers are stored in a small inline list until `Headers` is called. Security, CORS, and request-id middleware append boot-time pairs. `Commit` writes that list straight to the carrier. Header names and values are checked for CR, LF, and NUL in the carrier, once.
+- `HTTP_POOL_REQUESTS` defaults to false. Request objects are allocated per request, as in v3.0.1. `true` returns them to a pool after the response is committed.
+
+### Security
+
+- Poison builds (`-tags zatrano_poison`, `rawhttp_poison`, or `canvas_poison`) panic with `request used after handler returned` when a request accessor runs after the handler returns. The production compiler removes that check.
 
 ### Fixed
 

@@ -3,6 +3,8 @@ package http
 import "testing"
 
 func TestRequestPoolResetDropsFields(t *testing.T) {
+	ConfigureRequestPool(true)
+	t.Cleanup(func() { ConfigureRequestPool(false) })
 	req := testRequest("GET", "/keep?q=1", []byte("body"))
 	req.Set("k", "v")
 	req.SetHeader("X-Trace", "abc")

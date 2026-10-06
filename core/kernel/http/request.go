@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/zatrano/framework/v3/core/kernel/cookie"
 
@@ -26,6 +27,10 @@ import (
 var ErrBodyTooLarge = errors.New("http: request body too large")
 
 var requestPool = sync.Pool{New: func() any { return new(Request) }}
+
+// requestPoolOn is read on every request. The default is off (a new Request
+// per request, the same as v3.0.1). HTTP_POOL_REQUESTS turns it on at boot.
+var requestPoolOn atomic.Bool
 
 // Request wraps rawhttp.Ctx with optional mutable overlays for middleware/tests.
 type Request struct {
@@ -70,6 +75,8 @@ type Request struct {
 	bodyOverrideSet  bool
 	bodyReader       io.ReadCloser
 	maxBodyBytes     int64
+	// freed is set only on poison builds, after the handler returns.
+	freed bool
 }
 
 // SessionStore is an optional request capability (flash/csrf bag).
@@ -85,29 +92,50 @@ type SessionStore interface {
 	ID() string
 }
 
+// ConfigureRequestPool turns Request reuse on or off. The application calls
+// this once at boot from HTTP_POOL_REQUESTS. The default is off: each
+// request gets a new object, and that object stays readable after the
+// handler returns. When the pool is on, Application.Handle returns the
+// object after Commit and a later request may reuse it. Do not keep the
+// pointer. Copy what you need with Clone before returning.
+func ConfigureRequestPool(on bool) { requestPoolOn.Store(on) }
+
+// RequestPoolEnabled reports whether Request objects are reused.
+func RequestPoolEnabled() bool { return requestPoolOn.Load() }
+
 // NewRequest creates a ZATRANO request from a rawhttp context.
-// The object comes from a pool. Application.Handle releases it after Commit.
-// A handler must not keep the *Request after it returns: ReleaseRequest
-// clears every field and the next request may reuse the same object.
+// Pooling is off unless ConfigureRequestPool was called.
 // Path, QueryString, and HeaderValue strings are copies. headerBytes and
-// PathBytes alias the request buffer and are invalid after return.
+// PathBytes alias the request buffer and are invalid after the handler returns.
 func NewRequest(ctx *rawhttp.Ctx) *Request {
-	r := requestPool.Get().(*Request)
-	r.reset()
-	r.ctx = ctx
-	r.stdCtx = context.Background()
-	return r
+	if requestPoolOn.Load() {
+		r := requestPool.Get().(*Request)
+		r.reset()
+		r.ctx = ctx
+		r.stdCtx = context.Background()
+		return r
+	}
+	return &Request{ctx: ctx, stdCtx: context.Background()}
 }
 
-// ReleaseRequest clears every field and returns the request to the pool.
-// Call it only after the response has been committed and no caller still
-// uses the pointer.
+// ReleaseRequest ends the request's handler lifetime.
+// With the pool off this only marks the object freed on poison builds; the
+// fields stay so a later read still sees this request.
+// With the pool on the object is cleared, marked freed until the next
+// checkout, and returned to the pool.
 func ReleaseRequest(r *Request) {
 	if r == nil {
 		return
 	}
-	r.reset()
-	requestPool.Put(r)
+	if requestPoolOn.Load() {
+		r.markFreed()
+		kept := r.freed
+		r.reset()
+		r.freed = kept
+		requestPool.Put(r)
+		return
+	}
+	r.markFreed()
 }
 
 func (r *Request) reset() {
@@ -174,6 +202,7 @@ func RequestFromHTTP(sr *stdhttp.Request) *Request {
 // Valid only during Application.Handle → Commit. Do not store or pass to
 // async work; use Method/Path/Body (owned) or copy fields into a DTO.
 func (r *Request) Ctx() *rawhttp.Ctx {
+	r.poisonCheck()
 	if r == nil {
 		return nil
 	}
@@ -182,6 +211,7 @@ func (r *Request) Ctx() *rawhttp.Ctx {
 
 // Context returns the request-scoped context (default Background).
 func (r *Request) Context() context.Context {
+	r.poisonCheck()
 	if r == nil || r.stdCtx == nil {
 		return context.Background()
 	}
@@ -190,6 +220,7 @@ func (r *Request) Context() context.Context {
 
 // SetContext replaces the request-scoped context.
 func (r *Request) SetContext(ctx context.Context) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -201,6 +232,7 @@ func (r *Request) SetContext(ctx context.Context) {
 
 // SetMethod overrides the HTTP method.
 func (r *Request) SetMethod(method string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -210,6 +242,7 @@ func (r *Request) SetMethod(method string) {
 
 // SetPath overrides the request path (query string stripped if present).
 func (r *Request) SetPath(path string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -224,6 +257,7 @@ func (r *Request) SetPath(path string) {
 
 // SetQueryString overrides the raw query string (without leading ?).
 func (r *Request) SetQueryString(raw string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -233,6 +267,7 @@ func (r *Request) SetQueryString(raw string) {
 
 // SetHeader sets a request header overlay value.
 func (r *Request) SetHeader(key, value string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -247,6 +282,7 @@ func (r *Request) SetHeader(key, value string) {
 
 // AddHeader appends a request header overlay value.
 func (r *Request) AddHeader(key, value string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -261,6 +297,7 @@ func (r *Request) AddHeader(key, value string) {
 
 // DelHeader removes a request header (overlay + hides ctx value).
 func (r *Request) DelHeader(key string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -277,6 +314,7 @@ func (r *Request) DelHeader(key string) {
 
 // SetCookie sets a request cookie overlay value.
 func (r *Request) SetCookie(name, value string) {
+	r.poisonCheck()
 	if r == nil || name == "" {
 		return
 	}
@@ -288,6 +326,7 @@ func (r *Request) SetCookie(name, value string) {
 
 // SetBody replaces the request body used by Body/JSON/form parsers.
 func (r *Request) SetBody(b []byte) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -310,6 +349,7 @@ func (r *Request) SetBody(b []byte) {
 
 // SetRemoteAddr overrides the direct connection address (host:port or IP).
 func (r *Request) SetRemoteAddr(addr string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -318,6 +358,7 @@ func (r *Request) SetRemoteAddr(addr string) {
 
 // SetHost overrides the request host.
 func (r *Request) SetHost(host string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -326,6 +367,7 @@ func (r *Request) SetHost(host string) {
 
 // SetSecure overrides TLS detection for this request.
 func (r *Request) SetSecure(secure bool) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -335,6 +377,7 @@ func (r *Request) SetSecure(secure bool) {
 
 // Method returns the HTTP method.
 func (r *Request) Method() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -351,6 +394,7 @@ func (r *Request) Method() string {
 // request buffer, so it stays valid after the handler returns.
 // PathBytes is the borrowed slice and must not be retained.
 func (r *Request) Path() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -367,6 +411,7 @@ func (r *Request) Path() string {
 // It is valid only until the handler returns. Do not retain it.
 // When a path overlay is set, PathBytes returns nil and Path returns the overlay.
 func (r *Request) PathBytes() []byte {
+	r.poisonCheck()
 	if r == nil || r.pathSet || r.ctx == nil {
 		return nil
 	}
@@ -375,6 +420,7 @@ func (r *Request) PathBytes() []byte {
 
 // URL returns the full request URL string.
 func (r *Request) URL() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -391,6 +437,7 @@ func (r *Request) URL() string {
 
 // Query returns a query parameter.
 func (r *Request) Query(key string, fallback ...string) string {
+	r.poisonCheck()
 	r.applyPendingInputTransforms()
 	values := r.queryValues()
 	value := ""
@@ -404,6 +451,7 @@ func (r *Request) Query(key string, fallback ...string) string {
 }
 
 func (r *Request) queryValues() url.Values {
+	r.poisonCheck()
 	qs := r.QueryString()
 	if qs == "" {
 		return url.Values{}
@@ -417,6 +465,7 @@ func (r *Request) queryValues() url.Values {
 
 // RemoteIP returns the direct connection IP (ignores forwarding headers).
 func (r *Request) RemoteIP() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -443,6 +492,7 @@ func (r *Request) RemoteIP() string {
 // IP returns the client IP. Prefers RawHTTP ClientIP (TrustedProxies), then
 // the _client_ip attribute set by trustedproxy middleware, else RemoteIP.
 func (r *Request) IP() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -460,11 +510,13 @@ func (r *Request) IP() string {
 // Body returns an owned copy of the raw request body.
 // It never aliases rawhttp's connection buffer (zero-copy lifecycle).
 func (r *Request) Body() ([]byte, error) {
+	r.poisonCheck()
 	return r.readBody()
 }
 
 // SetMaxBodyBytes overrides the default JSON/raw body limit for this request.
 func (r *Request) SetMaxBodyBytes(n int64) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -472,6 +524,7 @@ func (r *Request) SetMaxBodyBytes(n int64) {
 }
 
 func (r *Request) bodyLimit() int64 {
+	r.poisonCheck()
 	if r != nil && r.maxBodyBytes > 0 {
 		return r.maxBodyBytes
 	}
@@ -479,6 +532,7 @@ func (r *Request) bodyLimit() int64 {
 }
 
 func (r *Request) readBody() ([]byte, error) {
+	r.poisonCheck()
 	if r == nil {
 		return nil, nil
 	}
@@ -527,6 +581,7 @@ func (r *Request) readBody() ([]byte, error) {
 
 // Route returns a route parameter.
 func (r *Request) Route(key string, fallback ...string) string {
+	r.poisonCheck()
 	if value, ok := r.route[key]; ok {
 		return value
 	}
@@ -538,6 +593,7 @@ func (r *Request) Route(key string, fallback ...string) string {
 
 // RouteInt returns a route parameter as int.
 func (r *Request) RouteInt(key string, fallback ...int) int {
+	r.poisonCheck()
 	value := r.Route(key)
 	if value == "" {
 		if len(fallback) > 0 {
@@ -557,6 +613,7 @@ func (r *Request) RouteInt(key string, fallback ...int) int {
 
 // SetRouteParams sets matched route parameters.
 func (r *Request) SetRouteParams(params map[string]string) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -565,6 +622,7 @@ func (r *Request) SetRouteParams(params map[string]string) {
 
 // RouteParams returns all matched route parameters.
 func (r *Request) RouteParams() map[string]string {
+	r.poisonCheck()
 	if r == nil || len(r.route) == 0 {
 		return map[string]string{}
 	}
@@ -577,6 +635,7 @@ func (r *Request) RouteParams() map[string]string {
 
 // Set sets a request attribute.
 func (r *Request) Set(key string, value any) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -588,6 +647,7 @@ func (r *Request) Set(key string, value any) {
 
 // Get returns a request attribute.
 func (r *Request) Get(key string) any {
+	r.poisonCheck()
 	if r == nil || r.attrs == nil {
 		return nil
 	}
@@ -598,6 +658,7 @@ const sessionAttrKey = "session"
 
 // SetSession attaches a session store as a request attribute.
 func (r *Request) SetSession(store SessionStore) {
+	r.poisonCheck()
 	if r == nil {
 		return
 	}
@@ -606,6 +667,7 @@ func (r *Request) SetSession(store SessionStore) {
 
 // Session returns the session store attached to this request, if any.
 func (r *Request) Session() SessionStore {
+	r.poisonCheck()
 	if r == nil {
 		return nil
 	}
@@ -615,6 +677,7 @@ func (r *Request) Session() SessionStore {
 
 // Cookie returns a cookie value.
 func (r *Request) Cookie(name string, fallback ...string) string {
+	r.poisonCheck()
 	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -639,6 +702,7 @@ func (r *Request) Cookie(name string, fallback ...string) string {
 
 // HasCookie reports whether a cookie is present.
 func (r *Request) HasCookie(name string) bool {
+	r.poisonCheck()
 	if r == nil {
 		return false
 	}
@@ -655,11 +719,13 @@ func (r *Request) HasCookie(name string) bool {
 
 // MissingCookie reports whether a cookie is absent.
 func (r *Request) MissingCookie(name string) bool {
+	r.poisonCheck()
 	return !r.HasCookie(name)
 }
 
 // WhenHasCookie runs fn when the cookie is present.
 func (r *Request) WhenHasCookie(name string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.HasCookie(name) {
 		fn(r)
 	}
@@ -668,6 +734,7 @@ func (r *Request) WhenHasCookie(name string, fn func(*Request)) *Request {
 
 // WhenMissingCookie runs fn when the cookie is absent.
 func (r *Request) WhenMissingCookie(name string, fn func(*Request)) *Request {
+	r.poisonCheck()
 	if r != nil && fn != nil && r.MissingCookie(name) {
 		fn(r)
 	}
@@ -676,6 +743,7 @@ func (r *Request) WhenMissingCookie(name string, fn func(*Request)) *Request {
 
 // Cookies returns the response cookie jar for this request.
 func (r *Request) Cookies() *cookie.Jar {
+	r.poisonCheck()
 	if r.cookies == nil {
 		r.cookies = cookie.NewJar()
 	}
@@ -685,6 +753,7 @@ func (r *Request) Cookies() *cookie.Jar {
 // DrainCookies returns queued response cookies and clears the jar.
 // A request that never queued cookies does not allocate a jar.
 func (r *Request) DrainCookies() []*stdhttp.Cookie {
+	r.poisonCheck()
 	if r == nil || r.cookies == nil {
 		return nil
 	}
@@ -694,38 +763,41 @@ func (r *Request) DrainCookies() []*stdhttp.Cookie {
 }
 
 // IsGet reports whether the method is GET.
-func (r *Request) IsGet() bool { return r.IsMethod("GET") }
+func (r *Request) IsGet() bool { r.poisonCheck(); return r.IsMethod("GET") }
 
 // IsPost reports whether the method is POST.
-func (r *Request) IsPost() bool { return r.IsMethod("POST") }
+func (r *Request) IsPost() bool { r.poisonCheck(); return r.IsMethod("POST") }
 
 // IsPut reports whether the method is PUT.
-func (r *Request) IsPut() bool { return r.IsMethod("PUT") }
+func (r *Request) IsPut() bool { r.poisonCheck(); return r.IsMethod("PUT") }
 
 // IsPatch reports whether the method is PATCH.
-func (r *Request) IsPatch() bool { return r.IsMethod("PATCH") }
+func (r *Request) IsPatch() bool { r.poisonCheck(); return r.IsMethod("PATCH") }
 
 // IsDelete reports whether the method is DELETE.
-func (r *Request) IsDelete() bool { return r.IsMethod("DELETE") }
+func (r *Request) IsDelete() bool { r.poisonCheck(); return r.IsMethod("DELETE") }
 
 // IsHead reports whether the method is HEAD.
-func (r *Request) IsHead() bool { return r.IsMethod("HEAD") }
+func (r *Request) IsHead() bool { r.poisonCheck(); return r.IsMethod("HEAD") }
 
 // IsOptions reports whether the method is OPTIONS.
-func (r *Request) IsOptions() bool { return r.IsMethod("OPTIONS") }
+func (r *Request) IsOptions() bool { r.poisonCheck(); return r.IsMethod("OPTIONS") }
 
 // IsMethodSafe reports whether the method is GET or HEAD.
 func (r *Request) IsMethodSafe() bool {
+	r.poisonCheck()
 	return r.IsMethod("GET", "HEAD")
 }
 
 // IsMethodIdempotent reports whether the method is GET, HEAD, PUT, DELETE, OPTIONS, or TRACE.
 func (r *Request) IsMethodIdempotent() bool {
+	r.poisonCheck()
 	return r.IsMethod("GET", "HEAD", "PUT", "DELETE", "OPTIONS", "TRACE")
 }
 
 // HasQuery reports whether a query parameter exists (even if empty).
 func (r *Request) HasQuery(key string) bool {
+	r.poisonCheck()
 	if r == nil {
 		return false
 	}
@@ -735,6 +807,7 @@ func (r *Request) HasQuery(key string) bool {
 
 // QueryInt parses a query parameter as int with optional fallback.
 func (r *Request) QueryInt(key string, fallback ...int) int {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Query(key))
 	if raw == "" {
 		if len(fallback) > 0 {
@@ -754,6 +827,7 @@ func (r *Request) QueryInt(key string, fallback ...int) int {
 
 // QueryFloat parses a query parameter as float64 with optional fallback.
 func (r *Request) QueryFloat(key string, fallback ...float64) float64 {
+	r.poisonCheck()
 	raw := strings.TrimSpace(r.Query(key))
 	if raw == "" {
 		if len(fallback) > 0 {
@@ -773,6 +847,7 @@ func (r *Request) QueryFloat(key string, fallback ...float64) float64 {
 
 // QueryBool parses a query parameter as boolean-ish.
 func (r *Request) QueryBool(key string) bool {
+	r.poisonCheck()
 	switch strings.ToLower(strings.TrimSpace(r.Query(key))) {
 	case "1", "true", "on", "yes":
 		return true
@@ -783,6 +858,7 @@ func (r *Request) QueryBool(key string) bool {
 
 // Port returns the request host port when present.
 func (r *Request) Port() string {
+	r.poisonCheck()
 	host := r.Host()
 	if host == "" {
 		return ""
@@ -799,11 +875,13 @@ func (r *Request) Port() string {
 
 // HttpHost returns the host header value (may include port).
 func (r *Request) HttpHost() string {
+	r.poisonCheck()
 	return r.Host()
 }
 
 // DecodedPath returns the URL-decoded request path.
 func (r *Request) DecodedPath() string {
+	r.poisonCheck()
 	path := r.Path()
 	decoded, err := url.PathUnescape(path)
 	if err != nil {
@@ -814,6 +892,7 @@ func (r *Request) DecodedPath() string {
 
 // QueryString returns the raw URL query string without leading ?.
 func (r *Request) QueryString() string {
+	r.poisonCheck()
 	if r == nil {
 		return ""
 	}
@@ -828,6 +907,7 @@ func (r *Request) QueryString() string {
 
 // RequestURI returns path + query (RequestURI).
 func (r *Request) RequestURI() string {
+	r.poisonCheck()
 	if r == nil {
 		return "/"
 	}
@@ -843,6 +923,7 @@ func (r *Request) RequestURI() string {
 
 // FullUrlWithQuery returns FullURL with additional/overridden query parameters.
 func (r *Request) FullUrlWithQuery(extra map[string]string) string {
+	r.poisonCheck()
 	values := url.Values{}
 	for key, items := range r.QueryAll() {
 		for _, item := range items {
@@ -865,6 +946,7 @@ func (r *Request) FullUrlWithQuery(extra map[string]string) string {
 
 // FullUrlWithoutQuery returns FullURL without the given query keys.
 func (r *Request) FullUrlWithoutQuery(keys ...string) string {
+	r.poisonCheck()
 	skip := make(map[string]bool, len(keys))
 	for _, key := range keys {
 		skip[key] = true
@@ -891,6 +973,7 @@ func (r *Request) FullUrlWithoutQuery(keys ...string) string {
 
 // Ips returns client IP candidates (trusted client IP first, then remote).
 func (r *Request) Ips() []string {
+	r.poisonCheck()
 	seen := map[string]bool{}
 	out := make([]string, 0, 2)
 	add := func(ip string) {
@@ -908,10 +991,12 @@ func (r *Request) Ips() []string {
 
 // IsSecure is an alias for Secure.
 func (r *Request) IsSecure() bool {
+	r.poisonCheck()
 	return r.Secure()
 }
 
 func (r *Request) parseForm() error {
+	r.poisonCheck()
 	if r == nil {
 		return nil
 	}
@@ -959,6 +1044,7 @@ func (r *Request) parseForm() error {
 }
 
 func (r *Request) ensureForm() {
+	r.poisonCheck()
 	_ = r.parseForm()
 	if r.form == nil {
 		r.form = url.Values{}
