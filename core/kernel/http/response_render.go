@@ -13,7 +13,6 @@ func Text(body string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "text/plain; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -23,7 +22,6 @@ func HTML(body string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "text/html; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -35,7 +33,6 @@ func JSON(data any) *Response {
 			status:      stdhttp.StatusInternalServerError,
 			content:     []byte(`{"message":"failed to encode json"}`),
 			contentType: "application/json",
-			headers:     make(stdhttp.Header),
 			err:         err,
 		}
 	}
@@ -43,7 +40,6 @@ func JSON(data any) *Response {
 		status:      stdhttp.StatusOK,
 		content:     payload,
 		contentType: "application/json",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -124,7 +120,6 @@ func jsonStatusMessage(status int, fallback string, message ...string) *Response
 func NoContent() *Response {
 	return &Response{
 		status:  stdhttp.StatusNoContent,
-		headers: make(stdhttp.Header),
 	}
 }
 
@@ -138,7 +133,6 @@ func Template(name string, data ...map[string]any) *Response {
 		status:       stdhttp.StatusOK,
 		templateName: name,
 		templateData: payload,
-		headers:      make(stdhttp.Header),
 	}
 }
 
@@ -151,7 +145,6 @@ func Abort(status int, message ...string) *Response {
 		status:      status,
 		content:     []byte(msg),
 		contentType: "text/plain; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -313,7 +306,6 @@ func Bytes(content []byte, contentType string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -323,7 +315,6 @@ func XML(body string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "application/xml; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -352,7 +343,6 @@ func JSONP(callback string, data any) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "application/javascript; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -365,7 +355,6 @@ func Make(status int, content []byte, contentType string) *Response {
 		status:      status,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -378,6 +367,5 @@ func InternalServerError(message ...string) *Response {
 func NotModified() *Response {
 	return &Response{
 		status:  stdhttp.StatusNotModified,
-		headers: make(stdhttp.Header),
 	}
 }

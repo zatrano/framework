@@ -39,24 +39,32 @@ func SecurityHeadersWith(cfg SecurityHeaderConfig) routing.MiddlewareFunc {
 		cfg.PermissionsPolicy = "geolocation=(), microphone=(), camera=()"
 	}
 
+	base := [][2]string{
+		{"X-Frame-Options", cfg.FrameOptions},
+		{"X-Content-Type-Options", cfg.ContentTypeOptions},
+		{"Referrer-Policy", cfg.ReferrerPolicy},
+		{"Permissions-Policy", cfg.PermissionsPolicy},
+	}
+	http.MustSafeHeaders(base)
+	hstsValue := cfg.HSTS
+	if hstsValue == "" && cfg.EnableHSTSOnHTTPS {
+		hstsValue = defaultHSTS
+	}
+	var hsts [][2]string
+	if hstsValue != "" {
+		hsts = [][2]string{{"Strict-Transport-Security", hstsValue}}
+		http.MustSafeHeaders(hsts)
+	}
+
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
 			resp := next(req)
 			if resp == nil {
 				return resp
 			}
-			resp.Header("X-Frame-Options", cfg.FrameOptions)
-			resp.Header("X-Content-Type-Options", cfg.ContentTypeOptions)
-			resp.Header("Referrer-Policy", cfg.ReferrerPolicy)
-			resp.Header("Permissions-Policy", cfg.PermissionsPolicy)
-			if req != nil && req.Secure() {
-				hsts := cfg.HSTS
-				if hsts == "" && cfg.EnableHSTSOnHTTPS {
-					hsts = defaultHSTS
-				}
-				if hsts != "" {
-					resp.Header("Strict-Transport-Security", hsts)
-				}
+			resp.AppendFixed(base)
+			if req != nil && req.Secure() && len(hsts) > 0 {
+				resp.AppendFixed(hsts)
 			}
 			return resp
 		}

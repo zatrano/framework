@@ -11,7 +11,6 @@ func File(path string) *Response {
 	return &Response{
 		status:   stdhttp.StatusOK,
 		filePath: path,
-		headers:  make(stdhttp.Header),
 	}
 }
 
@@ -22,7 +21,6 @@ func PublicFile(path string) *Response {
 		status:     stdhttp.StatusOK,
 		filePath:   path,
 		publicFile: true,
-		headers:    make(stdhttp.Header),
 	}
 }
 
@@ -40,7 +38,6 @@ func Hijack(fn HijackFunc) *Response {
 	return &Response{
 		status:             101,
 		hijack:             fn,
-		headers:            make(stdhttp.Header),
 		clearWriteDeadline: true,
 	}
 }

@@ -121,6 +121,23 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 		cfg.AllowHeaders = DefaultCORSConfig().AllowHeaders
 	}
 
+	var staticCORS [][2]string
+	if cfg.AllowMethods != "" {
+		staticCORS = append(staticCORS, [2]string{"Access-Control-Allow-Methods", cfg.AllowMethods})
+	}
+	if cfg.ExposeHeaders != "" {
+		staticCORS = append(staticCORS, [2]string{"Access-Control-Expose-Headers", cfg.ExposeHeaders})
+	}
+	if cfg.MaxAge > 0 {
+		staticCORS = append(staticCORS, [2]string{"Access-Control-Max-Age", strconv.Itoa(cfg.MaxAge)})
+	}
+	var credsCORS [][2]string
+	if cfg.AllowCredentials {
+		credsCORS = [][2]string{{"Access-Control-Allow-Credentials", "true"}}
+	}
+	http.MustSafeHeaders(staticCORS)
+	http.MustSafeHeaders(credsCORS)
+
 	originsConfigured := len(cfg.AllowOrigins) > 0
 	wildcard := false
 	for _, o := range cfg.AllowOrigins {
@@ -142,21 +159,13 @@ func CORSWith(cfg CORSConfig) routing.MiddlewareFunc {
 			writeAllow := func(resp *http.Response, headerValue string, headerSet bool) {
 				if allowOrigin != "" {
 					resp.Header("Access-Control-Allow-Origin", allowOrigin)
+					if allowOrigin != "*" {
+						resp.AppendFixed(credsCORS)
+					}
 				}
-				if cfg.AllowMethods != "" {
-					resp.Header("Access-Control-Allow-Methods", cfg.AllowMethods)
-				}
+				resp.AppendFixed(staticCORS)
 				if headerSet {
 					resp.Header("Access-Control-Allow-Headers", headerValue)
-				}
-				if cfg.ExposeHeaders != "" {
-					resp.Header("Access-Control-Expose-Headers", cfg.ExposeHeaders)
-				}
-				if cfg.AllowCredentials && allowOrigin != "" && allowOrigin != "*" {
-					resp.Header("Access-Control-Allow-Credentials", "true")
-				}
-				if cfg.MaxAge > 0 {
-					resp.Header("Access-Control-Max-Age", strconv.Itoa(cfg.MaxAge))
 				}
 			}
 
@@ -251,7 +260,7 @@ func matchOrigin(allowed, values []string) (string, bool) {
 }
 
 func setVaryOrigin(resp *http.Response) {
-	existing := resp.Headers().Get("Vary")
+	existing := resp.GetHeader("Vary")
 	if existing == "" {
 		resp.Header("Vary", "Origin")
 		return

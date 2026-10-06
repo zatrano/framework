@@ -11,7 +11,6 @@ func Redirect(url string, status ...int) *Response {
 	return &Response{
 		status:      code,
 		redirectURL: url,
-		headers:     make(stdhttp.Header),
 	}
 }
 

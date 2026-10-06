@@ -9,6 +9,22 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel/middleware"
 )
 
+func TestSecurityHeadersDoNotBuildHeaderMap(t *testing.T) {
+	handler := middleware.SecurityHeaders(middleware.RequestID(func(req *http.Request) *http.Response {
+		return http.Text("ok")
+	}))
+	resp := handler(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
+	if resp.HeaderMapBuilt() {
+		t.Fatal("security and request id built a header map")
+	}
+	if resp.GetHeader("X-Content-Type-Options") != "nosniff" {
+		t.Fatal("missing nosniff")
+	}
+	if resp.GetHeader("X-Request-ID") == "" {
+		t.Fatal("missing request id")
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	handler := middleware.SecurityHeaders(func(req *http.Request) *http.Response {
 		return http.JSON(map[string]any{"ok": true})

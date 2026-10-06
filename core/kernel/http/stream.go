@@ -21,7 +21,6 @@ func Stream(contentType string, writer StreamWriter) *Response {
 	return &Response{
 		status:      stdhttp.StatusOK,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 		stream:      writer,
 	}
 }
@@ -35,7 +34,6 @@ func StreamBody(contentType string, body io.Reader, size int) *Response {
 	return &Response{
 		status:       stdhttp.StatusOK,
 		contentType:  contentType,
-		headers:      make(stdhttp.Header),
 		streamReader: body,
 		streamSize:   size,
 	}

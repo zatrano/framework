@@ -12,6 +12,9 @@ import (
 type Response struct {
 	status             int
 	headers            stdhttp.Header
+	headerList         [16]headerKV
+	headerLen          int
+	headerMore         []headerKV
 	cookies            []*stdhttp.Cookie
 	content            []byte
 	contentType        string
@@ -35,12 +38,11 @@ func (r *Response) Status(code int) *Response {
 	return r
 }
 
-// Header sets a response header.
+// Header sets a response header. The value is stored in a small inline list
+// until Headers is called. Headers moves that list into a net/http.Header
+// and that map is then the only source.
 func (r *Response) Header(key, value string) *Response {
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
-	}
-	r.headers.Set(key, value)
+	r.setHeader(key, value, true)
 	return r
 }
 
@@ -103,9 +105,14 @@ func (r *Response) Vary(headers ...string) *Response {
 
 // WithoutHeader removes a response header.
 func (r *Response) WithoutHeader(key string) *Response {
+	if r == nil {
+		return nil
+	}
 	if r.headers != nil {
 		r.headers.Del(key)
+		return r
 	}
+	r.deleteList(canonicalResponseHeader(key))
 	return r
 }
 
@@ -175,12 +182,23 @@ func (r *Response) FilePath() string {
 	return r.filePath
 }
 
-// Headers returns response headers.
+// Headers returns the net/http map. The first call moves the inline list
+// into that map. Later writes use the map only.
 func (r *Response) Headers() stdhttp.Header {
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
+	if r.headers != nil {
+		return r.headers
 	}
-	return r.headers
+	h := make(stdhttp.Header, r.headerLen+len(r.headerMore))
+	for i := 0; i < r.headerLen; i++ {
+		h.Add(r.headerList[i].name, r.headerList[i].value)
+	}
+	for _, pair := range r.headerMore {
+		h.Add(pair.name, pair.value)
+	}
+	r.headers = h
+	r.headerLen = 0
+	r.headerMore = nil
+	return h
 }
 
 // Cookies returns response cookies.
@@ -237,15 +255,24 @@ func (r *Response) Charset(charset string) *Response {
 }
 
 // AppendHeader adds a header value without replacing existing ones.
+// AddHeader is the same method.
 func (r *Response) AppendHeader(key, value string) *Response {
 	if r == nil {
 		return nil
 	}
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
-	}
-	r.headers.Add(key, value)
+	r.setHeader(key, value, false)
 	return r
+}
+
+// AddHeader appends a response header. SetHeader replaces one.
+func (r *Response) AddHeader(key, value string) *Response { return r.AppendHeader(key, value) }
+
+// SetHeader replaces a response header.
+func (r *Response) SetHeader(key, value string) *Response {
+	if r == nil {
+		return nil
+	}
+	return r.Header(key, value)
 }
 
 // WithoutHeaders removes multiple response headers.
@@ -261,21 +288,37 @@ func (r *Response) WithoutHeaders(keys ...string) *Response {
 
 // HasHeader reports whether a response header is set.
 func (r *Response) HasHeader(key string) bool {
-	if r == nil || r.headers == nil {
-		return false
-	}
-	return r.headers.Get(key) != ""
+	return r.GetHeader(key) != ""
 }
 
-// GetHeader returns a response header value.
+// GetHeader returns a response header value without building the net/http map.
 func (r *Response) GetHeader(key string, fallback ...string) string {
-	if r == nil || r.headers == nil {
+	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
 		}
 		return ""
 	}
-	value := r.headers.Get(key)
+	var value string
+	if r.headers != nil {
+		value = r.headers.Get(key)
+	} else {
+		name := canonicalResponseHeader(key)
+		for i := 0; i < r.headerLen; i++ {
+			if r.headerList[i].name == name {
+				value = r.headerList[i].value
+				break
+			}
+		}
+		if value == "" {
+			for _, pair := range r.headerMore {
+				if pair.name == name {
+					value = pair.value
+					break
+				}
+			}
+		}
+	}
 	if value == "" && len(fallback) > 0 {
 		return fallback[0]
 	}

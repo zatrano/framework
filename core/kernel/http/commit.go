@@ -40,11 +40,7 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		return r.hijack(conn, leftover)
 	}
 
-	for key, values := range r.Headers() {
-		for _, value := range values {
-			_ = ctx.AddHeader(key, value)
-		}
-	}
+	r.writeHeaders(ctx)
 	for _, c := range r.cookies {
 		if c == nil {
 			continue
