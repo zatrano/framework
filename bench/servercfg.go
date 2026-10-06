@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"net"
 	"strings"
 	"time"
 
@@ -67,6 +68,7 @@ func serverRunHead(h rawhttp.Handler) *rawhttp.Server {
 	s.MaxRequestBodySize = runMaxBodyBytes
 	s.AllowUpgrade = false
 	s.HeaderReceived = canonicalHook
+	s.ConnState = func(net.Conn, rawhttp.ConnState) {}
 	return s
 }
 

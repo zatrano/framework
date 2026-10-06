@@ -2,6 +2,7 @@ package routing
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -310,10 +311,31 @@ func (route *Route) BodyLimit(n int64) *Route {
 	}
 	route.bodyLimit = n
 	route.bodyLimitSet = true
+	if n > 0 {
+		if budget := http.MaxInflightBodyBytes(); budget >= 0 && n > budget {
+			log.Printf("[WARN] route body limit %d exceeds HTTP_MAX_INFLIGHT_BODY_BYTES %d; a request at that cap is rejected with 413", n, budget)
+		}
+	}
 	if route.router != nil && n > 0 && (route.router.minBodyLimit == 0 || n < route.router.minBodyLimit) {
 		route.router.minBodyLimit = n
 	}
 	return route
+}
+
+// BodyLimitsAbove lists routes whose BodyLimit is above budget.
+// A negative budget means the budget is off and the list is empty.
+func (r *Router) BodyLimitsAbove(budget int64) []string {
+	if r == nil || budget < 0 {
+		return nil
+	}
+	var out []string
+	for _, route := range r.routes {
+		if route == nil || !route.bodyLimitSet || route.bodyLimit <= budget {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s %s = %d", route.Method, route.Path, route.bodyLimit))
+	}
+	return out
 }
 
 // HasTighterBodyLimit reports whether some route cap is below the content-type

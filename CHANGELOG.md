@@ -16,6 +16,10 @@ All notable changes to ZATRANO are documented in this file.
 - Header-time `BodyLimit` uses the same method and path resolver as `Dispatch`. A trailing slash is ignored. Case, percent-encoding, `/./`, and extra slashes are not rewritten. `X-HTTP-Method-Override` is applied before the lookup. An unread urlencoded `_method`, or more than one candidate route, keeps the tightest cap and never a larger one.
 - `RequestConfig.MaxRequestBodySize` can exceed the server ceiling when `BodyLimit` does. A cap that also exceeds `HTTP_MAX_INFLIGHT_BODY_BYTES` is not granted: the request is cut so the engine returns 413, not 503.
 
+### Added
+
+- In-flight body budget. `HTTP_MAX_INFLIGHT_BODY_BYTES` defaults to 256 MiB; a negative value turns it off. At header time a known `Content-Length` reserves that many bytes, and a chunked body reserves the worst case (JSON, urlencoded, and `text/*` use `MAX_BODY_BYTES`; everything else uses the effective cap). If the remainder cannot hold it, the engine returns 503 with `Retry-After: 1` and does not read the body. One request whose effective cap is larger than the whole budget is 413. The reservation is released once, from the handler or from connection close. A route `BodyLimit` above the budget logs a warning at boot, fails boot in production, and fails boot in every environment when `HTTP_STRICT_LIMITS` is set. `zatrano doctor` reports the same case as APP-HTTP-006.
+
 ## 3.0.2 - 2026-10-03
 
 Correctness patch before the performance work. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`, so `zatrano version` printed the wrong number; that split is closed.
@@ -43,7 +47,8 @@ Correctness patch before the performance work. Product `VERSION` matches the rel
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
 | `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. rawhttp allocates the connection read buffer from it. Above 64 KiB logs a warning. Over the limit the engine returns 431. |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
-| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | Reserved for the in-flight body budget. Not enforced until rawhttp can reject before reading the body. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | In-flight body budget. Negative disables it. A known length reserves that length; chunked reserves the worst case. Not enough remaining budget is 503 with `Retry-After: 1`. One request whose cap exceeds the budget is 413. |
+| `HTTP_STRICT_LIMITS` | off | When set, a route `BodyLimit` above the in-flight budget fails boot outside production as well. |
 
 ## 3.0.1 - 2026-10-02
 

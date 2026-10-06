@@ -11,7 +11,7 @@
   "readBufferSize": 0,
   "writeBufferSize": 0,
   "headerReceived": true,
-  "connStateSet": false,
+  "connStateSet": true,
   "trustedProxiesNil": true,
   "ceilings": [
     {

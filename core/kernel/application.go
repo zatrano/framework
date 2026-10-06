@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	stdlog "log"
+	"net"
 	stdhttp "net/http"
 	"os"
 	"os/signal"
@@ -87,6 +88,7 @@ type Application struct {
 	bodyLimitMu    sync.Mutex
 	bodyLimitReady uint32
 	bodyLimitSnap  bodyLimitSnap
+	bodyBudget     bodyBudgetState
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -835,8 +837,14 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 	if headerBytes > MaxHeaderBytesWarnAbove && app.logger != nil {
 		app.logger.Warningf("HTTP_MAX_HEADER_BYTES is %d, above %d: per-connection buffer cost until rawhttp v0.2.4 grows the read buffer", headerBytes, MaxHeaderBytesWarnAbove)
 	}
+	if err := app.rejectOversizedBodyLimits(); err != nil {
+		return nil, err
+	}
 	return &rawhttp.Server{
-		Handler:            func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
+		Handler: func(ctx *rawhttp.Ctx) {
+			defer app.releaseBody(ctx.Conn(), ctx.ConnRequestNum())
+			app.Handle(ctx)
+		},
 		ReadHeaderTimeout:  headerTO,
 		ReadTimeout:        readTO,
 		WriteTimeout:       writeTO,
@@ -844,9 +852,14 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 		MaxHeaderBytes:     headerBytes,
 		MaxRequestBodySize: http.MaxRequestBodySize(),
 		HeaderReceived:     app.headerBodyConfig,
-		TrustedProxies:     trustedProxiesForServer(),
-		KeepHijackedConns:  true,
-		AllowUpgrade:       resolveAllowUpgrade(app, opts),
+		ConnState: func(c net.Conn, st rawhttp.ConnState) {
+			if st == rawhttp.StateClosed {
+				app.releaseBody(c, 0)
+			}
+		},
+		TrustedProxies:    trustedProxiesForServer(),
+		KeepHijackedConns: true,
+		AllowUpgrade:      resolveAllowUpgrade(app, opts),
 	}, nil
 }
 

@@ -57,7 +57,7 @@ func (app *Application) HeaderBodyConfig(ctx *rawhttp.Ctx) rawhttp.RequestConfig
 	if methodIs(ctx.Method, "POST") {
 		override = ctx.Header("X-HTTP-Method-Override")
 	}
-	return app.limitRequest(ctx.ContentLength(), ctx.Method, ctx.Path, ctx.Header("Content-Type"), override)
+	return app.limitRequest(ctx, ctx.ContentLength(), ctx.Method, ctx.Path, ctx.Header("Content-Type"), override)
 }
 
 // headerBodyConfig is the hook installed on the production server.
@@ -81,19 +81,19 @@ func (app *Application) decideBodyLimit(method, path, contentType, override stri
 	if app == nil {
 		return rawhttp.RequestConfig{}
 	}
-	return app.limitRequest(contentLength, []byte(method), []byte(path), []byte(contentType), []byte(override))
+	return app.limitRequest(nil, contentLength, []byte(method), []byte(path), []byte(contentType), []byte(override))
 }
 
-func (app *Application) limitRequest(contentLength int, method, path, contentType, override []byte) rawhttp.RequestConfig {
+func (app *Application) limitRequest(ctx *rawhttp.Ctx, contentLength int, method, path, contentType, override []byte) rawhttp.RequestConfig {
 	lim := app.ensureBodyLimits()
 	limit := lim.headerLimit(contentType)
 	resolved, ambiguous := resolveOverride(method, override, contentType)
 	if resolved == "GET" || resolved == "HEAD" {
-		return http.BodyLimitConfig(limit)
+		return app.grantBody(ctx, lim, limit, contentLength, contentType)
 	}
 	tighter := app != nil && app.router != nil && app.router.HasTighterBodyLimit(limit)
 	if !bodyNeedsRoute(resolved, contentLength, limit) && !ambiguous && !tighter {
-		return http.BodyLimitConfig(limit)
+		return app.grantBody(ctx, lim, limit, contentLength, contentType)
 	}
 	if bodyLimitLookupHook != nil {
 		bodyLimitLookupHook()
@@ -106,13 +106,7 @@ func (app *Application) limitRequest(contentLength int, method, path, contentTyp
 			chosen = lim.routeCap(n)
 		}
 	}
-	if !lim.sustainable(chosen) {
-		// The route cap is above the server ceiling and above the in-flight
-		// budget, so no reservation can ever succeed. Cut at one byte: the
-		// engine answers 413. This is not a retryable 503.
-		return http.BodyLimitConfig(1)
-	}
-	return http.BodyLimitConfig(chosen)
+	return app.grantBody(ctx, lim, chosen, contentLength, contentType)
 }
 
 func (lim bodyLimitSnap) headerLimit(contentType []byte) int64 {
@@ -130,7 +124,7 @@ func (lim bodyLimitSnap) routeCap(n int64) int64 {
 }
 
 func (lim bodyLimitSnap) sustainable(n int64) bool {
-	if lim.inflight < 0 || n <= lim.maxRequest {
+	if lim.inflight < 0 {
 		return true
 	}
 	return n <= lim.inflight
