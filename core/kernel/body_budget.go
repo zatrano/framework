@@ -3,6 +3,7 @@ package kernel
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -10,6 +11,47 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel/http"
 	"github.com/zatrano/rawhttp"
 )
+
+const clientBudgetShards = 32
+
+func perClientBodyCap(total int64) int64 {
+	if total < 0 {
+		return -1
+	}
+	raw, ok := env.Lookup("HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT")
+	if !ok || strings.TrimSpace(raw) == "" {
+		return total / 4
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil {
+		return total / 4
+	}
+	return n
+}
+
+func clientBudgetKey(ip string) string {
+	parsed := net.ParseIP(strings.TrimSpace(ip))
+	if parsed == nil {
+		if ip == "" {
+			return "unknown"
+		}
+		return ip
+	}
+	if v4 := parsed.To4(); v4 != nil {
+		return v4.String()
+	}
+	masked := parsed.Mask(net.CIDRMask(64, 128))
+	return masked.String()
+}
+
+func clientShard(key string) uint32 {
+	var h uint32 = 2166136261
+	for i := 0; i < len(key); i++ {
+		h ^= uint32(key[i])
+		h *= 16777619
+	}
+	return h % clientBudgetShards
+}
 
 func (app *Application) rejectOversizedBodyLimits() error {
 	if app == nil || app.router == nil {
@@ -37,11 +79,18 @@ type bodyBudgetState struct {
 	mu       sync.Mutex
 	reserved int64
 	holds    map[net.Conn]*bodyHold
+	shards   [clientBudgetShards]clientBudgetShard
+}
+
+type clientBudgetShard struct {
+	mu   sync.Mutex
+	used map[string]int64
 }
 
 type bodyHold struct {
 	n        int64
 	req      uint64
+	key      string
 	released bool
 }
 
@@ -94,19 +143,60 @@ func (app *Application) reserveBody(ctx *rawhttp.Ctx, n int64) bool {
 	}
 	reqN := ctx.ConnRequestNum()
 	app.bodyBudget.mu.Lock()
+	if h := app.bodyBudget.holds[conn]; h != nil && h.req == reqN && !h.released {
+		app.bodyBudget.mu.Unlock()
+		return true
+	}
+	app.bodyBudget.mu.Unlock()
+	key := clientBudgetKey(ctx.ClientIP())
+	shard := &app.bodyBudget.shards[clientShard(key)]
+	app.bodyBudget.mu.Lock()
 	defer app.bodyBudget.mu.Unlock()
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
 	if h := app.bodyBudget.holds[conn]; h != nil && h.req == reqN && !h.released {
 		return true
 	}
-	if app.bodyBudget.reserved+n > app.bodyLimitSnap.inflight {
+	lim := app.bodyLimitSnap
+	if lim.perClient >= 0 {
+		if shard.used[key]+n > lim.perClient {
+			return false
+		}
+	}
+	if lim.inflight >= 0 && app.bodyBudget.reserved+n > lim.inflight {
 		return false
 	}
 	if app.bodyBudget.holds == nil {
 		app.bodyBudget.holds = make(map[net.Conn]*bodyHold)
 	}
+	holdKey := ""
+	if lim.perClient >= 0 {
+		if shard.used == nil {
+			shard.used = make(map[string]int64)
+		}
+		shard.used[key] += n
+		holdKey = key
+	}
 	app.bodyBudget.reserved += n
-	app.bodyBudget.holds[conn] = &bodyHold{n: n, req: reqN}
+	app.bodyBudget.holds[conn] = &bodyHold{n: n, req: reqN, key: holdKey}
 	return true
+}
+
+// ClientReserved is the sum of per-client shares still held.
+func (app *Application) ClientReserved() int64 {
+	if app == nil {
+		return 0
+	}
+	var n int64
+	for i := range app.bodyBudget.shards {
+		sh := &app.bodyBudget.shards[i]
+		sh.mu.Lock()
+		for _, v := range sh.used {
+			n += v
+		}
+		sh.mu.Unlock()
+	}
+	return n
 }
 
 // releaseBody frees the reservation for conn. reqN 0 releases whatever hold
@@ -128,6 +218,15 @@ func (app *Application) releaseBody(conn net.Conn, reqN uint64) {
 	app.bodyBudget.reserved -= h.n
 	if app.bodyBudget.reserved < 0 {
 		app.bodyBudget.reserved = 0
+	}
+	if h.key != "" {
+		sh := &app.bodyBudget.shards[clientShard(h.key)]
+		sh.mu.Lock()
+		sh.used[h.key] -= h.n
+		if sh.used[h.key] <= 0 {
+			delete(sh.used, h.key)
+		}
+		sh.mu.Unlock()
 	}
 	delete(app.bodyBudget.holds, conn)
 }

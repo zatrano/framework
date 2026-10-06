@@ -829,13 +829,16 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 	}
 	app.httpWriteTimeout = writeTO
 	app.httpWriteTimeoutSet = true
-	app.ensureBodyLimits()
+	lim := app.ensureBodyLimits()
+	if app.logger != nil && lim.perClient >= 0 && len(trustedProxiesForServer()) == 0 {
+		app.logger.Warningf("HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT keys off the connection address; behind a reverse proxy on a loopback or private address the share applies to the proxy")
+	}
 	headerBytes, err := serverMaxHeaderBytes()
 	if err != nil {
 		return nil, err
 	}
 	if headerBytes > MaxHeaderBytesWarnAbove && app.logger != nil {
-		app.logger.Warningf("HTTP_MAX_HEADER_BYTES is %d, above %d: per-connection buffer cost until rawhttp v0.2.4 grows the read buffer", headerBytes, MaxHeaderBytesWarnAbove)
+		app.logger.Warningf("HTTP_MAX_HEADER_BYTES is %d, above %d: per-connection buffer cost until rawhttp v0.3.0 grows the read buffer", headerBytes, MaxHeaderBytesWarnAbove)
 	}
 	if err := app.rejectOversizedBodyLimits(); err != nil {
 		return nil, err

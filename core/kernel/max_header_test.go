@@ -57,7 +57,7 @@ func TestMaxHeaderBytesWarnsAbove64KiB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(body), "per-connection buffer cost") || !strings.Contains(string(body), "v0.2.4") {
+	if !strings.Contains(string(body), "per-connection buffer cost") || !strings.Contains(string(body), "v0.3.0") {
 		t.Fatalf("warning log = %q", body)
 	}
 }

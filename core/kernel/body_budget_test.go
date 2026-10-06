@@ -50,6 +50,7 @@ func TestBodyBudgetSingleRequestOverBudgetIs413(t *testing.T) {
 
 func TestBodyBudgetRejectsWith503AndRetryAfter(t *testing.T) {
 	t.Setenv("HTTP_MAX_INFLIGHT_BODY_BYTES", fmt.Sprint(3<<20))
+	t.Setenv("HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT", fmt.Sprint(3<<20))
 	app := NewApplication(t.TempDir())
 	app.router.Post("/upload", func(*http.Request) *http.Response {
 		return http.Text("ok")
@@ -358,12 +359,12 @@ func waitBudgetIdle(t *testing.T, app *Application) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		if app.BodyReserved() == 0 {
+		if app.BodyReserved() == 0 && app.ClientReserved() == 0 {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatalf("reserved=%d after 10s", app.BodyReserved())
+	t.Fatalf("reserved=%d client=%d after 10s", app.BodyReserved(), app.ClientReserved())
 }
 
 type memListener struct {

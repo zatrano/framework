@@ -18,6 +18,7 @@ type bodyLimitSnap struct {
 	maxRequest int64
 	maxBody    int64
 	inflight   int64
+	perClient  int64
 }
 
 func (app *Application) ensureBodyLimits() bodyLimitSnap {
@@ -36,10 +37,12 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 	if atomic.LoadUint32(&app.bodyLimitReady) == 1 {
 		return app.bodyLimitSnap
 	}
+	inflight := http.MaxInflightBodyBytes()
 	app.bodyLimitSnap = bodyLimitSnap{
 		maxRequest: http.MaxRequestBytes(),
 		maxBody:    http.MaxBodyBytes(),
-		inflight:   http.MaxInflightBodyBytes(),
+		inflight:   inflight,
+		perClient:  perClientBodyCap(inflight),
 	}
 	atomic.StoreUint32(&app.bodyLimitReady, 1)
 	return app.bodyLimitSnap
