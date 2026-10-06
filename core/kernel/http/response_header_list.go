@@ -106,16 +106,28 @@ func (r *Response) writeHeaders(ctx interface{ AddHeader(string, string) error }
 	}
 }
 
-// canonicalResponseHeader returns key unchanged when it is one of the
-// framework's canonical names. Other names are canonicalized once.
+// canonicalResponseHeader returns the net/http canonical spelling.
+// Names the framework writes on the hot path skip CanonicalMIMEHeaderKey,
+// but they still collapse to that spelling. X-Request-ID, ETag, and
+// X-RateLimit-Limit are not MIME-canonical; keeping the raw spelling
+// split Add and Del across two list entries.
 func canonicalResponseHeader(key string) string {
 	switch key {
+	case "X-Request-ID", "X-Request-Id":
+		return "X-Request-Id"
+	case "ETag", "Etag":
+		return "Etag"
+	case "X-CSRF-TOKEN", "X-Csrf-Token":
+		return "X-Csrf-Token"
+	case "X-RateLimit-Limit", "X-Ratelimit-Limit":
+		return "X-Ratelimit-Limit"
+	case "X-RateLimit-Remaining", "X-Ratelimit-Remaining":
+		return "X-Ratelimit-Remaining"
 	case "X-Frame-Options",
 		"X-Content-Type-Options",
 		"Referrer-Policy",
 		"Permissions-Policy",
 		"Strict-Transport-Security",
-		"X-Request-ID",
 		"Traceparent",
 		"Vary",
 		"Access-Control-Allow-Origin",
@@ -132,11 +144,7 @@ func canonicalResponseHeader(key string) string {
 		"Location",
 		"Allow",
 		"Retry-After",
-		"X-RateLimit-Limit",
-		"X-RateLimit-Remaining",
-		"ETag",
 		"Last-Modified",
-		"X-CSRF-TOKEN",
 		"X-Negotiated-Format",
 		"Content-Language",
 		"Content-Length":

@@ -18,6 +18,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ### Fixed
 
+- Inline response header names use the same spelling as `net/http` (`X-Request-Id`, `Etag`, `X-Csrf-Token`, `X-Ratelimit-Limit`). Mixed-case `Add` and `Del` no longer leave a second entry.
 - Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
 - A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) is answered before later middleware and before the route. An allowed origin gets 204, `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Max-Age`, and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. Any other origin gets no CORS headers and 404. Auth registered after CORS does not see the preflight. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origin and credentials are never sent together.
 - rawhttp answers 400, 413, and 431 before the framework handler. Those responses do not carry security headers, `X-Request-ID`, or CORS headers.
