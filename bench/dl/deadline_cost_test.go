@@ -1,7 +1,9 @@
 // Real net.Conn deadline cost. rawhttp sets ~4 deadlines per keep-alive request
 // (idle, header x2, write). In-memory fake connections make those calls free,
 // so in-process benchmarks undercount them. Run on the publishing machine:
-//   go test -run "^$" -bench . -benchtime=1s -count=10
+//
+//	go test -run "^$" -bench . -benchtime=1s -count=10
+//
 // Linux Xeon 2.8 GHz reference: time.Now 57 ns; SetRead/WriteDeadline ~185 ns each;
 // four per request ~780 ns (> the whole bare ServeConn request, ~350 ns).
 package dl
