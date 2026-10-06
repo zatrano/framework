@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha1"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net"
+	stdhttp "net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -529,6 +531,13 @@ func postRawPath(t *testing.T, addr, path, contentType string, body []byte) (int
 	return exchangeRaw(t, addr, raw)
 }
 
+// postChunked writes a chunked body from a side goroutine and reads the
+// status on the caller. rawhttp writes 413 and then Close. A late read loses
+// that status: delaying the read 50ms produced an empty result on 200/200
+// runs, while a read already in progress saw 413 on 200/200. Isolated
+// TestHTTPServerBodyLimits -count=200 still lost 4/200 when the read ran on
+// a cold goroutine. v0.2.4 will linger (CloseWrite, then drain at most
+// 256 KiB or 1s) so the status survives a client that is still writing.
 func postChunked(t *testing.T, addr, path, contentType string, n int) int {
 	t.Helper()
 	c, err := net.Dial("tcp", addr)
@@ -546,11 +555,22 @@ func postChunked(t *testing.T, addr, path, contentType string, n int) int {
 	if _, err := c.Write(head.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	got := make(chan []byte, 1)
+	writeErr := make(chan error, 1)
 	go func() {
-		buf, _ := io.ReadAll(c)
-		got <- buf
+		writeErr <- writeChunkedBody(c, n)
 	}()
+	resp, rerr := stdhttp.ReadResponse(bufio.NewReader(c), nil)
+	_ = c.Close()
+	<-writeErr
+	if rerr != nil {
+		t.Fatalf("bad chunked response err=%v", rerr)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.StatusCode
+}
+
+func writeChunkedBody(c net.Conn, n int) error {
 	chunk := bytes.Repeat([]byte("x"), 32<<10)
 	left := n
 	for left > 0 {
@@ -559,31 +579,18 @@ func postChunked(t *testing.T, addr, path, contentType string, n int) int {
 			nwrite = left
 		}
 		if _, err := fmt.Fprintf(c, "%x\r\n", nwrite); err != nil {
-			break
+			return err
 		}
 		if _, err := c.Write(chunk[:nwrite]); err != nil {
-			break
+			return err
 		}
 		if _, err := io.WriteString(c, "\r\n"); err != nil {
-			break
+			return err
 		}
 		left -= nwrite
 	}
-	_, _ = io.WriteString(c, "0\r\n\r\n")
-	if tc, ok := c.(*net.TCPConn); ok {
-		_ = tc.CloseWrite()
-	}
-	var buf []byte
-	select {
-	case buf = <-got:
-	case <-time.After(30 * time.Second):
-		t.Fatal("timed out waiting for chunked response")
-	}
-	text := string(buf)
-	if len(text) < 12 || !strings.HasPrefix(text, "HTTP/1.") {
-		t.Fatalf("bad chunked response %q", text[:min(len(text), 80)])
-	}
-	return statusCode(text)
+	_, err := io.WriteString(c, "0\r\n\r\n")
+	return err
 }
 
 func exchangeRaw(t *testing.T, addr string, raw []byte) (int, string) {

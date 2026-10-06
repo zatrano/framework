@@ -35,6 +35,49 @@ func (p preflightAuth) Boot(app contracts.App) error {
 	return nil
 }
 
+func TestLocalBootWithoutCORSConfigServes(t *testing.T) {
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("APP_DEBUG", "true")
+	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("LOG_LEVEL", "error")
+	t.Setenv("CORS_ENABLED", "")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	t.Setenv("CORS_ALLOW_CREDENTIALS", "")
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "public"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	app := NewApplication(dir)
+	t.Cleanup(func() {
+		if c, ok := app.Logger().(interface{ Close() error }); ok && c != nil {
+			_ = c.Close()
+		}
+	})
+	app.router.Get("/rota", func(*khttp.Request) *khttp.Response {
+		return khttp.Text("ok")
+	})
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln := serveTestServer(t, srv)
+	resp := readRaw(t, ln.Addr().String(), "GET /rota HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "ok" {
+		t.Fatalf("body=%q", body)
+	}
+}
+
 func TestBootstrapRejectsCORSCredentialsWildcard(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")

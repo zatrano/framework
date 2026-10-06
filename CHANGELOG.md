@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- `Access-Control-Allow-*` headers are no longer written on responses whose request does not carry `Origin`, or on applications with no origin configured.
+
 ### Fixed
 
 - Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
