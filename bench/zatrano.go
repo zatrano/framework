@@ -141,6 +141,7 @@ func (routeProvider) Register(app contracts.App) error {
 	app.Router().Get("/plaintext", func(*khttp.Request) *khttp.Response {
 		return khttp.Text(hello)
 	})
+	registerZatranoScenes(app.Router())
 	return nil
 }
 

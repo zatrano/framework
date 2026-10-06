@@ -56,6 +56,9 @@ func fiberReady() error {
 		t1gen.Get("/plaintext", func(c *fiber.Ctx) error {
 			return fiberPlaintext(c, probe, true)
 		})
+		registerFiberScenes(t0, probe)
+		registerFiberScenes(t1, probe)
+		registerFiberScenes(t1gen, probe)
 		fiberApps.t0 = t0
 		fiberApps.t1 = t1
 		fiberApps.t1gen = t1gen
