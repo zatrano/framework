@@ -12,7 +12,7 @@ import (
 // Server profiles. Production Run is not refactored; these literals mirror it.
 //
 // v3.0.1 Run (application.go at e4c0969) sets Handler, the four timeouts
-// (10s/60s/60s/120s), MaxHeaderBytes 1 MiB (v3.0.2 uses 16 KiB), TrustedProxies from the
+// (10s/60s/60s/120s), MaxHeaderBytes 1 MiB (v3.1.0 uses 16 KiB), TrustedProxies from the
 // environment, and KeepHijackedConns. ConnState, Concurrency, buffer sizes,
 // MaxRequestBodySize, HeaderReceived, and AllowUpgrade stay at zero.
 //
@@ -31,7 +31,7 @@ const (
 	// headerBytesV301 is the v3.0.0–v3.0.1 production header ceiling.
 	// rawhttp allocates the connection read buffer from it.
 	headerBytesV301 = 1 << 20
-	// runMaxHeaderBytes is the v3.0.2 production default (16 KiB).
+	// runMaxHeaderBytes is the v3.1.0 production default (16 KiB).
 	runMaxHeaderBytes = 16 << 10
 	runMaxBodyBytes   = 32 << 20
 )

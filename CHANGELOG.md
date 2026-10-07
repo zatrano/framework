@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.0 - 2026-10-07
+
+Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed.
+
 ### Fixed
 
 - The production header ceiling is 16 KiB (`HTTP_MAX_HEADER_BYTES`, a unitless byte count; an invalid value aborts boot). v3.0.0–v3.0.1 set `MaxHeaderBytes` to 1 MiB, and rawhttp allocates the per-connection read buffer from that value. Clients that open a new connection per request lost about 60% of their throughput versus the rawhttp 8 KiB default (Linux, 64 concurrent clients, no keep-alive: about 10.1k rps at 8 KiB, about 4.0k rps at 1 MiB). A value above 64 KiB logs a warning until rawhttp v0.3.0 grows the buffer from 4 KiB. A header block over the limit is still 431 from the engine.
@@ -22,10 +26,6 @@ All notable changes to ZATRANO are documented in this file.
 - Per-client share of the in-flight body budget (`HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT`, default 25% of the budget; negative disables it). The share applies only when clients can be told apart: a trusted proxy plus a resolved client address, or a global-unicast peer. Loopback, RFC1918, link-local, CGNAT (`100.64.0.0/10`), and IPv6 unique-local peers with no trusted proxy do not take a share; only the global budget applies, and the first such request logs one warning with no address. `zatrano doctor` reports a missing `TRUSTED_PROXIES` as APP-HTTP-007. IPv6 keys are a /64. Over the share is 503 with `Retry-After: 1`. A slow body can still occupy its share until the read timeout; a body-progress timer is rawhttp v0.3.0.
 - In-flight body budget. `HTTP_MAX_INFLIGHT_BODY_BYTES` defaults to 256 MiB; a negative value turns it off. At header time a known `Content-Length` reserves that many bytes, and a chunked body reserves the worst case (JSON, urlencoded, and `text/*` use `MAX_BODY_BYTES`; everything else uses the effective cap). If the remainder cannot hold it, the engine returns 503 with `Retry-After: 1` and does not read the body. One request whose effective cap is larger than the whole budget is 413. The reservation is released once, from the handler or from connection close. A route `BodyLimit` above the budget logs a warning at boot, fails boot in production, and fails boot in every environment when `HTTP_STRICT_LIMITS` is set. `zatrano doctor` reports the same case as APP-HTTP-006.
 - `Expect: 100-continue` is covered on the live server. A `Content-Length` over the effective cap, or a reservation that does not fit, is 413 or 503 with no `100 Continue`. The connection lingers so the client can read that response. rawhttp 0.2.3 caps lingering closes at 1024 (`MaxLingering`; negative is unlimited).
-
-## 3.0.2 - 2026-10-03
-
-Correctness patch before the performance work. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`, so `zatrano version` printed the wrong number; that split is closed.
 
 ### Fixed
 
