@@ -89,6 +89,7 @@ type Application struct {
 	bodyLimitReady uint32
 	bodyLimitSnap  bodyLimitSnap
 	bodyBudget     bodyBudgetState
+	shareSkipOnce  sync.Once
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -829,10 +830,7 @@ func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) 
 	}
 	app.httpWriteTimeout = writeTO
 	app.httpWriteTimeoutSet = true
-	lim := app.ensureBodyLimits()
-	if app.logger != nil && lim.perClient >= 0 && len(trustedProxiesForServer()) == 0 {
-		app.logger.Warningf("HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT keys off the connection address; behind a reverse proxy on a loopback or private address the share applies to the proxy")
-	}
+	_ = app.ensureBodyLimits()
 	headerBytes, err := serverMaxHeaderBytes()
 	if err != nil {
 		return nil, err

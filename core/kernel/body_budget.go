@@ -44,6 +44,61 @@ func clientBudgetKey(ip string) string {
 	return masked.String()
 }
 
+// clientShareKey is the per-client budget key when peers can be told apart.
+// A trusted proxy uses the resolved client address. Otherwise only a global
+// unicast address that is not private, link-local, loopback, or CGNAT is a key.
+// The bool is false when the share must not apply.
+func clientShareKey(peer, client string, trusted bool) (string, bool) {
+	peer = remoteHostString(peer)
+	client = strings.TrimSpace(client)
+	if trusted {
+		if client == "" || client == peer {
+			return "", false
+		}
+		return clientBudgetKey(client), true
+	}
+	if !distinctClientAddr(peer) {
+		return "", false
+	}
+	return clientBudgetKey(peer), true
+}
+
+func remoteHostString(addr string) string {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		return host
+	}
+	return addr
+}
+
+func distinctClientAddr(host string) bool {
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsGlobalUnicast() || ip.IsPrivate() || isCGNAT(ip) {
+		return false
+	}
+	return true
+}
+
+func isCGNAT(ip net.IP) bool {
+	v4 := ip.To4()
+	if v4 == nil {
+		return false
+	}
+	return v4[0] == 100 && v4[1]&0xc0 == 64
+}
+
+func (app *Application) noteUndistinguishedClient() {
+	if app == nil || app.logger == nil {
+		return
+	}
+	app.shareSkipOnce.Do(func() {
+		app.logger.Warningf("per-client body share is off for this peer because it is not a distinct client; set TRUSTED_PROXIES when the process sits behind a reverse proxy")
+	})
+}
+
 func clientShard(key string) uint32 {
 	var h uint32 = 2166136261
 	for i := 0; i < len(key); i++ {
@@ -148,17 +203,30 @@ func (app *Application) reserveBody(ctx *rawhttp.Ctx, n int64) bool {
 		return true
 	}
 	app.bodyBudget.mu.Unlock()
-	key := clientBudgetKey(ctx.ClientIP())
-	shard := &app.bodyBudget.shards[clientShard(key)]
+	peer := ""
+	if ra := conn.RemoteAddr(); ra != nil {
+		peer = ra.String()
+	}
+	key, apply := clientShareKey(peer, ctx.ClientIP(), len(trustedProxiesForServer()) > 0)
+	lim := app.bodyLimitSnap
+	if lim.perClient >= 0 && !apply {
+		app.noteUndistinguishedClient()
+	}
+	var shard *clientBudgetShard
+	if apply {
+		shard = &app.bodyBudget.shards[clientShard(key)]
+	}
 	app.bodyBudget.mu.Lock()
 	defer app.bodyBudget.mu.Unlock()
-	shard.mu.Lock()
-	defer shard.mu.Unlock()
+	if shard != nil {
+		shard.mu.Lock()
+		defer shard.mu.Unlock()
+	}
 	if h := app.bodyBudget.holds[conn]; h != nil && h.req == reqN && !h.released {
 		return true
 	}
-	lim := app.bodyLimitSnap
-	if lim.perClient >= 0 {
+	lim = app.bodyLimitSnap
+	if apply && lim.perClient >= 0 {
 		if shard.used[key]+n > lim.perClient {
 			return false
 		}
@@ -170,7 +238,7 @@ func (app *Application) reserveBody(ctx *rawhttp.Ctx, n int64) bool {
 		app.bodyBudget.holds = make(map[net.Conn]*bodyHold)
 	}
 	holdKey := ""
-	if lim.perClient >= 0 {
+	if apply && lim.perClient >= 0 {
 		if shard.used == nil {
 			shard.used = make(map[string]int64)
 		}

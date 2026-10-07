@@ -48,6 +48,54 @@ func checkBodyBudget(root string) ([]Finding, error) {
 	return out, err
 }
 
+func checkTrustedProxyShare(root string) ([]Finding, error) {
+	if perClientShareDisabled(root) {
+		return nil, nil
+	}
+	if strings.TrimSpace(envValue(root, "TRUSTED_PROXIES")) != "" {
+		return nil, nil
+	}
+	return []Finding{{
+		Rule:     "APP-HTTP-007",
+		Check:    "trusted-proxy-share",
+		Severity: "warning",
+		Found:    "TRUSTED_PROXIES is unset",
+		Why:      "The per-client in-flight body share applies only when clients can be told apart. A loopback, private, link-local, CGNAT, or unique-local peer with no trusted proxy does not get a share; only the global budget applies. Behind a reverse proxy every client is that one address until TRUSTED_PROXIES is set.",
+		How:      "Set TRUSTED_PROXIES to the proxy addresses. A negative HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT disables the share.",
+	}}, nil
+}
+
+func perClientShareDisabled(root string) bool {
+	raw := envValue(root, "HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT")
+	if strings.TrimSpace(raw) == "" {
+		raw = envValue(root, "HTTP_MAX_INFLIGHT_BODY_BYTES")
+	}
+	if strings.TrimSpace(raw) == "" {
+		return false
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	return err == nil && n < 0
+}
+
+func envValue(root, want string) string {
+	raw, err := os.ReadFile(filepath.Join(root, ".env"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != want {
+			continue
+		}
+		return strings.Trim(strings.TrimSpace(val), `"'`)
+	}
+	return ""
+}
+
 func inflightBudget(root string) int64 {
 	budget := int64(http.DefaultMaxInflightBodyBytes)
 	raw, err := os.ReadFile(filepath.Join(root, ".env"))
