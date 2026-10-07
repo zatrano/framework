@@ -717,7 +717,7 @@ type ListenOptions struct {
 }
 
 // Run calls Start (which bootstraps if needed), listens on addr or APP_PORT,
-// and shuts down on SIGINT/SIGTERM (HTTP Shutdown then Stop).
+// and shuts down on SIGINT/SIGTERM (shutdown hooks, HTTP Shutdown, then Stop).
 func (app *Application) Run(addr string) error {
 	return app.RunListen(addr, ListenOptions{})
 }
@@ -785,29 +785,47 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 	case err := <-errCh:
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		_ = server.Shutdown(ctx)
-		stopErr := app.Stop(ctx)
+		shutErr := app.gracefulShutdown(ctx, server)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 		}
-		if stopErr != nil {
-			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, stopErr)
+		if shutErr != nil {
+			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, shutErr)
 		}
 		return nil
 	case sig := <-sigCh:
 		app.logger.Infof("shutting down gracefully (%v)...", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			_ = app.Stop(ctx)
-			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
-		}
-		if err := app.Stop(ctx); err != nil {
+		if err := app.gracefulShutdown(ctx, server); err != nil {
 			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
 		}
 		app.logger.Infof("server stopped")
 		return nil
 	}
+}
+
+// gracefulShutdown runs HTTP shutdown hooks, then rawhttp Shutdown, then Stop.
+// Hooks do not abort the sequence. A DeadlineExceeded from Shutdown means a
+// handler is still inside Hijack; Close then drops that connection so the
+// process can leave. Stop still runs.
+func (app *Application) gracefulShutdown(ctx context.Context, server *rawhttp.Server) error {
+	for _, err := range http.RunShutdownHooks(ctx) {
+		if app != nil && app.logger != nil {
+			app.logger.Errorf("%v", err)
+		} else {
+			stdlog.Printf("%v", err)
+		}
+	}
+	err := server.Shutdown(ctx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		_ = server.Close()
+	}
+	stopErr := app.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	return stopErr
 }
 
 // httpServer is the production rawhttp.Server used by RunListen.

@@ -447,16 +447,42 @@ func TestHTTPServerUpgradeEchoOriginAndShutdown(t *testing.T) {
 	if h, err := readHeaders(block); err != nil || !strings.Contains(h, "101") {
 		t.Fatalf("block handshake %q err=%v", h, err)
 	}
+	http.ResetShutdownState()
 	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err == nil {
+	started := time.Now()
+	if err := app.gracefulShutdown(ctx, srv); err == nil {
 		t.Fatal("Shutdown should return when the hijacked handler is still blocked")
 	}
 	_ = block.SetReadDeadline(time.Now().Add(2 * time.Second))
 	tmp := make([]byte, 8)
-	if _, err := block.Read(tmp); err == nil {
-		t.Fatal("hijacked connection stayed open after Shutdown")
+	n, err = block.Read(tmp)
+	if !hijackWentAway(tmp[:n], err) {
+		t.Fatalf("hijacked connection stayed open after Shutdown: n=%d err=%v elapsed=%s", n, err, time.Since(started))
 	}
+}
+
+// hijackWentAway is true when the peer sent a WebSocket close 1001 or the
+// read ended because the connection closed. A deadline timeout is not enough:
+// v0.2.4 leaves a blocked hijack open until Close.
+func hijackWentAway(buf []byte, err error) bool {
+	if closeFrame1001(buf) {
+		return true
+	}
+	if err == nil {
+		return false
+	}
+	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		return false
+	}
+	return true
+}
+
+func closeFrame1001(buf []byte) bool {
+	if len(buf) < 4 || buf[0]&0x0f != 0x8 {
+		return false
+	}
+	return buf[2] == 0x03 && buf[3] == 0xe9
 }
 
 func serveTestServer(t *testing.T, srv *rawhttp.Server) net.Listener {

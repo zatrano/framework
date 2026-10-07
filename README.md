@@ -363,7 +363,15 @@ Application.Stop
     → Stopped
 ```
 
-HTTP is not dispatched until `Booted`. `/up` is process liveness after Bootstrap. `package:enable health` adds `/health`. `Run()` shuts HTTP down within 15s on `SIGINT`/`SIGTERM`, then `Stop` in reverse provider order.
+HTTP is not dispatched until `Booted`. `/up` is process liveness after Bootstrap. `package:enable health` adds `/health`. `Run()` shuts down within 15s on `SIGINT`/`SIGTERM`. The order is shutdown hooks, then rawhttp `Shutdown`, then `Stop` in reverse provider order. Hooks run concurrently. Each one gets `min(5s, remaining/3)`. A panic or a returned error is logged and does not stop the shutdown. A second pass over the same shutdown does nothing, and a hook registered after shutdown has started is ignored. If `Shutdown` returns `context.DeadlineExceeded` because a handler is still inside `Hijack`, `Close` drops that connection so the process can leave.
+
+```go
+http.RegisterShutdownHook("jobs", func(ctx context.Context) error {
+    return jobs.Shutdown(ctx)
+})
+```
+
+`packages/websocket` registers its own hook. On shutdown it refuses new upgrades with 503, writes a close frame `1001 Going Away` (write deadline 1s), waits for the peer close or 1s, then closes the connection. An application author does not register a second hook for those sockets.
 
 ```go
 BootstrapContext(ctx context.Context) error
