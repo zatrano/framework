@@ -60,8 +60,8 @@ func checkTrustedProxyShare(root string) ([]Finding, error) {
 		Check:    "trusted-proxy-share",
 		Severity: "warning",
 		Found:    "TRUSTED_PROXIES is unset",
-		Why:      "The per-client in-flight body share applies only when clients can be told apart. A loopback, private, link-local, CGNAT, or unique-local peer with no trusted proxy does not get a share; only the global budget applies. Behind a reverse proxy every client is that one address until TRUSTED_PROXIES is set.",
-		How:      "Set TRUSTED_PROXIES to the proxy addresses. A negative HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT disables the share.",
+		Why:      "The per-client in-flight body share applies only when clients can be told apart. A loopback, private, link-local, CGNAT, or unique-local peer with no trusted proxy does not get a share; only the global budget applies. Behind a reverse proxy every client is that one address until TRUSTED_PROXIES is set. Behind a CDN the edge addresses are global unicast, so without TRUSTED_PROXIES those visitors share one key.",
+		How:      "Set TRUSTED_PROXIES to the proxy or CDN addresses so X-Forwarded-For is the share key. A negative HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT disables the share.",
 	}}, nil
 }
 
