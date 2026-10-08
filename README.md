@@ -37,6 +37,8 @@
   <a href="https://github.com/zatrano/packages">Package ecosystem</a>
   ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
+  ·
+  <a href="UPGRADING.md">Upgrading from v3.0.1</a>
 </p>
 
 ---
@@ -312,6 +314,14 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 | `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot in every environment. Production fails boot either way. |
 | `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
 | `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
+| `TRUSTED_PROXIES` | empty | Comma-separated proxy or CDN addresses. Empty skips the per-client body share for private and loopback peers, and keys a CDN edge address as the client. `zatrano doctor` reports that as APP-HTTP-007. |
+| `CORS_ENABLED` | true | `false` does not install CORS middleware. |
+| `CORS_ALLOWED_ORIGINS` | empty (development may use `*`) | Comma-separated exact origins. No configured origin writes no CORS headers. |
+| `CORS_ALLOWED_METHODS` | `GET, POST, PUT, PATCH, DELETE, OPTIONS` | Preflight allow-methods. |
+| `CORS_ALLOWED_HEADERS` | `Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key` | Preflight allow-headers are the intersection with the request, not an echo. |
+| `CORS_EXPOSE_HEADERS` | empty | `Access-Control-Expose-Headers` when an origin matches. |
+| `CORS_ALLOW_CREDENTIALS` | false | `true` with a wildcard origin, including the implicit development wildcard, fails boot. |
+| `CORS_MAX_AGE` | 600 | Preflight `Access-Control-Max-Age`. A non-integer is ignored. |
 
 A unitless integer is seconds (`30`). Go durations (`30s`, `1m`) are accepted. An invalid value (`abc`, `1x`) aborts boot. The 60s read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s. Raise `HTTP_READ_TIMEOUT`, or set it to `0`, for large uploads on a slow link.
 

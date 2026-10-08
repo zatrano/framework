@@ -6,7 +6,7 @@ All notable changes to ZATRANO are documented in this file.
 
 ## 3.1.0 - 2026-10-07
 
-Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed.
+Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed. Behavior changes and the way back are in [Upgrading from v3.0.1](UPGRADING.md).
 
 ### Fixed
 
