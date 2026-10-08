@@ -63,4 +63,6 @@ jobs:
           done
           dest="${RUNNER_TEMP}/smokeapp"
           zatrano new "$dest" --module example.com/smokeapp
-          (cd "$dest" && go build -o "${RUNNER_TEMP}/smokeapp.bin" ./cmd/app)
+          # zatrano new prints this as the next step. Go 1.16+ builds with
+          # -mod=readonly, so a fresh require of this tag has no go.sum entry yet.
+          (cd "$dest" && go mod tidy && go build -o "${RUNNER_TEMP}/smokeapp.bin" ./cmd/app)
