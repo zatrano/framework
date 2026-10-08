@@ -49,9 +49,9 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
 | | |
 | --- | --- |
-| Current module tag | `v3.0.1` |
-| Release branch | `3.x` (development continues on `main`) |
-| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.2` |
+| Current module tag | `v3.1.0` |
+| Release branch | `main` |
+| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.4` |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.0`, wired at `framework/v3/core/ssr` |
 | Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.14.0` |
 
@@ -61,7 +61,8 @@ Older lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `3.x` | V3. Current tag `v3.0.1` |
+| `main` | V3. Current tag `v3.1.0` |
+| `3.x` | V3 through `v3.0.1` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
@@ -126,7 +127,7 @@ canvas      HTML template engine
 Requires **Go 1.25+**.
 
 ```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v3.0.1
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.1.0
 zatrano new myapp
 cd myapp
 go mod tidy
@@ -139,11 +140,11 @@ Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_POR
 Pin the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.0.1
+go get github.com/zatrano/framework/v3@v3.1.0
 go get github.com/zatrano/packages@v1.14.0
 ```
 
-These are the current stable public releases. The two modules version independently. There is no monolithic `zatrano@x.y.z` version.
+These are the current stable public releases. The two modules version independently. There is no monolithic `zatrano@x.y.z` version. `v3.0.0` is retracted and cannot be installed. Moving from v3.0.1 is described in [Upgrading](UPGRADING.md).
 
 ## Two modules
 
