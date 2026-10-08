@@ -30,8 +30,8 @@ func TestProductAndModuleIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "3.0.0" {
-		t.Fatalf("VERSION=%q want 3.0.0", version)
+	if version != "3.1.0" {
+		t.Fatalf("VERSION=%q want 3.1.0", version)
 	}
 
 	mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
@@ -1043,8 +1043,13 @@ func TestKernelHasOnlyAllowedThirdPartyDependencies(t *testing.T) {
 		}
 		if d.IsDir() {
 			name := filepath.Base(path)
-			if name == "vendor" || name == ".git" {
-				return filepath.SkipDir
+			// bench/ is its own module for rival measurements. Third-party
+			// imports there stay out of the kernel module.
+			if name == "vendor" || name == ".git" || name == "bench" {
+				rel, relErr := filepath.Rel(root, path)
+				if relErr == nil && (rel == "vendor" || rel == ".git" || rel == "bench") {
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}

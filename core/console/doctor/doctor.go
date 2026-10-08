@@ -114,6 +114,8 @@ func DoctorChecks() []DoctorCheck {
 		{Name: "orm", Run: checkORMArchitecture},
 		{Name: "validation", Run: checkValidationArchitecture},
 		{Name: "http-lifecycle", Run: checkHTTPLifecycle},
+		{Name: "body-budget", Run: checkBodyBudget},
+		{Name: "trusted-proxy-share", Run: checkTrustedProxyShare},
 	}
 }
 

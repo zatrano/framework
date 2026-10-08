@@ -1,0 +1,59 @@
+{
+  "readHeaderTimeoutNs": 10000000000,
+  "readTimeoutNs": 60000000000,
+  "writeTimeoutNs": 60000000000,
+  "idleTimeoutNs": 120000000000,
+  "maxHeaderBytes": 16384,
+  "maxRequestBodySize": 33554432,
+  "keepHijackedConns": true,
+  "allowUpgrade": false,
+  "concurrency": 0,
+  "readBufferSize": 0,
+  "writeBufferSize": 0,
+  "headerReceived": true,
+  "connStateSet": true,
+  "trustedProxiesNil": true,
+  "ceilings": [
+    {
+      "name": "GET",
+      "method": "GET",
+      "path": "/plaintext",
+      "contentType": "",
+      "contentLength": 0,
+      "maxRequestBodySize": 33554432
+    },
+    {
+      "name": "HEAD",
+      "method": "HEAD",
+      "path": "/plaintext",
+      "contentType": "",
+      "contentLength": 0,
+      "maxRequestBodySize": 33554432
+    },
+    {
+      "name": "POST json",
+      "method": "POST",
+      "path": "/plaintext",
+      "contentType": "application/json",
+      "contentLength": 128,
+      "maxRequestBodySize": 2097152
+    },
+    {
+      "name": "OPTIONS",
+      "method": "OPTIONS",
+      "path": "/plaintext",
+      "contentType": "",
+      "contentLength": 0,
+      "maxRequestBodySize": 33554432
+    },
+    {
+      "name": "POST BodyLimit",
+      "method": "POST",
+      "path": "/hook",
+      "contentType": "application/json",
+      "contentLength": 128,
+      "routeBodyLimit": 4096,
+      "maxRequestBodySize": 4096
+    }
+  ]
+}

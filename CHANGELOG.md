@@ -4,6 +4,56 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.0 - 2026-10-07
+
+Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed. Behavior changes and the way back are in [Upgrading from v3.0.1](UPGRADING.md).
+
+### Fixed
+
+- The production header ceiling is 16 KiB (`HTTP_MAX_HEADER_BYTES`, a unitless byte count; an invalid value aborts boot). v3.0.0–v3.0.1 set `MaxHeaderBytes` to 1 MiB, and rawhttp allocates the per-connection read buffer from that value. Clients that open a new connection per request lost about 60% of their throughput versus the rawhttp 8 KiB default (Linux, 64 concurrent clients, no keep-alive: about 10.1k rps at 8 KiB, about 4.0k rps at 1 MiB). A value above 64 KiB logs a warning until rawhttp v0.3.0 grows the buffer from 4 KiB. A header block over the limit is still 431 from the engine.
+- v3.0.0–v3.0.1 rejected a chunked body larger than the read buffer with 431 (rawhttp 0.2.2). rawhttp 0.2.3 applies the body cap instead, so a chunked JSON body over 2 MiB and a chunked multipart body over 32 MiB are 413.
+- Unmatched requests run the global middleware, then return 404. A matched route does not gain a wrapper. There is no `Allow` header and no 405: a method that does not match is 404, the same as v2.4.0.
+- A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) is answered before later middleware and before the route. An allowed origin gets 204, `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Max-Age`, and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. Any other origin gets no CORS headers and 404. Auth registered after CORS does not see the preflight. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Wildcard origin and credentials are never sent together.
+- rawhttp answers 400, 413, and 431 before the framework handler. Those responses do not carry security headers, `X-Request-ID`, or CORS headers.
+- The header hook no longer calls `env.Get` per request. Bodyless requests return the carrier default with no allocation. Body ceilings are fixed at boot; changing `MAX_BODY_BYTES`, `MAX_UPLOAD_BYTES`, or `HTTP_MAX_INFLIGHT_BODY_BYTES` needs a restart. `Request.Body` and `Request.JSON` still read `MAX_BODY_BYTES` on each call.
+- CORS `Vary: Origin` is set on every response whose request carries `Origin` when the allow list is not a wildcard, including 404 and a denied preflight. No configured origin adds no CORS headers and no `Vary`. Reflection is an exact origin match. Preflight `Access-Control-Allow-Headers` is the intersection with the configured list, not an echo of the request. `Access-Control-Max-Age` defaults to 600 and `CORS_MAX_AGE` overrides it. Credentials combined with a wildcard origin is a boot error.
+- Header-time `BodyLimit` uses the same method and path resolver as `Dispatch`. A trailing slash is ignored. Case, percent-encoding, `/./`, and extra slashes are not rewritten. `X-HTTP-Method-Override` is applied before the lookup. An unread urlencoded `_method`, or more than one candidate route, keeps the tightest cap and never a larger one.
+- `RequestConfig.MaxRequestBodySize` can exceed the server ceiling when `BodyLimit` does. A cap that also exceeds `HTTP_MAX_INFLIGHT_BODY_BYTES` is not granted: the request is cut so the engine returns 413, not 503.
+
+### Added
+
+- `http.RegisterShutdownHook` runs before rawhttp `Shutdown` on process exit. Hooks are concurrent, bounded by `min(5s, remaining/3)`, and a panic or error is logged without stopping the shutdown. A second call is a no-op. A hook registered after shutdown has started is ignored. `context.DeadlineExceeded` from `Shutdown` is followed by `Close`, which drops a handler still inside `Hijack`, then `Stop`. `packages/websocket` uses the hook to reject new upgrades and send close frame 1001.
+- Per-client share of the in-flight body budget (`HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT`, default 25% of the budget; negative disables it). The share applies only when clients can be told apart: a trusted proxy plus a resolved client address, or a global-unicast peer. Loopback, RFC1918, link-local, CGNAT (`100.64.0.0/10`), and IPv6 unique-local peers with no trusted proxy do not take a share; only the global budget applies, and the first such request logs one warning with no address. `zatrano doctor` reports a missing `TRUSTED_PROXIES` as APP-HTTP-007. Behind a CDN, unset `TRUSTED_PROXIES` keys the share on the edge address, so many visitors share one quarter of the budget; set `TRUSTED_PROXIES` to the CDN ranges and the client address comes from `X-Forwarded-For`. IPv6 keys are a /64. Over the share is 503 with `Retry-After: 1`. A slow body can still occupy its share until the read timeout; a body-progress timer is rawhttp v0.3.0.
+- In-flight body budget. `HTTP_MAX_INFLIGHT_BODY_BYTES` defaults to 256 MiB; a negative value turns it off. At header time a known `Content-Length` reserves that many bytes, and a chunked body reserves the worst case (JSON, urlencoded, and `text/*` use `MAX_BODY_BYTES`; everything else uses the effective cap). If the remainder cannot hold it, the engine returns 503 with `Retry-After: 1` and does not read the body. One request whose effective cap is larger than the whole budget is 413. The reservation is released once, from the handler or from connection close. A route `BodyLimit` above the budget logs a warning at boot, fails boot in production, and fails boot in every environment when `HTTP_STRICT_LIMITS` is set. `zatrano doctor` reports the same case as APP-HTTP-006.
+- `Expect: 100-continue` is covered on the live server. A `Content-Length` over the effective cap, or a reservation that does not fit, is 413 or 503 with no `100 Continue`. The connection lingers so the client can read that response. rawhttp 0.2.3 caps lingering closes at 1024 (`MaxLingering`; negative is unlimited).
+
+### Fixed
+
+- Header-time body cap matches V2 for non-text bodies. `application/json` (and `+json`), `application/x-www-form-urlencoded`, and `text/*` are rejected at `MaxBodyBytes` (2 MiB) when the headers arrive. Multipart, `application/octet-stream`, `image/*`, an unknown type, and a missing `Content-Type` keep the server ceiling `MaxRequestBytes` (32 MiB). `Request.Body` and `Request.JSON` still stop at 2 MiB.
+- `Route.BodyLimit(n)` overrides that cap for one route (`n` bytes; negative uses the server ceiling). The router is matched only when `Content-Length` is above the content-type default or the body is chunked. GET, HEAD, and smaller bodies do not pay for a lookup.
+- WebSocket handshakes can reach `Hijack`. Admission order: `HTTP_ALLOW_UPGRADE=false` forces it off; then `ListenOptions.AllowUpgrade` and `serve --allow-upgrade`; then `HTTP_ALLOW_UPGRADE=true`; then `RegisterUpgradeProtocol`; then a linked `websocket` addon; then `EnabledAddons`. Default is off. `Upgrade: h2c` is still rejected. A websocket handshake that is not hijacked closes after the response.
+- `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, `HTTP_IDLE_TIMEOUT`, and `HTTP_READ_HEADER_TIMEOUT` configure the server. Unset keeps 60s, 60s, 120s, and 10s. `0`, `0s`, and any negative value disable that deadline. A unitless integer is seconds. `30s` and `1m` are accepted. An invalid value aborts boot. The default read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s.
+- `Stream` and `StreamBody` re-arm `now+HTTP_WRITE_TIMEOUT` before each write and flush. A client that stops reading is closed within that timeout. A slow reader that keeps making progress is not cut. When the write timeout is off, the deadline is cleared. Only `Hijack` always clears it. `ClearWriteDeadline` opts out and accepts the slow-reader risk.
+
+### Changed
+
+- Require rawhttp v0.2.4. There is no `replace` directive.
+- Retract `v3.0.0` (its `go.mod` contained local `replace` directives). Release CI rejects a module with `replace`, checks that `VERSION` equals the tag without the `v` prefix, installs `zatrano@<tag>`, runs `zatrano new`, and builds the generated app.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MAX_BODY_BYTES` | 2 MiB | JSON, urlencoded, and `text/*` header cap. Also `Request.Body` / `JSON`. |
+| `MAX_UPLOAD_BYTES` | 32 MiB | Multipart ceiling. The server ceiling is the larger of this and `MAX_BODY_BYTES`. |
+| `HTTP_READ_TIMEOUT` | 60s | Request read deadline. `0` or negative disables it. |
+| `HTTP_WRITE_TIMEOUT` | 60s | Response write deadline, re-armed per stream chunk. `0` or negative disables it. |
+| `HTTP_IDLE_TIMEOUT` | 120s | Keep-alive idle deadline. `0` or negative disables it. |
+| `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
+| `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. rawhttp allocates the connection read buffer from it. Above 64 KiB logs a warning. Over the limit the engine returns 431. |
+| `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | In-flight body budget. Negative disables it. A known length reserves that length; chunked reserves the worst case. Not enough remaining budget is 503 with `Retry-After: 1`. One request whose cap exceeds the budget is 413. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` | 25% of the budget | Per-client share when the client can be told apart. Negative disables it. Loopback, private, link-local, CGNAT, and unique-local peers with no `TRUSTED_PROXIES` skip the share. IPv6 keys are a /64. Over the share is 503 with `Retry-After: 1`. |
+| `HTTP_STRICT_LIMITS` | off | When set, a route `BodyLimit` above the in-flight budget fails boot outside production as well. |
+
 ## 3.0.1 - 2026-10-02
 
 Patch after `v3.0.0`. Product `VERSION` stays `3.0.0`. Kernel ABI is unchanged.

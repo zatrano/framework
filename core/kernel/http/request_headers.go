@@ -40,6 +40,30 @@ func (r *Request) Header(key string, fallback ...string) string {
 	return ""
 }
 
+// HeaderValues returns every value of a request header.
+// An overlay stores each value; the carrier stores one.
+// The rawhttp path keeps the last Origin when the request repeats it.
+func (r *Request) HeaderValues(key string) []string {
+	if r == nil {
+		return nil
+	}
+	canon := textproto.CanonicalMIMEHeaderKey(key)
+	if r.headerDeleted[canon] {
+		return nil
+	}
+	if r.headerOverlay != nil {
+		if vals, ok := r.headerOverlay[canon]; ok {
+			return vals
+		}
+	}
+	if r.ctx != nil {
+		if v := r.ctx.Header(key); len(v) > 0 {
+			return []string{string(v)}
+		}
+	}
+	return nil
+}
+
 // BearerToken extracts a bearer token from the Authorization header.
 func (r *Request) BearerToken() string {
 	header := r.Header("Authorization")

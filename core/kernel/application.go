@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	stdlog "log"
+	"net"
 	stdhttp "net/http"
 	"os"
 	"os/signal"
@@ -60,26 +61,35 @@ var (
 // Foundation and addon services live in the container (see accessors / package From helpers).
 // Kernel fields below are set by BootKernelServices.
 type Application struct {
-	basePath           string
-	container          *container.Container
-	config             *config.Repository
-	router             *routing.Router
-	logger             *log.Logger
-	ctx                *appcontext.Store
-	encrypter          *encryption.Encrypter
-	exceptions         *exceptions.Handler
-	reports            *report.Manager
-	httpBridge         contracts.HTTPBridge
-	httpBridgeCaptured contracts.HTTPBridge
-	httpBridgeFrozen   bool
-	providers          []contracts.Provider
-	life               lifeState
-	lifeMu             sync.Mutex
-	transitionMu       sync.Mutex
-	environment        string
-	enabledAddons      []string
-	publicFilesOnce    sync.Once
-	publicFiles        *publicFileIndex
+	basePath            string
+	container           *container.Container
+	config              *config.Repository
+	router              *routing.Router
+	logger              *log.Logger
+	ctx                 *appcontext.Store
+	encrypter           *encryption.Encrypter
+	exceptions          *exceptions.Handler
+	reports             *report.Manager
+	httpBridge          contracts.HTTPBridge
+	httpBridgeCaptured  contracts.HTTPBridge
+	httpBridgeFrozen    bool
+	providers           []contracts.Provider
+	life                lifeState
+	lifeMu              sync.Mutex
+	transitionMu        sync.Mutex
+	environment         string
+	enabledAddons       []string
+	publicFilesOnce     sync.Once
+	publicFiles         *publicFileIndex
+	httpWriteTimeout    time.Duration
+	httpWriteTimeoutSet bool
+	// bodyLimitReady freezes the header-hook ceilings at boot. A later
+	// environment change is ignored until process restart.
+	bodyLimitMu    sync.Mutex
+	bodyLimitReady uint32
+	bodyLimitSnap  bodyLimitSnap
+	bodyBudget     bodyBudgetState
+	shareSkipOnce  sync.Once
 }
 
 // NewApplication creates an application in Created state. Call RegisterProviders,
@@ -358,6 +368,9 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 		middleware.ConvertEmptyStringsToNull("password", "password_confirmation", "current_password"),
 	)
 	if env.GetBool("CORS_ENABLED", true) {
+		if err := middleware.ValidateCORSEnv(app.Environment()); err != nil {
+			return err
+		}
 		app.router.Use(middleware.CORSFromEnv(app.Environment()))
 	}
 	if o := middlewareFrom(app, "maintenance"); o != nil {
@@ -389,6 +402,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	app.config.Freeze()
 	app.container.Freeze()
 	app.ensurePublicFileIndex()
+	app.ensureBodyLimits()
 
 	app.logger.Infof("%s application bootstrapped (%s)", app.config.GetString("app.name"), app.environment)
 	return nil
@@ -599,6 +613,9 @@ func (app *Application) Handle(ctxAny any) {
 		resp.WithCookie(c)
 	}
 
+	if app.httpWriteTimeoutSet {
+		resp.PrepareStreamDeadline(app.httpWriteTimeout)
+	}
 	_ = resp.Commit(ctx)
 }
 
@@ -667,6 +684,25 @@ func (app *Application) servePublicFile(req *http.Request) *http.Response {
 
 // ListenOptions controls how RunListen binds the HTTP server.
 // Zero value matches classic ListenAndServe (default path).
+//
+// Read and write deadlines come from the environment, read when the server
+// is built (after .env load):
+//
+//	HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, HTTP_IDLE_TIMEOUT, HTTP_READ_HEADER_TIMEOUT
+//
+// Unset keeps 60s, 60s, 120s, and 10s. "0", "0s", and a negative value disable
+// that deadline (passed to rawhttp as -1). A unitless integer is seconds.
+// Go durations ("30s", "1m") are accepted. An invalid value fails the boot.
+//
+// WebSocket admission (Server.AllowUpgrade) resolution order:
+//
+//  1. HTTP_ALLOW_UPGRADE=false forces it off.
+//  2. A non-nil AllowUpgrade, including serve --allow-upgrade.
+//  3. HTTP_ALLOW_UPGRADE=true.
+//  4. RegisterUpgradeProtocol.
+//  5. A linked websocket addon.
+//  6. EnabledAddons contains "websocket".
+//  7. Otherwise off.
 type ListenOptions struct {
 	// Prefork runs rawhttp.Prefork (multi-process when supported).
 	Prefork bool
@@ -674,10 +710,14 @@ type ListenOptions struct {
 	ReusePort bool
 	// Workers is Prefork child count; zero → GOMAXPROCS.
 	Workers int
+	// AllowUpgrade, when non-nil, forces WebSocket admission on or off.
+	// HTTP_ALLOW_UPGRADE=false still wins. Nil follows the env var, then a
+	// registered upgrade protocol, then a linked websocket package.
+	AllowUpgrade *bool
 }
 
 // Run calls Start (which bootstraps if needed), listens on addr or APP_PORT,
-// and shuts down on SIGINT/SIGTERM (HTTP Shutdown then Stop).
+// and shuts down on SIGINT/SIGTERM (shutdown hooks, HTTP Shutdown, then Stop).
 func (app *Application) Run(addr string) error {
 	return app.RunListen(addr, ListenOptions{})
 }
@@ -698,15 +738,9 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 		addr = ":" + strconv.Itoa(port)
 	}
 
-	server := &rawhttp.Server{
-		Handler:           func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    1 << 20,
-		TrustedProxies:    trustedProxiesForServer(),
-		KeepHijackedConns: true,
+	server, err := app.httpServer(opts)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 	}
 
 	serve := func() error {
@@ -751,29 +785,101 @@ func (app *Application) RunListen(addr string, opts ListenOptions) error {
 	case err := <-errCh:
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		_ = server.Shutdown(ctx)
-		stopErr := app.Stop(ctx)
+		shutErr := app.gracefulShutdown(ctx, server)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrRuntimeBoot, err)
 		}
-		if stopErr != nil {
-			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, stopErr)
+		if shutErr != nil {
+			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, shutErr)
 		}
 		return nil
 	case sig := <-sigCh:
 		app.logger.Infof("shutting down gracefully (%v)...", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			_ = app.Stop(ctx)
-			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
-		}
-		if err := app.Stop(ctx); err != nil {
+		if err := app.gracefulShutdown(ctx, server); err != nil {
 			return fmt.Errorf("%w: %w", ErrRuntimeShutdown, err)
 		}
 		app.logger.Infof("server stopped")
 		return nil
 	}
+}
+
+// gracefulShutdown runs HTTP shutdown hooks, then rawhttp Shutdown, then Stop.
+// Hooks do not abort the sequence. A DeadlineExceeded from Shutdown means a
+// handler is still inside Hijack; Close then drops that connection so the
+// process can leave. Stop still runs.
+func (app *Application) gracefulShutdown(ctx context.Context, server *rawhttp.Server) error {
+	for _, err := range http.RunShutdownHooks(ctx) {
+		if app != nil && app.logger != nil {
+			app.logger.Errorf("%v", err)
+		} else {
+			stdlog.Printf("%v", err)
+		}
+	}
+	err := server.Shutdown(ctx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		_ = server.Close()
+	}
+	stopErr := app.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	return stopErr
+}
+
+// httpServer is the production rawhttp.Server used by RunListen.
+func (app *Application) httpServer(opts ListenOptions) (*rawhttp.Server, error) {
+	readTO, err := serverTimeout("HTTP_READ_TIMEOUT", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	writeTO, err := serverTimeout("HTTP_WRITE_TIMEOUT", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	idleTO, err := serverTimeout("HTTP_IDLE_TIMEOUT", 120*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	headerTO, err := serverTimeout("HTTP_READ_HEADER_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	app.httpWriteTimeout = writeTO
+	app.httpWriteTimeoutSet = true
+	_ = app.ensureBodyLimits()
+	headerBytes, err := serverMaxHeaderBytes()
+	if err != nil {
+		return nil, err
+	}
+	if headerBytes > MaxHeaderBytesWarnAbove && app.logger != nil {
+		app.logger.Warningf("HTTP_MAX_HEADER_BYTES is %d, above %d: per-connection buffer cost until rawhttp v0.3.0 grows the read buffer", headerBytes, MaxHeaderBytesWarnAbove)
+	}
+	if err := app.rejectOversizedBodyLimits(); err != nil {
+		return nil, err
+	}
+	return &rawhttp.Server{
+		Handler: func(ctx *rawhttp.Ctx) {
+			defer app.releaseBody(ctx.Conn(), ctx.ConnRequestNum())
+			app.Handle(ctx)
+		},
+		ReadHeaderTimeout:  headerTO,
+		ReadTimeout:        readTO,
+		WriteTimeout:       writeTO,
+		IdleTimeout:        idleTO,
+		MaxHeaderBytes:     headerBytes,
+		MaxRequestBodySize: http.MaxRequestBodySize(),
+		HeaderReceived:     app.headerBodyConfig,
+		ConnState: func(c net.Conn, st rawhttp.ConnState) {
+			if st == rawhttp.StateClosed {
+				app.releaseBody(c, 0)
+			}
+		},
+		TrustedProxies:    trustedProxiesForServer(),
+		KeepHijackedConns: true,
+		AllowUpgrade:      resolveAllowUpgrade(app, opts),
+	}, nil
 }
 
 func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {

@@ -8,7 +8,7 @@ import (
 
 // CurrentRelease is the fallback product version when VERSION cannot be read.
 // Keep aligned with the major.minor.patch of VERSION (without -dev).
-const CurrentRelease = "3.0.0"
+const CurrentRelease = "3.1.0"
 
 // ProductVersion reads VERSION from the framework module root.
 func ProductVersion() string {

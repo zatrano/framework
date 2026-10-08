@@ -79,6 +79,14 @@ func (f *routeFacade) As(name string) contracts.Route {
 	return f
 }
 
+func (f *routeFacade) BodyLimit(n int64) contracts.Route {
+	if f == nil || f.inner == nil {
+		return f
+	}
+	f.inner.BodyLimit(n)
+	return f
+}
+
 func asHandler(handler any) routing.HandlerFunc {
 	h, err := handlerOf(handler)
 	if err != nil {

@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.0.0-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.1.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -37,6 +37,8 @@
   <a href="https://github.com/zatrano/packages">Package ecosystem</a>
   ·
   <a href="https://github.com/zatrano/framework/releases">Releases</a>
+  ·
+  <a href="UPGRADING.md">Upgrading from v3.0.1</a>
 </p>
 
 ---
@@ -277,7 +279,80 @@ return http.JSON(map[string]any{"ok": true})
 
 The carrier is rawhttp (`Application.Handle`). Kernel middleware covers CSRF, CORS, security headers, trusted proxies, request IDs, exception handling, method override, request limits, and safe static files.
 
-The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`.
+`MAX_BODY_BYTES`, `MAX_UPLOAD_BYTES`, and `HTTP_MAX_INFLIGHT_BODY_BYTES` are read once at boot for the header hook. Changing them requires a process restart. `Request.Body` and `Request.JSON` still read `MAX_BODY_BYTES` on each call.
+
+A path with no route and no fallback runs that global middleware and then returns 404. The matched path is unchanged. A method that does not match a route is 404 with no `Allow` header. A browser CORS preflight (`OPTIONS` plus `Origin` plus `Access-Control-Request-Method`) is answered by CORS before later middleware, whether or not a route exists: an allowed origin is 204 with the allow headers and `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers`; any other origin gets no allow headers and 404. An OPTIONS request that is not a preflight still runs a registered OPTIONS route. Only an exact allowed origin is reflected. When the allow list is not a wildcard, every response to a request that carries `Origin` includes `Vary: Origin`, including 404. No configured origin means no CORS headers and no `Vary`. Preflight `Access-Control-Allow-Headers` is the intersection of `Access-Control-Request-Headers` with the configured list. `Access-Control-Max-Age` defaults to 600. Credentials combined with a wildcard origin, including the implicit development wildcard, fails boot. `CORSWith` still will not emit both.
+
+rawhttp writes 400, 413, and 431 before `Handle`. Those responses do not include framework headers. `HTTP_MAX_HEADER_BYTES` defaults to 16 KiB. v3.0.0 and v3.0.1 used 1 MiB, and rawhttp allocates the connection read buffer from that ceiling, so a new connection per request paid for a megabyte. A header block over the limit is 431. A configured value above 64 KiB logs a warning.
+
+The router is mutable during registration and immutable after `Freeze()`. Typed routing is `routing.From(app)`. `Route.BodyLimit(n)` on that concrete route sets one route's body cap in bytes. A negative `n` uses the server ceiling. A positive `n` is sent as `RequestConfig.MaxRequestBodySize` and can be larger than the server ceiling; rawhttp then allows that request up to `n`. If `n` is also larger than `HTTP_MAX_INFLIGHT_BODY_BYTES`, the request cannot be reserved and is rejected with 413 rather than a retryable 503.
+
+```go
+func init() {
+    routing.RegisterAPI(func(r *routing.Router) {
+        r.Post("/hook", receive).BodyLimit(8 << 20)
+    })
+}
+
+routing.From(app).Post("/hook", receive).BodyLimit(8 << 20)
+```
+
+Header-time matching uses the same resolver as `Dispatch`: method override from `X-HTTP-Method-Override`, and a trailing slash is ignored. Percent-encoding, letter case, `/./`, and extra slashes are not rewritten. When the method can still change because `_method` is in an unread urlencoded body, or more than one route could match, the cap stays at the tightest candidate and is never raised.
+
+Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form-urlencoded`, and `text/*` stop at `MAX_BODY_BYTES` (2 MiB). Multipart and every other type, including a missing `Content-Type`, stop at `MaxRequestBytes` (32 MiB unless `MAX_UPLOAD_BYTES` is higher). `Request.Body` and `Request.JSON` still stop at 2 MiB. The router is consulted for a `BodyLimit` only when `Content-Length` is above that default or the body is chunked.
+
+| Variable | Unset | `0` or negative |
+| --- | --- | --- |
+| `HTTP_READ_TIMEOUT` | 60s | deadline off |
+| `HTTP_WRITE_TIMEOUT` | 60s | deadline off |
+| `HTTP_IDLE_TIMEOUT` | 120s | deadline off |
+| `HTTP_READ_HEADER_TIMEOUT` | 10s | deadline off |
+| `HTTP_MAX_HEADER_BYTES` | 16 KiB | positive byte count. Invalid values abort boot. Above 64 KiB logs a per-connection buffer warning |
+| `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces admission off; `true` turns it on |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | negative disables the budget. A known length reserves that length. A chunked body reserves the worst case. Not enough room is 503 with `Retry-After: 1` and the body is not read. One request whose cap is larger than the whole budget is 413. |
+| `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` | 25% of the budget | Negative disables the per-client share. Over the share is 503 with `Retry-After: 1`. The share is skipped when the peer is not a distinct client. |
+| `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot in every environment. Production fails boot either way. |
+| `MAX_BODY_BYTES` | 2 MiB | ignored unless positive |
+| `MAX_UPLOAD_BYTES` | 32 MiB | ignored unless positive |
+| `TRUSTED_PROXIES` | empty | Comma-separated proxy or CDN addresses. Empty skips the per-client body share for private and loopback peers, and keys a CDN edge address as the client. `zatrano doctor` reports that as APP-HTTP-007. |
+| `CORS_ENABLED` | true | `false` does not install CORS middleware. |
+| `CORS_ALLOWED_ORIGINS` | empty (development may use `*`) | Comma-separated exact origins. No configured origin writes no CORS headers. |
+| `CORS_ALLOWED_METHODS` | `GET, POST, PUT, PATCH, DELETE, OPTIONS` | Preflight allow-methods. |
+| `CORS_ALLOWED_HEADERS` | `Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key` | Preflight allow-headers are the intersection with the request, not an echo. |
+| `CORS_EXPOSE_HEADERS` | empty | `Access-Control-Expose-Headers` when an origin matches. |
+| `CORS_ALLOW_CREDENTIALS` | false | `true` with a wildcard origin, including the implicit development wildcard, fails boot. |
+| `CORS_MAX_AGE` | 600 | Preflight `Access-Control-Max-Age`. A non-integer is ignored. |
+
+A unitless integer is seconds (`30`). Go durations (`30s`, `1m`) are accepted. An invalid value (`abc`, `1x`) aborts boot. The 60s read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s. Raise `HTTP_READ_TIMEOUT`, or set it to `0`, for large uploads on a slow link.
+
+`HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` defaults to a quarter of the in-flight budget. A negative value turns the per-client share off. The share applies only when clients can be told apart: a configured `TRUSTED_PROXIES` list and a resolved client address (IPv6 grouped by /64), or, with no proxy, a global-unicast peer that is not loopback, RFC1918, link-local, CGNAT (`100.64.0.0/10`), or IPv6 unique-local. Otherwise only the global budget applies, and the first such request logs one warning with no address. `zatrano doctor` reports the missing proxy list as APP-HTTP-007. Set `TRUSTED_PROXIES` to the reverse proxy when the process listens on a private address. Behind a CDN the edge addresses are global unicast, so with `TRUSTED_PROXIES` unset the share keys on that edge address: visitors that arrive through the same address share one quarter of the budget (64 MiB at the default). APP-HTTP-007 fires in that case too. Set `TRUSTED_PROXIES` to the CDN ranges so the client address from `X-Forwarded-For` is the key. One distinguishable client that dribbles a body can hold only its share, not the whole budget. A slow body can still hold that share until `HTTP_READ_TIMEOUT`. A body-progress timer is rawhttp v0.3.0. Rate-limit at the edge (`limit_conn`, a WAF) as well.
+
+The in-flight budget is checked when the headers arrive. A known `Content-Length` reserves that many bytes. A chunked body has no length yet, so JSON, urlencoded, and `text/*` reserve `MAX_BODY_BYTES` and every other type reserves its effective cap. If that reservation does not fit what is already in flight, the response is 503 with `Retry-After: 1` and the body is not read. The hold is released once: when the handler returns, or when the connection closes, including after a panic or a client that disconnects mid-body. A route `BodyLimit` larger than the budget logs a warning and is rejected with 413; production refuses to boot, and `HTTP_STRICT_LIMITS` does the same in every environment. `zatrano doctor` reports it as APP-HTTP-006.
+
+An early 413 or 503 does not drop the TCP connection before the client can read it. rawhttp 0.2.3 lingers on that close. `MaxLingering` defaults to 1024 connections; a negative value is unlimited. Connections past the cap are closed immediately.
+
+| Body | V2 | V3 |
+| --- | --- | --- |
+| JSON, urlencoded, `text/*` | 2 MiB | 2 MiB at header time (`MAX_BODY_BYTES`). `Request.JSON` still stops at 2 MiB. |
+| Multipart, octet-stream, other, missing type | route / php limit | 32 MiB server ceiling unless `BodyLimit` or `MAX_UPLOAD_BYTES` says otherwise |
+| Chunked over the cap | 413 | 413. v3.0.0–v3.0.1 could return 431 when the body exceeded the read buffer (rawhttp 0.2.2). |
+| Over the in-flight budget | not applied | 503 and `Retry-After: 1`. One request that cannot fit the budget at all is 413. |
+| Header block | bufio 4 KiB | 16 KiB (`HTTP_MAX_HEADER_BYTES`). Over the limit is 431. v3.0.0–v3.0.1 used 1 MiB. |
+
+`Stream` and `StreamBody` re-arm the write deadline before each chunk. `ClearWriteDeadline` removes it and accepts a peer that stops reading. `Hijack` always clears it.
+
+WebSocket admission, first match wins:
+
+| Order | Source |
+| --- | --- |
+| 1 | `HTTP_ALLOW_UPGRADE=false` forces admission off |
+| 2 | `ListenOptions.AllowUpgrade`, including `serve --allow-upgrade` |
+| 3 | `HTTP_ALLOW_UPGRADE=true` |
+| 4 | `RegisterUpgradeProtocol` |
+| 5 | linked `websocket` addon |
+| 6 | `EnabledAddons` contains `websocket` |
+
+Default is off. `Upgrade: h2c` is rejected even when admission is open. A valid websocket handshake to a route that does not hijack the connection is answered, then the connection is closed.
 
 ## Application lifecycle
 
@@ -298,7 +373,15 @@ Application.Stop
     → Stopped
 ```
 
-HTTP is not dispatched until `Booted`. `/up` is process liveness after Bootstrap. `package:enable health` adds `/health`. `Run()` shuts HTTP down within 15s on `SIGINT`/`SIGTERM`, then `Stop` in reverse provider order.
+HTTP is not dispatched until `Booted`. `/up` is process liveness after Bootstrap. `package:enable health` adds `/health`. `Run()` shuts down within 15s on `SIGINT`/`SIGTERM`. The order is shutdown hooks, then rawhttp `Shutdown`, then `Stop` in reverse provider order. Hooks run concurrently. Each one gets `min(5s, remaining/3)`. A panic or a returned error is logged and does not stop the shutdown. A second pass over the same shutdown does nothing, and a hook registered after shutdown has started is ignored. If `Shutdown` returns `context.DeadlineExceeded` because a handler is still inside `Hijack`, `Close` drops that connection so the process can leave.
+
+```go
+http.RegisterShutdownHook("jobs", func(ctx context.Context) error {
+    return jobs.Shutdown(ctx)
+})
+```
+
+`packages/websocket` registers its own hook. On shutdown it refuses new upgrades with 503, writes a close frame `1001 Going Away` (write deadline 1s), waits for the peer close or 1s, then closes the connection. An application author does not register a second hook for those sockets.
 
 ```go
 BootstrapContext(ctx context.Context) error

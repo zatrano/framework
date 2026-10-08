@@ -61,6 +61,40 @@ func TestFrozenRouteComposesMiddlewareOnce(t *testing.T) {
 	}
 }
 
+func TestUnmatchedRunsGlobalMiddleware(t *testing.T) {
+	r := routing.New()
+	hits := 0
+	r.Use(func(next routing.HandlerFunc) routing.HandlerFunc {
+		return func(req *http.Request) *http.Response {
+			hits++
+			return next(req)
+		}
+	})
+	r.Get("/ok", func(*http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	if err := r.Freeze(); err != nil {
+		t.Fatal(err)
+	}
+	if r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/ok", nil))).StatusCode() != 200 {
+		t.Fatal("match")
+	}
+	if hits != 1 {
+		t.Fatalf("match hits=%d", hits)
+	}
+	miss := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/missing", nil)))
+	if miss.StatusCode() != 404 {
+		t.Fatalf("status=%d", miss.StatusCode())
+	}
+	if hits != 2 {
+		t.Fatalf("miss hits=%d want 2", hits)
+	}
+	other := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodPost, "/ok", nil)))
+	if other.StatusCode() != 404 || other.Headers().Get("Allow") != "" {
+		t.Fatalf("status=%d allow=%q", other.StatusCode(), other.Headers().Get("Allow"))
+	}
+}
+
 func TestRouterRedirectAndNamed(t *testing.T) {
 	r := routing.New()
 	r.Get("/home", func(req *http.Request) *http.Response {

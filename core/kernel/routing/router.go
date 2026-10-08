@@ -2,6 +2,7 @@ package routing
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -17,21 +18,25 @@ type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
 // Route represents a registered route.
 type Route struct {
-	Method        string
-	Path          string
-	Name          string
-	Handler       HandlerFunc
-	Middleware    []MiddlewareFunc
-	paramNames    []string
-	pattern       *regexp.Regexp
-	namePrefix    string
-	router        *Router
-	frozenName    string
-	frozenPath    string
-	frozenMethod  string
-	frozenHandler HandlerFunc
-	frozenMW      []MiddlewareFunc
-	frozenChain   HandlerFunc
+	Method             string
+	Path               string
+	Name               string
+	Handler            HandlerFunc
+	Middleware         []MiddlewareFunc
+	paramNames         []string
+	pattern            *regexp.Regexp
+	namePrefix         string
+	router             *Router
+	frozenName         string
+	frozenPath         string
+	frozenMethod       string
+	frozenHandler      HandlerFunc
+	frozenMW           []MiddlewareFunc
+	frozenChain        HandlerFunc
+	bodyLimit          int64
+	bodyLimitSet       bool
+	frozenBodyLimit    int64
+	frozenBodyLimitSet bool
 }
 
 type methodTable struct {
@@ -52,7 +57,9 @@ type Router struct {
 	frozenGlobalMW      []MiddlewareFunc
 	frozenFallback      HandlerFunc
 	frozenFallbackChain HandlerFunc
+	frozenNotFound      HandlerFunc
 	byMethod            map[string]*methodTable
+	minBodyLimit        int64 // smallest positive BodyLimit; 0 if none
 }
 
 // New creates a new router.
@@ -93,6 +100,8 @@ func (r *Router) Freeze() error {
 	r.frozenFallback = r.fallback
 	if r.frozenFallback != nil {
 		r.frozenFallbackChain = composeHandler(r.frozenFallback, r.frozenGlobalMW)
+	} else {
+		r.frozenNotFound = composeHandler(routerNotFound, r.frozenGlobalMW)
 	}
 	for _, route := range r.routes {
 		if route == nil {
@@ -105,6 +114,8 @@ func (r *Router) Freeze() error {
 		route.frozenMW = append([]MiddlewareFunc{}, route.Middleware...)
 		stack := append(append([]MiddlewareFunc{}, r.frozenGlobalMW...), route.frozenMW...)
 		route.frozenChain = composeHandler(route.frozenHandler, stack)
+		route.frozenBodyLimit = route.bodyLimit
+		route.frozenBodyLimitSet = route.bodyLimitSet
 	}
 	r.frozen = true
 	return nil
@@ -281,6 +292,59 @@ func (r *Router) Add(method, path string, handler HandlerFunc) *Route {
 	return route
 }
 
+// BodyLimit sets the header-time body cap for this route, in bytes.
+// A negative value uses the server ceiling. A positive value is passed to
+// rawhttp as RequestConfig.MaxRequestBodySize and may exceed the server
+// ceiling. The router is consulted only for requests that can exceed the
+// content-type default (Content-Length above that default, or a chunked body).
+// GET and HEAD never consult it. The match is lookupRoute, the same resolver
+// Dispatch uses. An unknown method override or several candidate routes keeps
+// the tightest cap. A cap above both the server ceiling and the in-flight
+// budget is not granted.
+// Callers use routing.From(app) so the concrete *Route is returned.
+func (route *Route) BodyLimit(n int64) *Route {
+	if route == nil {
+		return nil
+	}
+	if route.router != nil {
+		route.router.mutate()
+	}
+	route.bodyLimit = n
+	route.bodyLimitSet = true
+	if n > 0 {
+		if budget := http.MaxInflightBodyBytes(); budget >= 0 && n > budget {
+			log.Printf("[WARN] route body limit %d exceeds HTTP_MAX_INFLIGHT_BODY_BYTES %d; a request at that cap is rejected with 413", n, budget)
+		}
+	}
+	if route.router != nil && n > 0 && (route.router.minBodyLimit == 0 || n < route.router.minBodyLimit) {
+		route.router.minBodyLimit = n
+	}
+	return route
+}
+
+// BodyLimitsAbove lists routes whose BodyLimit is above budget.
+// A negative budget means the budget is off and the list is empty.
+func (r *Router) BodyLimitsAbove(budget int64) []string {
+	if r == nil || budget < 0 {
+		return nil
+	}
+	var out []string
+	for _, route := range r.routes {
+		if route == nil || !route.bodyLimitSet || route.bodyLimit <= budget {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s %s = %d", route.Method, route.Path, route.bodyLimit))
+	}
+	return out
+}
+
+// HasTighterBodyLimit reports whether some route cap is below the content-type
+// default. Header-time lookup must run in that case so a small body is not
+// granted more than the route Dispatch will use.
+func (r *Router) HasTighterBodyLimit(than int64) bool {
+	return r != nil && r.minBodyLimit > 0 && r.minBodyLimit < than
+}
+
 // As assigns a name to the route (with any active group name prefix).
 func (route *Route) As(name string) *Route {
 	if route != nil && route.router != nil {
@@ -380,12 +444,105 @@ func (r *Router) Dispatch(req *http.Request) *http.Response {
 		}
 		return r.invokeHandler(req, fallback, mw)
 	}
+	if r.frozen && r.frozenNotFound != nil {
+		return r.frozenNotFound(req)
+	}
+	return r.invokeHandler(req, routerNotFound, r.middleware)
+}
+
+func routerNotFound(*http.Request) *http.Response {
 	return http.Abort(404, "Not Found")
 }
 
+// BodyLimitFor reports the route cap for method+path.
+// set is false when no route matches or the route did not call BodyLimit.
+// Path and method rules are lookupRoute, the same resolver Dispatch uses.
+func (r *Router) BodyLimitFor(method, path string) (limit int64, set bool) {
+	route, _ := r.lookupRoute(method, path)
+	if route == nil {
+		return 0, false
+	}
+	if r.frozen {
+		return route.frozenBodyLimit, route.frozenBodyLimitSet
+	}
+	return route.bodyLimit, route.bodyLimitSet
+}
+
+// lookupRoute is the single method+path resolver. Dispatch (via match) and
+// header-time BodyLimit both call it. The path loses a trailing slash except
+// for "/". Case, percent-encoding, "." and ".." segments, and extra slashes
+// are left as the carrier delivered them. params is non-nil only when a
+// frozen pattern route matched.
+func (r *Router) lookupRoute(method, path string) (*Route, map[string]string) {
+	hit := r.resolve(method, path, true)
+	return hit.route, hit.params
+}
+
+// routeHit is one resolver result. subs is the unfrozen regexp capture,
+// including the full match at index 0, so bind does not run the pattern again.
+type routeHit struct {
+	route  *Route
+	params map[string]string
+	subs   []string
+}
+
+// resolve matches method+path. normalize folds a trailing slash once.
+// Callers that already folded the path pass normalize false.
+func (r *Router) resolve(method, path string, normalize bool) routeHit {
+	if r == nil {
+		return routeHit{}
+	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if normalize {
+		path = normalizeRoutePath(path)
+	}
+	if r.byMethod != nil {
+		t := r.byMethod[method]
+		if t == nil {
+			return routeHit{}
+		}
+		if route := t.static[path]; route != nil {
+			return routeHit{route: route}
+		}
+		if t.tree == nil {
+			return routeHit{}
+		}
+		params := map[string]string{}
+		if route := t.tree.lookup(requestSegs(path), params); route != nil {
+			return routeHit{route: route, params: params}
+		}
+		return routeHit{}
+	}
+	for _, route := range r.routes {
+		if route == nil || route.Method != method || route.pattern == nil {
+			continue
+		}
+		subs := route.pattern.FindStringSubmatch(path)
+		if subs == nil {
+			continue
+		}
+		return routeHit{route: route, subs: subs}
+	}
+	return routeHit{}
+}
+
+func normalizeRoutePath(path string) string {
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		return strings.TrimRight(path, "/")
+	}
+	return path
+}
+
 func (r *Router) match(req *http.Request) *Route {
+	if req == nil {
+		return nil
+	}
 	path := req.Path()
 	method := req.Method()
+	// Frozen exact static hit. Dispatch already stripped a trailing slash, and
+	// registration stores the method uppercase, so GET /plaintext does not
+	// normalize or call lookupRoute. A miss falls through and folds the path
+	// once.
 	if r.byMethod != nil {
 		if t := r.byMethod[method]; t != nil {
 			if route := t.static[path]; route != nil {
@@ -393,31 +550,26 @@ func (r *Router) match(req *http.Request) *Route {
 				req.SetRouteName(route.dispatchName())
 				return route
 			}
-			if t.tree != nil {
-				params := map[string]string{}
-				if route := t.tree.lookup(requestSegs(path), params); route != nil {
-					req.SetRouteParams(params)
-					req.SetRouteName(route.dispatchName())
-					return route
-				}
-			}
 		}
+	}
+	hit := r.resolve(method, normalizeRoutePath(path), false)
+	if hit.route == nil {
 		return nil
 	}
-	for _, route := range r.routes {
-		if route.Method != method {
-			continue
+	if r.byMethod == nil {
+		if !r.bindSubs(req, hit.route, hit.subs) {
+			return nil
 		}
-		if r.bind(req, route, path) {
-			return route
-		}
+		return hit.route
 	}
-	return nil
+	req.SetRouteParams(hit.params)
+	req.SetRouteName(hit.route.dispatchName())
+	return hit.route
 }
 
-func (r *Router) bind(req *http.Request, route *Route, path string) bool {
-	matches := route.pattern.FindStringSubmatch(path)
-	if matches == nil {
+// bindSubs fills route params from a match resolve already computed.
+func (r *Router) bindSubs(req *http.Request, route *Route, matches []string) bool {
+	if len(matches) == 0 {
 		return false
 	}
 	params := make(map[string]string, len(route.paramNames))

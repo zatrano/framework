@@ -31,9 +31,58 @@ func TestCORSWithOrigin(t *testing.T) {
 
 	opt := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
 	opt.Header.Set("Origin", "https://app.example")
+	opt.Header.Set("Access-Control-Request-Method", "GET")
 	preflight := handler(http.RequestFromHTTP(opt))
 	if preflight.StatusCode() != 204 {
 		t.Fatalf("status=%d", preflight.StatusCode())
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Origin") != "https://app.example" {
+		t.Fatalf("acao=%q", preflight.Headers().Get("Access-Control-Allow-Origin"))
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Methods") != "GET, OPTIONS" {
+		t.Fatalf("methods=%q", preflight.Headers().Get("Access-Control-Allow-Methods"))
+	}
+	if preflight.Headers().Get("Access-Control-Allow-Headers") != "Content-Type" {
+		t.Fatalf("headers=%q", preflight.Headers().Get("Access-Control-Allow-Headers"))
+	}
+	if preflight.Headers().Get("Access-Control-Max-Age") != "60" {
+		t.Fatalf("max-age=%q", preflight.Headers().Get("Access-Control-Max-Age"))
+	}
+	if preflight.Headers().Get("Vary") != "Origin, Access-Control-Request-Method, Access-Control-Request-Headers" {
+		t.Fatalf("vary=%q", preflight.Headers().Get("Vary"))
+	}
+
+	plain := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
+	plain.Header.Set("Origin", "https://app.example")
+	hit := handler(http.RequestFromHTTP(plain))
+	if hit.StatusCode() != 200 {
+		t.Fatalf("non-preflight OPTIONS status=%d", hit.StatusCode())
+	}
+
+	deniedHit := false
+	denied := mw(func(req *http.Request) *http.Response {
+		deniedHit = true
+		return http.Text("no")
+	})
+	bad := httptest.NewRequest(stdhttp.MethodOptions, "/api/health", nil)
+	bad.Header.Set("Origin", "https://evil.example")
+	bad.Header.Set("Access-Control-Request-Method", "POST")
+	deniedResp := denied(http.RequestFromHTTP(bad))
+	if deniedHit {
+		t.Fatal("disallowed preflight must not reach later middleware")
+	}
+	if deniedResp.StatusCode() != 404 {
+		t.Fatalf("denied status=%d", deniedResp.StatusCode())
+	}
+	for _, h := range []string{
+		"Access-Control-Allow-Origin",
+		"Access-Control-Allow-Methods",
+		"Access-Control-Allow-Headers",
+		"Access-Control-Max-Age",
+	} {
+		if deniedResp.Headers().Get(h) != "" {
+			t.Fatalf("denied %s=%q", h, deniedResp.Headers().Get(h))
+		}
 	}
 }
 
@@ -143,6 +192,146 @@ func TestCORSFromEnvUsesSnapshotNotProcessEnv(t *testing.T) {
 	resp := handler(http.RequestFromHTTP(r))
 	if resp.Headers().Get("Access-Control-Allow-Origin") == "*" {
 		t.Fatal("CORS production snapshot must ignore later APP_ENV")
+	}
+}
+
+func TestCORSOriginTable(t *testing.T) {
+	mw := middleware.CORSWith(middleware.CORSConfig{
+		AllowOrigins: []string{"https://app.example"},
+		AllowMethods: "GET, POST, OPTIONS",
+		AllowHeaders: "Content-Type, Authorization",
+		MaxAge:       600,
+	})
+	nextHits := 0
+	handler := mw(func(req *http.Request) *http.Response {
+		nextHits++
+		if req.Path() == "/missing" {
+			return http.Abort(404, "Not Found")
+		}
+		return http.Text("ok")
+	})
+
+	cases := []struct {
+		name       string
+		method     string
+		path       string
+		origins    []string
+		acrMethod  string
+		acrHeaders string
+		status     int
+		acao       string
+		allowHdr   string
+		vary       string
+		hit        bool
+	}{
+		{name: "exact", method: "GET", path: "/", origins: []string{"https://app.example"}, status: 200, acao: "https://app.example", allowHdr: "Content-Type, Authorization", vary: "Origin", hit: true},
+		{name: "null", method: "GET", path: "/", origins: []string{"null"}, status: 200, vary: "Origin", hit: true},
+		{name: "scheme case", method: "GET", path: "/", origins: []string{"HTTPS://app.example"}, status: 200, vary: "Origin", hit: true},
+		{name: "host case", method: "GET", path: "/", origins: []string{"https://APP.example"}, status: 200, vary: "Origin", hit: true},
+		{name: "port", method: "GET", path: "/", origins: []string{"https://app.example:8443"}, status: 200, vary: "Origin", hit: true},
+		{name: "slash", method: "GET", path: "/", origins: []string{"https://app.example/"}, status: 200, vary: "Origin", hit: true},
+		{name: "multi", method: "GET", path: "/", origins: []string{"https://app.example", "https://other.example"}, status: 200, vary: "Origin", hit: true},
+		{name: "options no origin", method: "OPTIONS", path: "/", status: 200, hit: true},
+		{name: "404 match", method: "GET", path: "/missing", origins: []string{"https://app.example"}, status: 404, acao: "https://app.example", allowHdr: "Content-Type, Authorization", vary: "Origin", hit: true},
+		{name: "404 other", method: "GET", path: "/missing", origins: []string{"https://evil.example"}, status: 404, vary: "Origin", hit: true},
+		{name: "preflight intersect", method: "OPTIONS", path: "/", origins: []string{"https://app.example"}, acrMethod: "POST", acrHeaders: "authorization, X-Evil", status: 204, acao: "https://app.example", allowHdr: "Authorization", vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"},
+		{name: "preflight empty intersect", method: "OPTIONS", path: "/", origins: []string{"https://app.example"}, acrMethod: "POST", acrHeaders: "X-Evil", status: 204, acao: "https://app.example", vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"},
+		{name: "preflight no acr headers", method: "OPTIONS", path: "/", origins: []string{"https://app.example"}, acrMethod: "GET", status: 204, acao: "https://app.example", allowHdr: "Content-Type, Authorization", vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"},
+		{name: "preflight denied", method: "OPTIONS", path: "/", origins: []string{"https://evil.example"}, acrMethod: "GET", status: 404, vary: "Origin"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			before := nextHits
+			raw := httptest.NewRequest(tc.method, tc.path, nil)
+			for _, o := range tc.origins {
+				raw.Header.Add("Origin", o)
+			}
+			if tc.acrMethod != "" {
+				raw.Header.Set("Access-Control-Request-Method", tc.acrMethod)
+			}
+			if tc.acrHeaders != "" {
+				raw.Header.Set("Access-Control-Request-Headers", tc.acrHeaders)
+			}
+			resp := handler(http.RequestFromHTTP(raw))
+			if resp.StatusCode() != tc.status {
+				t.Fatalf("status=%d", resp.StatusCode())
+			}
+			if resp.Headers().Get("Access-Control-Allow-Origin") != tc.acao {
+				t.Fatalf("acao=%q", resp.Headers().Get("Access-Control-Allow-Origin"))
+			}
+			if resp.Headers().Get("Access-Control-Allow-Headers") != tc.allowHdr {
+				t.Fatalf("allow-headers=%q", resp.Headers().Get("Access-Control-Allow-Headers"))
+			}
+			if resp.Headers().Get("Vary") != tc.vary {
+				t.Fatalf("vary=%q", resp.Headers().Get("Vary"))
+			}
+			hit := nextHits > before
+			if hit != tc.hit {
+				t.Fatalf("next hit=%v", hit)
+			}
+			if tc.status == 204 && resp.Headers().Get("Access-Control-Max-Age") != "600" {
+				t.Fatalf("max-age=%q", resp.Headers().Get("Access-Control-Max-Age"))
+			}
+		})
+	}
+}
+
+func TestCORSMaxAgeFromEnv(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example")
+	t.Setenv("CORS_MAX_AGE", "")
+	mw := middleware.CORSFromEnv("production")
+	handler := mw(func(req *http.Request) *http.Response { return http.NoContent() })
+	raw := httptest.NewRequest(stdhttp.MethodOptions, "/", nil)
+	raw.Header.Set("Origin", "https://app.example")
+	raw.Header.Set("Access-Control-Request-Method", "GET")
+	resp := handler(http.RequestFromHTTP(raw))
+	if resp.Headers().Get("Access-Control-Max-Age") != "600" {
+		t.Fatalf("default max-age=%q", resp.Headers().Get("Access-Control-Max-Age"))
+	}
+
+	t.Setenv("CORS_MAX_AGE", "120")
+	mw = middleware.CORSFromEnv("production")
+	handler = mw(func(req *http.Request) *http.Response { return http.NoContent() })
+	resp = handler(http.RequestFromHTTP(raw))
+	if resp.Headers().Get("Access-Control-Max-Age") != "120" {
+		t.Fatalf("max-age=%q", resp.Headers().Get("Access-Control-Max-Age"))
+	}
+}
+
+func TestCORSCredentialsWildcardIsBootError(t *testing.T) {
+	t.Setenv("CORS_ALLOW_CREDENTIALS", "true")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
+	if err := middleware.ValidateCORSEnv("local"); err == nil {
+		t.Fatal("explicit wildcard")
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example,*")
+	if err := middleware.ValidateCORSEnv("production"); err == nil {
+		t.Fatal("mixed wildcard")
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	if err := middleware.ValidateCORSEnv("local"); err == nil {
+		t.Fatal("implicit development wildcard")
+	}
+	if err := middleware.ValidateCORSEnv("production"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example")
+	if err := middleware.ValidateCORSEnv("production"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCORSUnconfiguredAddsNothing(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	t.Setenv("CORS_ALLOW_CREDENTIALS", "false")
+	mw := middleware.CORSFromEnv("production")
+	handler := mw(func(req *http.Request) *http.Response { return http.Text("ok") })
+	raw := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
+	raw.Header.Set("Origin", "https://app.example")
+	resp := handler(http.RequestFromHTTP(raw))
+	if resp.Headers().Get("Vary") != "" || resp.Headers().Get("Access-Control-Allow-Origin") != "" || resp.Headers().Get("Access-Control-Allow-Methods") != "" {
+		t.Fatalf("headers=%v", resp.Headers())
 	}
 }
 

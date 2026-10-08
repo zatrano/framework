@@ -1,6 +1,7 @@
 package contracts
 
 // Route is a registered HTTP route (name assignment only on this surface).
+// Per-route body caps live on routing.Route via routing.From(app).
 type Route interface {
 	As(name string) Route
 }
