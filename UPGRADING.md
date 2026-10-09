@@ -22,6 +22,18 @@ v3.1.0 is a minor release. `go get -u=patch` does not cross it. The last publish
 | `zatrano doctor` | No in-flight body rules. | APP-HTTP-006: a route `BodyLimit` above `HTTP_MAX_INFLIGHT_BODY_BYTES`. APP-HTTP-007: `TRUSTED_PROXIES` is empty, so clients behind one address share one key. Behind a CDN that key is the edge address (64 MiB at the default 25% share). | APP-HTTP-006: lower `BodyLimit`, or raise the budget. Production already refuses to boot; `HTTP_STRICT_LIMITS` does that in every environment. APP-HTTP-007: set `TRUSTED_PROXIES`, or set `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` negative. |
 | `VERSION` and `zatrano version` | The v3.0.1 tag left the `VERSION` file at `3.0.0`. | `VERSION` is `3.1.0`. `zatrano version` reads that file and falls back to the same number. Release CI rejects a tag whose name, without the leading `v`, differs from `VERSION`. | None. The product version and the module tag are the same string. |
 
+## Upgrading from v3.1.0
+
+v3.1.1 is a patch. `zatrano new` runs `go mod tidy` in the new project (120 second timeout) with your `go` binary. `GOFLAGS` and `GOPROXY` are left unchanged. This is a convenience. v3.1.0 already printed `go mod tidy` as the next step. When tidy succeeds, that line is omitted and `go build ./...` works immediately.
+
+`--no-tidy` skips the automatic tidy. The Next list then keeps `go mod tidy`, and the command prints one line:
+
+```text
+Run `go mod tidy` in <dir> before building
+```
+
+The same one line, and the same Next list, is what you get when tidy fails, times out, or cannot find `go`. The command still exits 0. `<dir>` is the project directory. `--replace` tries tidy the same way. A tidy failure does not fail the command.
+
 ## Environment
 
 Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`, or `os.Getenv`. `TestEnvironmentVariablesAreDocumented` fails when code reads an `HTTP_*`, `MAX_*`, `CORS_*`, or `TRUSTED_PROXIES` variable that is missing from this table.

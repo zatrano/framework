@@ -4,6 +4,12 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.1 - 2026-10-09
+
+### Added
+
+- `zatrano new` runs `go mod tidy` after writing the project. This is a convenience: the command already printed `go mod tidy` as the next step. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips the step. If tidy fails, times out after 120 seconds, or `--no-tidy` skips it, the command still exits 0, the Next list keeps `go mod tidy`, and exactly one line is printed: Run `go mod tidy` in <dir> before building. `GOFLAGS` and `GOPROXY` are left unchanged. `--replace` uses the same path and does not fail the command when tidy fails.
+
 ## 3.1.0 - 2026-10-07
 
 Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed. Behavior changes and the way back are in [Upgrading from v3.0.1](UPGRADING.md).
