@@ -104,6 +104,8 @@ jobs:
       - name: Scaffold and build
         id: app
         shell: bash
+        env:
+          SMOKE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           unset GOWORK
@@ -116,7 +118,57 @@ jobs:
           work="${RUNNER_TEMP}/smoke"
           mkdir -p "$work"
           cd "$work"
-          zatrano new demo
+          ver="${SMOKE_VERSION#v}"
+          # v3.1.0 does not know --framework-version and does not tidy.
+          # 3.1.1 and newer tidy inside zatrano new.
+          if [ "$(printf '%s\n%s\n' "3.1.1" "$ver" | sort -V | head -n 1)" = "3.1.1" ]; then
+            for attempt in 1 2 3 4 5; do
+              rm -rf demo
+              set +e
+              out=$(zatrano new demo --framework-version "$SMOKE_VERSION" 2>&1)
+              status=$?
+              set -e
+              printf '%s\n' "$out"
+              if [ "$status" -eq 0 ] && ! printf '%s\n' "$out" | grep -Eqi 'unknown revision'; then
+                break
+              fi
+              if ! printf '%s\n' "$out" | grep -Eqi 'unknown revision'; then
+                echo "zatrano new failed" >&2
+                exit 1
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "zatrano new tidy failed after 5 attempts" >&2
+                exit 1
+              fi
+              echo "proxy lag (unknown revision); retrying in 30s" >&2
+              sleep 30
+            done
+          else
+            rm -rf demo
+            zatrano new demo
+            cd demo
+            for attempt in 1 2 3 4 5; do
+              set +e
+              out=$(go mod tidy 2>&1)
+              status=$?
+              set -e
+              printf '%s\n' "$out"
+              if [ "$status" -eq 0 ]; then
+                break
+              fi
+              if ! printf '%s\n' "$out" | grep -Eqi 'unknown revision'; then
+                echo "go mod tidy failed" >&2
+                exit 1
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "go mod tidy failed after 5 attempts" >&2
+                exit 1
+              fi
+              echo "proxy lag (unknown revision); retrying in 30s" >&2
+              sleep 30
+            done
+            cd "$work"
+          fi
           cd demo
           go build ./...
           bin="${RUNNER_TEMP}/smokeapp"
@@ -370,6 +422,8 @@ jobs:
 
       - name: Scaffold without tidy, then tidy and build
         shell: bash
+        env:
+          SMOKE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           unset GOWORK
@@ -382,11 +436,37 @@ jobs:
           work="${RUNNER_TEMP}/smoke-no-tidy"
           mkdir -p "$work"
           cd "$work"
-          zatrano new demo --no-tidy
+          ver="${SMOKE_VERSION#v}"
+          rm -rf demo
+          # v3.1.0 does not know --no-tidy or --framework-version.
+          if [ "$(printf '%s\n%s\n' "3.1.1" "$ver" | sort -V | head -n 1)" = "3.1.1" ]; then
+            zatrano new demo --no-tidy --framework-version "$SMOKE_VERSION"
+          else
+            zatrano new demo
+          fi
           cd demo
           if [ -f go.sum ]; then
-            echo "--no-tidy must leave go.sum missing" >&2
+            echo "go.sum must be absent before the hand tidy" >&2
             exit 1
           fi
-          go mod tidy
+          for attempt in 1 2 3 4 5; do
+            set +e
+            out=$(go mod tidy 2>&1)
+            status=$?
+            set -e
+            printf '%s\n' "$out"
+            if [ "$status" -eq 0 ]; then
+              break
+            fi
+            if ! printf '%s\n' "$out" | grep -Eqi 'unknown revision'; then
+              echo "go mod tidy failed" >&2
+              exit 1
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "go mod tidy failed after 5 attempts" >&2
+              exit 1
+            fi
+            echo "proxy lag (unknown revision); retrying in 30s" >&2
+            sleep 30
+          done
           go build ./...
