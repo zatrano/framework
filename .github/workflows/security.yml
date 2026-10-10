@@ -4,7 +4,9 @@ on:
   push:
     branches: [main, '*.x']
   pull_request:
+  workflow_dispatch:
   schedule:
+    - cron: '0 6 * * *'
     - cron: '0 6 * * 1'
 
 permissions:
@@ -152,7 +154,8 @@ jobs:
           path: rawhttp
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.13'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
           cache-dependency-path: framework/go.mod
       - run: go mod download
