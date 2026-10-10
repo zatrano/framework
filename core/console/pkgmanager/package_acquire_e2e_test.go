@@ -311,6 +311,24 @@ func writePublishedConsumer(t *testing.T, frameworkVer, packagesVer, packagesDir
 	return root
 }
 
+// fetchPublishedPackages downloads the packages pin and fills go.sum.
+// go get alone leaves out sums for the replaced framework module's imports.
+func fetchPublishedPackages(t *testing.T, ctx context.Context, root, packagesVer string, env []string) {
+	t.Helper()
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+packagesVer)
+	get.Dir = root
+	get.Env = env
+	if out, err := get.CombinedOutput(); err != nil {
+		t.Fatalf("go get packages: %v\n%s", err, out)
+	}
+	tidy := exec.CommandContext(ctx, "go", "mod", "tidy")
+	tidy.Dir = root
+	tidy.Env = env
+	if out, err := tidy.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy: %v\n%s", err, out)
+	}
+}
+
 func TestExplicitPackagesCheckoutIgnoresSibling(t *testing.T) {
 	t.Setenv("ZATRANO_PACKAGES_DIR", "")
 	t.Setenv("PACKAGES_DIR", filepath.Join(filepath.Dir(frameworkRoot(t)), "packages"))
@@ -401,12 +419,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+pkg)
-	get.Dir = root
-	get.Env = env
-	if out, err := get.CombinedOutput(); err != nil {
-		t.Fatalf("boot setup go get packages: %v\n%s", err, out)
-	}
+	fetchPublishedPackages(t, ctx, root, pkg, env)
 	c := exec.CommandContext(ctx, "go", "run", "./cmd/bootcheck")
 	c.Dir = root
 	c.Env = env
@@ -565,12 +578,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+pkg)
-	get.Dir = root
-	get.Env = env
-	if out, err := get.CombinedOutput(); err != nil {
-		t.Fatalf("runtime setup go get: %v\n%s", err, out)
-	}
+	fetchPublishedPackages(t, ctx, root, pkg, env)
 	c := exec.CommandContext(ctx, "go", "run", "./cmd/runtimecheck")
 	c.Dir = root
 	c.Env = env
