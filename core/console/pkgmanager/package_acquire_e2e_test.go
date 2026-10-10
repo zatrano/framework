@@ -233,10 +233,120 @@ func TestPackageAcquireEnablePreservesSelectedPin(t *testing.T) {
 	}
 }
 
+// e2ePublishedVersions reads the framework module version from VERSION and
+// the packages version from the package:enable pin.
+func e2ePublishedVersions(t *testing.T) (frameworkVer, packagesVer string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(frameworkRoot(t), "VERSION"))
+	if err != nil {
+		t.Fatalf("VERSION: %v", err)
+	}
+	fw := strings.TrimSpace(string(raw))
+	if fw == "" {
+		t.Fatal("VERSION is empty")
+	}
+	if !strings.HasPrefix(fw, "v") {
+		fw = "v" + fw
+	}
+	const prefix = "github.com/zatrano/packages@"
+	if !strings.HasPrefix(packagesModuleGetArg, prefix) {
+		t.Fatalf("package:enable pin %q", packagesModuleGetArg)
+	}
+	pkg := strings.TrimPrefix(packagesModuleGetArg, prefix)
+	if pkg == "" {
+		t.Fatal("package:enable pin has no version")
+	}
+	return fw, pkg
+}
+
+// skipPinnedPackagesOnFramework31 skips while packages v1.14.0 cannot build
+// against this v3.1.x framework. packages v1.15.0 removes the skip.
+func skipPinnedPackagesOnFramework31(t *testing.T, frameworkVer, packagesVer string) {
+	t.Helper()
+	base := strings.TrimPrefix(frameworkVer, "v")
+	if i := strings.IndexByte(base, '-'); i >= 0 {
+		base = base[:i]
+	}
+	parts := strings.Split(base, ".")
+	if packagesVer == "v1.14.0" && len(parts) >= 2 && parts[0] == "3" && parts[1] == "1" {
+		t.Skipf("pin v1.14.0 requires framework <= v3.0.1; unblocked by packages v1.15.0")
+	}
+}
+
+// explicitPackagesCheckout returns a packages checkout only when
+// ZATRANO_PACKAGES_DIR is set. Sibling ../packages and PACKAGES_DIR are ignored.
+func explicitPackagesCheckout(t *testing.T) string {
+	t.Helper()
+	p := strings.TrimSpace(os.Getenv("ZATRANO_PACKAGES_DIR"))
+	if p == "" {
+		return ""
+	}
+	st, err := os.Stat(p)
+	if err != nil || !st.IsDir() {
+		t.Fatalf("ZATRANO_PACKAGES_DIR %q is not a directory", p)
+	}
+	return p
+}
+
+func writePublishedConsumer(t *testing.T, frameworkVer, packagesVer, packagesDir string) string {
+	t.Helper()
+	root := t.TempDir()
+	var b strings.Builder
+	b.WriteString("module example.com/acq-e2e\n\ngo 1.25.0\n\n")
+	b.WriteString("require github.com/zatrano/framework/v3 " + frameworkVer + "\n")
+	b.WriteString("require github.com/zatrano/packages " + packagesVer + "\n\n")
+	// VERSION is this checkout. It is not on the proxy until the tag, so the
+	// test builds the tree under test and downloads the published packages pin.
+	b.WriteString("replace github.com/zatrano/framework/v3 => " + quoteGoModPath(frameworkRoot(t)) + "\n")
+	if packagesDir != "" {
+		b.WriteString("\nreplace github.com/zatrano/packages => " + quoteGoModPath(packagesDir) + "\n")
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "bootstrap"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOTOOLCHAIN", "local")
+	return root
+}
+
+// fetchPublishedPackages downloads the packages pin and fills go.sum.
+// go get alone leaves out sums for the replaced framework module's imports.
+func fetchPublishedPackages(t *testing.T, ctx context.Context, root, packagesVer string, env []string) {
+	t.Helper()
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+packagesVer)
+	get.Dir = root
+	get.Env = env
+	if out, err := get.CombinedOutput(); err != nil {
+		t.Fatalf("go get packages: %v\n%s", err, out)
+	}
+	tidy := exec.CommandContext(ctx, "go", "mod", "tidy")
+	tidy.Dir = root
+	tidy.Env = env
+	if out, err := tidy.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy: %v\n%s", err, out)
+	}
+}
+
+func TestExplicitPackagesCheckoutIgnoresSibling(t *testing.T) {
+	t.Setenv("ZATRANO_PACKAGES_DIR", "")
+	t.Setenv("PACKAGES_DIR", filepath.Join(filepath.Dir(frameworkRoot(t)), "packages"))
+	if got := explicitPackagesCheckout(t); got != "" {
+		t.Fatalf("default must not discover a packages checkout, got %q", got)
+	}
+	dir := t.TempDir()
+	t.Setenv("ZATRANO_PACKAGES_DIR", dir)
+	if got := explicitPackagesCheckout(t); got != dir {
+		t.Fatalf("explicit dir=%q got %q", dir, got)
+	}
+}
+
 func TestPackageAcquireE2EEnableThenBoot(t *testing.T) {
+	fw, pkg := e2ePublishedVersions(t)
+	skipPinnedPackagesOnFramework31(t, fw, pkg)
 	requireGoTool(t)
-	pkgDir := requirePackagesCheckout(t)
-	root := writeIsolatedConsumer(t, pkgDir, nil)
+	root := writePublishedConsumer(t, fw, pkg, explicitPackagesCheckout(t))
 	app := kernel.NewApplication(root)
 
 	var buf bytes.Buffer
@@ -309,14 +419,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with local packages. v3.0.0 is retracted.
-	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.1", "github.com/zatrano/packages/session")
-	get.Dir = root
-	get.Env = env
-	if out, err := get.CombinedOutput(); err != nil {
-		t.Fatalf("boot setup go get framework: %v\n%s", err, out)
-	}
+	fetchPublishedPackages(t, ctx, root, pkg, env)
 	c := exec.CommandContext(ctx, "go", "run", "./cmd/bootcheck")
 	c.Dir = root
 	c.Env = env
@@ -409,9 +512,10 @@ func TestPackageAcquireE2ETaggedReleaseUsesGoGetArg(t *testing.T) {
 }
 
 func TestPackageAcquireE2ERuntimeLifecycle(t *testing.T) {
+	fw, pkg := e2ePublishedVersions(t)
+	skipPinnedPackagesOnFramework31(t, fw, pkg)
 	requireGoTool(t)
-	pkgDir := requirePackagesCheckout(t)
-	root := writeIsolatedConsumer(t, pkgDir, nil)
+	root := writePublishedConsumer(t, fw, pkg, explicitPackagesCheckout(t))
 	app := kernel.NewApplication(root)
 
 	var buf bytes.Buffer
@@ -474,14 +578,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	// Published kernel tag compatible with local packages. v3.0.0 is retracted.
-	// go.mod replace still binds this checkout (HEAD).
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@v3.0.1", "github.com/zatrano/packages/session")
-	get.Dir = root
-	get.Env = env
-	if out, err := get.CombinedOutput(); err != nil {
-		t.Fatalf("runtime setup go get: %v\n%s", err, out)
-	}
+	fetchPublishedPackages(t, ctx, root, pkg, env)
 	c := exec.CommandContext(ctx, "go", "run", "./cmd/runtimecheck")
 	c.Dir = root
 	c.Env = env

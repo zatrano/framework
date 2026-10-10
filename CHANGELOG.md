@@ -4,6 +4,24 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.1 - 2026-10-09
+
+### Added
+
+- `zatrano new` runs `go mod tidy` after writing the project. This is a convenience: the command already printed `go mod tidy` as the next step. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips the step. If tidy fails, times out after 120 seconds, or `--no-tidy` skips it, the command still exits 0, the Next list keeps `go mod tidy`, and exactly one line is printed: Run `go mod tidy` in <dir> before building. `GOFLAGS` and `GOPROXY` are left unchanged. `--replace` uses the same path and does not fail the command when tidy fails.
+- `zatrano new --framework-version vX.Y.Z` writes that version into the generated `go.mod`. The default is this CLI's own version. A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.0`.
+
+### Security
+
+- govulncheck runs on Go 1.26.x with `check-latest`, on pull requests, on demand, and on the daily and weekly schedule. A finding fails the job. There is no exemption. The 2026-10-08 standard library fixes are in go1.26.9 and go1.27.2, not in Go 1.25 (last release go1.25.14, support ended when Go 1.27.0 shipped on 2026-08-19). The module `go` line stays 1.25.0.
+
+### Changed
+
+- First-time `package:enable` pins `github.com/zatrano/packages@v1.15.0`.
+- Unit tests also run on Go 1.26.x. The Go 1.25.13 job stays the minimum-compatibility leg.
+- Framework and generated Dockerfiles build `FROM golang:1.26-alpine` and run on `alpine:3.24` (Alpine 3.20 support ended 2026-04-01). Generated `go.mod` files do not set a `toolchain` line.
+- `zatrano doctor` APP-GO-001 warns when `go env GOVERSION` is older than `RecommendedGoMinimum` (`go1.26.9`). Review that constant on every release. The release workflow warns when it is more than two patches behind the newest stable release on the same minor.
+
 ## 3.1.0 - 2026-10-07
 
 Minor release. New public API (`Route.BodyLimit`, `RegisterUpgradeProtocol`, `ListenOptions.AllowUpgrade`, `RegisterShutdownHook`) and changed defaults (`MaxHeaderBytes` 16 KiB, JSON body cap). `go get -u=patch` does not cross this boundary. Performance work (buffer pool, header list, JSON, request id, streaming multipart) is v3.2.0. Product `VERSION` matches the release tag. `v3.0.1` left `VERSION` at `3.0.0`; that split stays closed. Behavior changes and the way back are in [Upgrading from v3.0.1](UPGRADING.md).

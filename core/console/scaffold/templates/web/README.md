@@ -6,8 +6,9 @@ Canvas HTML at `/` (`http.Template`) and JSON at `/api` (`http.JSON`). Use `make
 
 Default enabled: `health` + `template` (Canvas via `framework/v3/core/ssr`). `assets`, `localization`, `validation`, and every other package stay opt-in (`package:enable`).
 
+`zatrano new` runs `go mod tidy` after writing these files. That is a convenience. `--no-tidy` skips it. If tidy is skipped or cannot finish, the command still exits 0, the Next list still includes `go mod tidy`, and one line tells you to tidy this directory before building.
+
 ```bash
-go mod tidy
 go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```

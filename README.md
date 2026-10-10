@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.1.0-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.1.1-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -49,11 +49,11 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
 | | |
 | --- | --- |
-| Current module tag | `v3.1.0` |
+| Current module tag | `v3.1.1` |
 | Release branch | `main` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.4` |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.0`, wired at `framework/v3/core/ssr` |
-| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.14.0` |
+| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.0` |
 
 The kernel requires **rawhttp** and **canvas**. It does not import `github.com/zatrano/packages`. Web handlers return `http.Template`. API handlers return `http.JSON`. `routing.Version` mounts `/api/{version}`.
 
@@ -61,7 +61,7 @@ Older lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `main` | V3. Current tag `v3.1.0` |
+| `main` | V3. Current tag `v3.1.1` |
 | `3.x` | V3 through `v3.0.1` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
@@ -124,24 +124,27 @@ canvas      HTML template engine
 
 ## Quick start
 
-Requires **Go 1.25+**.
+Requires **Go 1.25+** (`go 1.25.0` in the module). Build production binaries with **Go >= go1.26.9** so the standard library includes the current security fixes. `zatrano doctor` warns when the project's toolchain is older (APP-GO-001).
 
 ```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v3.1.0
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.1.1
 zatrano new myapp
 cd myapp
-go mod tidy
 go run ./cmd/app key:generate
 go run ./cmd/app serve
 ```
+
+`zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
+
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.1.1`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.0`.
 
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
 Pin the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.1.0
-go get github.com/zatrano/packages@v1.14.0
+go get github.com/zatrano/framework/v3@v3.1.1
+go get github.com/zatrano/packages@v1.15.0
 ```
 
 These are the current stable public releases. The two modules version independently. There is no monolithic `zatrano@x.y.z` version. `v3.0.0` is retracted and cannot be installed. Moving from v3.0.1 is described in [Upgrading](UPGRADING.md).
@@ -155,7 +158,7 @@ These are the current stable public releases. The two modules version independen
 
 Packages depend on this module. This module does not import packages.
 
-Nested modules (`db/*`, `mongo`, `webauthn`, `qr`) have their own tags. Root `packages@v1.14.0` does not require them.
+Nested modules (`db/*`, `mongo`, `webauthn`, `qr`) have their own tags. Root `packages@v1.15.0` does not require them.
 
 ## Architecture
 
@@ -241,7 +244,7 @@ Bootstrap               Provider.Register + Provider.Boot
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.14.0` when that module is not yet required, and merges env keys into `.env.example`. Rebuild or restart after enablement.
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.15.0` when that module is not yet required, and merges env keys into `.env.example`. Rebuild or restart after enablement.
 
 ```bash
 go run ./cmd/app package:acquire auth --enable
@@ -260,7 +263,7 @@ Stop      = LifecycleProvider.Stop
 Disable   = remove persistent enablement and that package’s blank-import
 ```
 
-`package:enable` expands transitive `Requires` before writing files. `package:disable` refuses when a remaining enabled addon requires the target. Disable does not stop a running process and does not run `go mod tidy`. First-time wiring may `go get github.com/zatrano/packages@v1.14.0`. An existing packages requirement is left alone. Upgrade is `package:acquire name@version`.
+`package:enable` expands transitive `Requires` before writing files. `package:disable` refuses when a remaining enabled addon requires the target. Disable does not stop a running process and does not run `go mod tidy`. First-time wiring may `go get github.com/zatrano/packages@v1.15.0`. An existing packages requirement is left alone. Upgrade is `package:acquire name@version`.
 
 ## HTTP
 

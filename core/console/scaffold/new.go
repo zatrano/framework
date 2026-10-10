@@ -1,12 +1,14 @@
 package scaffold
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/zatrano/framework/v3/core/console/consolecore"
@@ -19,7 +21,7 @@ import (
 const newHelp = `Create a new ZATRANO application
 
 Usage:
-  zatrano new <name> [--module path] [--replace /path/to/framework]
+  zatrano new <name> [--module path] [--replace /path/to/framework] [--framework-version vX.Y.Z] [--no-tidy]
 
 Layout:
   core/       framework runtime (synced from this checkout when --replace is set)
@@ -29,13 +31,49 @@ Layout:
 
 Handlers live in app/http/handlers/{web,api}. Default enabled: health + template (Canvas).
 assets, localization, validation stay opt-in (package:enable).
+
+After the files are written, go mod tidy runs so the project builds.
+That step is a convenience. --no-tidy skips it. --replace tries tidy the same way.
+When tidy succeeds, the next steps are cd, key:generate, and serve.
+If tidy is skipped, fails, or times out, the command still exits 0, the next
+steps keep go mod tidy, and one line names the directory to tidy.
+
+--framework-version sets the framework module version in the generated go.mod.
+The default is this CLI's own version. A value without a v prefix, or a value
+that is not a version, is an error and the project is not written.
+package:enable still pins github.com/zatrano/packages@v1.15.0.
 `
+
+// defaultTidyTimeout bounds the automatic go mod tidy after scaffolding.
+const defaultTidyTimeout = 120 * time.Second
+
+// tidyRunner runs go mod tidy in a project directory.
+// GOFLAGS, GOPROXY, and GOWORK are left unchanged.
+type tidyRunner interface {
+	Tidy(ctx context.Context, dir string) error
+}
+
+// commandTidyRunner invokes the user's go binary. It does not set
+// GOFLAGS, GOPROXY, or GOWORK.
+type commandTidyRunner struct{}
+
+func (commandTidyRunner) Tidy(ctx context.Context, dir string) error {
+	cmd := exec.CommandContext(ctx, "go", "mod", "tidy")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
 
 // NewCommand scaffolds a consumer application (zatrano new).
 type NewCommand struct {
 	app         *kernel.Application
 	writeAgents func(string) (string, error)
 	seedEnv     func(string) error
+	// tidy overrides the go mod tidy process. Nil uses the user's go.
+	tidy tidyRunner
+	// tidyLimit overrides the 120s tidy budget. Zero uses defaultTidyTimeout.
+	tidyLimit time.Duration
 }
 
 func (c *NewCommand) Name() string        { return "new" }
@@ -45,7 +83,7 @@ func (c *NewCommand) Handle(args []string) error {
 		fmt.Print(newHelp)
 		return nil
 	}
-	name, module, replace, err := parseNewArgs(args)
+	name, module, replace, frameworkVersion, noTidy, err := parseNewArgs(args)
 	if err != nil {
 		return err
 	}
@@ -58,6 +96,9 @@ func (c *NewCommand) Handle(args []string) error {
 		if v := c.app.Version(); v != "" {
 			ver = v
 		}
+	}
+	if frameworkVersion != "" {
+		ver = strings.TrimPrefix(frameworkVersion, "v")
 	}
 	if err := applyStarter(dest, module, replace, ver); err != nil {
 		return err
@@ -80,24 +121,39 @@ func (c *NewCommand) Handle(args []string) error {
 	if err := c.seedEnv(dest); err != nil {
 		return err
 	}
-	if replace != "" {
-		tidy := exec.Command("go", "mod", "tidy")
-		tidy.Dir = dest
-		tidy.Stdout = os.Stdout
-		tidy.Stderr = os.Stderr
-		if err := tidy.Run(); err != nil {
-			return fmt.Errorf("go mod tidy: %w", err)
-		}
+	tidyOK := false
+	if !noTidy {
+		tidyOK = c.runTidy(dest) == nil
 	}
 	fmt.Printf("Created %s (module %s)\n", dest, module)
 	fmt.Println("Next:")
 	fmt.Printf("  cd %s\n", filepath.Base(dest))
-	if replace == "" {
+	if !tidyOK {
 		fmt.Println("  go mod tidy")
 	}
 	fmt.Println("  go run ./cmd/app key:generate")
 	fmt.Println("  go run ./cmd/app serve")
+	if !tidyOK {
+		fmt.Printf("Run `go mod tidy` in %s before building\n", dest)
+	}
 	return nil
+}
+
+func (c *NewCommand) tidyBudget() time.Duration {
+	if c != nil && c.tidyLimit > 0 {
+		return c.tidyLimit
+	}
+	return defaultTidyTimeout
+}
+
+func (c *NewCommand) runTidy(dir string) error {
+	runner := tidyRunner(commandTidyRunner{})
+	if c != nil && c.tidy != nil {
+		runner = c.tidy
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), c.tidyBudget())
+	defer cancel()
+	return runner.Tidy(ctx, dir)
 }
 
 func applyStarter(dest, module, replace, ver string) error {
@@ -240,41 +296,133 @@ func goModPath(p string) string {
 	return p
 }
 
-func parseNewArgs(args []string) (dir, module, replace string, err error) {
+func parseNewArgs(args []string) (dir, module, replace, frameworkVersion string, noTidy bool, err error) {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return "", "", "", fmt.Errorf("%s", strings.TrimSpace(newHelp))
+		return "", "", "", "", false, fmt.Errorf("%s", strings.TrimSpace(newHelp))
 	}
 	dir = strings.TrimSpace(args[0])
 	if dir == "" || strings.Contains(dir, "..") {
-		return "", "", "", fmt.Errorf("invalid project name")
+		return "", "", "", "", false, fmt.Errorf("invalid project name")
 	}
 	module = sanitizeModule(filepath.Base(filepath.Clean(dir)))
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--module":
 			if i+1 >= len(args) {
-				return "", "", "", fmt.Errorf("--module requires a path")
+				return "", "", "", "", false, fmt.Errorf("--module requires a path")
 			}
 			i++
 			module = strings.TrimSpace(args[i])
 		case "--replace":
 			if i+1 >= len(args) {
-				return "", "", "", fmt.Errorf("--replace requires a path")
+				return "", "", "", "", false, fmt.Errorf("--replace requires a path")
 			}
 			i++
 			abs, aerr := filepath.Abs(args[i])
 			if aerr != nil {
-				return "", "", "", aerr
+				return "", "", "", "", false, aerr
 			}
 			replace = filepath.ToSlash(abs)
+		case "--no-tidy":
+			noTidy = true
+		case "--framework-version":
+			if i+1 >= len(args) {
+				return "", "", "", "", false, fmt.Errorf("--framework-version requires a version")
+			}
+			i++
+			frameworkVersion, err = parseFrameworkVersion(args[i])
+			if err != nil {
+				return "", "", "", "", false, err
+			}
 		default:
-			return "", "", "", fmt.Errorf("unknown flag %s", args[i])
+			return "", "", "", "", false, fmt.Errorf("unknown flag %s", args[i])
 		}
 	}
 	if module == "" {
-		return "", "", "", fmt.Errorf("empty module path")
+		return "", "", "", "", false, fmt.Errorf("empty module path")
 	}
-	return dir, module, replace, nil
+	return dir, module, replace, frameworkVersion, noTidy, nil
+}
+
+// parseFrameworkVersion accepts a Go module version (vMAJOR.MINOR.PATCH,
+// optional prerelease). A missing v prefix and any other shape are errors.
+func parseFrameworkVersion(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("--framework-version requires a version")
+	}
+	if !strings.HasPrefix(raw, "v") {
+		return "", fmt.Errorf("invalid framework version %q: must start with v", raw)
+	}
+	if !validGoModuleVersion(raw) {
+		return "", fmt.Errorf("invalid framework version %q: not a version", raw)
+	}
+	return raw, nil
+}
+
+func validGoModuleVersion(v string) bool {
+	if len(v) < 6 || v[0] != 'v' {
+		return false
+	}
+	rest := v[1:]
+	num, pre, hasPre := strings.Cut(rest, "-")
+	if strings.Contains(num, "+") {
+		return false
+	}
+	parts := strings.Split(num, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if !semverNumeric(p) {
+			return false
+		}
+	}
+	if !hasPre {
+		return true
+	}
+	if pre == "" || strings.Contains(pre, "+") {
+		return false
+	}
+	for _, id := range strings.Split(pre, ".") {
+		if !semverPrerelease(id) {
+			return false
+		}
+	}
+	return true
+}
+
+func semverNumeric(p string) bool {
+	if p == "" || (len(p) > 1 && p[0] == '0') {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		if p[i] < '0' || p[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func semverPrerelease(id string) bool {
+	if id == "" {
+		return false
+	}
+	numeric := true
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		switch {
+		case c >= '0' && c <= '9':
+		case (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-':
+			numeric = false
+		default:
+			return false
+		}
+	}
+	if numeric && len(id) > 1 && id[0] == '0' {
+		return false
+	}
+	return true
 }
 
 func hasHelpFlag(args []string) bool {

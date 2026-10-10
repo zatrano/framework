@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.25.13']
+        go: ['1.25.13', '1.26.x']
     name: Go ${{ matrix.go }}
     defaults:
       run:
@@ -61,6 +61,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
+          check-latest: ${{ matrix.go == '1.26.x' }}
           cache: true
           cache-dependency-path: framework/go.mod
 
@@ -134,7 +135,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.25.13']
+        go: ['1.25.13', '1.26.x']
     name: Go ${{ matrix.go }} - Windows
     steps:
       - name: Set git to use LF
@@ -173,6 +174,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
+          check-latest: ${{ matrix.go == '1.26.x' }}
           cache: true
           cache-dependency-path: framework/go.mod
 
@@ -232,3 +234,29 @@ jobs:
         env:
           PACKAGES_DIR: ${{ github.workspace }}/packages
         run: bash .github/scripts/starter-smoke.sh
+
+  consumer-e2e:
+    name: consumer e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.13'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Package acquire against published modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GOFLAGS
+          unset GOWORK
+          go test -v ./core/console/pkgmanager -count=1 -timeout 20m -run 'TestPackageAcquireE2EEnableThenBoot|TestPackageAcquireE2ERuntimeLifecycle'

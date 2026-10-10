@@ -22,6 +22,24 @@ v3.1.0 is a minor release. `go get -u=patch` does not cross it. The last publish
 | `zatrano doctor` | No in-flight body rules. | APP-HTTP-006: a route `BodyLimit` above `HTTP_MAX_INFLIGHT_BODY_BYTES`. APP-HTTP-007: `TRUSTED_PROXIES` is empty, so clients behind one address share one key. Behind a CDN that key is the edge address (64 MiB at the default 25% share). | APP-HTTP-006: lower `BodyLimit`, or raise the budget. Production already refuses to boot; `HTTP_STRICT_LIMITS` does that in every environment. APP-HTTP-007: set `TRUSTED_PROXIES`, or set `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` negative. |
 | `VERSION` and `zatrano version` | The v3.0.1 tag left the `VERSION` file at `3.0.0`. | `VERSION` is `3.1.0`. `zatrano version` reads that file and falls back to the same number. Release CI rejects a tag whose name, without the leading `v`, differs from `VERSION`. | None. The product version and the module tag are the same string. |
 
+## Upgrading from v3.1.0
+
+v3.1.1 is a patch. `zatrano new` runs `go mod tidy` in the new project (120 second timeout) with your `go` binary. `GOFLAGS` and `GOPROXY` are left unchanged. This is a convenience. v3.1.0 already printed `go mod tidy` as the next step. When tidy succeeds, that line is omitted and `go build ./...` works immediately.
+
+`--no-tidy` skips the automatic tidy. The Next list then keeps `go mod tidy`, and the command prints one line:
+
+```text
+Run `go mod tidy` in <dir> before building
+```
+
+The same one line, and the same Next list, is what you get when tidy fails, times out, or cannot find `go`. The command still exits 0. `<dir>` is the project directory. `--replace` tries tidy the same way. A tidy failure does not fail the command.
+
+`zatrano new --framework-version vX.Y.Z` writes that version into the new project's `go.mod` (`require github.com/zatrano/framework/v3`). The default is this CLI's own version (v3.1.1). A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.0`.
+
+Build with Go >= go1.26.9. The module's `go` line stays `1.25.0`, so a consumer is not forced onto 1.26, and generated projects do not gain a `toolchain` line. The standard library fixes from 2026-10-08 (`crypto/tls`, `html/template`, `net/http`, `net/textproto`, `os`) are in go1.26.9 and go1.27.2. Go 1.25's last release is go1.25.14 (2026-08-19). Go 1.27.0 shipped the same day, which ends the 1.25 support window: a major is supported until two newer majors exist. `zatrano doctor` reports APP-GO-001 when `go env GOVERSION` in the project directory is older than `RecommendedGoMinimum` (`go1.26.9`). The rule is a warning. It is skipped when `go` is not on `PATH`.
+
+The framework image and the `zatrano new` Dockerfile build with `golang:1.26-alpine` and run on `alpine:3.24`. Alpine 3.20 left support on 2026-04-01.
+
 ## Environment
 
 Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`, or `os.Getenv`. `TestEnvironmentVariablesAreDocumented` fails when code reads an `HTTP_*`, `MAX_*`, `CORS_*`, or `TRUSTED_PROXIES` variable that is missing from this table.
