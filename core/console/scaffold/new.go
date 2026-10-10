@@ -41,7 +41,7 @@ steps keep go mod tidy, and one line names the directory to tidy.
 --framework-version sets the framework module version in the generated go.mod.
 The default is this CLI's own version. A value without a v prefix, or a value
 that is not a version, is an error and the project is not written.
-package:enable still pins github.com/zatrano/packages@v1.14.0.
+package:enable still pins github.com/zatrano/packages@v1.15.0.
 `
 
 // defaultTidyTimeout bounds the automatic go mod tidy after scaffolding.

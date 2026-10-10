@@ -294,7 +294,10 @@ func writePublishedConsumer(t *testing.T, frameworkVer, packagesVer, packagesDir
 	var b strings.Builder
 	b.WriteString("module example.com/acq-e2e\n\ngo 1.25.0\n\n")
 	b.WriteString("require github.com/zatrano/framework/v3 " + frameworkVer + "\n")
-	b.WriteString("require github.com/zatrano/packages " + packagesVer + "\n")
+	b.WriteString("require github.com/zatrano/packages " + packagesVer + "\n\n")
+	// VERSION is this checkout. It is not on the proxy until the tag, so the
+	// test builds the tree under test and downloads the published packages pin.
+	b.WriteString("replace github.com/zatrano/framework/v3 => " + quoteGoModPath(frameworkRoot(t)) + "\n")
 	if packagesDir != "" {
 		b.WriteString("\nreplace github.com/zatrano/packages => " + quoteGoModPath(packagesDir) + "\n")
 	}
@@ -398,11 +401,11 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@"+fw, "github.com/zatrano/packages@"+pkg)
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+pkg)
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
-		t.Fatalf("boot setup go get framework: %v\n%s", err, out)
+		t.Fatalf("boot setup go get packages: %v\n%s", err, out)
 	}
 	c := exec.CommandContext(ctx, "go", "run", "./cmd/bootcheck")
 	c.Dir = root
@@ -562,7 +565,7 @@ func main() {
 		"DB_CONNECTION=",
 		"DB_CONNECTIONS=",
 	)
-	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/framework/v3@"+fw, "github.com/zatrano/packages@"+pkg)
+	get := exec.CommandContext(ctx, "go", "get", "github.com/zatrano/packages@"+pkg)
 	get.Dir = root
 	get.Env = env
 	if out, err := get.CombinedOutput(); err != nil {
