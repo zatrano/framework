@@ -27,24 +27,28 @@ func TestNewSeedsDotEnv(t *testing.T) {
 }
 
 func TestParseNewArgs(t *testing.T) {
-	dir, mod, replace, noTidy, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
+	dir, mod, replace, fw, noTidy, err := parseNewArgs([]string{"demo", "--module", "example.com/demo"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != "demo" || mod != "example.com/demo" || replace != "" || noTidy {
-		t.Fatalf("dir=%q mod=%q replace=%q noTidy=%v", dir, mod, replace, noTidy)
+	if dir != "demo" || mod != "example.com/demo" || replace != "" || fw != "" || noTidy {
+		t.Fatalf("dir=%q mod=%q replace=%q fw=%q noTidy=%v", dir, mod, replace, fw, noTidy)
 	}
-	if _, _, _, _, err := parseNewArgs(nil); err == nil {
+	if _, _, _, _, _, err := parseNewArgs(nil); err == nil {
 		t.Fatal("expected usage error")
 	}
-	_, _, _, noTidy, err = parseNewArgs([]string{"demo", "--no-tidy"})
+	_, _, _, _, noTidy, err = parseNewArgs([]string{"demo", "--no-tidy"})
 	if err != nil || !noTidy {
 		t.Fatalf("noTidy=%v err=%v", noTidy, err)
+	}
+	_, _, _, fw, _, err = parseNewArgs([]string{"demo", "--framework-version", "v3.1.0"})
+	if err != nil || fw != "v3.1.0" {
+		t.Fatalf("fw=%q err=%v", fw, err)
 	}
 }
 
 func TestNewHelpHasNoProfileFlags(t *testing.T) {
-	if _, _, _, _, err := parseNewArgs([]string{"demo", "--unknown"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
+	if _, _, _, _, _, err := parseNewArgs([]string{"demo", "--unknown"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
 		t.Fatalf("expected unknown flag, got %v", err)
 	}
 	for _, name := range []string{"--web", "--full", "--empty", "--minimal", "add:web", "add:api"} {
@@ -614,6 +618,109 @@ func TestNewNoTidySkipsRunner(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dest, "go.sum")); !os.IsNotExist(err) {
 		t.Fatalf("--no-tidy must not create go.sum, stat err=%v", err)
+	}
+}
+
+func TestNewFrameworkVersionDefault(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "fw-default")
+	runner := &sumTidy{}
+	if err := (&NewCommand{tidy: runner}).Handle([]string{dest, "--module", "example.com/fwdefault"}); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("tidy calls=%d", runner.calls)
+	}
+	mod, err := os.ReadFile(filepath.Join(dest, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "github.com/zatrano/framework/v3 v" + consolecore.CurrentRelease
+	if !strings.Contains(string(mod), want) {
+		t.Fatalf("default require must be %s:\n%s", want, mod)
+	}
+}
+
+func TestNewFrameworkVersionExplicit(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "fw-explicit")
+	runner := &sumTidy{}
+	if err := (&NewCommand{tidy: runner}).Handle([]string{dest, "--module", "example.com/fwexplicit", "--framework-version", "v3.1.0"}); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("tidy calls=%d", runner.calls)
+	}
+	mod, err := os.ReadFile(filepath.Join(dest, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.1.0") {
+		t.Fatalf("explicit require:\n%s", mod)
+	}
+	if consolecore.CurrentRelease != "3.1.0" && strings.Contains(string(mod), "github.com/zatrano/framework/v3 v"+consolecore.CurrentRelease) {
+		t.Fatalf("explicit flag must not keep CurrentRelease:\n%s", mod)
+	}
+}
+
+func TestNewFrameworkVersionInvalidDoesNotWrite(t *testing.T) {
+	cases := []struct {
+		arg  string
+		want string
+	}{
+		{arg: "3.1.0", want: "must start with v"},
+		{arg: "latest", want: "must start with v"},
+		{arg: "vlatest", want: "not a version"},
+		{arg: "v3.1", want: "not a version"},
+		{arg: "", want: "requires a version"},
+	}
+	for _, tc := range cases {
+		dest := filepath.Join(t.TempDir(), "bad")
+		runner := &sumTidy{}
+		err := (&NewCommand{tidy: runner}).Handle([]string{dest, "--module", "example.com/bad", "--framework-version", tc.arg})
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("arg %q err=%v", tc.arg, err)
+		}
+		if runner.calls != 0 {
+			t.Fatalf("arg %q invoked tidy", tc.arg)
+		}
+		if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+			t.Fatalf("arg %q wrote the project: %v", tc.arg, statErr)
+		}
+	}
+	dest := filepath.Join(t.TempDir(), "missing")
+	err := (&NewCommand{tidy: nopTidy{}}).Handle([]string{dest, "--framework-version"})
+	if err == nil || !strings.Contains(err.Error(), "requires a version") {
+		t.Fatalf("missing value err=%v", err)
+	}
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Fatalf("missing value wrote the project: %v", statErr)
+	}
+}
+
+func TestNewFrameworkVersionNoTidyKeepsWarning(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "fw-notidy")
+	runner := &sumTidy{}
+	out, err := captureStdout(t, func() error {
+		return (&NewCommand{tidy: runner}).Handle([]string{dest, "--module", "example.com/fwnotidy", "--framework-version", "v3.1.0", "--no-tidy"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 0 {
+		t.Fatalf("calls=%d", runner.calls)
+	}
+	wantOut := scaffoldStdout(dest, "example.com/fwnotidy", true)
+	if out != wantOut {
+		t.Fatalf("stdout:\n%s\nwant:\n%s", out, wantOut)
+	}
+	mod, err := os.ReadFile(filepath.Join(dest, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.1.0") {
+		t.Fatalf("go.mod:\n%s", mod)
+	}
+	if strings.Count(out, "Run `go mod tidy` in ") != 1 {
+		t.Fatalf("warning count:\n%s", out)
 	}
 }
 

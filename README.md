@@ -136,6 +136,8 @@ go run ./cmd/app serve
 
 `zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
 
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.1.1`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` still pins `github.com/zatrano/packages@v1.14.0`.
+
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
 Pin the modules in an existing `go.mod`:

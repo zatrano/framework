@@ -34,6 +34,8 @@ Run `go mod tidy` in <dir> before building
 
 The same one line, and the same Next list, is what you get when tidy fails, times out, or cannot find `go`. The command still exits 0. `<dir>` is the project directory. `--replace` tries tidy the same way. A tidy failure does not fail the command.
 
+`zatrano new --framework-version vX.Y.Z` writes that version into the new project's `go.mod` (`require github.com/zatrano/framework/v3`). The default is this CLI's own version (v3.1.1). A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` still pins `github.com/zatrano/packages@v1.14.0`.
+
 ## Environment
 
 Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`, or `os.Getenv`. `TestEnvironmentVariablesAreDocumented` fails when code reads an `HTTP_*`, `MAX_*`, `CORS_*`, or `TRUSTED_PROXIES` variable that is missing from this table.

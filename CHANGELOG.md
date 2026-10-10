@@ -9,6 +9,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Added
 
 - `zatrano new` runs `go mod tidy` after writing the project. This is a convenience: the command already printed `go mod tidy` as the next step. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips the step. If tidy fails, times out after 120 seconds, or `--no-tidy` skips it, the command still exits 0, the Next list keeps `go mod tidy`, and exactly one line is printed: Run `go mod tidy` in <dir> before building. `GOFLAGS` and `GOPROXY` are left unchanged. `--replace` uses the same path and does not fail the command when tidy fails.
+- `zatrano new --framework-version vX.Y.Z` writes that version into the generated `go.mod`. The default is this CLI's own version. A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` stays `github.com/zatrano/packages@v1.14.0`.
 
 ## 3.1.0 - 2026-10-07
 
