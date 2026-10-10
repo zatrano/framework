@@ -41,6 +41,66 @@ jobs:
             exit 1
           fi
 
+      - name: Recommended Go minimum is current
+        env:
+          GO_DL: ${{ runner.temp }}/go-dl.json
+        run: |
+          set -euo pipefail
+          const=$(sed -n 's/^const RecommendedGoMinimum = "\(go[0-9.]*\)"/\1/p' core/console/doctor/go_minimum.go)
+          if [ -z "$const" ]; then
+            echo "::warning::RecommendedGoMinimum was not found"
+            exit 0
+          fi
+          if ! curl -fsSL --retry 3 --retry-delay 2 -o "$GO_DL" https://go.dev/dl/?mode=json; then
+            echo "::warning::could not read go.dev/dl; RecommendedGoMinimum ${const} was not compared"
+            exit 0
+          fi
+          RECOMMENDED_GO="$const" python3 - "$GO_DL" <<'PY'
+          import json, os, sys
+          const = os.environ["RECOMMENDED_GO"]
+          path = sys.argv[1]
+
+          def parse(v):
+              if not v.startswith("go"):
+                  return None
+              rest = v[2:]
+              for suf in ("rc", "beta", "alpha"):
+                  i = rest.find(suf)
+                  if i >= 0:
+                      return None
+              parts = rest.split(".")
+              if len(parts) < 2 or len(parts) > 3:
+                  return None
+              nums = [int(p) for p in parts]
+              while len(nums) < 3:
+                  nums.append(0)
+              return tuple(nums)
+
+          want = parse(const)
+          if want is None:
+              print(f"::warning::RecommendedGoMinimum {const} is not a stable release")
+              sys.exit(0)
+          newest = None
+          with open(path, encoding="utf-8") as fh:
+              for item in json.load(fh):
+                  if not item.get("stable"):
+                      continue
+                  got = parse(item.get("version", ""))
+                  if got is None or got[:2] != want[:2]:
+                      continue
+                  if newest is None or got[2] > newest[2]:
+                      newest = got
+          if newest is None:
+              print(f"::warning::no stable Go {want[0]}.{want[1]} release in go.dev/dl; review RecommendedGoMinimum {const}")
+              sys.exit(0)
+          behind = newest[2] - want[2]
+          latest = f"go{newest[0]}.{newest[1]}.{newest[2]}"
+          if behind > 2:
+              print(f"::warning::RecommendedGoMinimum {const} is {behind} patches behind {latest}")
+          else:
+              print(f"RecommendedGoMinimum {const} is {behind} patch(es) behind {latest}")
+          PY
+
       - name: Module has no replace directives
         run: |
           set -euo pipefail

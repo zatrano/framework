@@ -106,6 +106,16 @@ func TestEmbeddedDockerfilesMatchCanonicalLayout(t *testing.T) {
 	if !strings.Contains(text, "COPY templates") {
 		t.Fatal("web Dockerfile must copy Canvas templates")
 	}
+	if !strings.Contains(text, "FROM golang:1.26-alpine") || !strings.Contains(text, "FROM alpine:3.24") {
+		t.Fatal("web Dockerfile must build with golang:1.26-alpine and run on alpine:3.24")
+	}
+	mod, err := os.ReadFile(filepath.Join(root, "core", "console", "scaffold", "templates", "web", "go.mod.tmpl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(mod), "\ntoolchain ") || strings.HasPrefix(string(mod), "toolchain ") {
+		t.Fatal("generated go.mod must not set a toolchain line")
+	}
 	if strings.Contains(text, "COPY app/database") {
 		t.Fatal("web Dockerfile must not copy opt-in app/database")
 	}

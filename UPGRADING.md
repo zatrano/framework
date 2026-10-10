@@ -34,7 +34,11 @@ Run `go mod tidy` in <dir> before building
 
 The same one line, and the same Next list, is what you get when tidy fails, times out, or cannot find `go`. The command still exits 0. `<dir>` is the project directory. `--replace` tries tidy the same way. A tidy failure does not fail the command.
 
-`zatrano new --framework-version vX.Y.Z` writes that version into the new project's `go.mod` (`require github.com/zatrano/framework/v3`). The default is this CLI's own version (v3.1.1). A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` still pins `github.com/zatrano/packages@v1.14.0`.
+`zatrano new --framework-version vX.Y.Z` writes that version into the new project's `go.mod` (`require github.com/zatrano/framework/v3`). The default is this CLI's own version (v3.1.1). A missing `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.0`.
+
+Build with Go >= go1.26.9. The module's `go` line stays `1.25.0`, so a consumer is not forced onto 1.26, and generated projects do not gain a `toolchain` line. The standard library fixes from 2026-10-08 (`crypto/tls`, `html/template`, `net/http`, `net/textproto`, `os`) are in go1.26.9 and go1.27.2. Go 1.25's last release is go1.25.14 (2026-08-19). Go 1.27.0 shipped the same day, which ends the 1.25 support window: a major is supported until two newer majors exist. `zatrano doctor` reports APP-GO-001 when `go env GOVERSION` in the project directory is older than `RecommendedGoMinimum` (`go1.26.9`). The rule is a warning. It is skipped when `go` is not on `PATH`.
+
+The framework image and the `zatrano new` Dockerfile build with `golang:1.26-alpine` and run on `alpine:3.24`. Alpine 3.20 left support on 2026-04-01.
 
 ## Environment
 
