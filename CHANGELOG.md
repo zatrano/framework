@@ -4,6 +4,13 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.4 - 2026-10-12
+
+### Changed
+
+- Require rawhttp v0.2.6 and canvas v0.2.1. Tag v3.1.3 required rawhttp v0.2.5 and canvas v0.2.0.
+- A generated request id is stored on the request. The id string stays 32 hex characters.
+
 ## 3.1.3 - 2026-10-12
 
 ### Changed

@@ -25,7 +25,7 @@ const (
 // idPattern matches the kernel request-id grammar.
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9._\-:]{1,128}$`)
 
-// hexIDPattern is the production generator: 16 crypto/rand bytes, hex encoded.
+// hexIDPattern is the production generator: 16 CSPRNG bytes, hex encoded.
 var hexIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 func newHexID() string {

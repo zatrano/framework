@@ -1,5 +1,15 @@
 # Upgrading
 
+## Upgrading from v3.1.3
+
+v3.1.4 requires rawhttp v0.2.6 and canvas v0.2.1. v3.1.3 required rawhttp v0.2.5 and canvas v0.2.0. `package:enable` still pins packages v1.15.1.
+
+```bash
+go get github.com/zatrano/framework/v3@v3.1.4
+```
+
+Handlers stay the same.
+
 ## Upgrading from v3.1.2
 
 v3.1.3 pins first-time `package:enable` at `github.com/zatrano/packages@v1.15.1`. An application that already requires packages is left alone. New wiring:

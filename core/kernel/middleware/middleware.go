@@ -1,11 +1,14 @@
 package middleware
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
+	mrand "math/rand/v2"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zatrano/framework/v3/core/kernel/http"
@@ -94,7 +97,7 @@ func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 		if id == "" {
 			id = newRequestID()
 		}
-		req.Set("request_id", id)
+		req.SetRequestID(id)
 		resp := next(req)
 		if resp != nil {
 			resp.Header("X-Request-Id", id)
@@ -106,11 +109,13 @@ func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 	}
 }
 
+var requestIDHeaderKeys = [2]string{"X-Request-ID", "X-Correlation-ID"}
+
 func incomingRequestID(req *http.Request) string {
 	if req == nil {
 		return ""
 	}
-	for _, key := range []string{"X-Request-ID", "X-Correlation-ID"} {
+	for _, key := range requestIDHeaderKeys {
 		if id := strings.TrimSpace(req.Header(key)); validRequestID(id) {
 			return id
 		}
@@ -123,6 +128,10 @@ func incomingRequestID(req *http.Request) string {
 
 func traceIDFromTraceparent(header string) string {
 	header = strings.TrimSpace(header)
+	// 00-<32 hex>-<16 hex>-<2 flags>. Anything shorter is not a traceparent.
+	if len(header) < 55 {
+		return ""
+	}
 	parts := strings.Split(header, "-")
 	if len(parts) < 4 {
 		return ""
@@ -134,13 +143,36 @@ func traceIDFromTraceparent(header string) string {
 	return ""
 }
 
+// idSources are ChaCha8 generators seeded once from crypto/rand.
+// A request id is a correlation token. It stays unguessable without a
+// getrandom syscall on every request.
+var idSources = sync.Pool{
+	New: func() any {
+		var seed [32]byte
+		if _, err := cryptorand.Read(seed[:]); err != nil {
+			binary.LittleEndian.PutUint64(seed[:8], uint64(time.Now().UnixNano()))
+		}
+		return mrand.New(mrand.NewChaCha8(seed))
+	},
+}
+
 func newRequestID() string {
+	src := idSources.Get().(*mrand.Rand)
 	var b [16]byte
-	_, err := rand.Read(b[:])
-	if err != nil {
-		return fmt.Sprintf("%d", time.Now().UnixNano())
-	}
+	fillID(src, b[:])
+	idSources.Put(src)
 	return hex.EncodeToString(b[:])
+}
+
+func fillID(src *mrand.Rand, b []byte) {
+	var n uint64
+	for i := range b {
+		if i%8 == 0 {
+			n = src.Uint64()
+		}
+		b[i] = byte(n)
+		n >>= 8
+	}
 }
 
 // CORS adds CORS headers (development default is wildcard; production/staging

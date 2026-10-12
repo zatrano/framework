@@ -84,7 +84,7 @@ The frozen tier-0 target of at most v3.0.1 × 1.01 was not shown. On the High pe
 
 ## Snapshot (2026-10-12)
 
-Go **1.26.9**, Windows/amd64, CPU **i5-6200U @ 2.30GHz** (2 cores / 4 threads), `GOMAXPROCS=4`, power plan **Dengeli** (`381b4222-f694-41f0-9685-ff5bb260df2e`). One `go test -c` binary. Eight rounds, the six published rows rotated, 2 seconds between samples, `-benchtime 1s`. The bench module requires rawhttp **v0.2.5**, the same release as the framework module.
+Go **1.26.9**, Windows/amd64, CPU **i5-6200U @ 2.30GHz** (2 cores / 4 threads), `GOMAXPROCS=4`, power plan **Dengeli** (`381b4222-f694-41f0-9685-ff5bb260df2e`). One `go test -c` binary. Eight rounds, the six published rows rotated, 2 seconds between samples, `-benchtime 1s`. The bench module requires rawhttp **v0.2.6**, the same release as the framework module. The rows below are the 2026-10-12 snapshot.
 
 | Row | median ns/op | min | max | B/op | allocs/op |
 |---|---:|---:|---:|---:|---:|

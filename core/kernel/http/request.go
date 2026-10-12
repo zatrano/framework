@@ -591,6 +591,14 @@ func (r *Request) RouteParams() map[string]string {
 	return out
 }
 
+// SetRequestID stores the correlation id without boxing it in an attribute map.
+func (r *Request) SetRequestID(id string) {
+	if r == nil {
+		return
+	}
+	r.requestID = id
+}
+
 // Set sets a request attribute.
 func (r *Request) Set(key string, value any) {
 	if r == nil {
