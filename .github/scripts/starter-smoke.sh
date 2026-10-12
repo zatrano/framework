@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scaffold a consumer app, blank-import a packages addon, run tests (includes /health).
+# Scaffold a consumer app, blank-import a packages addon, then hit /health.
 set -euo pipefail
 
 FRAMEWORK="$(cd "$(dirname "$0")/../.." && pwd)"

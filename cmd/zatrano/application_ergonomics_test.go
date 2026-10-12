@@ -89,11 +89,10 @@ func TestFreshApplicationErgonomics(t *testing.T) {
 		t.Fatalf("about (boot): %v\n%s", err, aboutOut)
 	}
 
-	testCmd := exec.CommandContext(ctx, "go", "test", "./tests", "-count=1", "-run", "TestLifecycleStartStopWithoutInfrastructure")
-	testCmd.Dir = dest
-	testCmd.Env = append(os.Environ(), "GOTOOLCHAIN=local")
-	if tout, err := testCmd.CombinedOutput(); err != nil {
-		t.Fatalf("generated Start/Stop test: %v\n%s", err, tout)
+	if _, err := os.Stat(filepath.Join(dest, "tests")); err == nil {
+		t.Fatal("zatrano new must not write a tests directory")
+	} else if !os.IsNotExist(err) {
+		t.Fatal(err)
 	}
 }
 
