@@ -1,5 +1,13 @@
 # Upgrading
 
+## Upgrading from v3.1.2
+
+v3.1.3 pins first-time `package:enable` at `github.com/zatrano/packages@v1.15.1`. An application that already requires packages is left alone. New wiring:
+
+```bash
+go get github.com/zatrano/packages@v1.15.1
+```
+
 ## Upgrading from v3.1.1
 
 v3.1.2 requires rawhttp v0.2.5. v3.1.1 required v0.2.4. There is no supported downgrade of the carrier.

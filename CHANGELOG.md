@@ -4,6 +4,12 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.3 - 2026-10-12
+
+### Changed
+
+- First-time `package:enable` pins `github.com/zatrano/packages@v1.15.1`. That tag requires framework `v3.1.2` and rawhttp `v0.2.5`.
+
 ## 3.1.2 - 2026-10-12
 
 ### Changed
