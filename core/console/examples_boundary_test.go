@@ -71,7 +71,7 @@ func TestExamplesBoundaryDoesNotIntroduceForbiddenArchitecture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(string(ver)) != "3.1.5" {
-		t.Fatalf("VERSION=%q want 3.1.5", strings.TrimSpace(string(ver)))
+	if strings.TrimSpace(string(ver)) != "3.1.6" {
+		t.Fatalf("VERSION=%q want 3.1.6", strings.TrimSpace(string(ver)))
 	}
 }

@@ -1,5 +1,15 @@
 # Upgrading
 
+## Upgrading from v3.1.5
+
+v3.1.6 requires the same rawhttp v0.2.6 and canvas v0.2.1 as v3.1.5. `package:enable` still pins packages v1.15.1.
+
+```bash
+go get github.com/zatrano/framework/v3@v3.1.6
+```
+
+Handlers stay the same. `zatrano new` does not write a `tests` directory. `make:test` still creates one when asked.
+
 ## Upgrading from v3.1.4
 
 v3.1.5 requires the same rawhttp v0.2.6 and canvas v0.2.1 as v3.1.4. `package:enable` still pins packages v1.15.1.

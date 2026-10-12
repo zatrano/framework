@@ -190,9 +190,6 @@ func TestStarterHasWebAndAPIPresentation(t *testing.T) {
 	if !strings.Contains(string(apiHome), "http.JSON") {
 		t.Fatal("starter API home must be JSON")
 	}
-	if _, err := os.Stat(filepath.Join(webRoot, "tests", "api_root_test.go.tmpl")); err != nil {
-		t.Fatal("starter must include API root test")
-	}
 }
 
 func relFiles(t *testing.T, root string) []string {

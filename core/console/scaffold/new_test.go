@@ -73,7 +73,7 @@ func TestAddCommandsRemoved(t *testing.T) {
 }
 
 func TestG001UpgradeDoesNotRegenerateApplicationSource(t *testing.T) {
-	upgrade, err := os.ReadFile(filepath.Join("..", "..", "..", "tests", "compatibility", "upgrade_test.go"))
+	upgrade, err := os.ReadFile(filepath.Join("..", "..", "..", "cmd", "zatrano", "upgrade_test.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,14 +294,8 @@ func TestNewApplication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
-	testCmd := exec.Command("go", "test", "./tests")
-	testCmd.Dir = dest
-	testOut, err := testCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go test ./tests: %v\n%s", err, testOut)
-	}
-	if _, err := os.Stat(filepath.Join(dest, "tests", "api_root_test.go")); err != nil {
-		t.Fatal("generated app must include API root test")
+	if _, err := os.Stat(filepath.Join(dest, "tests")); err == nil {
+		t.Fatal("zatrano new must not write a tests directory")
 	}
 	home, err := os.ReadFile(filepath.Join(dest, "app", "http", "handlers", "web", "home_handler.go"))
 	if err != nil {
