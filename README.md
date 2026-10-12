@@ -51,7 +51,7 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 | --- | --- |
 | Current module tag | `v3.1.1` |
 | Release branch | `main` |
-| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.4` |
+| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.5` on this branch. Tag `v3.1.1` requires `v0.2.4`. |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.0`, wired at `framework/v3/core/ssr` |
 | Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.0` |
 
@@ -328,16 +328,16 @@ Header-time caps: JSON (`application/json` and `+json`), `application/x-www-form
 
 A unitless integer is seconds (`30`). Go durations (`30s`, `1m`) are accepted. An invalid value (`abc`, `1x`) aborts boot. The 60s read timeout can cut a slow upload: 32 MiB in 60s is about 4.4 Mbit/s. Raise `HTTP_READ_TIMEOUT`, or set it to `0`, for large uploads on a slow link.
 
-`HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` defaults to a quarter of the in-flight budget. A negative value turns the per-client share off. The share applies only when clients can be told apart: a configured `TRUSTED_PROXIES` list and a resolved client address (IPv6 grouped by /64), or, with no proxy, a global-unicast peer that is not loopback, RFC1918, link-local, CGNAT (`100.64.0.0/10`), or IPv6 unique-local. Otherwise only the global budget applies, and the first such request logs one warning with no address. `zatrano doctor` reports the missing proxy list as APP-HTTP-007. Set `TRUSTED_PROXIES` to the reverse proxy when the process listens on a private address. Behind a CDN the edge addresses are global unicast, so with `TRUSTED_PROXIES` unset the share keys on that edge address: visitors that arrive through the same address share one quarter of the budget (64 MiB at the default). APP-HTTP-007 fires in that case too. Set `TRUSTED_PROXIES` to the CDN ranges so the client address from `X-Forwarded-For` is the key. One distinguishable client that dribbles a body can hold only its share, not the whole budget. A slow body can still hold that share until `HTTP_READ_TIMEOUT`. A body-progress timer is rawhttp v0.3.0. Rate-limit at the edge (`limit_conn`, a WAF) as well.
+`HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` defaults to a quarter of the in-flight budget. A negative value turns the per-client share off. The share applies only when clients can be told apart: a configured `TRUSTED_PROXIES` list and a resolved client address (IPv6 grouped by /64), or, with no proxy, a global-unicast peer that is not loopback, RFC1918, link-local, CGNAT (`100.64.0.0/10`), or IPv6 unique-local. Otherwise only the global budget applies, and the first such request logs one warning with no address. `zatrano doctor` reports the missing proxy list as APP-HTTP-007. Set `TRUSTED_PROXIES` to the reverse proxy when the process listens on a private address. Behind a CDN the edge addresses are global unicast, so with `TRUSTED_PROXIES` unset the share keys on that edge address: visitors that arrive through the same address share one quarter of the budget (64 MiB at the default). APP-HTTP-007 fires in that case too. Set `TRUSTED_PROXIES` to the CDN ranges so the client address from `X-Forwarded-For` is the key. One distinguishable client that dribbles a body can hold only its share, not the whole budget. A slow body can still hold that share until `HTTP_READ_TIMEOUT`. Rate-limit at the edge (`limit_conn`, a WAF) as well.
 
 The in-flight budget is checked when the headers arrive. A known `Content-Length` reserves that many bytes. A chunked body has no length yet, so JSON, urlencoded, and `text/*` reserve `MAX_BODY_BYTES` and every other type reserves its effective cap. If that reservation does not fit what is already in flight, the response is 503 with `Retry-After: 1` and the body is not read. The hold is released once: when the handler returns, or when the connection closes, including after a panic or a client that disconnects mid-body. A route `BodyLimit` larger than the budget logs a warning and is rejected with 413; production refuses to boot, and `HTTP_STRICT_LIMITS` does the same in every environment. `zatrano doctor` reports it as APP-HTTP-006.
 
-An early 413 or 503 does not drop the TCP connection before the client can read it. rawhttp 0.2.3 lingers on that close. `MaxLingering` defaults to 1024 connections; a negative value is unlimited. Connections past the cap are closed immediately.
+An early 413 or 503 does not drop the TCP connection before the client can read it. rawhttp lingers on that close. `MaxLingering` defaults to 1024 connections; a negative value is unlimited. Connections past the cap are closed immediately.
 
 | Body | V2 | V3 |
 | --- | --- | --- |
 | JSON, urlencoded, `text/*` | 2 MiB | 2 MiB at header time (`MAX_BODY_BYTES`). `Request.JSON` still stops at 2 MiB. |
-| Multipart, octet-stream, other, missing type | route / php limit | 32 MiB server ceiling unless `BodyLimit` or `MAX_UPLOAD_BYTES` says otherwise |
+| Multipart, octet-stream, other, missing type | `MAX_UPLOAD_BYTES` (32 MiB) | 32 MiB server ceiling unless `BodyLimit` or `MAX_UPLOAD_BYTES` says otherwise |
 | Chunked over the cap | 413 | 413. v3.0.0–v3.0.1 could return 431 when the body exceeded the read buffer (rawhttp 0.2.2). |
 | Over the in-flight budget | not applied | 503 and `Retry-After: 1`. One request that cannot fit the budget at all is 413. |
 | Header block | bufio 4 KiB | 16 KiB (`HTTP_MAX_HEADER_BYTES`). Over the limit is 431. v3.0.0–v3.0.1 used 1 MiB. |

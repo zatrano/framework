@@ -31,8 +31,8 @@ func (c *MakeServiceCommand) Handle(args []string) error {
 	content := fmt.Sprintf(`package services
 
 // %s is an optional application workflow.
-// Add this type only for multiple writes, orm.Transaction, or reuse
-// from HTTP and console. Simple CRUD uses orm.Query[T]() from the controller.
+// Add this type only for multiple writes or reuse from HTTP and console.
+// A single query stays in the caller.
 type %s struct{}
 
 // New%s creates a %s.

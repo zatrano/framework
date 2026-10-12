@@ -183,7 +183,7 @@ func controllerFileTransactions(rel string, fset *token.FileSet, file *ast.File)
 			File:     rel,
 			Line:     fset.Position(call.Pos()).Line,
 			Found:    "orm." + name + " in a controller file",
-			Why:      "Controllers must not own transactions. The application service starts orm.Transaction.",
+			Why:      "Controllers must not own transactions. The application service starts the transaction.",
 			How:      "Move the transaction into app/services and call that service from the controller.",
 			See:      archSee + " §H · §M · ADR-0004",
 		})

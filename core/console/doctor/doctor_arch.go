@@ -97,7 +97,7 @@ func checkForbiddenLayers(root string) ([]Finding, error) {
 					Line:     fset.Position(ts.Pos()).Line,
 					Found:    "type " + name + " interface",
 					Why:      "Repository interfaces are not required and must not become a second architecture (ADR-0003).",
-					How:      "Delete the interface. Use orm.Query[T]() or an optional concrete struct wrapper.",
+					How:      "Delete the interface. Keep the query in the caller, or use an optional concrete struct that holds *sql.DB.",
 					See:      archSee + " §J · ADR-0003",
 				})
 				return true
@@ -112,7 +112,7 @@ func checkForbiddenLayers(root string) ([]Finding, error) {
 			how := "Use a controller, FormRequest, or named application service verb (Place, Publish). Do not add UseCase/DTO/WebService types."
 			see := archSee + " §B · ADR-0001 · ADR-0009"
 			if rule == "APP-REP-001" {
-				how = "Delete the generic repository abstraction. Optional concrete *Repository structs wrapping ORM are allowed."
+				how = "Delete the generic repository abstraction. An optional concrete struct that holds *sql.DB is allowed."
 				see = archSee + " §J · ADR-0003"
 			}
 			out = append(out, Finding{
@@ -150,7 +150,7 @@ func forbiddenLayerType(name string) (rule, why string) {
 	case strings.HasSuffix(name, "WebUseCase") || strings.HasSuffix(name, "ApiUseCase"):
 		return "APP-LAY-003", "WebUseCase/ApiUseCase are forbidden (ADR-0009)."
 	case name == "BaseRepository" || name == "GenericRepository" || strings.HasSuffix(name, "RepositoryFactory"):
-		return "APP-REP-001", "Generic repository abstractions are not ZATRANO architecture (ADR-0003). Optional concrete *Repository structs wrapping ORM are allowed."
+		return "APP-REP-001", "Generic repository abstractions are not ZATRANO architecture (ADR-0003). An optional concrete struct that holds *sql.DB is allowed."
 	default:
 		return "", ""
 	}

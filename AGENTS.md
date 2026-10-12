@@ -71,12 +71,11 @@ Then use the generator. Then write tests. Then run doctor, tests, and `go vet`.
 
 - Invent directories, layers, or parallel implementations.
 - Copy a local violation because it already exists (dashboard stubs may call `validation.Make`; `make:auth` may mix View/JSON — do not spread those into resource CRUD).
-- Put ORM query chains, rule maps, or Gate definitions in controllers (controllers may *call* Gate and FormRequest).
+- Put SQL query chains, rule maps, or Gate definitions in controllers (controllers may *call* Gate and FormRequest).
 - Use a command bus as the application layer. There is no `bus` package; Controller → FormRequest → optional service is the path.
 - Treat `jsonapi` or `make:resource` as required API shape (optional helpers).
 - Bypass FormRequest with ad-hoc `map[string]string` for mutating endpoints when `validation` is enabled.
-- Nest `orm.Transaction` (not supported).
-- Invent cursor pagination, savepoints, or typed `ErrModelNotFound` (not in the ORM).
+- Invent an ORM, a query builder, cursor pagination, or a typed `ErrModelNotFound`. SQL uses `database/sql` through `packages/db`.
 - Introduce reflection autowiring or constructor injection magic. Construct services with `NewX()` or resolve packages with `From(app)`.
 - Enable packages automatically after `package:acquire` unless `--enable` was passed.
 - Put AI-tool attribution trailers in git commits.

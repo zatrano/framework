@@ -89,7 +89,6 @@ Resolve services with `From(app)` helpers — do not expect `app.Auth()` / `app.
 auth.From(app)
 session.From(app)
 notification.From(app)
-database.Migrator(app)
 ```
 
 > **Mail:** There is no `packages/mail`. Send email through `notification` with `Channels: ["mail"]`.
@@ -105,7 +104,7 @@ database.Migrator(app)
 | Session login / MFA | `auth` | [auth](https://zatrano.com/docs/auth) |
 | Gates / policies | `authorization` (`auth/authorization`) | [Authorization](https://zatrano.com/docs/authorization) |
 | Validate forms | `validation` | [Validation](https://zatrano.com/docs/validation) |
-| SQL + models | `database` + `orm` | [Database](https://zatrano.com/docs/database) · [ORM](https://zatrano.com/docs/orm) |
+| SQL | `db` | drivers: `db/postgres`, `db/mysql`, `db/mariadb`, `db/sqlite`, `db/sqlserver`, `db/oracle` |
 | Send email / SMS | `notification` | [Notifications](https://zatrano.com/docs/notifications) · [Mail](https://zatrano.com/docs/mail) |
 | Background jobs | `queue` | [Queues](https://zatrano.com/docs/queues) |
 | Social login | `social` (`auth/social`) | [Social](https://zatrano.com/docs/social) |
@@ -386,38 +385,21 @@ QUEUE_CONNECTION=redis
 
 Docs: [Redis](https://zatrano.com/docs/redis)
 
-### `database`
+### `db`
 
-**For:** SQL connections, transactions, query builder, schema, migrations, seeders.  
-**Use:**
+**For:** SQL connections, pools, and transactions. Not an ORM, query builder, or migration engine. The application owns its SQL. Each engine is its own module and is linked only when chosen.
 
 ```go
-mgr := database.From(app)
-users, err := mgr.Table("users")
-err = mgr.Transaction(func(tx *sql.Tx) error { return nil })
-mig := database.Migrator(app)
-_ = mig.Migrate()
+import "github.com/zatrano/packages/db/postgres"
+
+handle, err := postgres.Open(ctx, postgres.Config{DSN: os.Getenv("DATABASE_URL")})
 ```
 
 ```bash
-go run ./cmd/zatrano db:setup --drivers=sqlite,pgsql
-go run ./cmd/zatrano migrate
+go run ./cmd/app db:setup
 ```
 
-Docs: [Database](https://zatrano.com/docs/database) · [Query Builder](https://zatrano.com/docs/queries) · [Schema](https://zatrano.com/docs/schema) · [Migrations](https://zatrano.com/docs/migrations)
-
-### `orm`
-
-**For:** Type-safe models, relations, eager loading, soft deletes.  
-**Use:**
-
-```go
-user, err := orm.Query[User]().Where("email", email).First()
-post, err := orm.Create[Post](map[string]any{"title": "Hi"})
-page, err := orm.Query[User]().Paginate(1, 15, "/users")
-```
-
-Docs: [ORM](https://zatrano.com/docs/orm) (+ models / querying / relationships / eager / advanced)
+`db.SQLFrom(app)` reads a `*sql.DB` already stored in the container. There is no `packages/database` package and no `packages/orm` package.
 
 ### `template`
 
@@ -459,7 +441,7 @@ facts.On[UserRegistered](bus, facts.Async(IndexUser{Search: search}))
 err := bus.Publish(ctx, UserRegistered{UserID: user.ID, Email: user.Email})
 ```
 
-ORM persistence hooks stay on `orm.ObserveModel`. Jobs stay on `queue`. Async workers start with `App.Start`.
+Jobs stay on `queue`. Async workers start with `App.Start`.
 
 Docs: [Facts](https://zatrano.com/docs/facts)
 
