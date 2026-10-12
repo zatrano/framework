@@ -27,6 +27,8 @@ func HTML(body string) *Response {
 }
 
 // JSON creates a JSON response.
+// Headers stay on the inline slots, the same path as Text, until a caller
+// overflows them. Security headers and the request id fit there.
 func JSON(data any) *Response {
 	payload, err := json.Marshal(data)
 	if err != nil {
@@ -34,7 +36,6 @@ func JSON(data any) *Response {
 			status:      stdhttp.StatusInternalServerError,
 			content:     []byte(`{"message":"failed to encode json"}`),
 			contentType: "application/json",
-			headers:     make(stdhttp.Header),
 			err:         err,
 		}
 	}
@@ -42,7 +43,6 @@ func JSON(data any) *Response {
 		status:      stdhttp.StatusOK,
 		content:     payload,
 		contentType: "application/json",
-		headers:     make(stdhttp.Header),
 	}
 }
 

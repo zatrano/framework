@@ -508,8 +508,9 @@ func (r *Router) resolve(method, path string, normalize bool) routeHit {
 		if t.tree == nil {
 			return routeHit{}
 		}
+		var segBuf [8]string
 		params := map[string]string{}
-		if route := t.tree.lookup(requestSegs(path), params); route != nil {
+		if route := t.tree.lookup(requestSegsBuf(path, segBuf[:]), params); route != nil {
 			return routeHit{route: route, params: params}
 		}
 		return routeHit{}

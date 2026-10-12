@@ -4,6 +4,13 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.5 - 2026-10-12
+
+### Changed
+
+- A JSON response leaves headers on the inline slots. The four security headers and `X-Request-Id` fit there. Header values are unchanged.
+- A dynamic route of at most eight segments matches from a stack buffer. A longer path still splits. An empty segment still does not match.
+
 ## 3.1.4 - 2026-10-12
 
 ### Changed

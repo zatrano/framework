@@ -1,5 +1,15 @@
 # Upgrading
 
+## Upgrading from v3.1.4
+
+v3.1.5 requires the same rawhttp v0.2.6 and canvas v0.2.1 as v3.1.4. `package:enable` still pins packages v1.15.1.
+
+```bash
+go get github.com/zatrano/framework/v3@v3.1.5
+```
+
+Handlers stay the same. A JSON response no longer allocates a header map before the security headers are written.
+
 ## Upgrading from v3.1.3
 
 v3.1.4 requires rawhttp v0.2.6 and canvas v0.2.1. v3.1.3 required rawhttp v0.2.5 and canvas v0.2.0. `package:enable` still pins packages v1.15.1.

@@ -64,11 +64,39 @@ func parseRouteSegs(path string) []routeSeg {
 }
 
 func requestSegs(path string) []string {
+	return requestSegsBuf(path, nil)
+}
+
+// requestSegsBuf splits path on '/' into buf when it fits.
+// The segment strings alias path. Behavior matches strings.Split after trim.
+func requestSegsBuf(path string, buf []string) []string {
 	path = strings.Trim(path, "/")
 	if path == "" {
 		return nil
 	}
-	return strings.Split(path, "/")
+	n := 1
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			n++
+		}
+	}
+	var segs []string
+	if n <= len(buf) {
+		segs = buf[:n]
+	} else {
+		segs = make([]string, n)
+	}
+	start := 0
+	k := 0
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			segs[k] = path[start:i]
+			k++
+			start = i + 1
+		}
+	}
+	segs[k] = path[start:]
+	return segs
 }
 
 func (n *trieNode) insert(segs []routeSeg, route *Route) error {

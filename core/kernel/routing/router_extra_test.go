@@ -470,6 +470,29 @@ func TestFrozenSnapshotAndCacheIgnoreLaterFieldWrites(t *testing.T) {
 	}
 }
 
+func TestDynamicRouteKeepsEmptySegments(t *testing.T) {
+	r := routing.New()
+	r.Get("/users/{id}", func(req *http.Request) *http.Response {
+		return http.Text(req.Route("id"))
+	})
+	r.Get("/a/b/c/d/e/f/g/h/{id}", func(req *http.Request) *http.Response {
+		return http.Text(req.Route("id"))
+	})
+
+	hit := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users/42", nil)))
+	if hit.StatusCode() != 200 || string(hit.Content()) != "42" {
+		t.Fatalf("users status=%d body=%q", hit.StatusCode(), hit.Content())
+	}
+	gap := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/users//42", nil)))
+	if gap.StatusCode() != 404 {
+		t.Fatalf("empty segment status=%d body=%q", gap.StatusCode(), gap.Content())
+	}
+	long := r.Dispatch(http.RequestFromHTTP(httptest.NewRequest(stdhttp.MethodGet, "/a/b/c/d/e/f/g/h/99", nil)))
+	if long.StatusCode() != 200 || string(long.Content()) != "99" {
+		t.Fatalf("long path status=%d body=%q", long.StatusCode(), long.Content())
+	}
+}
+
 func mustPanic(t *testing.T, name string, fn func()) {
 	t.Helper()
 	defer func() {
