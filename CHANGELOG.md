@@ -4,6 +4,11 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Require rawhttp v0.2.5. `Close` and `Shutdown` no longer race `Serve`'s `WaitGroup.Add`.
+- Release smoke on a tag push no longer asks checkout to fetch that same tag.
+
 ## 3.1.1 - 2026-10-09
 
 ### Added
