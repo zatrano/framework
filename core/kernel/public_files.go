@@ -113,6 +113,10 @@ func (idx *publicFileIndex) addDynamic(key string) {
 	idx.dynamicPrefixes = append(idx.dynamicPrefixes, key)
 }
 
+func (idx *publicFileIndex) empty() bool {
+	return idx == nil || (len(idx.files) == 0 && len(idx.dynamicPrefixes) == 0)
+}
+
 func (idx *publicFileIndex) mayServe(key string) bool {
 	if idx == nil || key == "" {
 		return false

@@ -71,13 +71,69 @@ func (r *Request) applyPendingInputTransforms() {
 		return
 	}
 	r.inputTransformed = true
-	if len(r.inputTransforms) == 0 {
+	if !r.trimInputs && !r.emptyToNull && len(r.inputTransforms) == 0 {
 		return
 	}
 	r.ensureForm()
 	r.ensureJSONParsed()
+	if r.trimInputs {
+		r.applyOneInputTransform(func(key, value string) (string, bool) {
+			if r.trimSkip[key] {
+				return value, true
+			}
+			return strings.TrimSpace(value), true
+		})
+	}
+	if r.emptyToNull {
+		r.applyOneInputTransform(func(key, value string) (string, bool) {
+			if r.emptySkip[key] {
+				return value, true
+			}
+			if value == "" {
+				return "", false
+			}
+			return value, true
+		})
+	}
 	for _, fn := range r.inputTransforms {
 		r.applyOneInputTransform(fn)
+	}
+}
+
+// QueueTrim records whitespace trimming. skip is owned by the caller and must not change.
+func (r *Request) QueueTrim(skip map[string]bool) {
+	if r == nil {
+		return
+	}
+	r.trimInputs = true
+	r.trimSkip = skip
+	if r.inputTransformed {
+		r.applyOneInputTransform(func(key, value string) (string, bool) {
+			if skip[key] {
+				return value, true
+			}
+			return strings.TrimSpace(value), true
+		})
+	}
+}
+
+// QueueEmptyNull records removal of empty inputs. skip is owned by the caller and must not change.
+func (r *Request) QueueEmptyNull(skip map[string]bool) {
+	if r == nil {
+		return
+	}
+	r.emptyToNull = true
+	r.emptySkip = skip
+	if r.inputTransformed {
+		r.applyOneInputTransform(func(key, value string) (string, bool) {
+			if skip[key] {
+				return value, true
+			}
+			if value == "" {
+				return "", false
+			}
+			return value, true
+		})
 	}
 }
 

@@ -11,9 +11,8 @@ import (
 func Text(body string) *Response {
 	return &Response{
 		status:      stdhttp.StatusOK,
-		content:     []byte(body),
+		textBody:    body,
 		contentType: "text/plain; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 

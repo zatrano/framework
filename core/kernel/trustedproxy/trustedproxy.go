@@ -65,6 +65,9 @@ func (c Config) Validate(production bool) error {
 // Middleware trusts X-Forwarded-* headers only when the remote peer is a trusted proxy.
 func (c Config) Middleware() routing.MiddlewareFunc {
 	trustAll, nets := c.TrustAll, c.nets
+	if !trustAll && len(nets) == 0 {
+		return func(next routing.HandlerFunc) routing.HandlerFunc { return next }
+	}
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
 			req.Set(clientIPKey, Resolve(req, trustAll, nets))

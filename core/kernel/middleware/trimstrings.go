@@ -13,12 +13,7 @@ func TrimStrings(except ...string) routing.MiddlewareFunc {
 	skip := exceptSet(except...)
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
-			req.TransformInputs(func(key, value string) (string, bool) {
-				if skip[key] {
-					return value, true
-				}
-				return strings.TrimSpace(value), true
-			})
+			req.QueueTrim(skip)
 			return next(req)
 		}
 	}
@@ -29,15 +24,7 @@ func ConvertEmptyStringsToNull(except ...string) routing.MiddlewareFunc {
 	skip := exceptSet(except...)
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
 		return func(req *http.Request) *http.Response {
-			req.TransformInputs(func(key, value string) (string, bool) {
-				if skip[key] {
-					return value, true
-				}
-				if value == "" {
-					return "", false
-				}
-				return value, true
-			})
+			req.QueueEmptyNull(skip)
 			return next(req)
 		}
 	}

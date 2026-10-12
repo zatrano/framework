@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"unsafe"
 
 	"github.com/zatrano/framework/v3/core/kernel/http"
 )
@@ -537,12 +538,21 @@ func (r *Router) match(req *http.Request) *Route {
 	if req == nil {
 		return nil
 	}
-	path := req.Path()
 	method := req.Method()
-	// Frozen exact static hit. Dispatch already stripped a trailing slash, and
-	// registration stores the method uppercase, so GET /plaintext does not
-	// normalize or call lookupRoute. A miss falls through and folds the path
-	// once.
+	// Frozen exact static hit. The lookup key aliases the carrier buffer and
+	// is not retained. A miss copies the path before any later use.
+	if r.byMethod != nil {
+		if t := r.byMethod[method]; t != nil {
+			if b := req.PathBytes(); len(b) > 0 {
+				if route := t.static[unsafe.String(&b[0], len(b))]; route != nil {
+					req.SetRouteParams(nil)
+					req.SetRouteName(route.dispatchName())
+					return route
+				}
+			}
+		}
+	}
+	path := req.Path()
 	if r.byMethod != nil {
 		if t := r.byMethod[method]; t != nil {
 			if route := t.static[path]; route != nil {
@@ -729,11 +739,11 @@ func compilePath(path string) ([]string, *regexp.Regexp) {
 // normalizeDispatchPath strips a trailing slash from the request path (except "/")
 // so /dashboard and /dashboard/ match the same route. Query string is untouched.
 func normalizeDispatchPath(req *http.Request) {
-	if req == nil {
+	if req == nil || req.PathSet() {
 		return
 	}
-	path := req.Path()
-	if len(path) > 1 && strings.HasSuffix(path, "/") {
-		req.SetPath(strings.TrimRight(path, "/"))
+	b := req.PathBytes()
+	if len(b) > 1 && b[len(b)-1] == '/' {
+		req.SetPath(strings.TrimRight(string(b), "/"))
 	}
 }

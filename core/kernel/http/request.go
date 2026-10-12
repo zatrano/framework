@@ -30,8 +30,10 @@ type Request struct {
 
 	method     string
 	methodSet  bool
+	methodView string
 	path       string
 	pathSet    bool
+	pathView   string
 	query      string
 	querySet   bool
 	host       string
@@ -52,12 +54,17 @@ type Request struct {
 
 	route            map[string]string
 	attrs            map[string]any
+	requestID        string
 	cookies          *cookie.Jar
 	jsonData         map[string]string
 	jsonRaw          map[string]any
 	jsonRead         bool
 	inputTransforms  []func(key, value string) (string, bool)
 	inputTransformed bool
+	trimSkip         map[string]bool
+	emptySkip        map[string]bool
+	trimInputs       bool
+	emptyToNull      bool
 	bodyCached       []byte
 	bodyErr          error
 	bodyRead         bool
@@ -309,10 +316,60 @@ func (r *Request) Method() string {
 	if r.methodSet {
 		return r.method
 	}
+	if r.methodView != "" {
+		return r.methodView
+	}
 	if r.ctx != nil && len(r.ctx.Method) > 0 {
-		return string(r.ctx.Method)
+		r.methodView = methodFromBytes(r.ctx.Method)
+		return r.methodView
 	}
 	return ""
+}
+
+func methodFromBytes(b []byte) string {
+	switch len(b) {
+	case 3:
+		if b[0] == 'G' && b[1] == 'E' && b[2] == 'T' {
+			return "GET"
+		}
+		if b[0] == 'P' && b[1] == 'U' && b[2] == 'T' {
+			return "PUT"
+		}
+	case 4:
+		if b[0] == 'P' && b[1] == 'O' && b[2] == 'S' && b[3] == 'T' {
+			return "POST"
+		}
+		if b[0] == 'H' && b[1] == 'E' && b[2] == 'A' && b[3] == 'D' {
+			return "HEAD"
+		}
+	case 5:
+		if b[0] == 'P' && b[1] == 'A' && b[2] == 'T' && b[3] == 'C' && b[4] == 'H' {
+			return "PATCH"
+		}
+	case 6:
+		if b[0] == 'D' && b[1] == 'E' && b[2] == 'L' && b[3] == 'E' && b[4] == 'T' && b[5] == 'E' {
+			return "DELETE"
+		}
+	case 7:
+		if b[0] == 'O' && b[1] == 'P' && b[2] == 'T' && b[3] == 'I' && b[4] == 'O' && b[5] == 'N' && b[6] == 'S' {
+			return "OPTIONS"
+		}
+	}
+	return string(b)
+}
+
+// PathSet reports whether SetPath replaced the carrier path.
+func (r *Request) PathSet() bool {
+	return r != nil && r.pathSet
+}
+
+// PathBytes returns the carrier path without copying. It is nil after SetPath.
+// The bytes are valid only until the carrier reuses the request buffer.
+func (r *Request) PathBytes() []byte {
+	if r == nil || r.pathSet || r.ctx == nil {
+		return nil
+	}
+	return r.ctx.Path
 }
 
 // Path returns the request path.
@@ -323,8 +380,12 @@ func (r *Request) Path() string {
 	if r.pathSet {
 		return r.path
 	}
+	if r.pathView != "" {
+		return r.pathView
+	}
 	if r.ctx != nil && len(r.ctx.Path) > 0 {
-		return string(r.ctx.Path)
+		r.pathView = string(r.ctx.Path)
+		return r.pathView
 	}
 	return ""
 }
@@ -535,6 +596,12 @@ func (r *Request) Set(key string, value any) {
 	if r == nil {
 		return
 	}
+	if key == "request_id" {
+		if s, ok := value.(string); ok {
+			r.requestID = s
+			return
+		}
+	}
 	if r.attrs == nil {
 		r.attrs = make(map[string]any)
 	}
@@ -543,7 +610,13 @@ func (r *Request) Set(key string, value any) {
 
 // Get returns a request attribute.
 func (r *Request) Get(key string) any {
-	if r == nil || r.attrs == nil {
+	if r == nil {
+		return nil
+	}
+	if key == "request_id" && r.requestID != "" {
+		return r.requestID
+	}
+	if r.attrs == nil {
 		return nil
 	}
 	return r.attrs[key]

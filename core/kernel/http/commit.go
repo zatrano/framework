@@ -40,9 +40,15 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		return r.hijack(conn, leftover)
 	}
 
-	for key, values := range r.Headers() {
-		for _, value := range values {
-			_ = ctx.AddHeader(key, value)
+	if r.nInline > 0 && r.headers == nil {
+		for i := 0; i < r.nInline; i++ {
+			_ = ctx.AddHeader(r.inlineHdrs[i].k, r.inlineHdrs[i].v)
+		}
+	} else if r.headers != nil || r.nInline > 0 {
+		for key, values := range r.Headers() {
+			for _, value := range values {
+				_ = ctx.AddHeader(key, value)
+			}
 		}
 	}
 	for _, c := range r.cookies {
@@ -117,7 +123,9 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		})
 		return nil
 	}
-	if len(r.content) > 0 {
+	if r.textBody != "" {
+		ctx.SetBodyString(r.textBody)
+	} else if len(r.content) > 0 {
 		ctx.SetBody(r.content)
 	}
 	return nil

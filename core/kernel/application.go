@@ -648,6 +648,12 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 	default:
 		return nil
 	}
+	if app.IsProduction() {
+		app.ensurePublicFileIndex()
+		if app.publicFiles.empty() {
+			return nil
+		}
+	}
 	path := req.Path()
 	if path == "/" {
 		return nil
@@ -656,7 +662,6 @@ func (app *Application) publicFile(req *http.Request) *http.Response {
 	// Hits still Resolve + EvalUnder + Stat. Regular files added after boot
 	// are not served until restart; symlink/junction trees stay on the slow path.
 	if app.IsProduction() {
-		app.ensurePublicFileIndex()
 		key, ok := publicFileLookupKey(path)
 		if !ok || app.publicFiles == nil || !app.publicFiles.mayServe(key) {
 			return nil

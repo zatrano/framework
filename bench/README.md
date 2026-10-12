@@ -84,18 +84,18 @@ The frozen tier-0 target of at most v3.0.1 × 1.01 was not shown. On the High pe
 
 ## Snapshot (2026-10-12)
 
-Go **1.26.9**, Windows/amd64, CPU **i5-6200U @ 2.30GHz** (2 cores / 4 threads), `GOMAXPROCS=4`, power plan **Dengeli** (`381b4222-f694-41f0-9685-ff5bb260df2e`). One `go test -c` binary. Ten rounds, the six published rows rotated, 3 seconds between samples, `-benchtime 1s`. The bench module requires rawhttp **v0.2.5**, the same release as the framework module.
+Go **1.26.9**, Windows/amd64, CPU **i5-6200U @ 2.30GHz** (2 cores / 4 threads), `GOMAXPROCS=4`, power plan **Dengeli** (`381b4222-f694-41f0-9685-ff5bb260df2e`). One `go test -c` binary. Eight rounds, the six published rows rotated, 2 seconds between samples, `-benchtime 1s`. The bench module requires rawhttp **v0.2.5**, the same release as the framework module.
 
 | Row | median ns/op | min | max | B/op | allocs/op |
 |---|---:|---:|---:|---:|---:|
-| `BenchmarkCanonT0` | 1523 | 1480 | 2134 | 704 | 6 |
-| `BenchmarkCanonT0FiberEq` | 2115 | 2074 | 3010 | 0 | 0 |
-| `BenchmarkCanonT1` | 6203 | 5991 | 7620 | 1728 | 30 |
-| `BenchmarkCanonT1Echo` | 6167 | 6026 | 7554 | 1680 | 28 |
-| `BenchmarkCanonT1FiberEqEcho` | 3834 | 3771 | 4752 | 0 | 0 |
-| `BenchmarkCanonT1FiberEqGen` | 3417 | 3313 | 3988 | 32 | 1 |
+| `BenchmarkCanonT0` | 1346 | 1259 | 1388 | 960 | 2 |
+| `BenchmarkCanonT0FiberEq` | 2080 | 1928 | 2235 | 0 | 0 |
+| `BenchmarkCanonT1` | 3137 | 3067 | 4363 | 1024 | 5 |
+| `BenchmarkCanonT1Echo` | 2666 | 2581 | 3704 | 992 | 4 |
+| `BenchmarkCanonT1FiberEqEcho` | 3851 | 3750 | 5022 | 0 | 0 |
+| `BenchmarkCanonT1FiberEqGen` | 3410 | 3256 | 4100 | 32 | 1 |
 
-Median ratios on this host: tier-0 / Fiber equal-timeout **0.72×** (1523 / 2115). Tier-1 echo / Fiber equal-timeout echo **1.61×** (6167 / 3834). Tier-1 minus tier-0 **4680 ns**. H3 holds. H1 and H2 do not. Windows stays informational; the Linux gates are unchanged.
+Median ratios on this host: tier-0 / Fiber equal-timeout **0.65×** (1346 / 2080). Tier-1 echo / Fiber equal-timeout echo **0.69×** (2666 / 3851). Tier-1 generate / Fiber equal-timeout generate **0.92×** (3137 / 3410). Tier-1 echo minus tier-0 **1320 ns**. H3 holds. The echo row is under the 0.90× time bar; its allocation count is 4 against Fiber's 0, so the allocation half of H1 does not. H2's 1.0 µs tax does not. Windows stays informational; the Linux gates are unchanged.
 
 ## How to measure
 

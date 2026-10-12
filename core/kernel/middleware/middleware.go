@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -13,7 +12,21 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel/routing"
 )
 
-var requestIDPattern = regexp.MustCompile(`^[A-Za-z0-9._\-:]{1,128}$`)
+func validRequestID(s string) bool {
+	if len(s) == 0 || len(s) > 128 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '.' || c == '_' || c == '-' || c == ':':
+		default:
+			return false
+		}
+	}
+	return true
+}
 
 // Stack builds a middleware pipeline around a final handler.
 func Stack(handler routing.HandlerFunc, layers ...routing.MiddlewareFunc) routing.HandlerFunc {
@@ -84,7 +97,7 @@ func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 		req.Set("request_id", id)
 		resp := next(req)
 		if resp != nil {
-			resp.Header("X-Request-ID", id)
+			resp.Header("X-Request-Id", id)
 			if tp := strings.TrimSpace(req.Header("Traceparent")); tp != "" {
 				resp.Header("Traceparent", tp)
 			}
@@ -98,7 +111,7 @@ func incomingRequestID(req *http.Request) string {
 		return ""
 	}
 	for _, key := range []string{"X-Request-ID", "X-Correlation-ID"} {
-		if id := strings.TrimSpace(req.Header(key)); requestIDPattern.MatchString(id) {
+		if id := strings.TrimSpace(req.Header(key)); validRequestID(id) {
 			return id
 		}
 	}
@@ -115,7 +128,7 @@ func traceIDFromTraceparent(header string) string {
 		return ""
 	}
 	traceID := parts[1]
-	if len(traceID) == 32 && requestIDPattern.MatchString(traceID) {
+	if len(traceID) == 32 && validRequestID(traceID) {
 		return traceID
 	}
 	return ""

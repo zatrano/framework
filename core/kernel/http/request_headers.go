@@ -14,6 +14,17 @@ func (r *Request) Header(key string, fallback ...string) string {
 		}
 		return ""
 	}
+	if r.headerOverlay == nil && len(r.headerDeleted) == 0 {
+		if r.ctx != nil {
+			if v := r.ctx.Header(key); len(v) > 0 {
+				return string(v)
+			}
+		}
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
 	canon := textproto.CanonicalMIMEHeaderKey(key)
 	if r.headerDeleted[canon] {
 		if len(fallback) > 0 {

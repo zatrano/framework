@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	stdhttp "net/http"
+	"net/textproto"
 	"strings"
 	"time"
 )
@@ -12,8 +13,11 @@ import (
 type Response struct {
 	status             int
 	headers            stdhttp.Header
+	inlineHdrs         [8]struct{ k, v string }
+	nInline            int
 	cookies            []*stdhttp.Cookie
 	content            []byte
+	textBody           string
 	contentType        string
 	filePath           string
 	publicFile         bool
@@ -37,9 +41,27 @@ func (r *Response) Status(code int) *Response {
 
 // Header sets a response header.
 func (r *Response) Header(key, value string) *Response {
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
+	if r == nil {
+		return nil
 	}
+	if r.headers != nil {
+		r.headers.Set(key, value)
+		return r
+	}
+	key = textproto.CanonicalMIMEHeaderKey(key)
+	for i := 0; i < r.nInline; i++ {
+		if r.inlineHdrs[i].k == key {
+			r.inlineHdrs[i].v = value
+			return r
+		}
+	}
+	if r.nInline < len(r.inlineHdrs) {
+		r.inlineHdrs[r.nInline].k = key
+		r.inlineHdrs[r.nInline].v = value
+		r.nInline++
+		return r
+	}
+	r.flushInlineHeaders()
 	r.headers.Set(key, value)
 	return r
 }
@@ -103,6 +125,19 @@ func (r *Response) Vary(headers ...string) *Response {
 
 // WithoutHeader removes a response header.
 func (r *Response) WithoutHeader(key string) *Response {
+	if r == nil {
+		return nil
+	}
+	key = textproto.CanonicalMIMEHeaderKey(key)
+	for i := 0; i < r.nInline; i++ {
+		if r.inlineHdrs[i].k == key {
+			r.nInline--
+			r.inlineHdrs[i] = r.inlineHdrs[r.nInline]
+			r.inlineHdrs[r.nInline].k = ""
+			r.inlineHdrs[r.nInline].v = ""
+			break
+		}
+	}
 	if r.headers != nil {
 		r.headers.Del(key)
 	}
@@ -134,7 +169,16 @@ func (r *Response) WithoutCookie(name string) *Response {
 
 // Content returns the response body bytes.
 func (r *Response) Content() []byte {
-	return r.content
+	if r == nil {
+		return nil
+	}
+	if len(r.content) > 0 {
+		return r.content
+	}
+	if r.textBody != "" {
+		return []byte(r.textBody)
+	}
+	return nil
 }
 
 // StatusCode returns the status code.
@@ -177,10 +221,27 @@ func (r *Response) FilePath() string {
 
 // Headers returns response headers.
 func (r *Response) Headers() stdhttp.Header {
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
+	if r == nil {
+		return nil
 	}
+	r.flushInlineHeaders()
 	return r.headers
+}
+
+func (r *Response) flushInlineHeaders() {
+	if r.headers == nil {
+		r.headers = make(stdhttp.Header, r.nInline)
+	}
+	for i := 0; i < r.nInline; i++ {
+		k := r.inlineHdrs[i].k
+		if _, ok := r.headers[k]; ok {
+			continue
+		}
+		r.headers[k] = []string{r.inlineHdrs[i].v}
+		r.inlineHdrs[i].k = ""
+		r.inlineHdrs[i].v = ""
+	}
+	r.nInline = 0
 }
 
 // Cookies returns response cookies.
@@ -204,6 +265,7 @@ func (r *Response) ContentType() string {
 
 func (r *Response) SetContent(content []byte, contentType string) *Response {
 	r.content = content
+	r.textBody = ""
 	r.contentType = contentType
 	return r
 }
@@ -241,9 +303,7 @@ func (r *Response) AppendHeader(key, value string) *Response {
 	if r == nil {
 		return nil
 	}
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header)
-	}
+	r.flushInlineHeaders()
 	r.headers.Add(key, value)
 	return r
 }
@@ -261,25 +321,32 @@ func (r *Response) WithoutHeaders(keys ...string) *Response {
 
 // HasHeader reports whether a response header is set.
 func (r *Response) HasHeader(key string) bool {
-	if r == nil || r.headers == nil {
-		return false
-	}
-	return r.headers.Get(key) != ""
+	return r.GetHeader(key) != ""
 }
 
 // GetHeader returns a response header value.
 func (r *Response) GetHeader(key string, fallback ...string) string {
-	if r == nil || r.headers == nil {
+	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
 		}
 		return ""
 	}
-	value := r.headers.Get(key)
-	if value == "" && len(fallback) > 0 {
+	key = textproto.CanonicalMIMEHeaderKey(key)
+	for i := 0; i < r.nInline; i++ {
+		if r.inlineHdrs[i].k == key && r.inlineHdrs[i].v != "" {
+			return r.inlineHdrs[i].v
+		}
+	}
+	if r.headers != nil {
+		if value := r.headers.Get(key); value != "" {
+			return value
+		}
+	}
+	if len(fallback) > 0 {
 		return fallback[0]
 	}
-	return value
+	return ""
 }
 
 // Location sets the Location header.
