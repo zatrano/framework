@@ -18,8 +18,8 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "3.1.1" {
-		t.Fatalf("VERSION=%q want 3.1.1", version)
+	if version != "3.1.2" {
+		t.Fatalf("VERSION=%q want 3.1.2", version)
 	}
 
 	log, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md"))
@@ -79,6 +79,7 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal("CHANGELOG.md must keep historical 2.0.28")
 	}
 	unreleased := strings.Index(text, "## Unreleased")
+	v312 := strings.Index(text, "## 3.1.2 -")
 	v311 := strings.Index(text, "## 3.1.1 -")
 	v310 := strings.Index(text, "## 3.1.0 -")
 	v301 := strings.Index(text, "## 3.0.1 -")
@@ -86,16 +87,16 @@ func TestReleaseMetadata(t *testing.T) {
 	rc := strings.Index(text, "## 3.0.0-rc.1")
 	released := strings.Index(text, "## 2.8.1")
 	prev := strings.Index(text, "## 2.8.0")
-	if unreleased < 0 || v311 < 0 || v310 < 0 || v301 < 0 || stable < 0 || rc < 0 || released < 0 || prev < 0 || !(unreleased < v311 && v311 < v310 && v310 < v301 && v301 < stable && stable < rc && rc < released && released < prev) {
-		t.Fatal("CHANGELOG must keep Unreleased, then 3.1.1, then 3.1.0, then 3.0.1, then 3.0.0, then 3.0.0-rc.1, then 2.8.1, then immutable 2.8.0")
+	if unreleased < 0 || v312 < 0 || v311 < 0 || v310 < 0 || v301 < 0 || stable < 0 || rc < 0 || released < 0 || prev < 0 || !(unreleased < v312 && v312 < v311 && v311 < v310 && v310 < v301 && v301 < stable && stable < rc && rc < released && released < prev) {
+		t.Fatal("CHANGELOG must keep Unreleased, then 3.1.2, then 3.1.1, then 3.1.0, then 3.0.1, then 3.0.0, then 3.0.0-rc.1, then 2.8.1, then immutable 2.8.0")
 	}
 
 	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "version-3.1.1-green") {
-		t.Fatal("README badge must show 3.1.1")
+	if !strings.Contains(string(readme), "version-3.1.2-green") {
+		t.Fatal("README badge must show 3.1.2")
 	}
 }
 
@@ -122,8 +123,8 @@ func TestFreshConsumerLocalReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.1.1") {
-		t.Fatalf("generated go.mod must require v3.1.1:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.1.2") {
+		t.Fatalf("generated go.mod must require v3.1.2:\n%s", mod)
 	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(t.TempDir(), "app.exe"), "./cmd/app")
 	build.Dir = dest

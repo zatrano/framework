@@ -1,5 +1,15 @@
 # Upgrading
 
+## Upgrading from v3.1.1
+
+v3.1.2 requires rawhttp v0.2.5. v3.1.1 required v0.2.4. There is no supported downgrade of the carrier.
+
+```bash
+go get github.com/zatrano/framework/v3@v3.1.2
+```
+
+Application handlers stay the same. A static route hit no longer copies the path for the map lookup. That alias is not kept. A miss still copies the path before `resolve`.
+
 ## Upgrading from v3.0.1
 
 v3.1.0 is a minor release. `go get -u=patch` does not cross it. The last published tag before this release is v3.0.1. v3.0.0 is retracted and cannot be installed.

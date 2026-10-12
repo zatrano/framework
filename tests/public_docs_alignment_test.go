@@ -44,7 +44,7 @@ func TestPublicDocsDescribeReleasedEcosystem(t *testing.T) {
 	}
 	text := string(readme)
 	for _, want := range []string{
-		"github.com/zatrano/framework/v3@v3.1.1",
+		"github.com/zatrano/framework/v3@v3.1.2",
 		"github.com/zatrano/packages@v1.15.0",
 		"Enabled ∩ Imported",
 		"Expand Requires",

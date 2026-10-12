@@ -4,9 +4,15 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.2 - 2026-10-12
+
+### Changed
+
+- Require rawhttp v0.2.5. Tag v3.1.1 required v0.2.4. `Close` and `Shutdown` no longer race `Serve`'s `WaitGroup.Add`.
+- A frozen static route hit looks the path up without copying it. The lookup key aliases the carrier buffer and is not retained. A miss still copies the path before matching.
+
 ### Fixed
 
-- Require rawhttp v0.2.5. `Close` and `Shutdown` no longer race `Serve`'s `WaitGroup.Add`.
 - Release smoke on a tag push no longer asks checkout to fetch that same tag.
 
 ## 3.1.1 - 2026-10-09
