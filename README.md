@@ -62,7 +62,6 @@ Older lines stay on their own branches:
 | Branch | Line |
 | --- | --- |
 | `main` | V3. Current tag `v3.1.1` |
-| `3.x` | V3 through `v3.0.1` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
