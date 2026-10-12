@@ -4,9 +4,12 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+## 3.1.7 - 2026-10-13
+
 ### Changed
 
 - `Application.Handle` applies the boot-time `MAX_BODY_BYTES` ceiling to `Request.Body` and `Request.JSON`. A request built outside `Handle` still reads the variable when the body is read. `SetMaxBodyBytes` still overrides one request.
+- A POST no longer reads `TRUSTED_PROXIES` from the environment on each body, and method override no longer calls `mime.ParseMediaType` for a content type that is not form-urlencoded. Header, form, JSON, and multipart override behavior is unchanged.
 
 ## 3.1.6 - 2026-10-13
 
