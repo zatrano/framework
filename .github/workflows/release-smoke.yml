@@ -32,7 +32,7 @@ jobs:
         with:
           path: framework
           fetch-depth: 1
-          fetch-tags: true
+          fetch-tags: ${{ github.ref_type != 'tag' }}
 
       - name: Setup Go from go.mod
         if: matrix.toolchain == 'modfile'
@@ -351,7 +351,7 @@ jobs:
         with:
           path: framework
           fetch-depth: 1
-          fetch-tags: true
+          fetch-tags: ${{ github.ref_type != 'tag' }}
 
       - name: Setup Go from go.mod
         if: matrix.toolchain == 'modfile'
