@@ -897,6 +897,16 @@ func (app *Application) exceptionMiddleware() routing.MiddlewareFunc {
 // trustedProxiesForServer maps TRUSTED_PROXIES onto rawhttp.Server.TrustedProxies.
 // "*" (trust-all) is not expressible as CIDRs; leave empty and let app middleware handle it.
 func trustedProxiesForServer() []string {
+	return trustedProxyList()
+}
+
+// trustedProxiesConfigured reports whether the body budget should key off the
+// forwarded client. The result is snapshotted with the other body limits.
+func trustedProxiesConfigured() bool {
+	return len(trustedProxyList()) > 0
+}
+
+func trustedProxyList() []string {
 	raw := strings.TrimSpace(env.Get("TRUSTED_PROXIES", ""))
 	if raw == "" || raw == "*" {
 		return nil

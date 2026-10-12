@@ -48,11 +48,16 @@ func ApplyMethodOverride(req *http.Request) {
 	if req == nil {
 		return
 	}
-	resolved, ambiguous := MethodOverrideFromHeader(req.Method(), req.Header("X-HTTP-Method-Override"), req.Header("Content-Type"))
-	if !strings.EqualFold(resolved, req.Method()) {
-		req.SetMethod(resolved)
+	if m := req.Method(); m != "POST" && !strings.EqualFold(m, "POST") {
+		return
 	}
-	if !ambiguous {
+	if header := strings.TrimSpace(req.Header("X-HTTP-Method-Override")); header != "" {
+		if override := allowedMethodOverride(header); override != "" {
+			req.SetMethod(override)
+		}
+		return
+	}
+	if !req.FormURLEncoded() {
 		return
 	}
 	if override := allowedMethodOverride(req.PostForm("_method")); override != "" {

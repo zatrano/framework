@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -356,6 +357,32 @@ func methodFromBytes(b []byte) string {
 		}
 	}
 	return string(b)
+}
+
+// FormURLEncoded reports whether Content-Type is application/x-www-form-urlencoded.
+// A parameter suffix such as "; charset=utf-8" still matches. The check does
+// not call mime.ParseMediaType.
+func (r *Request) FormURLEncoded() bool {
+	if r == nil {
+		return false
+	}
+	var ct []byte
+	if r.headerOverlay != nil || len(r.headerDeleted) > 0 {
+		ct = []byte(r.Header("Content-Type"))
+	} else if r.ctx != nil {
+		ct = r.ctx.Header("Content-Type")
+	}
+	return formURLEncodedMedia(ct)
+}
+
+func formURLEncodedMedia(ct []byte) bool {
+	ct = bytes.TrimSpace(ct)
+	const want = "application/x-www-form-urlencoded"
+	if len(ct) < len(want) || !bytes.EqualFold(ct[:len(want)], []byte(want)) {
+		return false
+	}
+	rest := bytes.TrimSpace(ct[len(want):])
+	return len(rest) == 0 || rest[0] == ';'
 }
 
 // PathSet reports whether SetPath replaced the carrier path.

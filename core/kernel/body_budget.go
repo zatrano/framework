@@ -191,6 +191,25 @@ func bodyReserveAmount(lim bodyLimitSnap, contentType []byte, contentLength int,
 	return 0
 }
 
+// bodyShareKey resolves the per-client budget key. Loopback peers with no
+// trusted proxies skip the address string and the environment lookup.
+func bodyShareKey(conn net.Conn, ctx *rawhttp.Ctx, trusted bool) (string, bool) {
+	if !trusted {
+		if ta, ok := conn.RemoteAddr().(*net.TCPAddr); ok && ta.IP != nil && ta.IP.IsLoopback() {
+			return "", false
+		}
+	}
+	peer := ""
+	if ra := conn.RemoteAddr(); ra != nil {
+		peer = ra.String()
+	}
+	client := ""
+	if trusted && ctx != nil {
+		client = ctx.ClientIP()
+	}
+	return clientShareKey(peer, client, trusted)
+}
+
 func (app *Application) reserveBody(ctx *rawhttp.Ctx, n int64) bool {
 	conn := ctx.Conn()
 	if conn == nil || n <= 0 {
@@ -203,12 +222,8 @@ func (app *Application) reserveBody(ctx *rawhttp.Ctx, n int64) bool {
 		return true
 	}
 	app.bodyBudget.mu.Unlock()
-	peer := ""
-	if ra := conn.RemoteAddr(); ra != nil {
-		peer = ra.String()
-	}
-	key, apply := clientShareKey(peer, ctx.ClientIP(), len(trustedProxiesForServer()) > 0)
 	lim := app.bodyLimitSnap
+	key, apply := bodyShareKey(conn, ctx, lim.trustedProxies)
 	if lim.perClient >= 0 && !apply {
 		app.noteUndistinguishedClient()
 	}

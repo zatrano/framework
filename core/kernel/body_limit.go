@@ -15,10 +15,11 @@ var bodyLimitLookupHook func()
 // bodyLimitSnap is the header-hook ceiling, read once at boot.
 // Request.Body and Request.JSON do not use it; they still call the env helpers.
 type bodyLimitSnap struct {
-	maxRequest int64
-	maxBody    int64
-	inflight   int64
-	perClient  int64
+	maxRequest     int64
+	maxBody        int64
+	inflight       int64
+	perClient      int64
+	trustedProxies bool
 }
 
 func (app *Application) ensureBodyLimits() bodyLimitSnap {
@@ -39,10 +40,11 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 	}
 	inflight := http.MaxInflightBodyBytes()
 	app.bodyLimitSnap = bodyLimitSnap{
-		maxRequest: http.MaxRequestBytes(),
-		maxBody:    http.MaxBodyBytes(),
-		inflight:   inflight,
-		perClient:  perClientBodyCap(inflight),
+		maxRequest:     http.MaxRequestBytes(),
+		maxBody:        http.MaxBodyBytes(),
+		inflight:       inflight,
+		perClient:      perClientBodyCap(inflight),
+		trustedProxies: trustedProxiesConfigured(),
 	}
 	atomic.StoreUint32(&app.bodyLimitReady, 1)
 	return app.bodyLimitSnap
