@@ -12,8 +12,8 @@ import (
 // It runs only on the slow path (a body that can exceed the default).
 var bodyLimitLookupHook func()
 
-// bodyLimitSnap is the header-hook ceiling, read once at boot.
-// Request.Body and Request.JSON do not use it; they still call the env helpers.
+// bodyLimitSnap is the body ceiling, read once at boot.
+// Handle copies maxBody onto the request so Body and JSON do not call env.Get.
 type bodyLimitSnap struct {
 	maxRequest     int64
 	maxBody        int64

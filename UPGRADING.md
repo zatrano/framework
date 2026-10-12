@@ -1,5 +1,9 @@
 # Upgrading
 
+## Unreleased
+
+`Request.Body` and `Request.JSON` on a request served by `Application.Handle` use the `MAX_BODY_BYTES` value from boot, the same ceiling as the header hook. Changing the variable in a running process no longer changes those reads. Restart the process. `SetMaxBodyBytes` still overrides one request. A `Request` that did not come from `Handle` still reads the variable when the body is read.
+
 ## Upgrading from v3.1.5
 
 v3.1.6 requires the same rawhttp v0.2.6 and canvas v0.2.1 as v3.1.5. `package:enable` still pins packages v1.15.1.

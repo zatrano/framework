@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- `Application.Handle` applies the boot-time `MAX_BODY_BYTES` ceiling to `Request.Body` and `Request.JSON`. A request built outside `Handle` still reads the variable when the body is read. `SetMaxBodyBytes` still overrides one request.
+
 ## 3.1.6 - 2026-10-13
 
 ### Changed

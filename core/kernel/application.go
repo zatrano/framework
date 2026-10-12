@@ -593,6 +593,11 @@ func (app *Application) Handle(ctxAny any) {
 	}
 
 	req := http.NewRequest(ctx)
+	// Body and JSON use the boot ceiling. Reading MAX_BODY_BYTES here would
+	// call os.LookupEnv on every body.
+	if n := app.ensureBodyLimits().maxBody; n > 0 {
+		req.SetMaxBodyBytes(n)
+	}
 	middleware.ApplyMethodOverride(req)
 
 	var resp *http.Response
