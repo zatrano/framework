@@ -131,7 +131,7 @@ ZATRANO v2 already has:
 
 * `contracts` as the minimum stable ABI (`contracts/app.go`)
 * kernel typed runtime primitives (`kernel/application.go`)
-* framework independent of `github.com/zatrano/packages` (`bootstrap/register_addons.go`, `tests/architecture_test.go` `TestKernelHasZeroThirdPartyDependencies`)
+* framework independent of `github.com/zatrano/packages` (`bootstrap/register_addons.go`, `core/kernel/packages_boundary_test.go` `TestKernelHasOnlyAllowedThirdPartyDependencies`)
 * official packages in `github.com/zatrano/packages`
 * `zatrano.package/v1`, registry resolution, acquisition plan/apply, DryRun, CLI acquire, explicit `--enable`
 * Acquisition hardening: recovery reporting, acquisition exit codes, JSON, timeout into `ExecuteTargets`, ecosystem E2E, CI
@@ -337,7 +337,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | Area | Tests |
 |------|--------|
 | Enablement ∩ imported | `bootstrap/enablement_test.go` |
-| Kernel without packages | `tests/package_boot_test.go` |
+| Kernel without packages | `bootstrap/package_boot_test.go` |
 | OrderMetas / Expand / Bootable | `bootstrap/addons/registry_order_test.go` |
 | Duplicate addon register | `bootstrap/addons/registry_test.go` |
 | Bootstrap idempotent / freeze / fail terminal | `kernel/application_lifecycle_test.go` |
@@ -361,7 +361,7 @@ Locked by **Decision H**. Split remains Resolve + doctor; acquire and `App()` do
 | E Context APIs | `kernel/application_context_test.go` |
 | F Registration / process-global registry | `bootstrap/registration_integrity_test.go`; container last-wins |
 | G Enabled ∩ Imported | `bootstrap/enablement_test.go` |
-| H `framework_min` agreement | `tests/framework_min_agreement_test.go` |
+| H `framework_min` agreement | `distribution/registry/framework_min_agreement_test.go` |
 | I Service / library / heavy | `bootstrap/kind_lifecycle_test.go`; `console/pkgmanager/package_kind_lifecycle_test.go` |
 | J Runtime E2E | `console/pkgmanager/package_acquire_e2e_test.go` `TestPackageAcquireE2ERuntimeLifecycle`: real acquire → enable → App → Bootstrap → `StartContext` → capability → `Stop` |
 | L Runtime CLI 20–23 | `console/cli_runtime_exit_test.go`; `kernel/runtime_cli_test.go` |

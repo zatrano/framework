@@ -1,4 +1,4 @@
-package tests
+package env_test
 
 import (
 	"go/ast"
@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -109,4 +110,23 @@ func environmentSection(doc string) string {
 		return rest[:j]
 	}
 	return rest
+}
+
+func moduleRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("module root")
+		}
+		dir = parent
+	}
 }

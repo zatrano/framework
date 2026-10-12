@@ -4,6 +4,10 @@ All notable changes to ZATRANO are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Architecture, boot, fuzz, and consumer tests sit next to the packages they cover. The root `tests` directory is gone.
+
 ## 3.1.5 - 2026-10-12
 
 ### Changed

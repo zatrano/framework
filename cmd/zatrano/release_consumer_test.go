@@ -1,4 +1,4 @@
-package tests
+package main
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -193,5 +194,24 @@ func TestPublishedModuleConsumption(t *testing.T) {
 	}
 	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.0.1") {
 		t.Fatalf("consumer go.mod must pin v3.0.1:\n%s", mod)
+	}
+}
+
+func moduleRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("module root")
+		}
+		dir = parent
 	}
 }

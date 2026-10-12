@@ -238,13 +238,17 @@ jobs:
   fuzz:
     name: fuzz
     runs-on: ubuntu-latest
-    # Local longer runs: go test ./tests/fuzz/ -run=^$ -fuzz=FuzzX -fuzztime=30m
+    # Local longer runs:
+    # go test ./core/kernel/routing/ -run=^$ -fuzz=FuzzRouterPath -fuzztime=30m
+    # go test ./core/kernel/env/ -run=^$ -fuzz=FuzzDotenvParse -fuzztime=30m
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - FuzzRouterPath
-          - FuzzDotenvParse
+        include:
+          - target: FuzzRouterPath
+            package: core/kernel/routing
+          - target: FuzzDotenvParse
+            package: core/kernel/env
     defaults:
       run:
         working-directory: framework
@@ -272,13 +276,13 @@ jobs:
           cache-dependency-path: framework/go.mod
       - run: go mod download
       - name: Fuzz ${{ matrix.target }} (3m)
-        run: bash .github/scripts/run-fuzz.sh ${{ matrix.target }} ./tests/fuzz/ 3m
+        run: bash .github/scripts/run-fuzz.sh ${{ matrix.target }} ./${{ matrix.package }} 3m
       - name: Upload fuzz crash corpus
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-crash-${{ matrix.target }}
-          path: framework/tests/fuzz/testdata/fuzz/
+          path: framework/${{ matrix.package }}/testdata/fuzz/
           if-no-files-found: ignore
 
   summary:

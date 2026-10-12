@@ -63,10 +63,6 @@ func parseRouteSegs(path string) []routeSeg {
 	return out
 }
 
-func requestSegs(path string) []string {
-	return requestSegsBuf(path, nil)
-}
-
 // requestSegsBuf splits path on '/' into buf when it fits.
 // The segment strings alias path. Behavior matches strings.Split after trim.
 func requestSegsBuf(path string, buf []string) []string {

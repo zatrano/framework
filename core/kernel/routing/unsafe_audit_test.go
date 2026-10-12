@@ -1,4 +1,4 @@
-package tests
+package routing_test
 
 import (
 	"go/ast"
@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -60,5 +61,24 @@ func TestUnsafeIsOnlyTheStaticRouteKey(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "is not retained") {
 		t.Fatal("the static lookup alias must stay documented as not retained")
+	}
+}
+
+func moduleRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("module root")
+		}
+		dir = parent
 	}
 }

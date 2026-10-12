@@ -1,15 +1,13 @@
-package tests
+package bootstrap
 
 import (
 	"testing"
-
-	"github.com/zatrano/framework/v3/core/bootstrap"
 )
 
 func TestFrameworkAppBootsWithoutConsumerRoutes(t *testing.T) {
 	t.Setenv("DB_CONNECTION", "")
 	t.Setenv("DB_CONNECTIONS", "")
-	app := bootstrap.App(bootstrap.WithBasePath(t.TempDir()))
+	app := App(WithBasePath(t.TempDir()))
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}

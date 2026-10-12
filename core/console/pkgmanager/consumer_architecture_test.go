@@ -1,4 +1,4 @@
-package tests
+package pkgmanager
 
 import (
 	"io/fs"

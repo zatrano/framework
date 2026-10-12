@@ -1,9 +1,10 @@
-package tests
+package scaffold
 
 import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -235,5 +236,24 @@ func TestStarterSmokeUsesLiveAddon(t *testing.T) {
 		if strings.Contains(src, gone) {
 			t.Fatalf("starter-smoke must not import removed package %s", gone)
 		}
+	}
+}
+
+func moduleRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("module root")
+		}
+		dir = parent
 	}
 }

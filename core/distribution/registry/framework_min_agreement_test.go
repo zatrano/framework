@@ -1,4 +1,4 @@
-package tests
+package registry_test
 
 import (
 	"io/fs"

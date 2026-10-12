@@ -1,4 +1,4 @@
-package tests
+package exceptions_test
 
 import (
 	"encoding/json"
@@ -53,7 +53,6 @@ func bootExceptionPathApp(t *testing.T) contracts.App {
 	if err := app.Bootstrap(); err != nil {
 		t.Fatal(err)
 	}
-	closeAppLog(t, app)
 	if app.Exceptions() == nil {
 		t.Fatal("expected exceptions.Handler from KernelServiceProvider, not middleware.Recover fallback")
 	}

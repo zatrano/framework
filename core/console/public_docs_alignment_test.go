@@ -1,4 +1,4 @@
-package tests
+package console
 
 import (
 	"os"

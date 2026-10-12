@@ -1,10 +1,8 @@
-// Package fuzz_test holds long-running Go fuzz targets for security-sensitive parsers.
+// Fuzz targets sit next to the parser they exercise.
+// CI runs FuzzRouterPath with -fuzztime=3m; locally you may use longer, e.g.:
 //
-// CI runs each Fuzz* with -fuzztime=3m; locally you may use longer, e.g.:
-//
-//	go test ./tests/fuzz/ -run=^$ -fuzz=FuzzRouterPath -fuzztime=30m
-//	go test ./tests/fuzz/ -run=^$ -fuzz=FuzzDotenvParse -fuzztime=30m
-package fuzz_test
+//	go test ./core/kernel/routing/ -run=^$ -fuzz=FuzzRouterPath -fuzztime=30m
+package routing_test
 
 import (
 	stdhttp "net/http"

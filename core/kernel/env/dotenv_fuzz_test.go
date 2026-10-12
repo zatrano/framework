@@ -1,4 +1,7 @@
-package fuzz_test
+// FuzzDotenvParse sits next to env.Parse.
+//
+//	go test ./core/kernel/env/ -run=^$ -fuzz=FuzzDotenvParse -fuzztime=30m
+package env_test
 
 import (
 	"testing"

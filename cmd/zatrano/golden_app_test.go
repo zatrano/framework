@@ -1,4 +1,4 @@
-package compatibility_test
+package main
 
 import (
 	"os"
@@ -13,7 +13,7 @@ import (
 // and verifies the generated application builds and tests against this checkout
 // without changing application source.
 func TestGoldenAppCompilesAgainstCurrentFramework(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+	root, err := moduleRootAbs(t)
 	if err != nil {
 		t.Fatal(err)
 	}

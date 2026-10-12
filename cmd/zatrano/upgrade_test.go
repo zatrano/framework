@@ -1,4 +1,4 @@
-package compatibility_test
+package main
 
 import (
 	"crypto/sha256"
@@ -36,7 +36,7 @@ func TestGeneratedAppUpgradesAcrossFrameworkRevisions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("G-001 worktree + generated go test")
 	}
-	bRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	bRoot, err := moduleRootAbs(t)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -413,7 +413,6 @@ core/ssr/             Canvas engine binding
 core/console/         CLI, doctor, package manager, scaffold, describe
 cmd/zatrano/          CLI entrypoint
 core/distribution/    Manifest, registry index, acquisition plan
-tests/                Architecture, compatibility, boot, and fuzz tests
 ```
 
 The package ecosystem is [github.com/zatrano/packages](https://github.com/zatrano/packages).

@@ -18,7 +18,7 @@ fi
 
 if [[ "${FUZZ:-0}" == "1" ]]; then
   echo "== fuzz (short) =="
-  bash .github/scripts/run-fuzz.sh FuzzRouterPath ./tests/fuzz/ 20s
+  bash .github/scripts/run-fuzz.sh FuzzRouterPath ./core/kernel/routing/ 20s
 fi
 
 echo "release gate passed"

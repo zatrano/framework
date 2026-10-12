@@ -124,7 +124,7 @@ go vet ./...
 zatrano doctor
 ```
 
-Architecture tests in this repository (`tests/architecture_test.go`, `tests/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [rules](https://zatrano.com/docs/application-engineering/rules). Semantic gaps are not doctor-proven — see [doctor boundary](https://zatrano.com/docs/application-engineering/doctor-boundary).
+Architecture tests in this repository (`core/kernel/packages_boundary_test.go`, `core/console/pkgmanager/consumer_architecture_test.go`) protect kernel invariants. `zatrano doctor` enforces the high-confidence application STANDARD (exit 1 on errors). Catalog: [rules](https://zatrano.com/docs/application-engineering/rules). Semantic gaps are not doctor-proven — see [doctor boundary](https://zatrano.com/docs/application-engineering/doctor-boundary).
 
 ---
 
