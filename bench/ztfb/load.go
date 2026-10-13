@@ -19,9 +19,17 @@ type loadResult struct {
 	Errors   int
 	Elapsed  time.Duration
 	Samples  []int64 // nanoseconds
+	// FixedPct is set when the client reports percentiles itself (wrk).
+	FixedPct bool
+	P50      time.Duration
+	P99      time.Duration
+	RPSFixed float64
 }
 
 func (r loadResult) RPS() float64 {
+	if r.RPSFixed > 0 {
+		return r.RPSFixed
+	}
 	if r.Elapsed <= 0 {
 		return 0
 	}

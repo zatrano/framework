@@ -1,7 +1,7 @@
 package http
 
 import (
-	"encoding/json"
+	"errors"
 	"net/textproto"
 	"strings"
 )
@@ -14,6 +14,7 @@ func (r *Request) Header(key string, fallback ...string) string {
 		}
 		return ""
 	}
+	r.touch()
 	if r.headerOverlay == nil && len(r.headerDeleted) == 0 {
 		if r.ctx != nil {
 			if v := r.ctx.Header(key); len(v) > 0 {
@@ -107,12 +108,66 @@ func (r *Request) IsJSON() bool {
 }
 
 // JSON decodes the request body into dest. The raw body is not closed.
+// JSON copies the connection buffer first. BindJSON decodes it in place.
 func (r *Request) JSON(dest any) error {
+	if r != nil {
+		r.touch()
+	}
 	raw, err := r.readBody()
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(raw, dest)
+	return unmarshalJSON(raw, dest)
+}
+
+// BindJSON decodes the request body into dest from the connection buffer.
+// It does not copy that buffer. encoding/json finishes the decode before
+// BindJSON returns and copies string values into dest. A type with
+// UnmarshalJSON must not keep the input slice; that slice is the connection
+// buffer and is reused on the next request. Body still returns an owned copy.
+func (r *Request) BindJSON(dest any) error {
+	if r == nil {
+		return errors.New("http: nil request")
+	}
+	r.touch()
+	if dest == nil {
+		return errors.New("http: nil json dest")
+	}
+	limit := r.bodyLimit()
+	if r.bodyRead {
+		if r.bodyErr != nil {
+			return r.bodyErr
+		}
+		if int64(len(r.bodyCached)) > limit {
+			return ErrBodyTooLarge
+		}
+		return unmarshalJSON(r.bodyCached, dest)
+	}
+	if r.bodyOverrideSet {
+		if int64(len(r.bodyOverride)) > limit {
+			r.bodyRead = true
+			r.bodyErr = ErrBodyTooLarge
+			return ErrBodyTooLarge
+		}
+		return unmarshalJSON(r.bodyOverride, dest)
+	}
+	if r.ctx != nil {
+		raw := r.ctx.Body()
+		if int64(len(raw)) > limit {
+			r.bodyRead = true
+			r.bodyErr = ErrBodyTooLarge
+			return ErrBodyTooLarge
+		}
+		return unmarshalJSON(raw, dest)
+	}
+	if r.bodyReader != nil {
+		raw, err := r.readBody()
+		if err != nil {
+			return err
+		}
+		return unmarshalJSON(raw, dest)
+	}
+	return unmarshalJSON(nil, dest)
 }
 
 // HasHeader reports whether a header is present and non-empty.

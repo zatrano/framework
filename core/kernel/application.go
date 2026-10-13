@@ -592,7 +592,8 @@ func (app *Application) Handle(ctxAny any) {
 		return
 	}
 
-	req := http.NewRequest(ctx)
+	req := http.AcquireRequest(ctx)
+	defer http.ReleaseRequest(req)
 	// Body and JSON use the boot ceiling. Reading MAX_BODY_BYTES here would
 	// call os.LookupEnv on every body.
 	if n := app.ensureBodyLimits().maxBody; n > 0 {
@@ -622,6 +623,7 @@ func (app *Application) Handle(ctxAny any) {
 		resp.PrepareStreamDeadline(app.httpWriteTimeout)
 	}
 	_ = resp.Commit(ctx)
+	http.ReleaseResponse(resp)
 }
 
 func (app *Application) recoverHandle(ctx *rawhttp.Ctx) {

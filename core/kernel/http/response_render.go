@@ -9,11 +9,11 @@ import (
 
 // Text creates a plain text response.
 func Text(body string) *Response {
-	return &Response{
-		status:      stdhttp.StatusOK,
-		textBody:    body,
-		contentType: "text/plain; charset=utf-8",
-	}
+	resp := newResponse()
+	resp.status = stdhttp.StatusOK
+	resp.textBody = body
+	resp.contentType = "text/plain; charset=utf-8"
+	return resp
 }
 
 // HTML creates an HTML response.
@@ -30,20 +30,18 @@ func HTML(body string) *Response {
 // Headers stay on the inline slots, the same path as Text, until a caller
 // overflows them. Security headers and the request id fit there.
 func JSON(data any) *Response {
-	payload, err := json.Marshal(data)
+	payload, err := marshalJSON(data)
+	resp := newResponse()
+	resp.contentType = "application/json"
 	if err != nil {
-		return &Response{
-			status:      stdhttp.StatusInternalServerError,
-			content:     []byte(`{"message":"failed to encode json"}`),
-			contentType: "application/json",
-			err:         err,
-		}
+		resp.status = stdhttp.StatusInternalServerError
+		resp.content = []byte(`{"message":"failed to encode json"}`)
+		resp.err = err
+		return resp
 	}
-	return &Response{
-		status:      stdhttp.StatusOK,
-		content:     payload,
-		contentType: "application/json",
-	}
+	resp.status = stdhttp.StatusOK
+	resp.content = payload
+	return resp
 }
 
 // Created creates a 201 JSON response.

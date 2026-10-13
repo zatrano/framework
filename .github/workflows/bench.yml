@@ -1,0 +1,209 @@
+name: bench
+# /proc stat is USER_HZ (100). golang.org/x/sys v0.49 has no unix.Sysconf.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: Rounds per cell
+        default: "20"
+        required: false
+  # Push, not pull_request: a pull_request path filter matches the whole diff
+  # against main, so every later commit would rerun the matrix.
+  # The long matrix stays on workflow_dispatch. This branch runs the short jobs.
+  push:
+    branches:
+      - perf/zatrano-vs-fiber
+    paths:
+      - bench/strace_writes.sh
+      - .github/workflows/bench.yml
+
+permissions:
+  contents: read
+
+jobs:
+  race:
+    name: go test -race
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: main
+          path: packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.13"
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go test -race
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test -race ./... -count=1
+
+      - name: go test -race harness
+        working-directory: framework/bench/ztfb
+        env:
+          GOTOOLCHAIN: go1.26.0
+        run: go test -race ./... -count=1
+
+  writes:
+    name: strace write count
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+          cache-dependency-path: framework/bench/ztfb/go.mod
+
+      - name: Install strace
+        run: sudo apt-get update && sudo apt-get install -y strace netcat-openbsd iproute2
+
+      - name: Count response writes
+        working-directory: framework/bench
+        env:
+          GOTOOLCHAIN: go1.26.0
+        run: bash strace_writes.sh
+
+  bench:
+    name: linux ${{ matrix.name }}
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: wrk-default
+            client: wrk
+            config: default
+            codec: encodingjson
+          - name: goccy-default
+            client: go
+            config: default
+            codec: goccy
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+          cache-dependency-path: framework/bench/ztfb/go.mod
+
+      - name: Install wrk
+        if: matrix.client == 'wrk'
+        run: sudo apt-get update && sudo apt-get install -y wrk
+
+      - name: Governor note
+        run: |
+          if [ -r /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+            echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
+          else
+            echo "governor=unavailable; publish the paired ratio, not absolute rps"
+          fi
+          echo "nproc=$(nproc)"
+
+      - name: Run paired matrix
+        working-directory: framework/bench
+        env:
+          ROUNDS: ${{ inputs.rounds || '20' }}
+          CLIENT: ${{ matrix.client }}
+          CONFIG: ${{ matrix.config }}
+          CODEC: ${{ matrix.codec }}
+          OUT: results/linux/${{ matrix.name }}.jsonl
+          GOTOOLCHAIN: go1.26.0
+        run: bash run_linux.sh
+
+      - name: Upload jsonl
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-linux-${{ matrix.name }}
+          path: framework/bench/results/linux/${{ matrix.name }}.jsonl
+          if-no-files-found: warn
+
+  profile:
+    name: linux p99 profile
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+          cache-dependency-path: framework/bench/ztfb/go.mod
+
+      - name: Profile open cells
+        working-directory: framework/bench
+        env:
+          GOTOOLCHAIN: go1.26.0
+          PROFILE_OUT: results/linux/profile
+        run: bash profile_linux.sh
+
+      - name: Upload profiles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-linux-profile
+          path: framework/bench/results/linux/profile/
+          if-no-files-found: warn

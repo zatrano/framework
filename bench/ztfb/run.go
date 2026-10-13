@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -32,18 +31,47 @@ type cell struct {
 	Requests   int      `json:"requests"`
 	ElapsedS   float64  `json:"elapsed_s"`
 	RSSSamples []uint64 `json:"rss_samples,omitempty"`
+	Config     string   `json:"config,omitempty"`
+	Client     string   `json:"client,omitempty"`
+	Codec      string   `json:"codec,omitempty"`
+	Ratio      float64  `json:"ratio,omitempty"`
+	CILow      float64  `json:"ci_low,omitempty"`
+	CIHigh     float64  `json:"ci_high,omitempty"`
+	P50Ratio   float64  `json:"p50_ratio,omitempty"`
+	P99Ratio   float64  `json:"p99_ratio,omitempty"`
+	CPURatio   float64  `json:"cpu_ratio,omitempty"`
+	RSSRatio   float64  `json:"rss_ratio,omitempty"`
+	Verdict    string   `json:"verdict,omitempty"`
+}
+
+type matrixOpts struct {
+	outPath  string
+	affinity string
+	rounds   int
+	levels   []int
+	routes   []routeSpec
+	warmup   time.Duration
+	measure  time.Duration
+	addr     string
+	soak     bool
+	client   string
+	config   string
+	codec    string
 }
 
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	out := fs.String("o", "", "jsonl output path")
 	affinity := fs.String("affinity", "split", "split pins the server to CPU 0; shared uses every CPU")
-	roundsFlag := fs.Int("rounds", 0, "rounds per cell; 0 uses 4, or 3 at 4096 connections")
+	roundsFlag := fs.Int("rounds", 0, "rounds per cell; 0 uses 10")
 	connsFlag := fs.String("conns", "64,256,1024,4096", "connection levels")
 	routesFlag := fs.String("routes", "", "comma-separated route names; empty runs all four")
 	warmup := fs.Duration("warmup", 1500*time.Millisecond, "warmup before the measured window")
 	measure := fs.Duration("measure", 5*time.Second, "measured window")
 	addr := fs.String("addr", "127.0.0.1:18181", "server listen address")
+	client := fs.String("client", "go", "load generator: go or wrk")
+	config := fs.String("config", "default", "label recorded on every row; pooled sets HTTP_POOL_REQUESTS=true")
+	codec := fs.String("codec", "encodingjson", "encodingjson or goccy; both servers use it")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -67,7 +95,16 @@ func cmdRun(args []string) error {
 			return fmt.Errorf("no routes matched %q", *routesFlag)
 		}
 	}
-	return runMatrix(*out, *affinity, *roundsFlag, levels, selected, *warmup, *measure, *addr, false)
+	if *client != "go" && *client != "wrk" {
+		return fmt.Errorf("client must be go or wrk")
+	}
+	if *codec != "encodingjson" && *codec != "goccy" {
+		return fmt.Errorf("codec must be encodingjson or goccy")
+	}
+	return runMatrix(matrixOpts{
+		outPath: *out, affinity: *affinity, rounds: *roundsFlag, levels: levels, routes: selected,
+		warmup: *warmup, measure: *measure, addr: *addr, client: *client, config: *config, codec: *codec,
+	})
 }
 
 func cmdLoad(args []string) error {
@@ -111,7 +148,11 @@ func cmdSoak(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	return runMatrix(*out, *affinity, 1, []int{512}, routes(), 1500*time.Millisecond, 25*time.Second, *addr, true)
+	return runMatrix(matrixOpts{
+		outPath: *out, affinity: *affinity, rounds: 1, levels: []int{512}, routes: routes(),
+		warmup: 1500 * time.Millisecond, measure: 25 * time.Second, addr: *addr, soak: true,
+		client: "go", config: "default", codec: "encodingjson",
+	})
 }
 
 func parseInts(s string) ([]int, error) {
@@ -133,12 +174,12 @@ func parseInts(s string) ([]int, error) {
 	return out, nil
 }
 
-func runMatrix(outPath, affinity string, roundsFlag int, levels []int, selected []routeSpec, warmup, measure time.Duration, addr string, soak bool) error {
+func runMatrix(opt matrixOpts) error {
 	var w *bufio.Writer
 	var f *os.File
-	if outPath != "" {
+	if opt.outPath != "" {
 		var err error
-		f, err = os.Create(outPath)
+		f, err = os.Create(opt.outPath)
 		if err != nil {
 			return err
 		}
@@ -156,7 +197,7 @@ func runMatrix(outPath, affinity string, roundsFlag int, levels []int, selected 
 		}
 	}
 
-	host, _, err := net.SplitHostPort(addr)
+	host, _, err := net.SplitHostPort(opt.addr)
 	if err != nil {
 		return err
 	}
@@ -164,24 +205,33 @@ func runMatrix(outPath, affinity string, roundsFlag int, levels []int, selected 
 	if err != nil {
 		return err
 	}
-	serverMask, clientMask := affinityMasks(affinity)
-	serverProcs := "1"
-	if affinity != "split" {
-		serverProcs = strconv.Itoa(runtime.NumCPU())
-	} else {
+	serverMask, clientMask := affinityMasks(opt.affinity)
+	// GOMAXPROCS matches the cores the server is pinned to, for both servers.
+	serverProcs := strconv.Itoa(serverProcCount(serverMask))
+	if opt.affinity == "split" {
 		_ = setAffinity(os.Getpid(), clientMask)
-		runtime.GOMAXPROCS(runtime.NumCPU() - 1)
+		clientN := runtime.NumCPU() - serverProcCount(serverMask)
+		if clientN < 1 {
+			clientN = 1
+		}
+		runtime.GOMAXPROCS(clientN)
+	}
+	if opt.client == "" {
+		opt.client = "go"
+	}
+	if opt.config == "" {
+		opt.config = "default"
+	}
+	if !opt.soak && opt.rounds > 0 && opt.rounds < defaultRounds {
+		fmt.Fprintf(os.Stderr, "warning: %d rounds is below the %d-round cell size used for the CI\n", opt.rounds, defaultRounds)
 	}
 
-	for _, rt := range selected {
+	for _, rt := range opt.routes {
 		req := requestBytes(rt, host)
-		for _, conns := range levels {
-			rounds := roundsFlag
+		for _, conns := range opt.levels {
+			rounds := opt.rounds
 			if rounds <= 0 {
-				rounds = 4
-				if conns >= 4096 {
-					rounds = 3
-				}
+				rounds = defaultRounds
 			}
 			byServer := map[string][]cell{}
 			for round := 1; round <= rounds; round++ {
@@ -190,18 +240,31 @@ func runMatrix(outPath, affinity string, roundsFlag int, levels []int, selected 
 					order = []string{"fiber", "zatrano"}
 				}
 				for _, server := range order {
-					cell, err := oneRound(exe, server, addr, rt, req, conns, round, warmup, measure, serverMask, affinity == "split", serverProcs, soak)
+					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec)
 					if err != nil {
 						return fmt.Errorf("%s %s c=%d round %d: %w", server, rt.Name, conns, round, err)
 					}
-					write(cell)
-					byServer[server] = append(byServer[server], cell)
+					write(row)
+					byServer[server] = append(byServer[server], row)
 				}
 			}
+			medians := map[string]cell{}
 			for _, server := range []string{"zatrano", "fiber"} {
-				write(medianCell(server, rt.Name, conns, byServer[server]))
+				med := medianCell(server, rt.Name, conns, byServer[server])
+				med.Config = opt.config
+				med.Client = opt.client
+				med.Codec = opt.codec
+				write(med)
+				medians[server] = med
 			}
-			if soak {
+			if !opt.soak {
+				paired, err := pairedCell(rt.Name, conns, opt.config, opt.client, byServer["zatrano"], byServer["fiber"], medians["zatrano"], medians["fiber"])
+				if err != nil {
+					return err
+				}
+				write(paired)
+			}
+			if opt.soak {
 				if err := checkSoakFlat(byServer); err != nil {
 					fmt.Fprintf(os.Stderr, "soak: %v\n", err)
 				}
@@ -211,9 +274,9 @@ func runMatrix(outPath, affinity string, roundsFlag int, levels []int, selected 
 	return nil
 }
 
-func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool) (cell, error) {
-	cmd := exec.Command(exe, "serve", server, addr)
-	cmd.Env = serverEnv(serverProcs)
+func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config, codec string) (cell, error) {
+	cmd := startServer(exe, server, addr, serverMask)
+	cmd.Env = serverEnv(serverProcs, config, codec)
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -248,33 +311,47 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	var rssMu sync.Mutex
 	var rssSamples []uint64
 	rssStop := make(chan struct{})
-	warm, measured := session(addr, req, rt.Want, conns, warmup, measure, func() {
+	var warm, measured loadResult
+	if client == "wrk" {
+		var err error
+		warm, err = runWrk(addr, rt, conns, warmup)
+		if err != nil {
+			return cell{}, err
+		}
 		before, beforeErr = readProc(cmd.Process.Pid)
-		if !soak || cmd.Process == nil {
-			return
+		measured, err = runWrk(addr, rt, conns, measure)
+		if err != nil {
+			return cell{}, err
 		}
-		if s, err := readProc(cmd.Process.Pid); err == nil {
-			rssSamples = append(rssSamples, s.RSS)
-		}
-		go func() {
-			t := time.NewTicker(time.Second)
-			defer t.Stop()
-			for {
-				select {
-				case <-rssStop:
-					return
-				case <-t.C:
-					s, err := readProc(cmd.Process.Pid)
-					if err != nil {
-						continue
-					}
-					rssMu.Lock()
-					rssSamples = append(rssSamples, s.RSS)
-					rssMu.Unlock()
-				}
+	} else {
+		warm, measured = session(addr, req, rt.Want, conns, warmup, measure, func() {
+			before, beforeErr = readProc(cmd.Process.Pid)
+			if !soak || cmd.Process == nil {
+				return
 			}
-		}()
-	})
+			if s, err := readProc(cmd.Process.Pid); err == nil {
+				rssSamples = append(rssSamples, s.RSS)
+			}
+			go func() {
+				t := time.NewTicker(time.Second)
+				defer t.Stop()
+				for {
+					select {
+					case <-rssStop:
+						return
+					case <-t.C:
+						s, err := readProc(cmd.Process.Pid)
+						if err != nil {
+							continue
+						}
+						rssMu.Lock()
+						rssSamples = append(rssSamples, s.RSS)
+						rssMu.Unlock()
+					}
+				}
+			}()
+		})
+	}
 	var copied []uint64
 	if soak {
 		close(rssStop)
@@ -287,7 +364,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		copied = append([]uint64(nil), rssSamples...)
 		rssMu.Unlock()
 	}
-	if warm.Requests == 0 {
+	if warm.Requests == 0 && warm.RPS() <= 0 {
 		return cell{}, fmt.Errorf("warmup produced no successful responses (errors %d)", warm.Errors)
 	}
 	if beforeErr != nil {
@@ -297,15 +374,24 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	if err != nil {
 		return cell{}, err
 	}
-	p50 := percentile(measured.Samples, 0.50)
-	p99 := percentile(append([]int64(nil), measured.Samples...), 0.99)
-	// percentile sorts in place; copy for p999 from the already sorted slice.
-	p999 := percentile(measured.Samples, 0.999)
+	var p50, p99, p999 time.Duration
+	if measured.FixedPct {
+		p50 = measured.P50
+		p99 = measured.P99
+	} else {
+		p50 = percentile(measured.Samples, 0.50)
+		p99 = percentile(append([]int64(nil), measured.Samples...), 0.99)
+		// percentile sorts in place; copy for p999 from the already sorted slice.
+		p999 = percentile(measured.Samples, 0.999)
+	}
 	return cell{
 		Server:     server,
 		Route:      rt.Name,
 		Conns:      conns,
 		Round:      round,
+		Config:     config,
+		Client:     client,
+		Codec:      codec,
 		RPS:        measured.RPS(),
 		P50US:      float64(p50.Microseconds()),
 		P99US:      float64(p99.Microseconds()),
@@ -320,7 +406,40 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	}, nil
 }
 
-func serverEnv(serverProcs string) []string {
+func pairedCell(route string, conns int, config, client string, zatrano, fiber []cell, zMed, fMed cell) (cell, error) {
+	ratios, err := pairedRPSRatios(zatrano, fiber)
+	if err != nil {
+		return cell{}, fmt.Errorf("%s c=%d: %w", route, conns, err)
+	}
+	median, low, high := bootstrapMedianCI(ratios, bootstrapDraws, bootstrapSeed)
+	p99Ratio := ratioOf(zMed.P99US, fMed.P99US)
+	cpuRatio := ratioOf(zMed.CPUUS, fMed.CPUUS)
+	return cell{
+		Server:   "zatrano/fiber",
+		Route:    route,
+		Conns:    conns,
+		Agg:      "paired",
+		Config:   config,
+		Client:   client,
+		Codec:    zMed.Codec,
+		Ratio:    median,
+		CILow:    low,
+		CIHigh:   high,
+		P50Ratio: ratioOf(zMed.P50US, fMed.P50US),
+		P99Ratio: p99Ratio,
+		CPURatio: cpuRatio,
+		RSSRatio: ratioOf(float64(zMed.HWMBytes), float64(fMed.HWMBytes)),
+		Verdict:  cellVerdict(low, high, p99Ratio, cpuRatio),
+		RPS:      median,
+		P50US:    zMed.P50US,
+		P99US:    zMed.P99US,
+		CPUUS:    zMed.CPUUS,
+		HWMBytes: zMed.HWMBytes,
+		Errors:   zMed.Errors + fMed.Errors,
+	}, nil
+}
+
+func serverEnv(serverProcs, config, codec string) []string {
 	env := os.Environ()
 	set := map[string]string{
 		"APP_ENV":      "production",
@@ -332,6 +451,10 @@ func serverEnv(serverProcs string) []string {
 		"GOMAXPROCS":   serverProcs,
 		"GOWORK":       "off",
 		"GOFLAGS":      "",
+		"ZTFB_CODEC":   codec,
+	}
+	if config == "pooled" {
+		set["HTTP_POOL_REQUESTS"] = "true"
 	}
 	var out []string
 	seen := map[string]bool{}
@@ -419,6 +542,19 @@ func checkSoakFlat(byServer map[string][]cell) error {
 		}
 	}
 	return nil
+}
+
+func serverProcCount(mask uintptr) int {
+	n := 0
+	for cpu := 0; cpu < 64; cpu++ {
+		if mask&(1<<uintptr(cpu)) != 0 {
+			n++
+		}
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
 }
 
 func affinityMasks(mode string) (server, client uintptr) {

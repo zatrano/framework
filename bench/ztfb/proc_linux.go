@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 func readProc(pid int) (procSample, error) {
@@ -36,10 +34,9 @@ func readProc(pid int) (procSample, error) {
 	if err != nil {
 		return procSample{}, err
 	}
-	ticks := unix.Sysconf(unix.SC_CLK_TCK)
-	if ticks <= 0 {
-		ticks = 100
-	}
+	// /proc stat counts user and system time in USER_HZ. Linux keeps that at 100
+	// on every architecture; golang.org/x/sys v0.49 does not export Sysconf.
+	const ticks = 100
 	cpu := time.Duration(utime+stime) * time.Second / time.Duration(ticks)
 
 	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))

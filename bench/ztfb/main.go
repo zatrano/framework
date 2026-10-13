@@ -42,7 +42,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: ztfb serve <zatrano|fiber> <addr>")
-	fmt.Fprintln(os.Stderr, "       ztfb run [-o file] [-affinity split|shared] [-rounds N]")
+	fmt.Fprintln(os.Stderr, "       ztfb run [-o file] [-affinity split|shared] [-rounds N] [-client go|wrk] [-config default|pooled]")
 	fmt.Fprintln(os.Stderr, "       ztfb soak [-o file] [-affinity split|shared]")
 	fmt.Fprintln(os.Stderr, "       ztfb load <addr> <route> <conns> <seconds>")
 }

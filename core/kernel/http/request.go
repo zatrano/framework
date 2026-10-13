@@ -73,6 +73,10 @@ type Request struct {
 	bodyOverrideSet  bool
 	bodyReader       io.ReadCloser
 	maxBodyBytes     int64
+
+	pooled   bool
+	released bool
+	gen      uint64
 }
 
 // SessionStore is an optional request capability (flash/csrf bag).
@@ -314,6 +318,7 @@ func (r *Request) Method() string {
 	if r == nil {
 		return ""
 	}
+	r.touch()
 	if r.methodSet {
 		return r.method
 	}
@@ -503,6 +508,9 @@ func (r *Request) IP() string {
 // Body returns an owned copy of the raw request body.
 // It never aliases rawhttp's connection buffer (zero-copy lifecycle).
 func (r *Request) Body() ([]byte, error) {
+	if r != nil {
+		r.touch()
+	}
 	return r.readBody()
 }
 

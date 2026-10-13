@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/zatrano/framework/v3/core/kernel/env"
 	"github.com/zatrano/framework/v3/core/kernel/http"
 	"github.com/zatrano/rawhttp"
 )
@@ -20,6 +21,7 @@ type bodyLimitSnap struct {
 	inflight       int64
 	perClient      int64
 	trustedProxies bool
+	poolRequests   bool
 }
 
 func (app *Application) ensureBodyLimits() bodyLimitSnap {
@@ -39,12 +41,15 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 		return app.bodyLimitSnap
 	}
 	inflight := http.MaxInflightBodyBytes()
+	poolOn := env.Get("HTTP_POOL_REQUESTS", "") == "true"
+	http.SetRequestPooling(poolOn, env.Get("APP_DEBUG", "") == "true")
 	app.bodyLimitSnap = bodyLimitSnap{
 		maxRequest:     http.MaxRequestBytes(),
 		maxBody:        http.MaxBodyBytes(),
 		inflight:       inflight,
 		perClient:      perClientBodyCap(inflight),
 		trustedProxies: trustedProxiesConfigured(),
+		poolRequests:   poolOn,
 	}
 	atomic.StoreUint32(&app.bodyLimitReady, 1)
 	return app.bodyLimitSnap
