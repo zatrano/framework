@@ -11,12 +11,36 @@ import (
 	"strconv"
 	"time"
 
+	goccyjson "github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/zatrano/framework/v3/core/kernel"
 	khttp "github.com/zatrano/framework/v3/core/kernel/http"
 )
+
+var (
+	codecMarshal   = json.Marshal
+	codecUnmarshal = json.Unmarshal
+)
+
+// loadCodec selects one codec for both servers. Empty and encodingjson keep
+// encoding/json and do not call SetJSONCodec. goccy is set on both.
+func loadCodec() error {
+	switch os.Getenv("ZTFB_CODEC") {
+	case "", "encodingjson":
+		codecMarshal = json.Marshal
+		codecUnmarshal = json.Unmarshal
+		return nil
+	case "goccy":
+		codecMarshal = goccyjson.Marshal
+		codecUnmarshal = goccyjson.Unmarshal
+		khttp.SetJSONCodec(codecMarshal, codecUnmarshal)
+		return nil
+	default:
+		return fmt.Errorf("ZTFB_CODEC %q", os.Getenv("ZTFB_CODEC"))
+	}
+}
 
 const (
 	helloBody = "Hello, World!"
@@ -38,6 +62,9 @@ func cmdServe(args []string) error {
 }
 
 func serveZatrano(addr string) error {
+	if err := loadCodec(); err != nil {
+		return err
+	}
 	stop := startProfiles()
 	if sec, _ := strconv.Atoi(os.Getenv("ZTFB_PROFILE_SECONDS")); sec > 0 {
 		go func() {
@@ -75,12 +102,25 @@ func serveZatrano(addr string) error {
 }
 
 func serveFiber(addr string) error {
+	if err := loadCodec(); err != nil {
+		return err
+	}
+	stop := startProfiles()
+	if sec, _ := strconv.Atoi(os.Getenv("ZTFB_PROFILE_SECONDS")); sec > 0 {
+		go func() {
+			time.Sleep(time.Duration(sec) * time.Second)
+			stop()
+			os.Exit(0)
+		}()
+	} else {
+		defer stop()
+	}
 	app := fiber.New(fiber.Config{
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
-		JSONEncoder:  json.Marshal,
-		JSONDecoder:  json.Unmarshal,
+		JSONEncoder:  codecMarshal,
+		JSONDecoder:  codecUnmarshal,
 	})
 	app.Use(recover.New())
 	app.Use(requestid.New(requestid.Config{
@@ -112,7 +152,7 @@ func serveFiber(addr string) error {
 	})
 	app.Post("/echo", func(c fiber.Ctx) error {
 		var m map[string]any
-		if err := json.Unmarshal(c.Body(), &m); err != nil {
+		if err := codecUnmarshal(c.Body(), &m); err != nil {
 			return c.Status(400).SendString("bad json")
 		}
 		return c.JSON(m)
@@ -141,6 +181,7 @@ func startProfiles() func() {
 		}
 		writeProfile("ZTFB_ALLOC_PROFILE", "allocs")
 		writeProfile("ZTFB_HEAP_PROFILE", "heap")
+		writeProfile("ZTFB_GOROUTINE_PROFILE", "goroutine")
 	}
 }
 

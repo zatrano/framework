@@ -17,14 +17,25 @@ go build -o "${TMPDIR:-/tmp}/ztfb" .
 trace="${TMPDIR:-/tmp}/ztfb-writes.txt"
 taskset -c 0 strace -f -e trace=write,writev -o "$trace" "${TMPDIR:-/tmp}/ztfb" serve zatrano 127.0.0.1:18181 &
 pid=$!
-cleanup() { kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }
+cleanup() {
+  kill -9 "$pid" 2>/dev/null || true
+  # strace may leave the server if it was not the same process group.
+  pkill -9 -f 'ztfb serve zatrano 127.0.0.1:18181' 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
 trap cleanup EXIT
+ready=0
 for _ in $(seq 1 100); do
   if bash -c 'echo >/dev/tcp/127.0.0.1/18181' 2>/dev/null; then
+    ready=1
     break
   fi
   sleep 0.1
 done
+if [[ "$ready" -ne 1 ]]; then
+  echo "server did not accept a connection"
+  exit 1
+fi
 printf 'GET /plaintext HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' | nc -w 2 127.0.0.1 18181 >/tmp/ztfb-resp.txt || true
 sleep 0.2
 cleanup

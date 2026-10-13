@@ -17,7 +17,7 @@ func runWrk(addr string, rt routeSpec, conns int, d time.Duration) (loadResult, 
 	args := []string{
 		"-t", strconv.Itoa(threads),
 		"-c", strconv.Itoa(conns),
-		"-d", d.String(),
+		"-d", wrkDuration(d),
 		"--latency",
 	}
 	var script string
@@ -129,6 +129,15 @@ func parseWrk(out string) (loadResult, error) {
 		res.RPSFixed = float64(requests) / res.Elapsed.Seconds()
 	}
 	return res, nil
+}
+
+// wrk accepts 2s, 2m, 2h. It rejects Go's 1.5s. A shorter warmup rounds up to 1s.
+func wrkDuration(d time.Duration) string {
+	if d < time.Second {
+		return "1s"
+	}
+	secs := int((d + time.Second - 1) / time.Second)
+	return strconv.Itoa(secs) + "s"
 }
 
 func parseWrkDuration(s string) (time.Duration, error) {

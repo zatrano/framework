@@ -8,6 +8,7 @@ All notable changes to ZATRANO are documented in this file.
 
 - `Request.BindJSON` decodes the connection buffer in place. `Request.JSON` and `Request.Body` still return an owned copy.
 - `HTTP_POOL_REQUESTS=true` reuses `Request` and the `Text`/`JSON` `Response` after the handler returns. The default is off. Do not retain those pointers. With `APP_DEBUG=true`, a call after release panics and includes the generation.
+- `SetJSONCodec` replaces `encoding/json` for `JSON`, `Request.JSON`, and `BindJSON`. The default is `encoding/json`. `JSONP` stays on `encoding/json`.
 
 ## 3.1.7 - 2026-10-13
 

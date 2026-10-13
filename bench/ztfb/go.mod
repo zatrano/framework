@@ -3,6 +3,7 @@ module github.com/zatrano/framework/v3/bench/ztfb
 go 1.26.0
 
 require (
+	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v3 v3.6.0
 	github.com/zatrano/framework/v3 v3.1.7
 	golang.org/x/sys v0.49.0

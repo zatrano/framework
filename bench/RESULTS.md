@@ -84,7 +84,61 @@ Same host, same 10-round paired protocol, Go client. This is not the default. Fi
 
 Pooled, on this host: 3 ustun, 12 esit, 1 fiber. Default, on this host: 1 ustun, 9 esit, 5 fiber, 1 esik-yok. The one pooled cell still behind Fiber is GET /json at 1024 (CI 0.943–0.989). The last change measured there was the object pool. The remaining allocs in the echo profile are `encoding/json` and `reflect` map assignment, and 45% of CPU samples are `WSASend`. A JSON buffer pool was not added: `SetBody` aliases the bytes and rawhttp writes them after `Handle` returns, so recycling the buffer first would change the response.
 
-Linux has no completed matrix in this tree. `bench/run_linux.sh` and the `bench` workflow (`workflow_dispatch`) record the paired ratio on `ubuntu-latest` and upload the jsonl. `go test -race ./...` is the Linux job in `tests.yml` plus the harness race step. This machine has no WSL and no gcc.
+## Linux equal track (config `default`, both sides `encoding/json`)
+
+`ubuntu-latest`, 4 vCPU, CPU governor unavailable, so this section is paired ratios only. Server on CPU 0 with `GOMAXPROCS=1`, load generator on CPUs 1–3. 20 rounds. Bootstrap is 10,000 draws, seed 20261013. Go client. `bench/results/linux/go-default.jsonl`.
+
+| Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| GET /plaintext | 64 | 0.990 | 0.986 | 1.000 | 1.012 | 1.074 | 1.011 | 0.976 | fiber |
+| GET /plaintext | 256 | 1.122 | 1.083 | 1.163 | 0.903 | 0.911 | 0.898 | 0.979 | ustun |
+| GET /plaintext | 1024 | 1.083 | 1.030 | 1.106 | 0.925 | 0.962 | 0.929 | 1.062 | ustun |
+| GET /plaintext | 4096 | 1.059 | 1.047 | 1.072 | 0.930 | 1.006 | 0.938 | 1.377 | esik-yok |
+| GET /json | 64 | 1.021 | 1.000 | 1.047 | 0.983 | 1.039 | 0.980 | 1.082 | esit |
+| GET /json | 256 | 1.022 | 1.012 | 1.033 | 0.980 | 1.047 | 0.982 | 0.981 | esik-yok |
+| GET /json | 1024 | 1.042 | 0.978 | 1.079 | 0.968 | 1.015 | 0.979 | 1.002 | esit |
+| GET /json | 4096 | 1.051 | 1.039 | 1.061 | 0.945 | 0.990 | 0.959 | 1.085 | ustun |
+| GET /users/{id} | 64 | 0.979 | 0.967 | 0.986 | 1.028 | 1.082 | 1.021 | 0.977 | fiber |
+| GET /users/{id} | 256 | 0.962 | 0.950 | 0.969 | 1.040 | 1.107 | 1.042 | 0.981 | fiber |
+| GET /users/{id} | 1024 | 0.986 | 0.946 | 1.021 | 1.006 | 1.092 | 1.006 | 1.002 | esit |
+| GET /users/{id} | 4096 | 1.032 | 1.008 | 1.041 | 0.964 | 0.886 | 0.977 | 1.079 | ustun |
+| POST /echo | 64 | 0.929 | 0.920 | 0.935 | 1.086 | 1.113 | 1.081 | 0.974 | fiber |
+| POST /echo | 256 | 0.954 | 0.924 | 0.984 | 1.027 | 1.006 | 1.011 | 0.978 | fiber |
+| POST /echo | 1024 | 0.988 | 0.943 | 1.018 | 1.048 | 1.027 | 1.064 | 1.013 | esit |
+| POST /echo | 4096 | 0.982 | 0.972 | 0.992 | 1.007 | 1.003 | 1.014 | 1.071 | fiber |
+
+GET /plaintext at 64 prints a CI high of 1.000; the stored upper bound is 0.9999, so the interval is entirely under 1 and the verdict is fiber. GET /json at 64 prints a CI low of 1.000; the stored lower bound is 0.9998, so the interval contains 1 and the verdict is esit. GET /plaintext at 4096 has peak RSS 1.38× Fiber. RSS is not a gate. Its p99 ratio is 1.006, which is why the cell is esik-yok.
+
+## Linux pooled (`HTTP_POOL_REQUESTS=true`, both sides `encoding/json`)
+
+Same runner and split. `bench/results/linux/go-pooled.jsonl`.
+
+| Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| GET /plaintext | 64 | 1.036 | 1.030 | 1.044 | 0.967 | 0.966 | 0.967 | 0.974 | ustun |
+| GET /plaintext | 256 | 1.042 | 1.036 | 1.047 | 0.960 | 0.959 | 0.961 | 0.981 | ustun |
+| GET /plaintext | 1024 | 1.112 | 1.010 | 1.175 | 0.940 | 0.913 | 0.947 | 0.921 | ustun |
+| GET /plaintext | 4096 | 1.098 | 1.086 | 1.106 | 0.910 | 0.856 | 0.904 | 0.950 | ustun |
+| GET /json | 64 | 1.067 | 1.057 | 1.078 | 0.937 | 0.933 | 0.935 | 0.974 | ustun |
+| GET /json | 256 | 1.068 | 1.063 | 1.080 | 0.939 | 0.904 | 0.935 | 0.980 | ustun |
+| GET /json | 1024 | 1.108 | 1.059 | 1.134 | 0.902 | 0.901 | 0.901 | 0.990 | ustun |
+| GET /json | 4096 | 1.093 | 1.082 | 1.103 | 0.907 | 0.905 | 0.912 | 0.979 | ustun |
+| GET /users/{id} | 64 | 1.000 | 0.992 | 1.016 | 0.992 | 0.994 | 0.991 | 0.976 | esit |
+| GET /users/{id} | 256 | 0.995 | 0.990 | 1.003 | 1.006 | 1.007 | 1.001 | 0.981 | esit |
+| GET /users/{id} | 1024 | 1.014 | 0.991 | 1.061 | 0.984 | 0.939 | 0.977 | 0.990 | esit |
+| GET /users/{id} | 4096 | 1.049 | 1.032 | 1.060 | 0.949 | 0.961 | 0.959 | 1.046 | ustun |
+| POST /echo | 64 | 0.976 | 0.960 | 0.986 | 1.032 | 1.039 | 1.031 | 0.970 | fiber |
+| POST /echo | 256 | 0.967 | 0.951 | 0.976 | 1.041 | 1.044 | 1.037 | 0.978 | fiber |
+| POST /echo | 1024 | 0.988 | 0.970 | 0.997 | 1.025 | 0.996 | 1.021 | 0.988 | fiber |
+| POST /echo | 4096 | 1.009 | 1.001 | 1.023 | 0.991 | 0.990 | 0.992 | 1.023 | ustun |
+
+Pooled, on this runner: 10 ustun, 3 esit, 3 fiber. The three fiber cells are POST /echo at 64, 256, and 1024. GET /plaintext at 4096 and GET /json at 1024 are ustun once the request pool is on; the default run left the first esik-yok (p99 1.006, peak RSS 1.38×) and the second esit.
+
+`JSON` still uses `encoding/json.Marshal`. A pooled `json.Encoder` buffer, released from rawhttp `SetBodyRelease` after the write, was slower on the microbench (866.7 ns, 5 allocs versus 1071 ns, 6 allocs) and was not adopted. See `RAWHTTP_CHANGES.md`.
+
+## Linux wrk and matched codec
+
+wrk rejected Go's `1.5s` warmup (`Usage: wrk`) and that job failed before a table existed. The harness now sends an integer second count. The matched-codec track runs both servers on `goccy/go-json` v0.10.5 (`Fiber` `JSONEncoder`/`JSONDecoder` and `SetJSONCodec`). Those two jobs, plus `GODEBUG=gctrace=1` profiles for plaintext/4096, json/1024, echo/64, and users/64, are the follow-up run. `go test -race ./...` for the framework passed on the Linux race job. The harness race step needs Go 1.26 because `bench/ztfb` says `go 1.26.0`; that step now sets `GOTOOLCHAIN=go1.26.0`.
 
 ## Soak (config `default`)
 

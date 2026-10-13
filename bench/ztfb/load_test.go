@@ -118,3 +118,15 @@ Socket errors: connect 0, read 1, write 0, timeout 0
 		t.Fatalf("p50 %s p99 %s", got.P50, got.P99)
 	}
 }
+
+func TestWrkDuration(t *testing.T) {
+	if wrkDuration(1500*time.Millisecond) != "2s" {
+		t.Fatal(wrkDuration(1500 * time.Millisecond))
+	}
+	if wrkDuration(5*time.Second) != "5s" {
+		t.Fatal(wrkDuration(5 * time.Second))
+	}
+	if wrkDuration(200*time.Millisecond) != "1s" {
+		t.Fatal(wrkDuration(200 * time.Millisecond))
+	}
+}

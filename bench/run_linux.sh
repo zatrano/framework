@@ -44,7 +44,7 @@ export GOFLAGS=
 go test -count=1 .
 go build -o "${TMPDIR:-/tmp}/ztfb" .
 
-args=(run -o "$out" -rounds "${ROUNDS:-20}" -client "${CLIENT:-go}" -config "${CONFIG:-default}")
+args=(run -o "$out" -rounds "${ROUNDS:-20}" -client "${CLIENT:-go}" -config "${CONFIG:-default}" -codec "${CODEC:-encodingjson}")
 if [[ -n "${ROUTES:-}" ]]; then
   args+=(-routes "$ROUTES")
 fi

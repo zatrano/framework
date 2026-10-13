@@ -33,6 +33,7 @@ type cell struct {
 	RSSSamples []uint64 `json:"rss_samples,omitempty"`
 	Config     string   `json:"config,omitempty"`
 	Client     string   `json:"client,omitempty"`
+	Codec      string   `json:"codec,omitempty"`
 	Ratio      float64  `json:"ratio,omitempty"`
 	CILow      float64  `json:"ci_low,omitempty"`
 	CIHigh     float64  `json:"ci_high,omitempty"`
@@ -55,6 +56,7 @@ type matrixOpts struct {
 	soak     bool
 	client   string
 	config   string
+	codec    string
 }
 
 func cmdRun(args []string) error {
@@ -69,6 +71,7 @@ func cmdRun(args []string) error {
 	addr := fs.String("addr", "127.0.0.1:18181", "server listen address")
 	client := fs.String("client", "go", "load generator: go or wrk")
 	config := fs.String("config", "default", "label recorded on every row; pooled sets HTTP_POOL_REQUESTS=true")
+	codec := fs.String("codec", "encodingjson", "encodingjson or goccy; both servers use it")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -95,9 +98,12 @@ func cmdRun(args []string) error {
 	if *client != "go" && *client != "wrk" {
 		return fmt.Errorf("client must be go or wrk")
 	}
+	if *codec != "encodingjson" && *codec != "goccy" {
+		return fmt.Errorf("codec must be encodingjson or goccy")
+	}
 	return runMatrix(matrixOpts{
 		outPath: *out, affinity: *affinity, rounds: *roundsFlag, levels: levels, routes: selected,
-		warmup: *warmup, measure: *measure, addr: *addr, client: *client, config: *config,
+		warmup: *warmup, measure: *measure, addr: *addr, client: *client, config: *config, codec: *codec,
 	})
 }
 
@@ -145,7 +151,7 @@ func cmdSoak(args []string) error {
 	return runMatrix(matrixOpts{
 		outPath: *out, affinity: *affinity, rounds: 1, levels: []int{512}, routes: routes(),
 		warmup: 1500 * time.Millisecond, measure: 25 * time.Second, addr: *addr, soak: true,
-		client: "go", config: "default",
+		client: "go", config: "default", codec: "encodingjson",
 	})
 }
 
@@ -234,7 +240,7 @@ func runMatrix(opt matrixOpts) error {
 					order = []string{"fiber", "zatrano"}
 				}
 				for _, server := range order {
-					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config)
+					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec)
 					if err != nil {
 						return fmt.Errorf("%s %s c=%d round %d: %w", server, rt.Name, conns, round, err)
 					}
@@ -247,6 +253,7 @@ func runMatrix(opt matrixOpts) error {
 				med := medianCell(server, rt.Name, conns, byServer[server])
 				med.Config = opt.config
 				med.Client = opt.client
+				med.Codec = opt.codec
 				write(med)
 				medians[server] = med
 			}
@@ -267,9 +274,9 @@ func runMatrix(opt matrixOpts) error {
 	return nil
 }
 
-func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config string) (cell, error) {
+func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config, codec string) (cell, error) {
 	cmd := startServer(exe, server, addr, serverMask)
-	cmd.Env = serverEnv(serverProcs, config)
+	cmd.Env = serverEnv(serverProcs, config, codec)
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -384,6 +391,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		Round:      round,
 		Config:     config,
 		Client:     client,
+		Codec:      codec,
 		RPS:        measured.RPS(),
 		P50US:      float64(p50.Microseconds()),
 		P99US:      float64(p99.Microseconds()),
@@ -413,6 +421,7 @@ func pairedCell(route string, conns int, config, client string, zatrano, fiber [
 		Agg:      "paired",
 		Config:   config,
 		Client:   client,
+		Codec:    zMed.Codec,
 		Ratio:    median,
 		CILow:    low,
 		CIHigh:   high,
@@ -430,7 +439,7 @@ func pairedCell(route string, conns int, config, client string, zatrano, fiber [
 	}, nil
 }
 
-func serverEnv(serverProcs, config string) []string {
+func serverEnv(serverProcs, config, codec string) []string {
 	env := os.Environ()
 	set := map[string]string{
 		"APP_ENV":      "production",
@@ -442,6 +451,7 @@ func serverEnv(serverProcs, config string) []string {
 		"GOMAXPROCS":   serverProcs,
 		"GOWORK":       "off",
 		"GOFLAGS":      "",
+		"ZTFB_CODEC":   codec,
 	}
 	if config == "pooled" {
 		set["HTTP_POOL_REQUESTS"] = "true"

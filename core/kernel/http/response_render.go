@@ -30,7 +30,7 @@ func HTML(body string) *Response {
 // Headers stay on the inline slots, the same path as Text, until a caller
 // overflows them. Security headers and the request id fit there.
 func JSON(data any) *Response {
-	payload, err := json.Marshal(data)
+	payload, err := marshalJSON(data)
 	resp := newResponse()
 	resp.contentType = "application/json"
 	if err != nil {

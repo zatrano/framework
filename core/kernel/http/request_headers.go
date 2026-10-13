@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"errors"
 	"net/textproto"
 	"strings"
@@ -118,7 +117,7 @@ func (r *Request) JSON(dest any) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(raw, dest)
+	return unmarshalJSON(raw, dest)
 }
 
 // BindJSON decodes the request body into dest from the connection buffer.
@@ -142,7 +141,7 @@ func (r *Request) BindJSON(dest any) error {
 		if int64(len(r.bodyCached)) > limit {
 			return ErrBodyTooLarge
 		}
-		return json.Unmarshal(r.bodyCached, dest)
+		return unmarshalJSON(r.bodyCached, dest)
 	}
 	if r.bodyOverrideSet {
 		if int64(len(r.bodyOverride)) > limit {
@@ -150,7 +149,7 @@ func (r *Request) BindJSON(dest any) error {
 			r.bodyErr = ErrBodyTooLarge
 			return ErrBodyTooLarge
 		}
-		return json.Unmarshal(r.bodyOverride, dest)
+		return unmarshalJSON(r.bodyOverride, dest)
 	}
 	if r.ctx != nil {
 		raw := r.ctx.Body()
@@ -159,16 +158,16 @@ func (r *Request) BindJSON(dest any) error {
 			r.bodyErr = ErrBodyTooLarge
 			return ErrBodyTooLarge
 		}
-		return json.Unmarshal(raw, dest)
+		return unmarshalJSON(raw, dest)
 	}
 	if r.bodyReader != nil {
 		raw, err := r.readBody()
 		if err != nil {
 			return err
 		}
-		return json.Unmarshal(raw, dest)
+		return unmarshalJSON(raw, dest)
 	}
-	return json.Unmarshal(nil, dest)
+	return unmarshalJSON(nil, dest)
 }
 
 // HasHeader reports whether a header is present and non-empty.
