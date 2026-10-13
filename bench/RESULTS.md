@@ -36,7 +36,7 @@ Host: Windows/amd64, Intel Core i5-6200U @ 2.30GHz (2 cores / 4 threads). Power 
 | POST /echo | 1024 | 0.925 | 0.909 | 0.944 | 1.068 | 1.072 | 1.067 | 1.034 | fiber |
 | POST /echo | 4096 | 0.940 | 0.896 | 0.971 | 1.102 | 1.206 | 1.080 | 1.047 | fiber |
 
-Of 16 cells, 1 is ustun, 10 are esit, 4 have Fiber ahead, and 1 is esik-yok (throughput CI above 1, p99 worse). The plaintext/256 interval is wide. That cell is ustun on this run because the lower bound is above 1 and p99 and CPU are lower; its peak RSS is 1.15× Fiber and is not part of the gate. POST /echo at 64, 1024, and 4096, and GET /json at 256, and GET /users/{id} at 64 sit entirely under 1.
+Of 16 cells, 1 is ustun, 9 are esit, 5 have Fiber ahead, and 1 is esik-yok (throughput CI above 1, p99 worse). The plaintext/256 interval is wide. That cell is ustun on this run because the lower bound is above 1 and p99 and CPU are lower; its peak RSS is 1.15× Fiber and is not part of the gate. POST /echo at 64, 1024, and 4096, and GET /json at 256, and GET /users/{id} at 64 sit entirely under 1.
 
 ## POST /echo after BindJSON (config `default`)
 
@@ -82,7 +82,7 @@ Same host, same 10-round paired protocol, Go client. This is not the default. Fi
 | POST /echo | 1024 | 1.027 | 0.971 | 1.093 | 0.961 | 0.867 | 0.988 | 0.993 | esit |
 | POST /echo | 4096 | 0.999 | 0.976 | 1.027 | 1.055 | 1.050 | 1.004 | 1.048 | esit |
 
-Pooled, on this host: 3 ustun, 12 esit, 1 fiber. Default, on this host: 1 ustun, 10 esit, 4 fiber, 1 esik-yok. The one pooled cell still behind Fiber is GET /json at 1024 (CI 0.943–0.989). The last change measured there was the object pool. The remaining allocs in the echo profile are `encoding/json` and `reflect` map assignment, and 45% of CPU samples are `WSASend`. A JSON buffer pool was not added: `SetBody` aliases the bytes and rawhttp writes them after `Handle` returns, so recycling the buffer first would change the response.
+Pooled, on this host: 3 ustun, 12 esit, 1 fiber. Default, on this host: 1 ustun, 9 esit, 5 fiber, 1 esik-yok. The one pooled cell still behind Fiber is GET /json at 1024 (CI 0.943–0.989). The last change measured there was the object pool. The remaining allocs in the echo profile are `encoding/json` and `reflect` map assignment, and 45% of CPU samples are `WSASend`. A JSON buffer pool was not added: `SetBody` aliases the bytes and rawhttp writes them after `Handle` returns, so recycling the buffer first would change the response.
 
 Linux has no completed matrix in this tree. `bench/run_linux.sh` and the `bench` workflow (`workflow_dispatch`) record the paired ratio on `ubuntu-latest` and upload the jsonl. `go test -race ./...` is the Linux job in `tests.yml` plus the harness race step. This machine has no WSL and no gcc.
 
