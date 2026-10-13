@@ -4,8 +4,8 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -44,8 +44,8 @@ func readProc(pid int) (procSample, error) {
 	cpu := time.Duration(filetime(kernel)+filetime(user)) * 100
 
 	var mem processMemoryCounters
-	mem.CB = uint32(unsafe.Sizeof(mem))
-	r, _, callErr := procGetProcessMemoryInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&mem)), uintptr(mem.CB))
+	mem.CB = uint32(reflect.TypeOf(mem).Size())
+	r, _, callErr := procGetProcessMemoryInfo.Call(uintptr(h), reflect.ValueOf(&mem).Pointer(), uintptr(mem.CB))
 	if r == 0 {
 		return procSample{}, fmt.Errorf("GetProcessMemoryInfo: %w", callErr)
 	}

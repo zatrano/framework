@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	stdhttp "net/http"
-	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -37,9 +35,6 @@ func cmdServe(args []string) error {
 }
 
 func serveZatrano(addr string) error {
-	if os.Getenv("ZTFB_PPROF") == "1" {
-		go func() { _ = stdhttp.ListenAndServe("127.0.0.1:6060", nil) }()
-	}
 	dir, err := os.MkdirTemp("", "ztfb-")
 	if err != nil {
 		return err
