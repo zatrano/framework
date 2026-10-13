@@ -59,6 +59,46 @@ The after interval overlaps the baseline interval on every echo cell. That is no
 
 `writeResponse` already appends the header and the body into one buffer and calls `WSASend` once. There is no second write to merge. A deferred flush was not added: the samples are the send itself, not an extra syscall. rawhttp starts the connection buffers at 512 bytes. It drops a body or response buffer above 4096 bytes only when `ReduceMemoryUsage` is on, and that flag is off. Starting those buffers at 4KB would raise RSS. The baseline peak-RSS ratios are the measurement; plaintext at 256 and 4096 are above 1.10× and the rest of the baseline cells are not.
 
+## Windows pooled (`HTTP_POOL_REQUESTS=true`)
+
+Same host, same 10-round paired protocol, Go client. This is not the default. Fiber is unchanged. The pool reuses the request and the text/JSON response objects. It does not pool the JSON bytes.
+
+| Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| GET /plaintext | 64 | 1.159 | 1.119 | 1.201 | 0.846 | 0.886 | 0.901 | 0.994 | ustun |
+| GET /plaintext | 256 | 1.018 | 0.974 | 1.046 | 0.998 | 1.013 | 0.954 | 0.961 | esit |
+| GET /plaintext | 1024 | 1.056 | 1.002 | 1.132 | 0.981 | 0.819 | 0.893 | 0.933 | ustun |
+| GET /plaintext | 4096 | 1.044 | 1.004 | 1.144 | 0.964 | 0.935 | 0.925 | 0.919 | ustun |
+| GET /json | 64 | 1.046 | 0.966 | 1.084 | 1.002 | 0.948 | 0.952 | 1.011 | esit |
+| GET /json | 256 | 1.012 | 0.939 | 1.041 | 0.970 | 0.995 | 0.994 | 1.006 | esit |
+| GET /json | 1024 | 0.976 | 0.943 | 0.989 | 1.081 | 1.044 | 1.032 | 1.018 | fiber |
+| GET /json | 4096 | 0.985 | 0.954 | 1.055 | 0.975 | 1.011 | 0.997 | 1.003 | esit |
+| GET /users/{id} | 64 | 0.996 | 0.963 | 1.020 | 0.994 | 1.044 | 0.991 | 1.013 | esit |
+| GET /users/{id} | 256 | 1.005 | 0.957 | 1.041 | 0.979 | 1.285 | 0.990 | 1.013 | esit |
+| GET /users/{id} | 1024 | 0.996 | 0.952 | 1.028 | 1.005 | 1.288 | 0.995 | 1.017 | esit |
+| GET /users/{id} | 4096 | 1.005 | 0.972 | 1.026 | 0.872 | 0.967 | 0.963 | 0.961 | esit |
+| POST /echo | 64 | 0.993 | 0.936 | 1.052 | 0.993 | 1.060 | 0.991 | 1.013 | esit |
+| POST /echo | 256 | 0.998 | 0.953 | 1.052 | 0.997 | 1.011 | 0.991 | 1.007 | esit |
+| POST /echo | 1024 | 1.027 | 0.971 | 1.093 | 0.961 | 0.867 | 0.988 | 0.993 | esit |
+| POST /echo | 4096 | 0.999 | 0.976 | 1.027 | 1.055 | 1.050 | 1.004 | 1.048 | esit |
+
+Pooled, on this host: 3 ustun, 12 esit, 1 fiber. Default, on this host: 1 ustun, 10 esit, 4 fiber, 1 esik-yok. The one pooled cell still behind Fiber is GET /json at 1024 (CI 0.943–0.989). The last change measured there was the object pool. The remaining allocs in the echo profile are `encoding/json` and `reflect` map assignment, and 45% of CPU samples are `WSASend`. A JSON buffer pool was not added: `SetBody` aliases the bytes and rawhttp writes them after `Handle` returns, so recycling the buffer first would change the response.
+
+Linux has no completed matrix in this tree. `bench/run_linux.sh` and the `bench` workflow (`workflow_dispatch`) record the paired ratio on `ubuntu-latest` and upload the jsonl. `go test -race ./...` is the Linux job in `tests.yml` plus the harness race step. This machine has no WSL and no gcc.
+
+## Soak (config `default`)
+
+512 connections, 25s per route, one round, errors 0. RSS from five seconds in to the last sample:
+
+| Route | ZATRANO | Fiber |
+|---|---:|---:|
+| GET /plaintext | −516 KB | +3.3 MB |
+| GET /json | +201 KB | +131 KB |
+| GET /users/{id} | +246 KB | −70 KB |
+| POST /echo | +319 KB | +131 KB |
+
+ZATRANO stayed within the flat check (growth has to exceed both 5% and 1MB). Fiber plaintext did not.
+
 ## Round 1 record (4-round medians, no interval)
 
 Measured on this host, not on the 1 vCPU sandbox from earlier notes. Windows/amd64, Intel Core i5-6200U @ 2.30GHz (2 cores / 4 threads), power plan Dengeli. The harness pins the server to logical CPU 0 (`GOMAXPROCS=1`) and the client to the other CPUs. Both servers are one `ztfb` binary built with Go 1.26.0. Warmup 1.5s, measure 5s, 4 rounds (3 at 4096), server order alternates, figures are medians. Peak RSS is `PeakWorkingSetSize` (the Windows stand-in for `VmHWM`). Errors were 0 in every cell.
