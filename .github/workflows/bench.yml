@@ -4,23 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       rounds:
-        description: Rounds per cell (10 is the CI size)
-        default: "10"
-        required: false
-      client:
-        description: Load generator
-        default: go
-        type: choice
-        options:
-          - go
-          - wrk
-      routes:
-        description: Comma-separated route names; empty runs all four
-        default: ""
-        required: false
-      conns:
-        description: Connection levels
-        default: "64,256,1024,4096"
+        description: Rounds per cell
+        default: "20"
         required: false
 
 permissions:
@@ -79,10 +64,52 @@ jobs:
         working-directory: framework/bench/ztfb
         run: go test -race ./... -count=1
 
-  bench:
-    name: paired ratio
+  writes:
+    name: strace write count
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+          cache-dependency-path: framework/bench/ztfb/go.mod
+
+      - name: Install strace
+        run: sudo apt-get update && sudo apt-get install -y strace netcat-openbsd
+
+      - name: Count response writes
+        working-directory: framework/bench
+        env:
+          GOTOOLCHAIN: go1.26.0
+        run: bash strace_writes.sh
+
+  bench:
+    name: linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: go-default
+            client: go
+            config: default
+          - name: go-pooled
+            client: go
+            config: pooled
+          - name: wrk-default
+            client: wrk
+            config: default
     defaults:
       run:
         working-directory: framework
@@ -101,7 +128,7 @@ jobs:
           cache-dependency-path: framework/bench/ztfb/go.mod
 
       - name: Install wrk
-        if: inputs.client == 'wrk'
+        if: matrix.client == 'wrk'
         run: sudo apt-get update && sudo apt-get install -y wrk
 
       - name: Governor note
@@ -111,15 +138,15 @@ jobs:
           else
             echo "governor=unavailable; publish the paired ratio, not absolute rps"
           fi
+          echo "nproc=$(nproc)"
 
       - name: Run paired matrix
         working-directory: framework/bench
         env:
-          ROUNDS: ${{ inputs.rounds }}
-          CLIENT: ${{ inputs.client }}
-          ROUTES: ${{ inputs.routes }}
-          CONNS: ${{ inputs.conns }}
-          OUT: results/linux.jsonl
+          ROUNDS: ${{ inputs.rounds || '20' }}
+          CLIENT: ${{ matrix.client }}
+          CONFIG: ${{ matrix.config }}
+          OUT: results/linux/${{ matrix.name }}.jsonl
           GOTOOLCHAIN: go1.26.0
         run: bash run_linux.sh
 
@@ -127,6 +154,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bench-linux-jsonl
-          path: framework/bench/results/linux.jsonl
+          name: bench-linux-${{ matrix.name }}
+          path: framework/bench/results/linux/${{ matrix.name }}.jsonl
           if-no-files-found: warn

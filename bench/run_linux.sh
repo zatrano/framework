@@ -35,7 +35,8 @@ else
   echo "cpu governor: unavailable. Report paired ratios, not absolute rps."
 fi
 ncpu="$(nproc)"
-echo "affinity: server cpu 0, client cpus 1-$((ncpu - 1)) (sched_setaffinity)"
+echo "affinity: taskset -c 0 server (GOMAXPROCS=1), taskset -c 1-$((ncpu - 1)) load generator"
+echo "report paired ratios only; absolute rps on a shared runner is noise"
 
 export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.0}"
 export GOWORK=off
@@ -43,7 +44,7 @@ export GOFLAGS=
 go test -count=1 .
 go build -o "${TMPDIR:-/tmp}/ztfb" .
 
-args=(run -o "$out" -rounds "${ROUNDS:-10}" -client "${CLIENT:-go}" -config "${CONFIG:-default}")
+args=(run -o "$out" -rounds "${ROUNDS:-20}" -client "${CLIENT:-go}" -config "${CONFIG:-default}")
 if [[ -n "${ROUTES:-}" ]]; then
   args+=(-routes "$ROUTES")
 fi

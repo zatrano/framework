@@ -37,6 +37,15 @@ func TestMedianEven(t *testing.T) {
 	}
 }
 
+func TestServerProcCountMatchesMask(t *testing.T) {
+	if serverProcCount(1) != 1 {
+		t.Fatal("cpu 0")
+	}
+	if serverProcCount(1|4) != 2 {
+		t.Fatal("two cpus")
+	}
+}
+
 func TestDefaultRoundsIsTen(t *testing.T) {
 	if defaultRounds < 10 || bootstrapDraws < 10000 {
 		t.Fatalf("rounds %d draws %d", defaultRounds, bootstrapDraws)

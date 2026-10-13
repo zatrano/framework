@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -201,12 +200,15 @@ func runMatrix(opt matrixOpts) error {
 		return err
 	}
 	serverMask, clientMask := affinityMasks(opt.affinity)
-	serverProcs := "1"
-	if opt.affinity != "split" {
-		serverProcs = strconv.Itoa(runtime.NumCPU())
-	} else {
+	// GOMAXPROCS matches the cores the server is pinned to, for both servers.
+	serverProcs := strconv.Itoa(serverProcCount(serverMask))
+	if opt.affinity == "split" {
 		_ = setAffinity(os.Getpid(), clientMask)
-		runtime.GOMAXPROCS(runtime.NumCPU() - 1)
+		clientN := runtime.NumCPU() - serverProcCount(serverMask)
+		if clientN < 1 {
+			clientN = 1
+		}
+		runtime.GOMAXPROCS(clientN)
 	}
 	if opt.client == "" {
 		opt.client = "go"
@@ -266,7 +268,7 @@ func runMatrix(opt matrixOpts) error {
 }
 
 func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config string) (cell, error) {
-	cmd := exec.Command(exe, "serve", server, addr)
+	cmd := startServer(exe, server, addr, serverMask)
 	cmd.Env = serverEnv(serverProcs, config)
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
@@ -530,6 +532,19 @@ func checkSoakFlat(byServer map[string][]cell) error {
 		}
 	}
 	return nil
+}
+
+func serverProcCount(mask uintptr) int {
+	n := 0
+	for cpu := 0; cpu < 64; cpu++ {
+		if mask&(1<<uintptr(cpu)) != 0 {
+			n++
+		}
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
 }
 
 func affinityMasks(mode string) (server, client uintptr) {
