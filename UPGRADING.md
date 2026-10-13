@@ -116,6 +116,7 @@ Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`,
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
 | `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. Over the limit the engine returns 431. |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
+| `HTTP_POOL_REQUESTS` | unset (off) | `true` reuses `Request` and the `Text`/`JSON` `Response` after the handler returns. Do not keep the pointer. With `APP_DEBUG=true`, a call after release panics. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | In-flight body budget. Negative disables it. Not enough room is 503 with `Retry-After: 1`. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` | 25% of the budget | Per-client share when the client can be told apart. Negative disables it. |
 | `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot outside production as well. |
