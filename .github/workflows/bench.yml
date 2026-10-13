@@ -10,10 +10,10 @@ on:
         required: false
   # Push, not pull_request: a pull_request path filter matches the whole diff
   # against main, so every later commit would rerun the matrix.
-  # The long matrix stays on workflow_dispatch. This branch runs the short jobs.
+  # The long matrix stays on workflow_dispatch. 3.x runs the short jobs.
   push:
     branches:
-      - perf/zatrano-vs-fiber
+      - 3.x
     paths:
       - bench/strace_writes.sh
       - .github/workflows/bench.yml

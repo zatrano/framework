@@ -7,10 +7,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zatrano/framework/actions/workflows/tests.yml"><img src="https://github.com/zatrano/framework/actions/workflows/tests.yml/badge.svg?branch=main" alt="Tests"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg?branch=main" alt="Static Analysis"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/coding-style.yml"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg?branch=main" alt="Coding Style"></a>
-  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://github.com/zatrano/framework/actions/workflows/security.yml/badge.svg?branch=main" alt="Security"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/tests.yml"><img src="https://github.com/zatrano/framework/actions/workflows/tests.yml/badge.svg?branch=3.x" alt="Tests"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml"><img src="https://github.com/zatrano/framework/actions/workflows/static-analysis.yml/badge.svg?branch=3.x" alt="Static Analysis"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/coding-style.yml"><img src="https://github.com/zatrano/framework/actions/workflows/coding-style.yml/badge.svg?branch=3.x" alt="Coding Style"></a>
+  <a href="https://github.com/zatrano/framework/actions/workflows/security.yml"><img src="https://github.com/zatrano/framework/actions/workflows/security.yml/badge.svg?branch=3.x" alt="Security"></a>
 </p>
 
 <p align="center">
@@ -50,18 +50,18 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 | | |
 | --- | --- |
 | Current module tag | `v3.1.7` |
-| Release branch | `main` |
+| Release branch | `3.x` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.6`. This tag requires `v0.2.6`. Tag `v3.1.3` required `v0.2.5`. |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.1`, wired at `framework/v3/core/ssr` |
 | Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.1` |
 
 The kernel requires **rawhttp** and **canvas**. It does not import `github.com/zatrano/packages`. Web handlers return `http.Template`. API handlers return `http.JSON`. `routing.Version` mounts `/api/{version}`.
 
-Older lines stay on their own branches:
+Version lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `main` | V3. Current tag `v3.1.7` |
+| `3.x` | V3. Current tag `v3.1.7` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
