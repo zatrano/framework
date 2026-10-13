@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
+	"runtime/pprof"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -35,6 +38,16 @@ func cmdServe(args []string) error {
 }
 
 func serveZatrano(addr string) error {
+	stop := startProfiles()
+	if sec, _ := strconv.Atoi(os.Getenv("ZTFB_PROFILE_SECONDS")); sec > 0 {
+		go func() {
+			time.Sleep(time.Duration(sec) * time.Second)
+			stop()
+			os.Exit(0)
+		}()
+	} else {
+		defer stop()
+	}
 	dir, err := os.MkdirTemp("", "ztfb-")
 	if err != nil {
 		return err
@@ -51,7 +64,9 @@ func serveZatrano(addr string) error {
 	})
 	app.Router().Post("/echo", func(req *khttp.Request) *khttp.Response {
 		var m map[string]any
-		if err := req.JSON(&m); err != nil {
+		// BindJSON decodes the connection buffer. Fiber's c.Body() also
+		// does not copy. Body() on this request is unchanged.
+		if err := req.BindJSON(&m); err != nil {
 			return khttp.BadRequest("bad json")
 		}
 		return khttp.JSON(m)
@@ -103,4 +118,44 @@ func serveFiber(addr string) error {
 		return c.JSON(m)
 	})
 	return app.Listen(addr, fiber.ListenConfig{DisableStartupMessage: true})
+}
+
+// startProfiles writes runtime profiles when the env paths are set.
+// It does not import net/http/pprof, so nothing listens for /debug/pprof.
+func startProfiles() func() {
+	var cpu *os.File
+	if path := os.Getenv("ZTFB_CPU_PROFILE"); path != "" {
+		f, err := os.Create(path)
+		if err == nil {
+			if err := pprof.StartCPUProfile(f); err != nil {
+				_ = f.Close()
+			} else {
+				cpu = f
+			}
+		}
+	}
+	return func() {
+		if cpu != nil {
+			pprof.StopCPUProfile()
+			_ = cpu.Close()
+		}
+		writeProfile("ZTFB_ALLOC_PROFILE", "allocs")
+		writeProfile("ZTFB_HEAP_PROFILE", "heap")
+	}
+}
+
+func writeProfile(envKey, name string) {
+	path := os.Getenv(envKey)
+	if path == "" {
+		return
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	runtime.GC()
+	if p := pprof.Lookup(name); p != nil {
+		_ = p.WriteTo(f, 0)
+	}
 }

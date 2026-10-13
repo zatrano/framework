@@ -31,6 +31,7 @@ type Response struct {
 	hijack             HijackFunc
 	clearWriteDeadline bool
 	chunkWriteTimeout  time.Duration
+	pooled             bool
 }
 
 // Status sets the response status code.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+`Request.BindJSON` decodes JSON from the connection buffer and does not copy it. The decode finishes before `BindJSON` returns. A value produced by `encoding/json` does not alias that buffer. A type that implements `UnmarshalJSON` must not retain the input slice. `Request.Body` and `Request.JSON` are unchanged and still return an owned copy.
+
+`HTTP_POOL_REQUESTS=true` is off by default. When it is on, `Application.Handle` reuses the `Request` and a `Text` or `JSON` `Response` after the handler returns. That is the same rule as fasthttp: do not keep the pointer, and do not use it from another goroutine after the handler returns. `APP_DEBUG=true` panics on a method call after release and reports the request generation. The response JSON bytes are still a fresh `encoding/json` buffer. rawhttp aliases that buffer until it writes, which is after `Handle` returns, so the bytes are not pooled.
+
 ## Upgrading from v3.1.6
 
 v3.1.7 requires the same rawhttp v0.2.6 and canvas v0.2.1 as v3.1.6. `package:enable` still pins packages v1.15.1.
