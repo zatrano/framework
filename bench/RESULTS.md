@@ -38,6 +38,27 @@ Host: Windows/amd64, Intel Core i5-6200U @ 2.30GHz (2 cores / 4 threads). Power 
 
 Of 16 cells, 1 is ustun, 10 are esit, 4 have Fiber ahead, and 1 is esik-yok (throughput CI above 1, p99 worse). The plaintext/256 interval is wide. That cell is ustun on this run because the lower bound is above 1 and p99 and CPU are lower; its peak RSS is 1.15× Fiber and is not part of the gate. POST /echo at 64, 1024, and 4096, and GET /json at 256, and GET /users/{id} at 64 sit entirely under 1.
 
+## POST /echo after BindJSON (config `default`)
+
+The echo handler now calls `BindJSON`. Fiber still decodes `c.Body()` with no copy. `Body()` is unchanged.
+
+Microbench, 27-byte object: unmarshal in place 568 B and 10 allocs; copy then unmarshal 600 B and 11 allocs. The removed copy is one allocation and 32 bytes. A 14s CPU profile at 64 connections (8.82s of samples) is still 45% `WSASend` inside `writeResponse` (flat 0.45%, one write). `BindJSON` is 11.8% cumulative and `encoding/json.Unmarshal` is 11.6%. Alloc space: `JSON` 129MB, `NewRequest` 120MB, `reflect.mapassign` 59MB, `json.Unmarshal` 30MB. The body copy is not in that list.
+
+| Conns | Baseline CI | After CI | Verdict | Intervals |
+|---:|---|---|---|---|
+| 64 | 0.866–0.951 fiber | 0.892–0.992 fiber | fiber | overlap |
+| 256 | 0.925–1.014 esit | 0.871–1.072 esit | esit | overlap |
+| 1024 | 0.909–0.944 fiber | 0.914–0.988 fiber | fiber | overlap |
+| 4096 | 0.896–0.971 fiber | 0.946–1.021 esit | esit | overlap |
+
+The after interval overlaps the baseline interval on every echo cell. That is not a gain.
+
+`NewRequest` is 480 B and 1 alloc. The opt-in pool (`HTTP_POOL_REQUESTS=true`, default off) is 0 B and 0 allocs on the same microbench (531 ns to 88 ns). Debug mode panics after release and bumps the generation. The pooled configuration is a separate table. JSON bytes still match `encoding/json.Marshal`, including `<` and `&`.
+
+## Write path and connection buffers
+
+`writeResponse` already appends the header and the body into one buffer and calls `WSASend` once. There is no second write to merge. A deferred flush was not added: the samples are the send itself, not an extra syscall. rawhttp starts the connection buffers at 512 bytes. It drops a body or response buffer above 4096 bytes only when `ReduceMemoryUsage` is on, and that flag is off. Starting those buffers at 4KB would raise RSS. The baseline peak-RSS ratios are the measurement; plaintext at 256 and 4096 are above 1.10× and the rest of the baseline cells are not.
+
 ## Round 1 record (4-round medians, no interval)
 
 Measured on this host, not on the 1 vCPU sandbox from earlier notes. Windows/amd64, Intel Core i5-6200U @ 2.30GHz (2 cores / 4 threads), power plan Dengeli. The harness pins the server to logical CPU 0 (`GOMAXPROCS=1`) and the client to the other CPUs. Both servers are one `ztfb` binary built with Go 1.26.0. Warmup 1.5s, measure 5s, 4 rounds (3 at 4096), server order alternates, figures are medians. Peak RSS is `PeakWorkingSetSize` (the Windows stand-in for `VmHWM`). Errors were 0 in every cell.
