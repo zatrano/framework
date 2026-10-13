@@ -24,16 +24,18 @@ cleanup() {
   wait "$pid" 2>/dev/null || true
 }
 trap cleanup EXIT
+# ss watches the listen socket. A TCP probe is itself a request, and rawhttp
+# answers it with a 400 write that is not the response under test.
 ready=0
 for _ in $(seq 1 100); do
-  if bash -c 'echo >/dev/tcp/127.0.0.1/18181' 2>/dev/null; then
+  if ss -ltn | grep -q ':18181'; then
     ready=1
     break
   fi
   sleep 0.1
 done
 if [[ "$ready" -ne 1 ]]; then
-  echo "server did not accept a connection"
+  echo "server did not listen"
   exit 1
 fi
 printf 'GET /plaintext HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' | nc -w 2 127.0.0.1 18181 >/tmp/ztfb-resp.txt || true

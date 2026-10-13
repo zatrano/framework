@@ -8,9 +8,15 @@ on:
         description: Rounds per cell
         default: "20"
         required: false
-  # pull_request is not listed: every push to the PR would rerun the matrix,
-  # because the path filter sees this file in the diff against main.
-  # workflow_dispatch works after this file is on the default branch.
+  # Push, not pull_request: a pull_request path filter matches the whole diff
+  # against main, so every later commit would rerun the matrix.
+  # The long matrix stays on workflow_dispatch. This branch runs the short jobs.
+  push:
+    branches:
+      - perf/zatrano-vs-fiber
+    paths:
+      - bench/strace_writes.sh
+      - .github/workflows/bench.yml
 
 permissions:
   contents: read
@@ -91,7 +97,7 @@ jobs:
           cache-dependency-path: framework/bench/ztfb/go.mod
 
       - name: Install strace
-        run: sudo apt-get update && sudo apt-get install -y strace netcat-openbsd
+        run: sudo apt-get update && sudo apt-get install -y strace netcat-openbsd iproute2
 
       - name: Count response writes
         working-directory: framework/bench
@@ -101,6 +107,7 @@ jobs:
 
   bench:
     name: linux ${{ matrix.name }}
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -166,6 +173,7 @@ jobs:
 
   profile:
     name: linux p99 profile
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:

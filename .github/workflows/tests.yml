@@ -132,6 +132,9 @@ jobs:
 
       - name: go test -race harness
         working-directory: framework/bench/ztfb
+        env:
+          # ztfb/go.mod is go 1.26.0. setup-go pins GOTOOLCHAIN=local at 1.25.13.
+          GOTOOLCHAIN: go1.26.0
         run: go test -race ./... -count=1
 
   windows_tests:

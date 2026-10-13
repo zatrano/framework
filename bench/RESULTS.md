@@ -151,7 +151,7 @@ Plaintext at 4096 sits on the GC trigger because each connection's read buffer i
 
 Echo and users at 64 are not a long pause. Both heaps are 3 MB and pauses are under half a millisecond. ZATRANO collects several times more often, which is the unpooled request allocation. The pooled matrix still leaves POST /echo at 64, 256, and 1024 entirely under 1, with CPU about 1.03×. That remainder is the handler around `encoding/json`. Encoding into a pooled buffer through `SetBodyRelease` was slower (866.7 ns / 5 allocs versus 1071 ns / 6 allocs) and was not adopted.
 
-`strace -f -e trace=write,writev` recorded two `write` calls on fd 8: a 104-byte `400` from the readiness probe, then one 371-byte `write` for `GET /plaintext`. The response itself is one write. The writes were not combined.
+`strace -f -e trace=write,writev` recorded two `write` calls on fd 8 when a TCP readiness probe opened a connection: a 104-byte `400`, then one 371-byte `write` for `GET /plaintext`. The response itself is one write. The writes were not combined. The check now waits on the listen socket with `ss`, so that probe is not a request.
 
 ## Linux wrk (config `default`, both sides `encoding/json`)
 
