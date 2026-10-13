@@ -130,6 +130,10 @@ jobs:
           PACKAGES_DIR: ${{ github.workspace }}/packages
         run: go test -race ./... -count=1
 
+      - name: go test -race harness
+        working-directory: framework/bench/ztfb
+        run: go test -race ./... -count=1
+
   windows_tests:
     runs-on: windows-2022
     strategy:

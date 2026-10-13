@@ -1,0 +1,132 @@
+name: bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: Rounds per cell (10 is the CI size)
+        default: "10"
+        required: false
+      client:
+        description: Load generator
+        default: go
+        type: choice
+        options:
+          - go
+          - wrk
+      routes:
+        description: Comma-separated route names; empty runs all four
+        default: ""
+        required: false
+      conns:
+        description: Connection levels
+        default: "64,256,1024,4096"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  race:
+    name: go test -race
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Checkout canvas
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/canvas
+          ref: main
+          path: canvas
+
+      - name: Checkout rawhttp
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/rawhttp
+          ref: main
+          path: rawhttp
+
+      - name: Checkout packages
+        uses: actions/checkout@v5
+        with:
+          repository: zatrano/packages
+          ref: main
+          path: packages
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.13"
+          cache: true
+          cache-dependency-path: framework/go.mod
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go test -race
+        env:
+          PACKAGES_DIR: ${{ github.workspace }}/packages
+        run: go test -race ./... -count=1
+
+      - name: go test -race harness
+        working-directory: framework/bench/ztfb
+        run: go test -race ./... -count=1
+
+  bench:
+    name: paired ratio
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: framework
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+        with:
+          path: framework
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+          cache-dependency-path: framework/bench/ztfb/go.mod
+
+      - name: Install wrk
+        if: inputs.client == 'wrk'
+        run: sudo apt-get update && sudo apt-get install -y wrk
+
+      - name: Governor note
+        run: |
+          if [ -r /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+            echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
+          else
+            echo "governor=unavailable; publish the paired ratio, not absolute rps"
+          fi
+
+      - name: Run paired matrix
+        working-directory: framework/bench
+        env:
+          ROUNDS: ${{ inputs.rounds }}
+          CLIENT: ${{ inputs.client }}
+          ROUTES: ${{ inputs.routes }}
+          CONNS: ${{ inputs.conns }}
+          OUT: results/linux.jsonl
+          GOTOOLCHAIN: go1.26.0
+        run: bash run_linux.sh
+
+      - name: Upload jsonl
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-linux-jsonl
+          path: framework/bench/results/linux.jsonl
+          if-no-files-found: warn
