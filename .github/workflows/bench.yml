@@ -7,6 +7,11 @@ on:
         description: Rounds per cell
         default: "20"
         required: false
+  # workflow_dispatch is only listed once this file is on the default branch.
+  # The pull request runs the same jobs from this branch.
+  pull_request:
+    paths:
+      - .github/workflows/bench.yml
 
 permissions:
   contents: read
