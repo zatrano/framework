@@ -8,11 +8,9 @@ on:
         description: Rounds per cell
         default: "20"
         required: false
-  # workflow_dispatch is only listed once this file is on the default branch.
-  # The pull request runs the same jobs from this branch.
-  pull_request:
-    paths:
-      - .github/workflows/bench.yml
+  # pull_request is not listed: every push to the PR would rerun the matrix,
+  # because the path filter sees this file in the diff against main.
+  # workflow_dispatch works after this file is on the default branch.
 
 permissions:
   contents: read

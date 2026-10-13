@@ -136,9 +136,72 @@ Pooled, on this runner: 10 ustun, 3 esit, 3 fiber. The three fiber cells are POS
 
 `JSON` still uses `encoding/json.Marshal`. A pooled `json.Encoder` buffer, released from rawhttp `SetBodyRelease` after the write, was slower on the microbench (866.7 ns, 5 allocs versus 1071 ns, 6 allocs) and was not adopted. See `RAWHTTP_CHANGES.md`.
 
-## Linux wrk and matched codec
+## Linux p99 profile
 
-wrk rejected Go's `1.5s` warmup (`Usage: wrk`) and that job failed before a table existed. The harness now sends an integer second count. The matched-codec track runs both servers on `goccy/go-json` v0.10.5 (`Fiber` `JSONEncoder`/`JSONDecoder` and `SetJSONCodec`). Those two jobs, plus `GODEBUG=gctrace=1` profiles for plaintext/4096, json/1024, echo/64, and users/64, are the follow-up run. `go test -race ./...` for the framework passed on the Linux race job. The harness race step needs Go 1.26 because `bench/ztfb` says `go 1.26.0`; that step now sets `GOTOOLCHAIN=go1.26.0`.
+`GODEBUG=gctrace=1`, `GOMAXPROCS=1`, CPU 0, 12s load, default config (pool off). Pauses below are the steady-state clock time, not the forced GC at process exit.
+
+| Cell | ZATRANO | Fiber |
+|---|---|---|
+| GET /plaintext 4096 | ~1 GC/s, pause ~14 ms, live heap 165 MB against a 169 MB goal | one steady GC, pause ~15 ms, heap grew to 119 MB |
+| GET /json 1024 | ~6 GC/s, pause ~3–4 ms, heap 41 MB | fewer cycles, pause ~4.5 ms, heap 41 MB |
+| POST /echo 64 | ~60 GC/s, pause ~0.45 ms, heap 3 MB | ~25 GC/s, pause ~0.36 ms, heap 3 MB |
+| GET /users/{id} 64 | ~80 GC/s, pause ~0.4 ms, heap 3 MB | ~20 GC/s, pause ~0.5 ms, heap 3 MB |
+
+Plaintext at 4096 sits on the GC trigger because each connection's read buffer is the 16 KiB header ceiling (`HTTP_MAX_HEADER_BYTES`). 4096 connections keep that memory live, so the collector runs about once a second and stops the single server thread for ~14 ms. That is the p99 ratio of 1.006 and the 1.38× peak RSS. The same cell with `HTTP_POOL_REQUESTS=true` is ustun (p99 0.856, peak RSS 0.95): dropping the per-request garbage moves the heap off that edge. The pool stays off unless the variable is set. `GOGC` was not changed.
+
+Echo and users at 64 are not a long pause. Both heaps are 3 MB and pauses are under half a millisecond. ZATRANO collects several times more often, which is the unpooled request allocation. The pooled matrix still leaves POST /echo at 64, 256, and 1024 entirely under 1, with CPU about 1.03×. That remainder is the handler around `encoding/json`. Encoding into a pooled buffer through `SetBodyRelease` was slower (866.7 ns / 5 allocs versus 1071 ns / 6 allocs) and was not adopted.
+
+`strace -f -e trace=write,writev` recorded two `write` calls on fd 8: a 104-byte `400` from the readiness probe, then one 371-byte `write` for `GET /plaintext`. The response itself is one write. The writes were not combined.
+
+## Linux wrk (config `default`, both sides `encoding/json`)
+
+Same split and 20 rounds. wrk 4.1, 2 threads. The first attempt failed because wrk rejects Go's `1.5s`; the warmup is now `2s`. Errors 0. `bench/results/linux/wrk-default.jsonl`.
+
+| Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| GET /plaintext | 64 | 1.065 | 1.044 | 1.102 | 0.934 | 0.959 | 0.934 | 0.961 | ustun |
+| GET /plaintext | 256 | 1.050 | 0.989 | 1.100 | 0.951 | 0.954 | 0.952 | 0.972 | esit |
+| GET /plaintext | 1024 | 1.107 | 1.073 | 1.133 | 0.922 | 0.947 | 0.901 | 1.095 | ustun |
+| GET /plaintext | 4096 | 1.073 | 1.039 | 1.113 | 0.906 | 1.033 | 0.931 | 1.308 | esik-yok |
+| GET /json | 64 | 1.097 | 1.047 | 1.140 | 0.917 | 0.935 | 0.918 | 0.974 | ustun |
+| GET /json | 256 | 1.111 | 1.055 | 1.133 | 0.908 | 0.931 | 0.902 | 0.977 | ustun |
+| GET /json | 1024 | 1.121 | 1.082 | 1.169 | 0.890 | 0.961 | 0.906 | 1.016 | ustun |
+| GET /json | 4096 | 1.048 | 1.030 | 1.081 | 0.932 | 1.149 | 0.943 | 1.060 | esik-yok |
+| GET /users/{id} | 64 | 1.030 | 1.004 | 1.048 | 0.973 | 0.979 | 0.970 | 0.973 | ustun |
+| GET /users/{id} | 256 | 1.021 | 0.988 | 1.071 | 0.986 | 0.995 | 0.981 | 0.977 | esit |
+| GET /users/{id} | 1024 | 0.999 | 0.967 | 1.067 | 1.021 | 1.017 | 0.986 | 1.016 | esit |
+| GET /users/{id} | 4096 | 1.005 | 0.993 | 1.054 | 0.955 | 1.328 | 0.980 | 1.065 | esit |
+| POST /echo | 64 | 0.937 | 0.925 | 0.981 | 1.042 | 1.033 | 1.047 | 1.072 | fiber |
+| POST /echo | 256 | 0.986 | 0.959 | 1.013 | 0.996 | 1.064 | 0.998 | 0.974 | esit |
+| POST /echo | 1024 | 0.960 | 0.937 | 0.977 | 1.029 | 1.079 | 1.035 | 0.996 | fiber |
+| POST /echo | 4096 | 0.927 | 0.902 | 0.954 | 1.033 | 1.388 | 1.070 | 1.052 | fiber |
+
+wrk, on this runner: 6 ustun, 5 esit, 3 fiber, 2 esik-yok. Fiber is ahead on POST /echo at 64, 1024, and 4096.
+
+## Linux matched codec (both sides `goccy/go-json` v0.10.5)
+
+Not the gate. Both servers use the same codec: Fiber `JSONEncoder`/`JSONDecoder` and ZATRANO `SetJSONCodec`. The bytes for the bench samples match `encoding/json`, including `<`, `>`, and `&`. Default config, Go client, 20 rounds. `bench/results/linux/goccy-default.jsonl`.
+
+| Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| GET /plaintext | 64 | 0.978 | 0.967 | 0.985 | 1.019 | 1.093 | 1.023 | 0.968 | fiber |
+| GET /plaintext | 256 | 1.019 | 0.991 | 1.042 | 0.963 | 1.031 | 0.964 | 0.971 | esit |
+| GET /plaintext | 1024 | 1.062 | 1.038 | 1.078 | 0.912 | 1.006 | 0.913 | 1.095 | esik-yok |
+| GET /plaintext | 4096 | 1.061 | 1.046 | 1.068 | 0.931 | 0.898 | 0.945 | 1.365 | ustun |
+| GET /json | 64 | 0.990 | 0.981 | 1.000 | 0.974 | 1.173 | 1.009 | 0.974 | esit |
+| GET /json | 256 | 0.966 | 0.947 | 0.997 | 0.973 | 1.126 | 1.013 | 0.982 | fiber |
+| GET /json | 1024 | 1.007 | 0.975 | 1.043 | 0.946 | 1.086 | 0.984 | 1.013 | esit |
+| GET /json | 4096 | 0.996 | 0.993 | 1.006 | 0.951 | 1.050 | 0.999 | 1.072 | esit |
+| GET /users/{id} | 64 | 0.901 | 0.896 | 0.910 | 1.061 | 1.258 | 1.110 | 0.977 | fiber |
+| GET /users/{id} | 256 | 0.874 | 0.865 | 0.901 | 1.084 | 1.235 | 1.142 | 0.985 | fiber |
+| GET /users/{id} | 1024 | 0.997 | 0.963 | 1.017 | 0.957 | 1.118 | 1.012 | 1.013 | esit |
+| GET /users/{id} | 4096 | 0.961 | 0.948 | 0.971 | 0.979 | 1.092 | 1.037 | 1.073 | fiber |
+| POST /echo | 64 | 0.918 | 0.895 | 0.923 | 1.070 | 1.214 | 1.097 | 1.017 | fiber |
+| POST /echo | 256 | 0.881 | 0.867 | 0.890 | 1.094 | 1.205 | 1.129 | 0.954 | fiber |
+| POST /echo | 1024 | 0.955 | 0.923 | 0.975 | 1.028 | 1.123 | 1.076 | 0.986 | fiber |
+| POST /echo | 4096 | 0.940 | 0.930 | 0.955 | 1.018 | 1.078 | 1.065 | 1.062 | fiber |
+
+goccy, on this runner: 1 ustun, 5 esit, 9 fiber, 1 esik-yok. Plaintext does not use the codec and still shows the same shape as the equal track. JSON cells do not move ZATRANO ahead of Fiber. `go test -race ./...` passed on the Linux race job, including the harness under Go 1.26.
 
 ## Soak (config `default`)
 
