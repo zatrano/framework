@@ -456,10 +456,15 @@ func serverEnv(serverProcs, config, codec string) []string {
 	if config == "pooled" {
 		set["HTTP_POOL_REQUESTS"] = "true"
 	}
+	// default leaves the variable unset, which is the product default (pool on).
+	dropInherited := config != "pooled"
 	var out []string
 	seen := map[string]bool{}
 	for _, kv := range env {
 		key, _, _ := strings.Cut(kv, "=")
+		if dropInherited && key == "HTTP_POOL_REQUESTS" {
+			continue
+		}
 		if v, ok := set[key]; ok {
 			out = append(out, key+"="+v)
 			seen[key] = true

@@ -41,7 +41,7 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 		return app.bodyLimitSnap
 	}
 	inflight := http.MaxInflightBodyBytes()
-	poolOn := env.Get("HTTP_POOL_REQUESTS", "") == "true"
+	poolOn := env.Get("HTTP_POOL_REQUESTS", "") != "false"
 	http.SetRequestPooling(poolOn, env.Get("APP_DEBUG", "") == "true")
 	app.bodyLimitSnap = bodyLimitSnap{
 		maxRequest:     http.MaxRequestBytes(),

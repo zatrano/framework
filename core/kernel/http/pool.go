@@ -9,7 +9,7 @@ import (
 	"github.com/zatrano/rawhttp"
 )
 
-// Request pooling is off unless the process opts in. A pooled request is
+// Request pooling is on unless HTTP_POOL_REQUESTS=false. A pooled request is
 // reset and reused after the handler returns. Do not keep the pointer.
 // With debug on, a method call after release panics and reports the generation.
 var (
@@ -19,8 +19,12 @@ var (
 	respPool  = sync.Pool{New: func() any { return &Response{pooled: true} }}
 )
 
+func init() {
+	pooling.Store(true)
+}
+
 // SetRequestPooling turns the process-wide request and response pool on or off.
-// debug makes a use-after-release call panic. The default is off.
+// debug makes a use-after-release call panic. The default is on.
 func SetRequestPooling(on, debug bool) {
 	pooling.Store(on)
 	poolDebug.Store(debug)
@@ -90,11 +94,11 @@ func newResponse() *Response {
 
 // ReleaseResponse returns a pooled response after Commit. The JSON bytes are
 // not reused: rawhttp still aliases them until it writes, which happens after
-// Handle returns.
+// Handle returns. Debug mode panics if a method runs after this release.
 func ReleaseResponse(r *Response) {
 	if r == nil || !r.pooled {
 		return
 	}
-	*r = Response{pooled: true}
+	*r = Response{pooled: true, released: poolDebug.Load()}
 	respPool.Put(r)
 }

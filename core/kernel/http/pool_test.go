@@ -11,6 +11,8 @@ func TestJSONBytesMatchEncodingJSON(t *testing.T) {
 	samples := []any{
 		map[string]string{"message": "Hello, World!"},
 		map[string]string{"html": "<tag>&\"'"},
+		map[string]string{"b": "2", "a": "1"},
+		map[string]string{"ü": "ok"},
 		map[string]any{"n": 1, "ok": true, "s": "a/b"},
 		[]any{"<", ">"},
 	}
@@ -28,7 +30,7 @@ func TestJSONBytesMatchEncodingJSON(t *testing.T) {
 
 func TestPooledRequestPanicsAfterReleaseInDebug(t *testing.T) {
 	http.SetRequestPooling(true, true)
-	t.Cleanup(func() { http.SetRequestPooling(false, false) })
+	t.Cleanup(func() { http.SetRequestPooling(true, false) })
 	req := http.AcquireRequest(nil)
 	gen := req.Generation()
 	if req.Method() != "" && gen == 0 {
@@ -46,6 +48,19 @@ func TestPooledRequestPanicsAfterReleaseInDebug(t *testing.T) {
 	_ = req.Method()
 }
 
+func TestPooledResponsePanicsAfterReleaseInDebug(t *testing.T) {
+	http.SetRequestPooling(true, true)
+	t.Cleanup(func() { http.SetRequestPooling(true, false) })
+	resp := http.JSON(map[string]string{"message": "Hello, World!"})
+	http.ReleaseResponse(resp)
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected a use-after-release panic")
+		}
+	}()
+	_ = resp.Content()
+}
+
 func TestPoolingOffAllocatesDistinctRequests(t *testing.T) {
 	http.SetRequestPooling(false, false)
 	a := http.AcquireRequest(nil)
@@ -58,6 +73,7 @@ func TestPoolingOffAllocatesDistinctRequests(t *testing.T) {
 
 func BenchmarkNewRequest(b *testing.B) {
 	http.SetRequestPooling(false, false)
+	b.Cleanup(func() { http.SetRequestPooling(true, false) })
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = http.AcquireRequest(nil)
@@ -66,7 +82,7 @@ func BenchmarkNewRequest(b *testing.B) {
 
 func BenchmarkPooledRequest(b *testing.B) {
 	http.SetRequestPooling(true, false)
-	b.Cleanup(func() { http.SetRequestPooling(false, false) })
+	b.Cleanup(func() { http.SetRequestPooling(true, false) })
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		r := http.AcquireRequest(nil)
