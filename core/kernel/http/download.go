@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"fmt"
-	stdhttp "net/http"
 	"path/filepath"
 	"strings"
 )
@@ -33,7 +32,6 @@ func DownloadBytes(content []byte, filename, contentType string) *Response {
 		status:      200,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}).Header("Content-Disposition", contentDisposition("attachment", filename))
 }
 
@@ -69,7 +67,6 @@ func InlineBytes(content []byte, filename, contentType string) *Response {
 		status:      200,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}).Header("Content-Disposition", contentDisposition("inline", filename))
 }
 

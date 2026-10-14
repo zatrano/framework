@@ -22,7 +22,6 @@ func HTML(body string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "text/html; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -36,7 +35,7 @@ func JSON(data any) *Response {
 	if err != nil {
 		resp.status = stdhttp.StatusInternalServerError
 		resp.content = []byte(`{"message":"failed to encode json"}`)
-		resp.err = err
+		resp.ensureCold().err = err
 		return resp
 	}
 	resp.status = stdhttp.StatusOK
@@ -119,10 +118,7 @@ func jsonStatusMessage(status int, fallback string, message ...string) *Response
 
 // NoContent creates an empty 204 response.
 func NoContent() *Response {
-	return &Response{
-		status:  stdhttp.StatusNoContent,
-		headers: make(stdhttp.Header),
-	}
+	return &Response{status: stdhttp.StatusNoContent}
 }
 
 // Redirect creates a redirect response.
@@ -132,10 +128,11 @@ func Template(name string, data ...map[string]any) *Response {
 		payload = data[0]
 	}
 	return &Response{
-		status:       stdhttp.StatusOK,
-		templateName: name,
-		templateData: payload,
-		headers:      make(stdhttp.Header),
+		status: stdhttp.StatusOK,
+		cold: &responseCold{
+			templateName: name,
+			templateData: payload,
+		},
 	}
 }
 
@@ -148,7 +145,6 @@ func Abort(status int, message ...string) *Response {
 		status:      status,
 		content:     []byte(msg),
 		contentType: "text/plain; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -156,7 +152,7 @@ func Abort(status int, message ...string) *Response {
 // (Application.Handle → Response.Commit). Kept so call sites fail loud
 // instead of silently writing via net/http.ResponseWriter.
 func (r *Response) WriteTo(w stdhttp.ResponseWriter) error {
-	if r != nil && r.hijack != nil {
+	if r != nil && r.cold != nil && r.cold.hijack != nil {
 		return fmt.Errorf("http: Hijack requires rawhttp Commit (net/http ResponseWriter path unsupported)")
 	}
 	return fmt.Errorf("http: WriteTo is not supported; use Commit(*rawhttp.Ctx) / Application.Handle")
@@ -187,7 +183,11 @@ func (r *Response) IsEmpty() bool {
 	if code == stdhttp.StatusNoContent || code == stdhttp.StatusNotModified {
 		return true
 	}
-	return len(r.content) == 0 && r.filePath == "" && r.templateName == "" && r.stream == nil && r.streamReader == nil && r.redirectURL == ""
+	if r.cold == nil {
+		return len(r.content) == 0
+	}
+	c := r.cold
+	return len(r.content) == 0 && c.filePath == "" && c.templateName == "" && c.stream == nil && c.streamReader == nil && c.redirectURL == ""
 }
 
 // IsRedirection reports whether status is 3xx or a redirect URL is set.
@@ -195,7 +195,7 @@ func (r *Response) IsRedirection() bool {
 	if r == nil {
 		return false
 	}
-	if r.redirectURL != "" {
+	if r.cold != nil && r.cold.redirectURL != "" {
 		return true
 	}
 	code := r.StatusCode()
@@ -310,7 +310,6 @@ func Bytes(content []byte, contentType string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -320,7 +319,6 @@ func XML(body string) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "application/xml; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -349,7 +347,6 @@ func JSONP(callback string, data any) *Response {
 		status:      stdhttp.StatusOK,
 		content:     []byte(body),
 		contentType: "application/javascript; charset=utf-8",
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -362,7 +359,6 @@ func Make(status int, content []byte, contentType string) *Response {
 		status:      status,
 		content:     content,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
 	}
 }
 
@@ -373,8 +369,5 @@ func InternalServerError(message ...string) *Response {
 
 // NotModified creates a 304 response.
 func NotModified() *Response {
-	return &Response{
-		status:  stdhttp.StatusNotModified,
-		headers: make(stdhttp.Header),
-	}
+	return &Response{status: stdhttp.StatusNotModified}
 }

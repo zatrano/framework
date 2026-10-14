@@ -23,83 +23,83 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		return nil
 	}
 
-	if r.clearWriteDeadline {
+	cold := r.cold
+	if cold != nil && cold.clearWriteDeadline {
 		if conn := ctx.Conn(); conn != nil {
 			_ = conn.SetWriteDeadline(time.Time{})
 		}
 	}
 
 	// Hijack takes the conn; RawHTTP writes no HTTP response afterward.
-	if r.hijack != nil {
+	if cold != nil && cold.hijack != nil {
 		conn, leftover, err := ctx.Hijack()
 		if err != nil {
 			ctx.SetStatusCode(http.StatusInternalServerError)
 			ctx.SetBodyString("hijacking not supported")
 			return err
 		}
-		return r.hijack(conn, leftover)
+		return cold.hijack(conn, leftover)
 	}
 
-	if r.nInline > 0 && r.headers == nil {
+	if cold == nil || cold.headers == nil {
 		for i := 0; i < r.nInline; i++ {
 			_ = ctx.AddHeader(r.inlineHdrs[i].k, r.inlineHdrs[i].v)
 		}
-	} else if r.headers != nil || r.nInline > 0 {
+	} else {
 		for key, values := range r.Headers() {
 			for _, value := range values {
 				_ = ctx.AddHeader(key, value)
 			}
 		}
 	}
-	for _, c := range r.cookies {
-		if c == nil {
-			continue
+	if cold != nil {
+		for _, c := range cold.cookies {
+			if c == nil {
+				continue
+			}
+			rc := rawhttp.Cookie{
+				Name:     c.Name,
+				Value:    c.Value,
+				Path:     c.Path,
+				Domain:   c.Domain,
+				MaxAge:   c.MaxAge,
+				Expires:  c.Expires,
+				Secure:   c.Secure,
+				HTTPOnly: c.HttpOnly,
+				SameSite: rawhttp.SameSite(c.SameSite),
+			}
+			ctx.SetCookie(&rc)
 		}
-		rc := rawhttp.Cookie{
-			Name:     c.Name,
-			Value:    c.Value,
-			Path:     c.Path,
-			Domain:   c.Domain,
-			MaxAge:   c.MaxAge,
-			Expires:  c.Expires,
-			Secure:   c.Secure,
-			HTTPOnly: c.HttpOnly,
-			SameSite: rawhttp.SameSite(c.SameSite),
+		if cold.redirectURL != "" {
+			return ctx.Redirect(cold.redirectURL, r.StatusCode())
 		}
-		ctx.SetCookie(&rc)
-	}
-
-	if r.redirectURL != "" {
-		return ctx.Redirect(r.redirectURL, r.StatusCode())
-	}
-
-	if r.filePath != "" {
-		if info, err := os.Stat(r.filePath); err != nil {
-			ctx.NotFound()
-			return err
-		} else if info.IsDir() {
-			ctx.BadRequest()
-			return fmt.Errorf("cannot serve directory: %s", r.filePath)
+		if cold.filePath != "" {
+			if info, err := os.Stat(cold.filePath); err != nil {
+				ctx.NotFound()
+				return err
+			} else if info.IsDir() {
+				ctx.BadRequest()
+				return fmt.Errorf("cannot serve directory: %s", cold.filePath)
+			}
+			if !cold.publicFile {
+				_ = ctx.SetHeader("Content-Disposition", "attachment; filename="+filepath.Base(cold.filePath))
+			}
+			ctx.SetStatusCode(r.StatusCode())
+			if r.contentType != "" {
+				ctx.SetContentType(r.contentType)
+			}
+			ctx.SendFile(cold.filePath)
+			return nil
 		}
-		if !r.publicFile {
-			_ = ctx.SetHeader("Content-Disposition", "attachment; filename="+filepath.Base(r.filePath))
-		}
-		ctx.SetStatusCode(r.StatusCode())
-		if r.contentType != "" {
-			ctx.SetContentType(r.contentType)
-		}
-		// Stream from disk via RawHTTP (no full ReadFile into memory).
-		ctx.SendFile(r.filePath)
-		return nil
 	}
 
 	if r.contentType != "" {
 		ctx.SetContentType(r.contentType)
 	}
 	ctx.SetStatusCode(r.StatusCode())
-	if r.streamReader != nil {
-		if r.chunkWriteTimeout > 0 || r.clearWriteDeadline {
-			reader := r.streamReader
+	if cold != nil && cold.streamReader != nil {
+		if cold.chunkWriteTimeout > 0 || cold.clearWriteDeadline {
+			reader := cold.streamReader
 			rw := streamWriterFor(ctx, r)
 			ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 				rw.buf = w
@@ -108,11 +108,11 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 			})
 			return nil
 		}
-		ctx.SetBodyStream(r.streamReader, r.streamSize)
+		ctx.SetBodyStream(cold.streamReader, cold.streamSize)
 		return nil
 	}
-	if r.stream != nil {
-		writer := r.stream
+	if cold != nil && cold.stream != nil {
+		writer := cold.stream
 		rw := streamWriterFor(ctx, r)
 		ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 			rw.buf = w
@@ -148,9 +148,9 @@ func streamWriterFor(ctx *rawhttp.Ctx, r *Response) *streamResponseWriter {
 	if ctx != nil {
 		rw.conn = ctx.Conn()
 	}
-	if r != nil {
-		rw.chunkTimeout = r.chunkWriteTimeout
-		if r.clearWriteDeadline {
+	if r != nil && r.cold != nil {
+		rw.chunkTimeout = r.cold.chunkWriteTimeout
+		if r.cold.clearWriteDeadline {
 			rw.chunkTimeout = -1
 		}
 	}

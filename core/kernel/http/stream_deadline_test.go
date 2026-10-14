@@ -56,13 +56,12 @@ func TestResponseWithoutClearWriteDeadlineIsCut(t *testing.T) {
 			resp := &Response{
 				status:      stdhttp.StatusOK,
 				contentType: "text/plain",
-				headers:     make(stdhttp.Header),
-				stream: func(w stdhttp.ResponseWriter, flusher stdhttp.Flusher) error {
+				cold: &responseCold{stream: func(w stdhttp.ResponseWriter, flusher stdhttp.Flusher) error {
 					time.Sleep(500 * time.Millisecond)
 					_, err := io.WriteString(w, "late-ok")
 					flusher.Flush()
 					return err
-				},
+				}},
 			}
 			_ = resp.Commit(ctx)
 		},

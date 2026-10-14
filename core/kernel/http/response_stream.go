@@ -9,9 +9,8 @@ import (
 // File creates a file-download response (attachment).
 func File(path string) *Response {
 	return &Response{
-		status:   stdhttp.StatusOK,
-		filePath: path,
-		headers:  make(stdhttp.Header),
+		status: stdhttp.StatusOK,
+		cold:   &responseCold{filePath: path},
 	}
 }
 
@@ -19,10 +18,8 @@ func File(path string) *Response {
 // Commit streams via rawhttp.SendFile (If-Modified-Since handled by RawHTTP).
 func PublicFile(path string) *Response {
 	return &Response{
-		status:     stdhttp.StatusOK,
-		filePath:   path,
-		publicFile: true,
-		headers:    make(stdhttp.Header),
+		status: stdhttp.StatusOK,
+		cold:   &responseCold{filePath: path, publicFile: true},
 	}
 }
 
@@ -38,10 +35,11 @@ type HijackFunc func(conn net.Conn, leftover []byte) error
 // Close the connection after the handler returns.
 func Hijack(fn HijackFunc) *Response {
 	return &Response{
-		status:             101,
-		hijack:             fn,
-		headers:            make(stdhttp.Header),
-		clearWriteDeadline: true,
+		status: 101,
+		cold: &responseCold{
+			hijack:             fn,
+			clearWriteDeadline: true,
+		},
 	}
 }
 
@@ -54,8 +52,9 @@ func (r *Response) ClearWriteDeadline() *Response {
 	if r == nil {
 		return nil
 	}
-	r.clearWriteDeadline = true
-	r.chunkWriteTimeout = 0
+	c := r.ensureCold()
+	c.clearWriteDeadline = true
+	c.chunkWriteTimeout = 0
 	return r
 }
 
@@ -64,14 +63,14 @@ func (r *Response) ClearWriteDeadline() *Response {
 // negative clears the deadline (the timeout is off). Hijack and an explicit
 // ClearWriteDeadline are left unchanged. Non-stream responses are ignored.
 func (r *Response) PrepareStreamDeadline(serverWrite time.Duration) {
-	if r == nil || !r.IsStream() || r.hijack != nil || r.clearWriteDeadline {
+	if r == nil || !r.IsStream() || r.cold.hijack != nil || r.cold.clearWriteDeadline {
 		return
 	}
 	if serverWrite <= 0 {
-		r.clearWriteDeadline = true
+		r.cold.clearWriteDeadline = true
 		return
 	}
-	r.chunkWriteTimeout = serverWrite
+	r.cold.chunkWriteTimeout = serverWrite
 }
 
 // PartialContent creates a 206 response with raw content.

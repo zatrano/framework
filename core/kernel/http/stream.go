@@ -13,7 +13,7 @@ type StreamWriter func(w stdhttp.ResponseWriter, flusher stdhttp.Flusher) error
 
 // IsStream reports whether the response uses a stream writer or body reader.
 func (r *Response) IsStream() bool {
-	return r != nil && (r.stream != nil || r.streamReader != nil)
+	return r != nil && r.cold != nil && (r.cold.stream != nil || r.cold.streamReader != nil)
 }
 
 // Stream creates a streaming response via SetBodyStreamWriter (SSE / incremental).
@@ -21,8 +21,7 @@ func Stream(contentType string, writer StreamWriter) *Response {
 	return &Response{
 		status:      stdhttp.StatusOK,
 		contentType: contentType,
-		headers:     make(stdhttp.Header),
-		stream:      writer,
+		cold:        &responseCold{stream: writer},
 	}
 }
 
@@ -33,11 +32,12 @@ func StreamBody(contentType string, body io.Reader, size int) *Response {
 		contentType = "application/octet-stream"
 	}
 	return &Response{
-		status:       stdhttp.StatusOK,
-		contentType:  contentType,
-		headers:      make(stdhttp.Header),
-		streamReader: body,
-		streamSize:   size,
+		status:      stdhttp.StatusOK,
+		contentType: contentType,
+		cold: &responseCold{
+			streamReader: body,
+			streamSize:   size,
+		},
 	}
 }
 

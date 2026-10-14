@@ -9,16 +9,12 @@ import (
 	"time"
 )
 
-// Response represents an HTTP response to be sent.
-type Response struct {
-	status             int
+// responseCold holds fields the plaintext and JSON paths never touch.
+// It is allocated on the first use of a cookie, file, redirect, stream, or
+// header map. The hot object stays the status, the inline headers, and the body.
+type responseCold struct {
 	headers            stdhttp.Header
-	inlineHdrs         [8]struct{ k, v string }
-	nInline            int
 	cookies            []*stdhttp.Cookie
-	content            []byte
-	textBody           string
-	contentType        string
 	filePath           string
 	publicFile         bool
 	redirectURL        string
@@ -31,11 +27,40 @@ type Response struct {
 	hijack             HijackFunc
 	clearWriteDeadline bool
 	chunkWriteTimeout  time.Duration
-	pooled             bool
+}
+
+// Response represents an HTTP response to be sent.
+type Response struct {
+	status      int
+	inlineHdrs  [8]struct{ k, v string }
+	nInline     int
+	content     []byte
+	textBody    string
+	contentType string
+	cold        *responseCold
+	pooled      bool
+	released    bool
+}
+
+func (r *Response) touch() {
+	if r != nil && r.released {
+		panic("http: response used after release")
+	}
+}
+
+func (r *Response) ensureCold() *responseCold {
+	if r.cold == nil {
+		r.cold = &responseCold{}
+	}
+	return r.cold
 }
 
 // Status sets the response status code.
 func (r *Response) Status(code int) *Response {
+	if r == nil {
+		return nil
+	}
+	r.touch()
 	r.status = code
 	return r
 }
@@ -45,8 +70,9 @@ func (r *Response) Header(key, value string) *Response {
 	if r == nil {
 		return nil
 	}
-	if r.headers != nil {
-		r.headers.Set(key, value)
+	r.touch()
+	if r.cold != nil && r.cold.headers != nil {
+		r.cold.headers.Set(key, value)
 		return r
 	}
 	key = textproto.CanonicalMIMEHeaderKey(key)
@@ -63,7 +89,7 @@ func (r *Response) Header(key, value string) *Response {
 		return r
 	}
 	r.flushInlineHeaders()
-	r.headers.Set(key, value)
+	r.cold.headers.Set(key, value)
 	return r
 }
 
@@ -72,7 +98,8 @@ func (r *Response) WithCookie(cookie *stdhttp.Cookie) *Response {
 	if r == nil {
 		return nil
 	}
-	r.cookies = append(r.cookies, cookie)
+	c := r.ensureCold()
+	c.cookies = append(c.cookies, cookie)
 	return r
 }
 
@@ -139,8 +166,8 @@ func (r *Response) WithoutHeader(key string) *Response {
 			break
 		}
 	}
-	if r.headers != nil {
-		r.headers.Del(key)
+	if r.cold != nil && r.cold.headers != nil {
+		r.cold.headers.Del(key)
 	}
 	return r
 }
@@ -173,6 +200,7 @@ func (r *Response) Content() []byte {
 	if r == nil {
 		return nil
 	}
+	r.touch()
 	if len(r.content) > 0 {
 		return r.content
 	}
@@ -192,32 +220,47 @@ func (r *Response) StatusCode() int {
 
 // TemplateName returns the template name when rendering a Canvas template.
 func (r *Response) TemplateName() string {
-	return r.templateName
+	if r == nil || r.cold == nil {
+		return ""
+	}
+	return r.cold.templateName
 }
 
 // TemplateData returns the template data.
 func (r *Response) TemplateData() map[string]any {
-	return r.templateData
+	if r == nil || r.cold == nil {
+		return nil
+	}
+	return r.cold.templateData
 }
 
 // Error returns a response-level error, if any.
 func (r *Response) Error() error {
-	return r.err
+	if r == nil || r.cold == nil {
+		return nil
+	}
+	return r.cold.err
 }
 
 // IsRedirect reports whether the response is a redirect.
 func (r *Response) IsRedirect() bool {
-	return r.redirectURL != ""
+	return r != nil && r.cold != nil && r.cold.redirectURL != ""
 }
 
 // RedirectURL returns the redirect target.
 func (r *Response) RedirectURL() string {
-	return r.redirectURL
+	if r == nil || r.cold == nil {
+		return ""
+	}
+	return r.cold.redirectURL
 }
 
 // FilePath returns a file download path, if any.
 func (r *Response) FilePath() string {
-	return r.filePath
+	if r == nil || r.cold == nil {
+		return ""
+	}
+	return r.cold.filePath
 }
 
 // Headers returns response headers.
@@ -226,19 +269,20 @@ func (r *Response) Headers() stdhttp.Header {
 		return nil
 	}
 	r.flushInlineHeaders()
-	return r.headers
+	return r.cold.headers
 }
 
 func (r *Response) flushInlineHeaders() {
-	if r.headers == nil {
-		r.headers = make(stdhttp.Header, r.nInline)
+	c := r.ensureCold()
+	if c.headers == nil {
+		c.headers = make(stdhttp.Header, r.nInline)
 	}
 	for i := 0; i < r.nInline; i++ {
 		k := r.inlineHdrs[i].k
-		if _, ok := r.headers[k]; ok {
+		if _, ok := c.headers[k]; ok {
 			continue
 		}
-		r.headers[k] = []string{r.inlineHdrs[i].v}
+		c.headers[k] = []string{r.inlineHdrs[i].v}
 		r.inlineHdrs[i].k = ""
 		r.inlineHdrs[i].v = ""
 	}
@@ -247,7 +291,10 @@ func (r *Response) flushInlineHeaders() {
 
 // Cookies returns response cookies.
 func (r *Response) Cookies() []*stdhttp.Cookie {
-	return r.cookies
+	if r == nil || r.cold == nil {
+		return nil
+	}
+	return r.cold.cookies
 }
 
 // ReplaceCookies replaces the queued response cookies.
@@ -255,7 +302,7 @@ func (r *Response) ReplaceCookies(cookies []*stdhttp.Cookie) *Response {
 	if r == nil {
 		return nil
 	}
-	r.cookies = cookies
+	r.ensureCold().cookies = cookies
 	return r
 }
 
@@ -305,7 +352,7 @@ func (r *Response) AppendHeader(key, value string) *Response {
 		return nil
 	}
 	r.flushInlineHeaders()
-	r.headers.Add(key, value)
+	r.cold.headers.Add(key, value)
 	return r
 }
 
@@ -339,8 +386,8 @@ func (r *Response) GetHeader(key string, fallback ...string) string {
 			return r.inlineHdrs[i].v
 		}
 	}
-	if r.headers != nil {
-		if value := r.headers.Get(key); value != "" {
+	if r.cold != nil && r.cold.headers != nil {
+		if value := r.cold.headers.Get(key); value != "" {
 			return value
 		}
 	}

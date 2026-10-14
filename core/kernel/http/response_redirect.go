@@ -9,9 +9,8 @@ func Redirect(url string, status ...int) *Response {
 		code = status[0]
 	}
 	return &Response{
-		status:      code,
-		redirectURL: url,
-		headers:     make(stdhttp.Header),
+		status: code,
+		cold:   &responseCold{redirectURL: url},
 	}
 }
 
