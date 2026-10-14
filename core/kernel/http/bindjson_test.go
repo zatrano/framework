@@ -57,6 +57,26 @@ func TestBindJSONDoesNotAliasDecodedStrings(t *testing.T) {
 	}
 }
 
+func TestBindJSONEscapeFallsBackToEncodingJSON(t *testing.T) {
+	const payload = `{"message":"\u0041<\u0026"}`
+	var decoded map[string]any
+	_, _, err := http.ServeConnForTest(func(ctx *rawhttp.Ctx) {
+		req := http.NewRequest(ctx)
+		if err := req.BindJSON(&decoded); err != nil {
+			t.Errorf("BindJSON: %v", err)
+			return
+		}
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("ok")
+	}, bindRequest(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded["message"] != "A<&" {
+		t.Fatalf("decoded %#v", decoded)
+	}
+}
+
 func TestBindJSONRejectsOversizedBody(t *testing.T) {
 	payload := `{"message":"Hello, World!"}`
 	status, _, err := http.ServeConnForTest(func(ctx *rawhttp.Ctx) {

@@ -33,12 +33,123 @@ func marshalJSON(v any) ([]byte, error) {
 	if jsonFnOn.Load() {
 		return jsonFnVal.Load().(jsonFn).marshal(v)
 	}
-	if m, ok := v.(map[string]string); ok {
+	switch m := v.(type) {
+	case map[string]string:
 		if b, ok := marshalMapStringASCII(m); ok {
+			return b, nil
+		}
+	case map[string]any:
+		if b, ok := marshalMapAnyASCII(m); ok {
 			return b, nil
 		}
 	}
 	return json.Marshal(v)
+}
+
+func unmarshalJSON(data []byte, v any) error {
+	if jsonFnOn.Load() {
+		return jsonFnVal.Load().(jsonFn).unmarshal(data, v)
+	}
+	if dest, ok := v.(*map[string]any); ok && fillStringObject(dest, data) {
+		return nil
+	}
+	return json.Unmarshal(data, v)
+}
+
+// fillStringObject decodes {} or a one-key object whose value is a string
+// with no escapes. Anything else returns false so encoding/json handles it.
+func fillStringObject(dest *map[string]any, data []byte) bool {
+	if dest == nil {
+		return false
+	}
+	i := skipJSONSpace(data, 0)
+	if i >= len(data) || data[i] != '{' {
+		return false
+	}
+	i = skipJSONSpace(data, i+1)
+	if i < len(data) && data[i] == '}' {
+		if skipJSONSpace(data, i+1) != len(data) {
+			return false
+		}
+		if *dest == nil {
+			*dest = map[string]any{}
+		} else {
+			clear(*dest)
+		}
+		return true
+	}
+	key, i, ok := rawJSONString(data, i)
+	if !ok {
+		return false
+	}
+	i = skipJSONSpace(data, i)
+	if i >= len(data) || data[i] != ':' {
+		return false
+	}
+	val, i, ok := rawJSONString(data, skipJSONSpace(data, i+1))
+	if !ok {
+		return false
+	}
+	i = skipJSONSpace(data, i)
+	if i >= len(data) || data[i] != '}' || skipJSONSpace(data, i+1) != len(data) {
+		return false
+	}
+	if *dest == nil {
+		*dest = map[string]any{key: val}
+	} else {
+		clear(*dest)
+		(*dest)[key] = val
+	}
+	return true
+}
+
+func skipJSONSpace(data []byte, i int) int {
+	for i < len(data) {
+		switch data[i] {
+		case ' ', '\n', '\r', '\t':
+			i++
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+func rawJSONString(data []byte, i int) (string, int, bool) {
+	if i >= len(data) || data[i] != '"' {
+		return "", i, false
+	}
+	i++
+	start := i
+	for i < len(data) {
+		c := data[i]
+		if c == '\\' || c < 0x20 || c >= 0x80 {
+			return "", i, false
+		}
+		if c == '"' {
+			return string(data[start:i]), i + 1, true
+		}
+		i++
+	}
+	return "", i, false
+}
+
+func marshalMapAnyASCII(m map[string]any) ([]byte, bool) {
+	if len(m) == 0 {
+		return append([]byte(nil), '{', '}'), true
+	}
+	if len(m) != 1 {
+		return nil, false
+	}
+	var key string
+	var val any
+	for key, val = range m {
+	}
+	s, ok := val.(string)
+	if !ok {
+		return nil, false
+	}
+	return marshalOneStringASCII(key, s)
 }
 
 // marshalMapStringASCII encodes a one-key or empty map without reflection.
@@ -55,6 +166,10 @@ func marshalMapStringASCII(m map[string]string) ([]byte, bool) {
 	var key, val string
 	for key, val = range m {
 	}
+	return marshalOneStringASCII(key, val)
+}
+
+func marshalOneStringASCII(key, val string) ([]byte, bool) {
 	ks, ok := jsonASCIISize(key)
 	if !ok {
 		return nil, false
@@ -127,11 +242,4 @@ func appendJSONASCII(dst []byte, s string) []byte {
 		}
 	}
 	return dst
-}
-
-func unmarshalJSON(data []byte, v any) error {
-	if jsonFnOn.Load() {
-		return jsonFnVal.Load().(jsonFn).unmarshal(data, v)
-	}
-	return json.Unmarshal(data, v)
 }

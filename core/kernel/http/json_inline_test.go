@@ -46,6 +46,21 @@ func BenchmarkJSONWithSecurityHeaders(b *testing.B) {
 	}
 }
 
+func BenchmarkEchoCodec(b *testing.B) {
+	raw := []byte(`{"message":"Hello, World!"}`)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		if err := unmarshalJSON(raw, &m); err != nil {
+			b.Fatal(err)
+		}
+		out, err := marshalJSON(m)
+		if err != nil || len(out) != len(raw) {
+			b.Fatalf("%v %s", err, out)
+		}
+	}
+}
+
 func BenchmarkPlaintext(b *testing.B) {
 	SetRequestPooling(true, false)
 	b.Cleanup(func() { SetRequestPooling(true, false) })

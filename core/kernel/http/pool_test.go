@@ -13,6 +13,8 @@ func TestJSONBytesMatchEncodingJSON(t *testing.T) {
 		map[string]string{"html": "<tag>&\"'"},
 		map[string]string{"b": "2", "a": "1"},
 		map[string]string{"ü": "ok"},
+		map[string]any{"message": "Hello, World!"},
+		map[string]any{"html": "<tag>&\"'"},
 		map[string]any{"n": 1, "ok": true, "s": "a/b"},
 		[]any{"<", ">"},
 	}
