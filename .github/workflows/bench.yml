@@ -123,13 +123,15 @@ jobs:
         run: bash strace_writes.sh
 
   bench:
-    name: linux ${{ matrix.name }}
+    name: linux ${{ matrix.name }} ${{ matrix.run }}
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/zatrano-vs-fiber'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
+        run: [1, 2, 3]
+        name: [go-default, go-pooled, wrk-default, goccy-default]
         include:
           - name: go-default
             client: go
@@ -195,7 +197,7 @@ jobs:
           CLIENT: ${{ matrix.client }}
           CONFIG: ${{ matrix.config }}
           CODEC: ${{ matrix.codec }}
-          OUT: results/linux/${{ matrix.name }}.jsonl
+          OUT: results/linux/${{ matrix.name }}-${{ matrix.run }}.jsonl
           GOTOOLCHAIN: go1.26.0
         run: bash run_linux.sh
 
@@ -203,8 +205,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bench-linux-${{ matrix.name }}
-          path: framework/bench/results/linux/${{ matrix.name }}.jsonl
+          name: bench-linux-${{ matrix.name }}-${{ matrix.run }}
+          path: framework/bench/results/linux/${{ matrix.name }}-${{ matrix.run }}.jsonl
           if-no-files-found: warn
 
   profile:
