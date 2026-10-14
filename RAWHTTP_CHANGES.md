@@ -1,12 +1,20 @@
 # rawhttp changes required by this branch
 
+## Read buffer grows from 4 KiB
+
+| | |
+| --- | --- |
+| File | `conn.go`, `server.go` (`connReadBufSize`, `fillHeaders`, `shrinkIdle`) |
+| Why | Framework sets `MaxHeaderBytes` to 16 KiB. rawhttp used to allocate that as the connection read buffer, so 4096 connections pinned about 64 MiB before any body. The buffer now starts at 4 KiB when the ceiling is above 8 KiB, and grows 4 → 8 → 16 KiB only while the header block is incomplete. The body is still copied into the request buffer or read straight into it. On idle, with nothing buffered, a grown buffer returns to a pool capped at 64 per size. |
+| Version | On rawhttp `main`, commit `693b49c`. Not tagged. The framework module still requires v0.2.6. The Linux bench replaces rawhttp with that commit. A ceiling of 8 KiB or less keeps the previous buffer size, so the rawhttp gate is unchanged. A header past `MaxHeaderBytes` is still 431. |
+
 ## v0.2.7 — `Ctx.SetBodyRelease`
 
 | | |
 | --- | --- |
 | File | `ctx.go` (`SetBodyRelease`, `SetBodyReleaseDebug`, `finishBodyRelease`), `response.go` (`writeResponse` after the write returns), `server.go` (hijack, stream drain error, connection end) |
 | Why | A pooled response body cannot be released at the end of `Handle`. rawhttp copies it into the write buffer and calls `write` after `Handle` returns. The hook runs once after that write, and also once when the write fails, the handler hijacks, or the connection ends without a write. |
-| Version | Implemented on rawhttp branch `perf/body-release`, changelog section v0.2.7. Not tagged. v0.2.6 has no release hook. The framework still requires v0.2.6. |
+| Version | The `perf/body-release` branch was removed. rawhttp `main` has no release hook. v0.2.6 has no release hook. The framework still requires v0.2.6 and does not call `SetBodyRelease`. |
 
 `SetBodyRelease` turns off the keep-alive body cache for that response. The cache keys on the slice pointer.
 
