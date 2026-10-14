@@ -485,6 +485,43 @@ type routeHit struct {
 	route  *Route
 	params map[string]string
 	subs   []string
+	n      int
+	k      [4]string
+	v      [4]string
+}
+
+func (h *routeHit) pushParam(key, value string) {
+	if h.params != nil || h.n >= len(h.k) {
+		if h.params == nil {
+			h.params = make(map[string]string, h.n+1)
+			for i := 0; i < h.n; i++ {
+				h.params[h.k[i]] = h.v[i]
+			}
+		}
+		h.params[key] = value
+		return
+	}
+	h.k[h.n] = key
+	h.v[h.n] = value
+	h.n++
+}
+
+func (h *routeHit) popParam(key string) {
+	if h.params != nil {
+		delete(h.params, key)
+		return
+	}
+	for i := 0; i < h.n; i++ {
+		if h.k[i] != key {
+			continue
+		}
+		h.n--
+		h.k[i] = h.k[h.n]
+		h.v[i] = h.v[h.n]
+		h.k[h.n] = ""
+		h.v[h.n] = ""
+		return
+	}
 }
 
 // resolve matches method+path. normalize folds a trailing slash once.
@@ -509,9 +546,10 @@ func (r *Router) resolve(method, path string, normalize bool) routeHit {
 			return routeHit{}
 		}
 		var segBuf [8]string
-		params := map[string]string{}
-		if route := t.tree.lookup(requestSegsBuf(path, segBuf[:]), params); route != nil {
-			return routeHit{route: route, params: params}
+		hit := routeHit{}
+		if route := t.tree.lookup(requestSegsBuf(path, segBuf[:]), &hit); route != nil {
+			hit.route = route
+			return hit
 		}
 		return routeHit{}
 	}
@@ -541,15 +579,23 @@ func (r *Router) match(req *http.Request) *Route {
 	}
 	method := req.Method()
 	// Frozen exact static hit. The lookup key aliases the carrier buffer and
-	// is not retained. A miss copies the path before any later use.
+	// is not retained. A route parameter also aliases that buffer and stays
+	// valid only until the handler returns.
 	if r.byMethod != nil {
 		if t := r.byMethod[method]; t != nil {
 			if b := req.PathBytes(); len(b) > 0 {
-				if route := t.static[unsafe.String(&b[0], len(b))]; route != nil {
+				path := aliasBuf(b)
+				if route := t.static[path]; route != nil {
 					req.SetRouteParams(nil)
 					req.SetRouteName(route.dispatchName())
 					return route
 				}
+				hit := r.resolve(method, path, false)
+				if hit.route == nil {
+					return nil
+				}
+				r.applyHit(req, hit)
+				return hit.route
 			}
 		}
 	}
@@ -573,9 +619,27 @@ func (r *Router) match(req *http.Request) *Route {
 		}
 		return hit.route
 	}
-	req.SetRouteParams(hit.params)
-	req.SetRouteName(hit.route.dispatchName())
+	r.applyHit(req, hit)
 	return hit.route
+}
+
+func (r *Router) applyHit(req *http.Request, hit routeHit) {
+	if hit.params != nil {
+		req.SetRouteParams(hit.params)
+	} else {
+		req.SetRouteSlots(hit.n, hit.k, hit.v)
+	}
+	req.SetRouteName(hit.route.dispatchName())
+}
+
+// aliasBuf returns s as a string that shares b's bytes.
+// The static lookup key is not retained. A route parameter aliases the
+// carrier buffer until the handler returns.
+func aliasBuf(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
 }
 
 // bindSubs fills route params from a match resolve already computed.

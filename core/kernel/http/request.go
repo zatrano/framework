@@ -54,6 +54,9 @@ type Request struct {
 	multipartForm *multipart.Form
 
 	route            map[string]string
+	routeN           int
+	routeK           [4]string
+	routeV           [4]string
 	attrs            map[string]any
 	requestID        string
 	cookies          *cookie.Jar
@@ -577,7 +580,21 @@ func (r *Request) readBody() ([]byte, error) {
 }
 
 // Route returns a route parameter.
+// A parameter taken from the carrier path aliases that buffer and is valid
+// only until the handler returns. Do not retain it.
 func (r *Request) Route(key string, fallback ...string) string {
+	if r == nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+		return ""
+	}
+	r.touch()
+	for i := 0; i < r.routeN; i++ {
+		if r.routeK[i] == key {
+			return r.routeV[i]
+		}
+	}
 	if value, ok := r.route[key]; ok {
 		return value
 	}
@@ -607,19 +624,55 @@ func (r *Request) RouteInt(key string, fallback ...int) int {
 }
 
 // SetRouteParams sets matched route parameters.
+// One to four parameters stay on the request. A larger map is kept as given.
 func (r *Request) SetRouteParams(params map[string]string) {
 	if r == nil {
 		return
 	}
-	r.route = params
+	r.routeN = 0
+	r.route = nil
+	if len(params) == 0 {
+		return
+	}
+	if len(params) > len(r.routeK) {
+		r.route = params
+		return
+	}
+	for key, value := range params {
+		r.routeK[r.routeN] = key
+		r.routeV[r.routeN] = value
+		r.routeN++
+	}
+}
+
+// SetRouteSlots stores up to four parameters without allocating a map.
+// The strings are copied by header. A value that aliases the carrier buffer
+// stays an alias.
+func (r *Request) SetRouteSlots(n int, keys, vals [4]string) {
+	if r == nil {
+		return
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n > len(r.routeK) {
+		n = len(r.routeK)
+	}
+	r.route = nil
+	r.routeN = n
+	r.routeK = keys
+	r.routeV = vals
 }
 
 // RouteParams returns all matched route parameters.
 func (r *Request) RouteParams() map[string]string {
-	if r == nil || len(r.route) == 0 {
+	if r == nil || (r.routeN == 0 && len(r.route) == 0) {
 		return map[string]string{}
 	}
-	out := make(map[string]string, len(r.route))
+	out := make(map[string]string, r.routeN+len(r.route))
+	for i := 0; i < r.routeN; i++ {
+		out[r.routeK[i]] = r.routeV[i]
+	}
 	for key, value := range r.route {
 		out[key] = value
 	}

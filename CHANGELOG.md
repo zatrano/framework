@@ -7,6 +7,7 @@ All notable changes to ZATRANO are documented in this file.
 ### Added
 
 - `Request.BindJSON` decodes the connection buffer in place. `Request.JSON` and `Request.Body` still return an owned copy.
+- **Breaking:** a route parameter aliases the carrier path and is valid only until the handler returns. `BenchmarkRouteParam` is 0 allocs. `Path()` stays an owned copy.
 - **Breaking:** `Request` and `Text`/`JSON` `Response` pooling is on unless `HTTP_POOL_REQUESTS=false`. Do not retain those pointers after the handler returns. With `APP_DEBUG=true`, a call after release panics and includes the request generation. A one-key `map[string]string` JSON body is encoded without reflection and still matches `encoding/json`, including `<`, `>`, and `&`.
 - `SetJSONCodec` replaces `encoding/json` for `JSON`, `Request.JSON`, and `BindJSON`. The default is `encoding/json`. `JSONP` stays on `encoding/json`.
 

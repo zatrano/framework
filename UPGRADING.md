@@ -6,6 +6,8 @@
 
 `SetJSONCodec` is opt-in and process-wide. Nil arguments restore `encoding/json`. `JSON`, `Request.JSON`, and `BindJSON` use it. `JSONP` does not. The default leaves those calls on `encoding/json`, including `<`, `>`, and `&`.
 
+**Breaking:** a route parameter taken from the carrier path aliases that buffer. It is valid only until the handler returns, the same rule as Fiber. Do not retain the string. `Path()` still returns an owned copy. Zeroing the carrier buffer after the handler changes a retained parameter; the debug test covers that. There is no second goroutine reading the buffer while the handler runs.
+
 **Breaking:** `Request` and `Text`/`JSON` `Response` pooling is now on unless `HTTP_POOL_REQUESTS=false`. `Application.Handle` reuses those objects after the handler returns. That is the same rule as Fiber and fasthttp: do not keep the pointer, and do not use it from another goroutine after the handler returns. `APP_DEBUG=true` panics on a method call after release and reports the request generation. The response JSON bytes are still a fresh buffer. rawhttp aliases that buffer until it writes, which is after `Handle` returns, so the bytes are not pooled.
 
 ## Upgrading from v3.1.6

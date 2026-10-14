@@ -149,7 +149,7 @@ func ambiguousRoute(existing, incoming *Route) error {
 	return fmt.Errorf("router: ambiguous route %s %s conflicts with %s %s", incoming.Method, incoming.Path, existing.Method, existing.Path)
 }
 
-func (n *trieNode) lookup(parts []string, params map[string]string) *Route {
+func (n *trieNode) lookup(parts []string, hit *routeHit) *Route {
 	if n == nil {
 		return nil
 	}
@@ -157,19 +157,19 @@ func (n *trieNode) lookup(parts []string, params map[string]string) *Route {
 		return n.route
 	}
 	if child := n.static[parts[0]]; child != nil {
-		if route := child.lookup(parts[1:], params); route != nil {
+		if route := child.lookup(parts[1:], hit); route != nil {
 			return route
 		}
 	}
 	if n.param != nil {
-		params[n.paramName] = parts[0]
-		if route := n.param.lookup(parts[1:], params); route != nil {
+		hit.pushParam(n.paramName, parts[0])
+		if route := n.param.lookup(parts[1:], hit); route != nil {
 			return route
 		}
-		delete(params, n.paramName)
+		hit.popParam(n.paramName)
 	}
 	if n.catchAll != nil && n.catchAll.route != nil {
-		params[n.catchName] = strings.Join(parts, "/")
+		hit.pushParam(n.catchName, strings.Join(parts, "/"))
 		return n.catchAll.route
 	}
 	return nil
