@@ -13,6 +13,17 @@ A cell is a paired comparison. Each round runs ZATRANO and Fiber back to back, a
 
 Linux numbers, when present, are paired ratios only. Absolute requests/sec from a shared runner are not a result. Windows numbers stay in their own section. `go test -race ./...` runs on the Linux `tests` workflow (ubuntu-24.04). This host has no gcc and no WSL, so the race binary is that job.
 
+## What `default` and `pooled` mean
+
+| Table | `HTTP_POOL_REQUESTS` | What the process does |
+|---|---|---|
+| Windows round 2 `default` | unset, and that build treated unset as off | A new `Request` and `Response` on every request |
+| Windows round 2 `pooled` | `true` | Reuse `Request` and the `Text`/`JSON` `Response` after the handler returns |
+| Linux from the pool change onward, label `default` | unset | Pool on. Unset is the product default |
+| Linux label `pooled` | `true` | The same pool |
+
+After that change the two Linux labels are one configuration. The tables below keep the label that was recorded on the row. A later Linux report uses the `default` rows only. `HTTP_POOL_REQUESTS=false` is the off switch and is not a published table.
+
 ## Windows baseline (round 2, config `default`)
 
 Host: Windows/amd64, Intel Core i5-6200U @ 2.30GHz (2 cores / 4 threads). Power plan was Dengeli. It was not switched to high performance. The load generator is the Go client. Server pinned to logical CPU 0 (`GOMAXPROCS=1`), client on the other CPUs. 10 rounds, warmup 1.5s, measure 5s, order alternates. Ratios are paired ZATRANO/Fiber. The interval is a 10,000-draw bootstrap of the median. Errors were 0. Peak RSS is reported and is not a gate. Config compared with Fiber: `default` (`HTTP_POOL_REQUESTS` unset).

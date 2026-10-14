@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -15,8 +16,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/valyala/fasthttp"
 	"github.com/zatrano/framework/v3/core/kernel"
 	khttp "github.com/zatrano/framework/v3/core/kernel/http"
+	"github.com/zatrano/rawhttp"
 )
 
 var (
@@ -56,6 +59,10 @@ func cmdServe(args []string) error {
 		return serveZatrano(args[1])
 	case "fiber":
 		return serveFiber(args[1])
+	case "rawhttp":
+		return serveRawHTTP(args[1])
+	case "fasthttp":
+		return serveFastHTTP(args[1])
 	default:
 		return fmt.Errorf("unknown server %q", args[0])
 	}
@@ -183,6 +190,37 @@ func startProfiles() func() {
 		writeProfile("ZTFB_HEAP_PROFILE", "heap")
 		writeProfile("ZTFB_GOROUTINE_PROFILE", "goroutine")
 	}
+}
+
+func serveRawHTTP(addr string) error {
+	srv := &rawhttp.Server{
+		Handler: func(ctx *rawhttp.Ctx) {
+			ctx.SetContentType("text/plain; charset=utf-8")
+			ctx.SetBodyString(helloBody)
+		},
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return srv.Serve(ln)
+}
+
+func serveFastHTTP(addr string) error {
+	srv := &fasthttp.Server{
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			ctx.SetContentType("text/plain; charset=utf-8")
+			ctx.SetBodyString(helloBody)
+		},
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	return srv.ListenAndServe(addr)
 }
 
 func writeProfile(envKey, name string) {

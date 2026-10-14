@@ -31,7 +31,7 @@ run_case() {
   local trace="$out/${tag}.gctrace"
   local pid
   GODEBUG=gctrace=1 \
-  ZTFB_PROFILE_SECONDS=40 \
+  ZTFB_PROFILE_SECONDS=8 \
   ZTFB_ALLOC_PROFILE="$out/${tag}.alloc.pb" \
   ZTFB_GOROUTINE_PROFILE="$out/${tag}.goroutine.pb" \
   taskset -c 0 "$bin" serve "$server" 127.0.0.1:18181 >"$trace" 2>&1 &

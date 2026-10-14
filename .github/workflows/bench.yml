@@ -131,24 +131,32 @@ jobs:
       fail-fast: false
       matrix:
         run: [1, 2, 3]
-        name: [go-default, go-pooled, wrk-default, goccy-default]
+        name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp]
         include:
           - name: go-default
             client: go
             config: default
             codec: encodingjson
-          - name: go-pooled
-            client: go
-            config: pooled
-            codec: encodingjson
+            pair: fiber
+            routes: ""
           - name: wrk-default
             client: wrk
             config: default
             codec: encodingjson
+            pair: fiber
+            routes: ""
           - name: goccy-default
             client: go
             config: default
             codec: goccy
+            pair: fiber
+            routes: ""
+          - name: rawhttp-fasthttp
+            client: go
+            config: default
+            codec: encodingjson
+            pair: rawhttp
+            routes: "GET /plaintext"
     defaults:
       run:
         working-directory: framework
@@ -197,6 +205,8 @@ jobs:
           CLIENT: ${{ matrix.client }}
           CONFIG: ${{ matrix.config }}
           CODEC: ${{ matrix.codec }}
+          PAIR: ${{ matrix.pair }}
+          ROUTES: ${{ matrix.routes }}
           OUT: results/linux/${{ matrix.name }}-${{ matrix.run }}.jsonl
           GOTOOLCHAIN: go1.26.0
         run: bash run_linux.sh

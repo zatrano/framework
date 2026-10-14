@@ -57,6 +57,7 @@ type matrixOpts struct {
 	client   string
 	config   string
 	codec    string
+	pair     string
 }
 
 func cmdRun(args []string) error {
@@ -72,6 +73,7 @@ func cmdRun(args []string) error {
 	client := fs.String("client", "go", "load generator: go or wrk")
 	config := fs.String("config", "default", "label recorded on every row; pooled sets HTTP_POOL_REQUESTS=true")
 	codec := fs.String("codec", "encodingjson", "encodingjson or goccy; both servers use it")
+	pair := fs.String("pair", "fiber", "fiber compares zatrano with fiber; rawhttp compares rawhttp with fasthttp")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -101,9 +103,13 @@ func cmdRun(args []string) error {
 	if *codec != "encodingjson" && *codec != "goccy" {
 		return fmt.Errorf("codec must be encodingjson or goccy")
 	}
+	if *pair != "fiber" && *pair != "rawhttp" {
+		return fmt.Errorf("pair must be fiber or rawhttp")
+	}
 	return runMatrix(matrixOpts{
 		outPath: *out, affinity: *affinity, rounds: *roundsFlag, levels: levels, routes: selected,
 		warmup: *warmup, measure: *measure, addr: *addr, client: *client, config: *config, codec: *codec,
+		pair: *pair,
 	})
 }
 
@@ -233,11 +239,15 @@ func runMatrix(opt matrixOpts) error {
 			if rounds <= 0 {
 				rounds = defaultRounds
 			}
+			left, right := "zatrano", "fiber"
+			if opt.pair == "rawhttp" {
+				left, right = "rawhttp", "fasthttp"
+			}
 			byServer := map[string][]cell{}
 			for round := 1; round <= rounds; round++ {
-				order := []string{"zatrano", "fiber"}
+				order := []string{left, right}
 				if round%2 == 0 {
-					order = []string{"fiber", "zatrano"}
+					order = []string{right, left}
 				}
 				for _, server := range order {
 					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec)
@@ -249,7 +259,7 @@ func runMatrix(opt matrixOpts) error {
 				}
 			}
 			medians := map[string]cell{}
-			for _, server := range []string{"zatrano", "fiber"} {
+			for _, server := range []string{left, right} {
 				med := medianCell(server, rt.Name, conns, byServer[server])
 				med.Config = opt.config
 				med.Client = opt.client
@@ -258,7 +268,7 @@ func runMatrix(opt matrixOpts) error {
 				medians[server] = med
 			}
 			if !opt.soak {
-				paired, err := pairedCell(rt.Name, conns, opt.config, opt.client, byServer["zatrano"], byServer["fiber"], medians["zatrano"], medians["fiber"])
+				paired, err := pairedCell(left+"/"+right, rt.Name, conns, opt.config, opt.client, byServer[left], byServer[right], medians[left], medians[right])
 				if err != nil {
 					return err
 				}
@@ -406,7 +416,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	}, nil
 }
 
-func pairedCell(route string, conns int, config, client string, zatrano, fiber []cell, zMed, fMed cell) (cell, error) {
+func pairedCell(label, route string, conns int, config, client string, zatrano, fiber []cell, zMed, fMed cell) (cell, error) {
 	ratios, err := pairedRPSRatios(zatrano, fiber)
 	if err != nil {
 		return cell{}, fmt.Errorf("%s c=%d: %w", route, conns, err)
@@ -415,7 +425,7 @@ func pairedCell(route string, conns int, config, client string, zatrano, fiber [
 	p99Ratio := ratioOf(zMed.P99US, fMed.P99US)
 	cpuRatio := ratioOf(zMed.CPUUS, fMed.CPUUS)
 	return cell{
-		Server:   "zatrano/fiber",
+		Server:   label,
 		Route:    route,
 		Conns:    conns,
 		Agg:      "paired",
