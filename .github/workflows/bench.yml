@@ -69,9 +69,6 @@ jobs:
       - name: Download modules
         run: go mod download
 
-      - name: Use the rawhttp read buffer
-        run: go mod edit -replace=github.com/zatrano/rawhttp=../rawhttp
-
       - name: go test -race
         env:
           PACKAGES_DIR: ${{ github.workspace }}/packages
@@ -81,7 +78,9 @@ jobs:
         working-directory: framework/bench/ztfb
         env:
           GOTOOLCHAIN: go1.26.0
-        run: go test -race ./... -count=1
+        run: |
+          go mod edit -replace=github.com/zatrano/rawhttp=../../../rawhttp
+          go test -race ./... -count=1
 
   writes:
     name: strace write count
@@ -111,7 +110,8 @@ jobs:
           cache-dependency-path: framework/bench/ztfb/go.mod
 
       - name: Use the rawhttp read buffer
-        run: go mod edit -replace=github.com/zatrano/rawhttp=../rawhttp
+        working-directory: framework/bench/ztfb
+        run: go mod edit -replace=github.com/zatrano/rawhttp=../../../rawhttp
 
       - name: Install strace
         run: sudo apt-get update && sudo apt-get install -y strace netcat-openbsd iproute2
@@ -172,8 +172,8 @@ jobs:
           cache-dependency-path: framework/bench/ztfb/go.mod
 
       - name: Use the rawhttp read buffer
-        working-directory: framework
-        run: go mod edit -replace=github.com/zatrano/rawhttp=../rawhttp
+        working-directory: framework/bench/ztfb
+        run: go mod edit -replace=github.com/zatrano/rawhttp=../../../rawhttp
 
       - name: Install wrk
         if: matrix.client == 'wrk'
@@ -237,7 +237,8 @@ jobs:
           cache-dependency-path: framework/bench/ztfb/go.mod
 
       - name: Use the rawhttp read buffer
-        run: go mod edit -replace=github.com/zatrano/rawhttp=../rawhttp
+        working-directory: framework/bench/ztfb
+        run: go mod edit -replace=github.com/zatrano/rawhttp=../../../rawhttp
 
       - name: Profile open cells
         working-directory: framework/bench
