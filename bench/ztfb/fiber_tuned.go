@@ -125,7 +125,7 @@ func tunedSecurity(c fiber.Ctx) error {
 }
 
 func fiberIncomingID(c fiber.Ctx) []byte {
-	h := c.Request().Header
+	h := &c.Request().Header
 	if id := bytes.TrimSpace(h.Peek("X-Request-ID")); validIDBytes(id) {
 		return id
 	}
