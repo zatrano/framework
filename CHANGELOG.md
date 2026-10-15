@@ -10,6 +10,7 @@ All notable changes to ZATRANO are documented in this file.
 - **Breaking:** a route parameter aliases the carrier path and is valid only until the handler returns. `BenchmarkRouteParam` is 0 allocs. `Path()` stays an owned copy.
 - **Breaking:** `Request` and `Text`/`JSON` `Response` pooling is on unless `HTTP_POOL_REQUESTS=false`. Do not retain those pointers after the handler returns. With `APP_DEBUG=true`, a call after release panics and includes the request generation. A one-key `map[string]string` JSON body is encoded without reflection and still matches `encoding/json`, including `<`, `>`, and `&`.
 - `SetJSONCodec` replaces `encoding/json` for `JSON`, `Request.JSON`, and `BindJSON`. The default is `encoding/json`. `JSONP` stays on `encoding/json`.
+- Require rawhttp v0.2.7. The module has no `replace`.
 
 ## 3.1.7 - 2026-10-13
 

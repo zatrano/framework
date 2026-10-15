@@ -62,6 +62,80 @@ func TestMaxHeaderBytesWarnsAbove64KiB(t *testing.T) {
 	}
 }
 
+func TestHeaderBlockOneByteAround16KiB(t *testing.T) {
+	t.Setenv("HTTP_MAX_HEADER_BYTES", "")
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("ok")
+	}
+	srv.NoDefaultDate = true
+	ln := serveTestServer(t, srv)
+	addr := ln.Addr().String()
+
+	baseStatus, baseBody := headerSizedRequest(t, addr, 256)
+	if baseStatus != 200 || baseBody != "ok" {
+		t.Fatalf("baseline status=%d body=%q", baseStatus, baseBody)
+	}
+	ceiling := DefaultMaxHeaderBytes
+	for _, n := range []int{ceiling - 1, ceiling} {
+		status, body := headerSizedRequest(t, addr, n)
+		if status != baseStatus || body != baseBody {
+			t.Fatalf("header block %d status=%d body=%q want %d %q", n, status, body, baseStatus, baseBody)
+		}
+	}
+	if status, _ := headerSizedRequest(t, addr, ceiling+1); status != 431 {
+		t.Fatalf("header block %d status=%d want 431", ceiling+1, status)
+	}
+}
+
+func TestCookie12KiBUnder16KiBCeiling(t *testing.T) {
+	t.Setenv("HTTP_MAX_HEADER_BYTES", "")
+	app := NewApplication(t.TempDir())
+	srv, err := app.httpServer(ListenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := strings.Repeat("c", 12<<10)
+	var got string
+	srv.Handler = func(ctx *rawhttp.Ctx) {
+		got = string(ctx.Header("Cookie"))
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("ok")
+	}
+	ln := serveTestServer(t, srv)
+	addr := ln.Addr().String()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	req := "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nCookie: " + cookie + "\r\n\r\n"
+	if _, err := io.WriteString(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	br := bufio.NewReader(conn)
+	line, err := br.ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status int
+	if _, err := fmt.Sscanf(line, "HTTP/1.1 %d", &status); err != nil {
+		t.Fatalf("status line %q: %v", line, err)
+	}
+	if status != 200 {
+		t.Fatalf("status=%d", status)
+	}
+	if got != cookie {
+		t.Fatalf("cookie len=%d", len(got))
+	}
+}
+
 func TestHeaderBlockAround16KiB(t *testing.T) {
 	t.Setenv("HTTP_MAX_HEADER_BYTES", "")
 	app := NewApplication(t.TempDir())

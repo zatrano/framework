@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+The module requires rawhttp v0.2.7. There is no `replace` for it.
+
 `Request.BindJSON` decodes JSON from the connection buffer and does not copy it. The decode finishes before `BindJSON` returns. A value produced by `encoding/json` does not alias that buffer. A type that implements `UnmarshalJSON` must not retain the input slice. `Request.Body` and `Request.JSON` are unchanged and still return an owned copy.
 
 `SetJSONCodec` is opt-in and process-wide. Nil arguments restore `encoding/json`. `JSON`, `Request.JSON`, and `BindJSON` use it. `JSONP` does not. The default leaves those calls on `encoding/json`, including `<`, `>`, and `&`.
