@@ -127,6 +127,7 @@ jobs:
         run: [1, 2, 3]
         # fiber pair jobs also run fiber-tuned. The binding paired row is
         # zatrano/fiber-tuned. zatrano/fiber stays the official-middleware column.
+        # The tuned request header is a pointer; copying RequestHeader fails go vet.
         name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp, go-plaintext-4096]
         include:
           - name: go-default
