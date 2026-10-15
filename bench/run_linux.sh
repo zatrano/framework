@@ -2,6 +2,9 @@
 # Paired ZATRANO vs Fiber on Linux. The fiber pair also runs fiber-tuned.
 # The binding ratio is zatrano/fiber-tuned. zatrano/fiber is the official
 # requestid middleware column. rawhttp still compares rawhttp with fasthttp.
+# go-plaintext-4096 passes MEASURE=60s and ZTFB_GCTRACE=1. That window is
+# fixed for every server. GC cycles inside it are recorded and may be 0.
+# GC_MIN is empty on that job, so the run is not extended until 3 cycles.
 #
 # The server is pinned to CPU 0 and the load generator to the remaining CPUs.
 # ztfb does that with sched_setaffinity, the same call taskset uses:

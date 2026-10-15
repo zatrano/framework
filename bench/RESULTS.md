@@ -438,3 +438,28 @@ The ceiling is the paired throughput ratio times the paired CPU/request ratio. T
 | GET /users/{id} 256 | goccy | 0.997 | 1.002 | 0.999 |
 
 `BindJSON` already hands the configured codec the connection buffer. A codec installed with `SetJSONCodec` sees that slice, not a copy (`TestBindJSONCodecSeesTheConnectionBuffer`). The one-key fast path still runs only when the codec is encoding/json, so the goccy track and Fiber decode with the same codec.
+
+## Round 6 — red jobs
+
+`go test -race` on run `38723870698` (`a335030`) failed in the harness step `framework/bench/ztfb`, not in the framework module. `TestFiberTunedResponseBytesMatchZatrano` starts ZATRANO and Fiber (tuned) in one process. Both call `loadCodec`, which writes the package variables `codecMarshal` and `codecUnmarshal`. The race is those two writes (`servers.go`). The two stacks are `serveZatrano` and `serveFiberTuned`. Production servers are separate processes and set the same codec. `loadCodec` now holds `codecMu` around the write.
+
+`go-plaintext-4096` on the same run failed with `fiber-tuned GET /plaintext c=4096: 1 GC cycles in 180.1s, need 3`. The job asked for a window long enough for 3 GC cycles. Both servers are nearly allocation-free, so that count may never arrive (a 40 s window on this host recorded 0 cycles for ZATRANO and 1 for Fiber tuned). The job is now a fixed 60 second window for every server. `ZTFB_GCTRACE=1` records `gc_cycles` in that window, and 0 is a real count. Scoring stays inside the window. The rule is the same for both sides. `cellVerdict` and the 5 second matrix are unchanged. `-gc-min 3` remains available and is not set on this job.
+
+## Round 6 — deadline granule
+
+rawhttp `v0.2.9` (`112df04788eebb7013edfbe73536fdddc5fba052`) keeps the "do not refresh a still-valid deadline" path. The granule is `min(d/8, 1s)`. A kept deadline is at most one granule earlier than `now+d` and is never later. The wait between keep-alive requests is `IdleTimeout` (90s when unset). `ReadTimeout` covers the body and a read once a request has started. Tests: an idle connection with `IdleTimeout` equal to `ReadTimeout` closes within `ReadTimeout` plus the granule; a connection that sends a request every `ReadTimeout/2` stays up for `3× ReadTimeout`; a reader that does not drain the body is cut by `WriteTimeout`. The granule does not exceed 1 second, and the tests passed, so the optimization stays. The framework module requires `github.com/zatrano/rawhttp v0.2.9`. `TestReleaseModuleHasNoReplace` passed. There is no rawhttp replace.
+
+## Round 6 — RSS baseline and slope
+
+One sample on this host (Windows/amd64, Intel Core i5-6200U, `GOMAXPROCS=1`). Each server is measured with no connections, then with 64 and 4096 keep-alive connections held open after one `GET /plaintext`. The slope is `(RSS_4096 − RSS_0) / 4096`. This is not a Linux class. The RSS gate is still 1.10. It was not loosened.
+
+| Server | 0 conn | 64 conn | 4096 conn | KB/conn |
+|---|---:|---:|---:|---:|
+| ZATRANO | 8.00 MiB | 11.31 MiB | 128.22 MiB | 30.06 |
+| Fiber (tuned) | 7.74 MiB | 9.87 MiB | 120.48 MiB | 28.19 |
+| rawhttp | 7.55 MiB | 8.82 MiB | 79.04 MiB | 17.87 |
+| fasthttp | 7.62 MiB | 9.22 MiB | 93.94 MiB | 21.58 |
+
+ZATRANO's idle gap against Fiber (tuned) is 272 KiB. It is the kernel: config, the logger, request-id and security-header middleware, trim, CORS, the empty public-file index, and the container. The bench registers no providers. The request pool is empty at 0 connections and retains objects after the first requests; that retention is the product default. None of this can be removed without dropping a feature. The 64-connection RSS cells are **tavan: sabit taban**.
+
+The next matrix is the fixed 60 second plaintext window, the race fix, and rawhttp `v0.2.9`. Binding column remains Fiber (tuned). Classes from that run are reported when the three runs finish. The failed plaintext jobs are not a class.

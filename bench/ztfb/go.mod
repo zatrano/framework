@@ -7,7 +7,7 @@ require (
 	github.com/gofiber/fiber/v3 v3.6.0
 	github.com/valyala/fasthttp v1.75.0
 	github.com/zatrano/framework/v3 v3.1.7
-	github.com/zatrano/rawhttp v0.2.9-0.20261015124319-60afd8f602d5
+	github.com/zatrano/rawhttp v0.2.9
 	golang.org/x/sys v0.49.0
 )
 

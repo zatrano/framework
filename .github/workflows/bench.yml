@@ -130,7 +130,9 @@ jobs:
         # The tuned request header is a pointer; copying RequestHeader fails go vet.
         # Steady alloc/request is the window after connections exist. The
         # with-setup rate includes accept. ZATRANO's hijack mark is one closure
-        # per connection (rawhttp 60afd8f).
+        # per connection (rawhttp v0.2.9).
+        # go-plaintext-4096 is a fixed 60s window. Both servers are scored in
+        # that window. GC cycles in the window are recorded and may be 0.
         name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp, go-plaintext-4096]
         include:
           - name: go-default
@@ -176,8 +178,9 @@ jobs:
             pair: fiber
             routes: "GET /plaintext"
             conns: "4096"
-            measure: "180s"
-            gc_min: "3"
+            measure: "60s"
+            gc_min: ""
+            gctrace: "1"
     defaults:
       run:
         working-directory: framework
@@ -227,7 +230,7 @@ jobs:
           CONNS: ${{ matrix.conns }}
           MEASURE: ${{ matrix.measure }}
           GC_MIN: ${{ matrix.gc_min }}
-          ZTFB_GCTRACE: ${{ matrix.gc_min != '' && '1' || '' }}
+          ZTFB_GCTRACE: ${{ matrix.gctrace }}
           OUT: results/linux/${{ matrix.name }}-${{ matrix.run }}.jsonl
           GOTOOLCHAIN: go1.26.0
         run: bash run_linux.sh

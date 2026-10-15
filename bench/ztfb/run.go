@@ -15,22 +15,26 @@ import (
 )
 
 type cell struct {
-	Server            string   `json:"server"`
-	Route             string   `json:"route"`
-	Conns             int      `json:"conns"`
-	Round             int      `json:"round"`
-	Agg               string   `json:"agg,omitempty"`
-	RPS               float64  `json:"rps"`
-	P50US             float64  `json:"p50_us"`
-	P99US             float64  `json:"p99_us"`
-	P999US            float64  `json:"p999_us"`
-	CPUUS             float64  `json:"cpu_us_per_req"`
-	RSSBytes          uint64   `json:"rss_bytes"`
-	HWMBytes          uint64   `json:"hwm_bytes"`
-	Errors            int      `json:"errors"`
-	Requests          int      `json:"requests"`
-	ElapsedS          float64  `json:"elapsed_s"`
-	GCCycles          int      `json:"gc_cycles,omitempty"`
+	Server       string  `json:"server"`
+	Route        string  `json:"route"`
+	Conns        int     `json:"conns"`
+	Round        int     `json:"round"`
+	Agg          string  `json:"agg,omitempty"`
+	RPS          float64 `json:"rps"`
+	P50US        float64 `json:"p50_us"`
+	P99US        float64 `json:"p99_us"`
+	P999US       float64 `json:"p999_us"`
+	CPUUS        float64 `json:"cpu_us_per_req"`
+	RSSBytes     uint64  `json:"rss_bytes"`
+	HWMBytes     uint64  `json:"hwm_bytes"`
+	RSSIdleBytes uint64  `json:"rss_idle_bytes,omitempty"`
+	RSSOpenBytes uint64  `json:"rss_open_bytes,omitempty"`
+	Errors       int     `json:"errors"`
+	Requests     int     `json:"requests"`
+	ElapsedS     float64 `json:"elapsed_s"`
+	// GCCycles is set only when ZTFB_GCTRACE=1. Zero is kept: a quiet window
+	// is a measured count, not a missing field.
+	GCCycles          *int     `json:"gc_cycles,omitempty"`
 	RSSSamples        []uint64 `json:"rss_samples,omitempty"`
 	Config            string   `json:"config,omitempty"`
 	Client            string   `json:"client,omitempty"`
@@ -365,6 +369,10 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	if err := waitReady(addr, 20*time.Second); err != nil {
 		return cell{}, err
 	}
+	idleRSS := uint64(0)
+	if idle, err := readProc(cmd.Process.Pid); err == nil {
+		idleRSS = idle.RSS
+	}
 	var before procSample
 	var beforeErr error
 	var rssMu sync.Mutex
@@ -535,8 +543,15 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		cycles = gcCyclesInWindow(marks, ws.Sub(procStart).Seconds(), ws.Sub(procStart).Seconds()+measured.Elapsed.Seconds())
 		gcMu.Unlock()
 	}
+	var gcPtr *int
 	if os.Getenv("ZTFB_GCTRACE") == "1" {
+		n := cycles
+		gcPtr = &n
 		fmt.Fprintf(os.Stderr, "gc-window %s %s c=%d round %d cycles=%d elapsed=%.1fs\n", server, rt.Name, conns, round, cycles, measured.Elapsed.Seconds())
+	}
+	openRSS := uint64(0)
+	if beforeErr == nil {
+		openRSS = before.RSS
 	}
 	return cell{
 		Server:            server,
@@ -546,7 +561,9 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		Config:            config,
 		Client:            client,
 		Codec:             codec,
-		GCCycles:          cycles,
+		GCCycles:          gcPtr,
+		RSSIdleBytes:      idleRSS,
+		RSSOpenBytes:      openRSS,
 		RPS:               measured.RPS(),
 		P50US:             float64(p50.Microseconds()),
 		P99US:             float64(p99.Microseconds()),
@@ -679,8 +696,12 @@ func calibrateWindow(exe, addr string, rt routeSpec, req []byte, conns int, warm
 		if err != nil {
 			return 0, err
 		}
-		if row.GCCycles < gcMin {
-			return 0, fmt.Errorf("%s %s c=%d: %d GC cycles in %.1fs, need %d", server, rt.Name, conns, row.GCCycles, row.ElapsedS, gcMin)
+		got := 0
+		if row.GCCycles != nil {
+			got = *row.GCCycles
+		}
+		if got < gcMin {
+			return 0, fmt.Errorf("%s %s c=%d: %d GC cycles in %.1fs, need %d", server, rt.Name, conns, got, row.ElapsedS, gcMin)
 		}
 		d := time.Duration(row.ElapsedS * float64(time.Second))
 		if d > longest {
@@ -728,7 +749,7 @@ func gcCyclesInWindow(marks []gcMark, start, end float64) int {
 func medianCell(server, route string, conns int, rows []cell) cell {
 	var rps []float64
 	var p50, p99, p999, cpu []float64
-	var rss, hwm, gcs, allocs, bytesPer, allocsSetup, bytesSetup []float64
+	var rss, hwm, idle, open, gcs, allocs, bytesPer, allocsSetup, bytesSetup []float64
 	var errs, reqs int
 	for _, row := range rows {
 		rps = append(rps, row.RPS)
@@ -738,7 +759,15 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		cpu = append(cpu, row.CPUUS)
 		rss = append(rss, float64(row.RSSBytes))
 		hwm = append(hwm, float64(row.HWMBytes))
-		gcs = append(gcs, float64(row.GCCycles))
+		if row.RSSIdleBytes > 0 {
+			idle = append(idle, float64(row.RSSIdleBytes))
+		}
+		if row.RSSOpenBytes > 0 {
+			open = append(open, float64(row.RSSOpenBytes))
+		}
+		if row.GCCycles != nil {
+			gcs = append(gcs, float64(*row.GCCycles))
+		}
 		if row.AllocsPerReq != nil {
 			allocs = append(allocs, *row.AllocsPerReq)
 		}
@@ -759,7 +788,6 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		Route:             route,
 		Conns:             conns,
 		Agg:               "median",
-		GCCycles:          int(medianFloat(gcs) + 0.5),
 		RPS:               medianFloat(rps),
 		P50US:             medianFloat(p50),
 		P99US:             medianFloat(p99),
@@ -767,6 +795,9 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		CPUUS:             medianFloat(cpu),
 		RSSBytes:          uint64(medianFloat(rss)),
 		HWMBytes:          uint64(medianFloat(hwm)),
+		RSSIdleBytes:      uint64(medianFloat(idle)),
+		RSSOpenBytes:      uint64(medianFloat(open)),
+		GCCycles:          medianGC(gcs),
 		Errors:            errs,
 		Requests:          reqs,
 		AllocsPerReq:      medianPtr(allocs),
@@ -796,6 +827,14 @@ func rotate(servers []string, round int) []string {
 		out[i] = servers[(i+k)%len(servers)]
 	}
 	return out
+}
+
+func medianGC(xs []float64) *int {
+	if len(xs) == 0 {
+		return nil
+	}
+	v := int(medianFloat(xs) + 0.5)
+	return &v
 }
 
 func medianPtr(xs []float64) *float64 {

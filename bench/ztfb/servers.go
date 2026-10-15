@@ -11,6 +11,7 @@ import (
 	"runtime/pprof"
 	"runtime/trace"
 	"strconv"
+	"sync"
 	"time"
 
 	goccyjson "github.com/goccy/go-json"
@@ -24,13 +25,18 @@ import (
 )
 
 var (
+	codecMu        sync.Mutex
 	codecMarshal   = json.Marshal
 	codecUnmarshal = json.Unmarshal
 )
 
 // loadCodec selects one codec for both servers. Empty and encodingjson keep
 // encoding/json and do not call SetJSONCodec. goccy is set on both.
+// The two package variables are written under codecMu: TestFiberTunedResponseBytesMatchZatrano
+// starts ZATRANO and Fiber (tuned) in one process, and both call loadCodec.
 func loadCodec() error {
+	codecMu.Lock()
+	defer codecMu.Unlock()
 	switch os.Getenv("ZTFB_CODEC") {
 	case "", "encodingjson":
 		codecMarshal = json.Marshal
