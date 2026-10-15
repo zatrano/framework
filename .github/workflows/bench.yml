@@ -8,6 +8,14 @@ on:
         description: Rounds per cell
         default: "20"
         required: false
+      config:
+        description: Harness config. Empty uses the matrix value. pooled sets HTTP_POOL_REQUESTS=true.
+        default: ""
+        required: false
+      only:
+        description: Comma-separated matrix names. Empty runs every name.
+        default: ""
+        required: false
   # Push, not pull_request: a pull_request path filter matches the whole diff
   # against main, so every later commit would rerun the matrix.
   # 3.x runs the short jobs. The Linux matrix starts only from workflow_dispatch.
@@ -119,7 +127,7 @@ jobs:
 
   bench:
     name: linux ${{ matrix.name }} ${{ matrix.run }}
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && (inputs.only == '' || contains(format(',{0},', inputs.only), format(',{0},', matrix.name)))
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -224,7 +232,7 @@ jobs:
         env:
           ROUNDS: ${{ inputs.rounds || '20' }}
           CLIENT: ${{ matrix.client }}
-          CONFIG: ${{ matrix.config }}
+          CONFIG: ${{ inputs.config || matrix.config }}
           CODEC: ${{ matrix.codec }}
           PAIR: ${{ matrix.pair }}
           ROUTES: ${{ matrix.routes }}
@@ -246,7 +254,7 @@ jobs:
 
   profile:
     name: linux p99 profile
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.only == ''
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:

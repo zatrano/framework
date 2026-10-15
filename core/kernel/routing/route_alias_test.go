@@ -41,7 +41,7 @@ func TestRouteParamAliasesCarrierBuffer(t *testing.T) {
 
 func BenchmarkRouteParam(b *testing.B) {
 	http.SetRequestPooling(true, false)
-	b.Cleanup(func() { http.SetRequestPooling(true, false) })
+	b.Cleanup(func() { http.SetRequestPooling(false, false) })
 	r := routing.New()
 	r.Get("/users/{id}", func(req *http.Request) *http.Response {
 		return http.Text(req.Route("id"))

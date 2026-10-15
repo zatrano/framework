@@ -9,9 +9,10 @@ import (
 	"github.com/zatrano/rawhttp"
 )
 
-// Request pooling is on unless HTTP_POOL_REQUESTS=false. A pooled request is
+// Request pooling is off unless HTTP_POOL_REQUESTS=true. A pooled request is
 // reset and reused after the handler returns. Do not keep the pointer.
 // With debug on, a method call after release panics and reports the generation.
+// The default turns on in v4.
 var (
 	pooling   atomic.Bool
 	poolDebug atomic.Bool
@@ -20,11 +21,11 @@ var (
 )
 
 func init() {
-	pooling.Store(true)
+	pooling.Store(false)
 }
 
 // SetRequestPooling turns the process-wide request and response pool on or off.
-// debug makes a use-after-release call panic. The default is on.
+// debug makes a use-after-release call panic while the pool is on. The default is off.
 func SetRequestPooling(on, debug bool) {
 	pooling.Store(on)
 	poolDebug.Store(debug)

@@ -32,7 +32,7 @@ func TestJSONBytesMatchEncodingJSON(t *testing.T) {
 
 func TestPooledRequestPanicsAfterReleaseInDebug(t *testing.T) {
 	http.SetRequestPooling(true, true)
-	t.Cleanup(func() { http.SetRequestPooling(true, false) })
+	t.Cleanup(func() { http.SetRequestPooling(false, false) })
 	req := http.AcquireRequest(nil)
 	gen := req.Generation()
 	if req.Method() != "" && gen == 0 {
@@ -52,7 +52,7 @@ func TestPooledRequestPanicsAfterReleaseInDebug(t *testing.T) {
 
 func TestPooledResponsePanicsAfterReleaseInDebug(t *testing.T) {
 	http.SetRequestPooling(true, true)
-	t.Cleanup(func() { http.SetRequestPooling(true, false) })
+	t.Cleanup(func() { http.SetRequestPooling(false, false) })
 	resp := http.JSON(map[string]string{"message": "Hello, World!"})
 	http.ReleaseResponse(resp)
 	defer func() {
@@ -75,7 +75,7 @@ func TestPoolingOffAllocatesDistinctRequests(t *testing.T) {
 
 func BenchmarkNewRequest(b *testing.B) {
 	http.SetRequestPooling(false, false)
-	b.Cleanup(func() { http.SetRequestPooling(true, false) })
+	b.Cleanup(func() { http.SetRequestPooling(false, false) })
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = http.AcquireRequest(nil)
@@ -84,7 +84,7 @@ func BenchmarkNewRequest(b *testing.B) {
 
 func BenchmarkPooledRequest(b *testing.B) {
 	http.SetRequestPooling(true, false)
-	b.Cleanup(func() { http.SetRequestPooling(true, false) })
+	b.Cleanup(func() { http.SetRequestPooling(false, false) })
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		r := http.AcquireRequest(nil)

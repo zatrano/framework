@@ -10,7 +10,7 @@ The module requires rawhttp v1.0.0. There is no `replace` for it. A still-valid 
 
 **Breaking:** a route parameter taken from the carrier path aliases that buffer. It is valid only until the handler returns, the same rule as Fiber. Do not retain the string. `Path()` still returns an owned copy. Zeroing the carrier buffer after the handler changes a retained parameter; the debug test covers that. There is no second goroutine reading the buffer while the handler runs.
 
-**Breaking:** `Request` and `Text`/`JSON` `Response` pooling is now on unless `HTTP_POOL_REQUESTS=false`. `Application.Handle` reuses those objects after the handler returns. That is the same rule as Fiber and fasthttp: do not keep the pointer, and do not use it from another goroutine after the handler returns. `APP_DEBUG=true` panics on a method call after release and reports the request generation. The response JSON bytes are still a fresh buffer. rawhttp aliases that buffer until it writes, which is after `Handle` returns, so the bytes are not pooled.
+`Request` and `Text`/`JSON` `Response` pooling is off unless `HTTP_POOL_REQUESTS=true`. Set `HTTP_POOL_REQUESTS=true` and `Application.Handle` reuses those objects after the handler returns. Do not keep the pointer, and do not use it from another goroutine after the handler returns. `APP_DEBUG=true` panics on a method call after release and reports the request generation. The response JSON bytes are still a fresh buffer. rawhttp aliases that buffer until it writes, which is after `Handle` returns, so the bytes are not pooled. The default turns on in v4.
 
 ## Upgrading from v3.1.6
 
@@ -122,7 +122,7 @@ Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`,
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
 | `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. Over the limit the engine returns 431. |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
-| `HTTP_POOL_REQUESTS` | unset (on) | `false` allocates a new `Request` and `Response` every time. Unset reuses them after the handler returns. Do not keep the pointer. With `APP_DEBUG=true`, a call after release panics. |
+| `HTTP_POOL_REQUESTS` | unset (off) | `true` reuses the `Request` and the `Text`/`JSON` `Response` after the handler returns. Do not keep the pointer. With `APP_DEBUG=true`, a call after release panics. The default turns on in v4. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | In-flight body budget. Negative disables it. Not enough room is 503 with `Retry-After: 1`. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` | 25% of the budget | Per-client share when the client can be told apart. Negative disables it. |
 | `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot outside production as well. |

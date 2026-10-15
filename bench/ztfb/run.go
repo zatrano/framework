@@ -642,7 +642,7 @@ func serverEnv(serverProcs, config, codec string) []string {
 	if config == "pooled" {
 		set["HTTP_POOL_REQUESTS"] = "true"
 	}
-	// default leaves the variable unset, which is the product default (pool on).
+	// default leaves the variable unset, which is the product default (pool off).
 	dropInherited := config != "pooled"
 	var out []string
 	seen := map[string]bool{}

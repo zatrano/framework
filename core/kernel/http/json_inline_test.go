@@ -28,7 +28,7 @@ func TestJSONKeepsSecurityHeadersInline(t *testing.T) {
 
 func BenchmarkJSONWithSecurityHeaders(b *testing.B) {
 	SetRequestPooling(true, false)
-	b.Cleanup(func() { SetRequestPooling(true, false) })
+	b.Cleanup(func() { SetRequestPooling(false, false) })
 	payload := map[string]string{"message": "Hello, World!"}
 	const id = "0123456789abcdef0123456789abcdef"
 	b.ReportAllocs()
@@ -63,7 +63,7 @@ func BenchmarkEchoCodec(b *testing.B) {
 
 func BenchmarkPlaintext(b *testing.B) {
 	SetRequestPooling(true, false)
-	b.Cleanup(func() { SetRequestPooling(true, false) })
+	b.Cleanup(func() { SetRequestPooling(false, false) })
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		resp := Text("Hello, World!")
