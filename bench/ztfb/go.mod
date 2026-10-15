@@ -5,7 +5,9 @@ go 1.26.0
 require (
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v3 v3.6.0
+	github.com/valyala/fasthttp v1.75.0
 	github.com/zatrano/framework/v3 v3.1.7
+	github.com/zatrano/rawhttp v0.2.8
 	golang.org/x/sys v0.49.0
 )
 
@@ -20,8 +22,6 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/tinylib/msgp v1.6.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.75.0 // indirect
-	github.com/zatrano/rawhttp v0.2.7 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/text v0.42.0 // indirect

@@ -29,4 +29,12 @@ Same host, `go test -benchmem` (`Hello, World!` map):
 | `encoding/json.Marshal` | 866.7 | 688 | 5 |
 | pooled `Encoder` | 1071 | 688 | 6 |
 
-`Marshal` already pools its encode buffer and copies the result out. `NewEncoder` adds that copy plus an encoder allocation. The pooled path is slower, so a general value stays on `encoding/json.Marshal`. A one-key or empty `map[string]string` of ASCII is encoded directly: `BenchmarkJSONWithSecurityHeaders` is 1 alloc and 32 B, and `BenchmarkPlaintext` is 0 alloc. Bytes still match `encoding/json.Marshal`, including `<`, `>`, and `&`. A custom codec (`SetJSONCodec`, the goccy track) skips that path. The framework module requires rawhttp v0.2.7 and does not call `SetBodyRelease`.
+`Marshal` already pools its encode buffer and copies the result out. `NewEncoder` adds that copy plus an encoder allocation. The pooled path is slower, so a general value stays on `encoding/json.Marshal`. A one-key or empty `map[string]string` of ASCII is encoded directly: `BenchmarkJSONWithSecurityHeaders` is 1 alloc and 32 B, and `BenchmarkPlaintext` is 0 alloc. Bytes still match `encoding/json.Marshal`, including `<`, `>`, and `&`. A custom codec (`SetJSONCodec`, the goccy track) skips that path. The framework module requires rawhttp v0.2.8 and does not call `SetBodyRelease`.
+
+## v0.2.8 — `Ctx.SetHeaderBytes`
+
+| | |
+| --- | --- |
+| File | `ctx.go` (`SetHeaderBytes`) |
+| Why | A generated request id is 32 hex bytes on the pooled response. Writing that header through `SetHeader` would allocate the string on every request. `SetHeaderBytes` copies the bytes into the connection buffer. The wire header matches `SetHeader` for the same key and value, including order and case. |
+| Version | Tag `v0.2.8`. The framework module requires that tag and has no `replace`. |
