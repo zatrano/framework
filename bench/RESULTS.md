@@ -473,15 +473,41 @@ A second sample on the same host separates the high-water mark while the connect
 
 While 64 connections are open, ZATRANO and fasthttp both show about 48 MiB of private commit and about 10 MiB of working set. Five seconds after the close, ZATRANO's working set rises to that commit and the others stay near the high-water mark. `runtime.MemStats` at that moment is about 8 MiB of `Sys`, so the rise is pages of the Go arena being touched, not a second copy of the handler state.
 
-`runtime.MemStats` from 0 to 64 connections, per connection:
+`runtime.MemStats` from 0 to 64 connections, per connection. One sample on this host. The four fields sum to about 16.8 KB on ZATRANO and about 40.5 KB on Fiber (tuned).
 
-| Server | HeapInuse | StackInuse | GCSys | OtherSys |
+| Server | HeapInuse | StackInuse | GCSys | OtherSys | Sum |
+|---|---:|---:|---:|---:|---:|
+| ZATRANO | 9.3 KB | 8.0 KB | 1.3 KB | −1.8 KB | 16.8 KB |
+| Fiber (tuned) | 21.0 KB | 16.0 KB | 1.6 KB | 1.9 KB | 40.5 KB |
+
+The stack is one goroutine stack. The heap includes the connection read buffer. There is nothing in this split to delete without removing the connection.
+
+The 55.5 MiB figure is the working set five seconds after the 64 connections close, on this Windows host. A repeat with `GetProcessMemoryInfo` and a `QueryWorkingSet` / `VirtualQueryEx` split of the resident pages:
+
+| | ZATRANO open | ZATRANO +5 s | Fiber (tuned) open | Fiber (tuned) +5 s |
 |---|---:|---:|---:|---:|
-| ZATRANO | 9.3 KB | 8.0 KB | 1.3 KB | −1.8 KB |
-| Fiber (tuned) | 21.0 KB | 16.0 KB | 1.4 KB | 2.1 KB |
+| Working set | 10.18 MiB | 55.54 MiB | 10.48 MiB | 10.52 MiB |
+| Private commit (`PagefileUsage`) | 48.02 MiB | 48.02 MiB | 49.12 MiB | 49.13 MiB |
+| Resident private | 3.48 MiB | 35.75 MiB | 3.88 MiB | 3.91 MiB |
+| Resident shareable | 6.67 MiB | 19.76 MiB | 6.57 MiB | 6.57 MiB |
+| Resident mapped | 0.24 MiB | 0.24 MiB | 0.22 MiB | 0.22 MiB |
 
-ZATRANO is not 18 KB ahead in any of these fields. The stack is one goroutine stack. The heap includes the connection read buffer. There is nothing in this split to delete without removing the connection. The earlier ~18 KB working-set gap at 64 connections does not show up in these counters, and a later working-set sample has Fiber (tuned) ahead. It is not called a ceiling.
+Private commit does not grow. Mapped bytes do not grow. The extra residency is pages that were already committed: about 32 MiB become private resident and about 13 MiB become shareable resident. Fiber (tuned) holds the same kind of commit and leaves it off the working set. Run `38752314433` does not sample `/proc/<pid>/smaps_rollup` five seconds after close. At the end of its window, `rss_bytes` equals `hwm_bytes`. For `GET /plaintext` at 64 connections those are about 15.1 MiB for ZATRANO and about 15.9 MiB for Fiber (tuned), on all three runs (one Fiber tuned high-water mark is 17.8 MiB). That is the steady end-of-window working set, not a 55 MiB spike. The 55.5 MiB rise is a Windows residency artifact of this host.
 
-The Linux 64-connection RSS gap is not classified yet. Run `38752314433` (`6e96194`) was still in progress when this was written. That run's `hwm_bytes` is the high-water mark and `rss_bytes` is the working set at the end of the window. The 5 second settle above is this host only.
+The Linux 64-connection RSS comparison is that end-of-window pair. ZATRANO's `hwm_bytes` and `rss_bytes` are both below Fiber (tuned). The ratio is about 0.95. It is not a ZATRANO excess, and it is not classified as a high-water-only gap: the two fields match.
 
-The next matrix is the fixed 60 second plaintext window, the race fix, and rawhttp `v0.2.9`. Binding column remains Fiber (tuned). Classes from that run are reported when the three runs finish. The failed plaintext jobs are not a class.
+## Round 6 — classes (`38752314433`, `6e96194`)
+
+Binding column is Fiber (tuned). `zatrano/fiber` stays the official-middleware column and is not the verdict. A class is stable when at least two of the three runs agree. The harness verdict is `cellVerdict`. The 1.05 gate is `hedef` only when `ci_low > 1`, the paired ratio is at least 1.05, p99 and CPU/request are below 1, and the high-water RSS ratio is at most 1.10. `rss_bytes` equals `hwm_bytes` on these rows: the end-of-window working set is the high-water mark.
+
+go-default: 16 stable harness `ustun`, 16 stable gate `hedef`.
+
+wrk-default: 16 stable harness `ustun`, 16 stable gate `hedef`. Two runs in the third sample miss the gate alone (`GET /plaintext` 256 and `GET /users/{id}` 256 are `rps`; `POST /echo` 4096 is `p99`) and do not change the stable class.
+
+goccy-default: 6 stable `ustun` / `hedef` (`GET /plaintext` 64, 256, 1024, 4096 and `GET /json` 64, `GET /users/{id}` 64). 6 stable `esik-yok` (`GET /json` 256 and 1024 and `GET /users/{id}` 256 and 1024 on p99; `GET /json` 4096 and `GET /users/{id}` 4096 on rps+p99). 4 stable `fiber` (`POST /echo` 64, 256, 1024, 4096 on rps+p99+cpu). Those four echo cells stay inside the closed ceiling.
+
+rawhttp/fasthttp, plaintext: 64 and 256 are stable `esik-yok` (rps+p99; ratios about 1.02 and 1.03). 1024 is stable `ustun` and the stable gate is `rps` (ratios 1.041, 1.054, 1.032). 4096 is stable `ustun` and `hedef` (ratio about 1.10, p99 about 0.91, RSS ratio about 0.80).
+
+The 60 second `go-plaintext-4096` window is stable `ustun` / `hedef` (ratios 1.122, 1.086, 1.069). GC cycles in that window: ZATRANO 0, Fiber (tuned) 0, official Fiber 2, on every run. Alloc/request there is about 0.0015 for ZATRANO and about 0.0018 for Fiber (tuned). On the 5 second go-default window, `GET /plaintext` alloc/request is about 0.00031 at 64 connections and about 0.018 at 4096 for ZATRANO, and about 0.00055 and 0.020 for Fiber (tuned). The 5 second jobs do not set `gc_cycles`.
+
+Stable class distribution: default and wrk are 16/16 `ustun` and `hedef`; goccy is 6 `ustun`/`hedef`, 6 `esik-yok`, 4 `fiber`; rawhttp/fasthttp is 2 `ustun` and 2 `esik-yok`, and only plaintext 4096 is `hedef`.

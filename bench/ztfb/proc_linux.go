@@ -55,6 +55,10 @@ func readProc(pid int) (procSample, error) {
 	return procSample{CPU: cpu, RSS: rss, HWM: hwm}, nil
 }
 
+func readWorkingSetClass(pid int) (wsClass, error) {
+	return wsClass{}, fmt.Errorf("working set class is windows-only (pid %d)", pid)
+}
+
 func kbField(line string) uint64 {
 	fields := strings.Fields(line)
 	if len(fields) < 2 {

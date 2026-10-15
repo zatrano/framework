@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,10 +30,16 @@ func TestRSSSlope(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
-	for _, server := range []string{"zatrano", "fiber-tuned", "rawhttp", "fasthttp"} {
+	servers := []string{"zatrano", "fiber-tuned", "rawhttp", "fasthttp"}
+	if v := os.Getenv("ZTFB_RSS_SERVERS"); v != "" {
+		servers = strings.Split(v, ",")
+	}
+	for _, server := range servers {
 		row := rssPoints(t, exe, server)
 		fmt.Printf("rss %s idle=%d open64=%d hwm64=%d priv64=%d rss64_after5s=%d priv64_after=%d open4096=%d hwm4096=%d rss4096_after5s=%d\n",
 			server, row.idle, row.rssOpen64, row.hwm64, row.privOpen64, row.rss64, row.priv64, row.rssOpen4096, row.hwm4096, row.rss4096)
+		fmt.Printf("ws %s open64 private=%d shareable=%d mapped=%d after5s private=%d shareable=%d mapped=%d\n",
+			server, row.wsOpen.Private, row.wsOpen.Shareable, row.wsOpen.Mapped, row.wsAfter.Private, row.wsAfter.Shareable, row.wsAfter.Mapped)
 		if row.memOK {
 			d := row.mem64
 			z := row.mem0
@@ -50,6 +57,7 @@ type rssRow struct {
 	idle, hwm64, rssOpen64, privOpen64, rss64, priv64, hwm4096, rssOpen4096, rss4096 uint64
 	mem0, mem64                                                                      memClasses
 	memOK                                                                            bool
+	wsOpen, wsAfter                                                                  wsClass
 }
 
 func rssPoints(t *testing.T, exe, server string) rssRow {
@@ -111,6 +119,13 @@ func rssPoints(t *testing.T, exe, server string) rssRow {
 	row.hwm64 = sample.HWM
 	row.rssOpen64 = sample.RSS
 	row.privOpen64 = sample.Private
+	if ws, err := readWorkingSetClass(cmd.Process.Pid); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Fatal(err)
+		}
+	} else {
+		row.wsOpen = ws
+	}
 	if row.memOK {
 		if classes, err := readMemClasses(snapConn); err == nil {
 			row.mem64 = classes
@@ -124,6 +139,16 @@ func rssPoints(t *testing.T, exe, server string) rssRow {
 	}
 	row.rss64 = sample.RSS
 	row.priv64 = sample.Private
+	if ws, err := readWorkingSetClass(cmd.Process.Pid); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Fatal(err)
+		}
+	} else {
+		row.wsAfter = ws
+	}
+	if os.Getenv("ZTFB_RSS_SKIP4096") == "1" {
+		return row
+	}
 
 	hold = openKeepAlive(t, addr, 4096)
 	time.Sleep(300 * time.Millisecond)

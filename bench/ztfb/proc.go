@@ -9,6 +9,15 @@ type procSample struct {
 	Private uint64
 }
 
+// wsClass splits a resident working set. Private and Shareable do not
+// overlap. Mapped is the MEM_MAPPED subset and is already inside one of those
+// two.
+type wsClass struct {
+	Private   uint64
+	Shareable uint64
+	Mapped    uint64
+}
+
 func cpuMicrosPerReq(before, after procSample, requests int) float64 {
 	if requests <= 0 {
 		return 0
