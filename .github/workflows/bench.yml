@@ -10,10 +10,9 @@ on:
         required: false
   # Push, not pull_request: a pull_request path filter matches the whole diff
   # against main, so every later commit would rerun the matrix.
-  # perf/zatrano-vs-fiber runs the matrix. 3.x runs the short jobs.
+  # 3.x runs the short jobs. The Linux matrix starts only from workflow_dispatch.
   push:
     branches:
-      - perf/zatrano-vs-fiber
       - 3.x
     paths:
       - bench/strace_writes.sh
@@ -118,7 +117,7 @@ jobs:
 
   bench:
     name: linux ${{ matrix.name }} ${{ matrix.run }}
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/zatrano-vs-fiber'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -245,7 +244,7 @@ jobs:
 
   profile:
     name: linux p99 profile
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/zatrano-vs-fiber'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
