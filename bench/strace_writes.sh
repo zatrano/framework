@@ -81,8 +81,18 @@ syscall_summary() {
     return 1
   fi
   taskset -c 1 "$bin" load 127.0.0.1:18181 "GET /plaintext" "$conns" 2 || true
-  # SIGTERM lets strace -c write the table. SIGKILL drops it.
-  kill "$pid" 2>/dev/null || true
+  # strace -c writes the table when the tracee exits. SIGTERM to strace
+  # itself can hang while it detaches the Go threads, so stop the server.
+  pkill -TERM -P "$pid" 2>/dev/null || true
+  for _ in $(seq 1 100); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "syscall: strace did not exit for $server c=$conns"
+    pkill -9 -P "$pid" 2>/dev/null || true
+    kill -9 "$pid" 2>/dev/null || true
+  fi
   wait "$pid" 2>/dev/null || true
   echo "==== strace -c $server c=$conns ===="
   cat "$summary" || true
