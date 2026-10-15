@@ -125,15 +125,47 @@ jobs:
           GOTOOLCHAIN: go1.26.0
         run: bash strace_writes.sh
 
+  plan:
+    name: matrix plan
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.set.outputs.include }}
+    steps:
+      - id: set
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          catalog = [
+              {"name": "go-default", "client": "go", "config": "default", "codec": "encodingjson", "pair": "fiber", "routes": "", "conns": "", "measure": "", "gc_min": "", "gctrace": ""},
+              {"name": "wrk-default", "client": "wrk", "config": "default", "codec": "encodingjson", "pair": "fiber", "routes": "", "conns": "", "measure": "", "gc_min": "", "gctrace": ""},
+              {"name": "goccy-default", "client": "go", "config": "default", "codec": "goccy", "pair": "fiber", "routes": "", "conns": "", "measure": "", "gc_min": "", "gctrace": ""},
+              {"name": "rawhttp-fasthttp", "client": "go", "config": "default", "codec": "encodingjson", "pair": "rawhttp", "routes": "GET /plaintext", "conns": "", "measure": "", "gc_min": "", "gctrace": ""},
+              {"name": "go-plaintext-4096", "client": "go", "config": "default", "codec": "encodingjson", "pair": "fiber", "routes": "GET /plaintext", "conns": "4096", "measure": "60s", "gc_min": "", "gctrace": "1"},
+          ]
+          wanted = [n for n in os.environ.get("ONLY", "").split(",") if n]
+          rows = []
+          for run in (1, 2, 3):
+              for item in catalog:
+                  if wanted and item["name"] not in wanted:
+                      continue
+                  row = dict(item)
+                  row["run"] = run
+                  rows.append(row)
+          print("include=" + json.dumps(rows, separators=(",", ":")))
+          PY
+
   bench:
     name: linux ${{ matrix.name }} ${{ matrix.run }}
-    if: github.event_name == 'workflow_dispatch' && (inputs.only == '' || contains(format(',{0},', inputs.only), format(',{0},', matrix.name)))
+    needs: plan
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
-        run: [1, 2, 3]
         # fiber pair jobs also run fiber-tuned. The binding paired row is
         # zatrano/fiber-tuned. zatrano/fiber stays the official-middleware column.
         # The tuned request header is a pointer; copying RequestHeader fails go vet.
@@ -142,54 +174,7 @@ jobs:
         # per connection (rawhttp v0.2.9).
         # go-plaintext-4096 is a fixed 60s window. Both servers are scored in
         # that window. GC cycles in the window are recorded and may be 0.
-        name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp, go-plaintext-4096]
-        include:
-          - name: go-default
-            client: go
-            config: default
-            codec: encodingjson
-            pair: fiber
-            routes: ""
-            conns: ""
-            measure: ""
-            gc_min: ""
-          - name: wrk-default
-            client: wrk
-            config: default
-            codec: encodingjson
-            pair: fiber
-            routes: ""
-            conns: ""
-            measure: ""
-            gc_min: ""
-          - name: goccy-default
-            client: go
-            config: default
-            codec: goccy
-            pair: fiber
-            routes: ""
-            conns: ""
-            measure: ""
-            gc_min: ""
-          - name: rawhttp-fasthttp
-            client: go
-            config: default
-            codec: encodingjson
-            pair: rawhttp
-            routes: "GET /plaintext"
-            conns: ""
-            measure: ""
-            gc_min: ""
-          - name: go-plaintext-4096
-            client: go
-            config: default
-            codec: encodingjson
-            pair: fiber
-            routes: "GET /plaintext"
-            conns: "4096"
-            measure: "60s"
-            gc_min: ""
-            gctrace: "1"
+        include: ${{ fromJSON(needs.plan.outputs.include) }}
     defaults:
       run:
         working-directory: framework
