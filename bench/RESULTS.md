@@ -303,6 +303,30 @@ Profile window, 40 seconds, `GOMAXPROCS=1`, encoding/json, `GET /plaintext` 4096
 
 ZATRANO: 3 cycles, mark 55 ms, STW 0.385 ms. Fiber: 1 cycle, mark 26 ms, STW 0.148 ms.
 
+`GOMAXPROCS=4` for plaintext 4096 was not measured. The runner has 4 vCPUs, and pinning the server to CPUs 0–3 leaves no core for the load generator. The single-core series stays the classification basis.
+
+## Round 6 — allocs per request
+
+One keep-alive connection, `net.Pipe`, 64 warmup requests, then `testing.B -benchmem` and `runtime.MemStats` over 2000 requests. `GOMAXPROCS=1`. Same handlers as the Fiber pair: plaintext, one-key JSON, `/users/{id}`, and echo. Both servers send a request id and the four security headers. ZATRANO is the production `Handle` path with an empty `public/` index. The framework row excludes the handler's `map[string]string` literal (the map is hoisted). Echo has no handler literal, so its framework row is the whole handler. Bytes are `B/op`.
+
+| Route | ZATRANO alloc | ZATRANO bytes | Fiber alloc | Fiber bytes |
+|---|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 8 | 432 |
+| `GET /json` | 3 | 368 | 14 | 880 |
+| `GET /users/{id}` | 3 | 352 | 14 | 864 |
+| `POST /echo` | 11 | 672 | 22 | 1112 |
+
+Framework, handler literal excluded:
+
+| Route | ZATRANO alloc | ZATRANO bytes | Fiber alloc | Fiber bytes |
+|---|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 8 | 432 |
+| `GET /json` | 1 | 32 | 12 | 544 |
+| `GET /users/{id}` | 1 | 16 | 12 | 528 |
+| `POST /echo` | 11 | 672 | 22 | 1112 |
+
+The JSON and users literals are 2 allocs and 336 bytes on both servers. ZATRANO's remaining JSON byte is the encoded body. The users body is 16 bytes. Echo's 11 allocs are `BindJSON` plus the encoded object.
+
 Old plaintext 4096, three runs, 5 second window, encoding/json, harness verdict then the 1.05 gate:
 
 | Run | Harness | Gate | Ratio | CI | p99 | CPU | RSS |
@@ -311,7 +335,15 @@ Old plaintext 4096, three runs, 5 second window, encoding/json, harness verdict 
 | 2 | esik-yok | p99 | 1.114 | 1.111–1.116 | 1.026 | 0.894 | 0.545 |
 | 3 | esik-yok | p99 | 1.092 | 1.083–1.107 | 1.011 | 0.909 | 0.535 |
 
-Stable class: harness esik-yok, gate p99. The new window's three runs replace this row when `go-plaintext-4096` finishes. Per-cell `gc_cycles` for both servers are the `median` rows of that job.
+Stable class: harness esik-yok, gate p99. The 5 second window is the row above. The fair window below is run `38702939949` at `9abed55`, `go-plaintext-4096`, three jobs. `gc_cycles` is the median row. Both servers in a job share that job's calibrated duration. p99 is the paired ratio of the median p99.
+
+| Run | Window | ZATRANO GC | Fiber GC | p99 ratio | rps ratio | Harness |
+|---|---:|---:|---:|---:|---:|---|
+| 1 | 94.2 s | 6 | 3 | 0.921 | 1.087 | ustun |
+| 2 | 57.6 s | 7 | 3 | 0.899 | 1.155 | ustun |
+| 3 | 77.2 s | 7 | 3 | 0.910 | 1.078 | ustun |
+
+p99 is under 1 on every run, so the slow-request timestamps were not matched against gctrace and the queue was not profiled on the scheduler. The request-id allocation is not in this run. The next `go-plaintext-4096` jobs are the comparison after that allocation is gone.
 
 ## Round 6 — ceiling
 

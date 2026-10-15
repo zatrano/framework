@@ -41,6 +41,9 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 		return cold.hijack(conn, leftover)
 	}
 
+	if r.reqIDOn {
+		_ = ctx.SetHeaderBytes("X-Request-Id", r.reqID[:32])
+	}
 	if cold == nil || cold.headers == nil {
 		for i := 0; i < r.nInline; i++ {
 			_ = ctx.AddHeader(r.inlineHdrs[i].k, r.inlineHdrs[i].v)

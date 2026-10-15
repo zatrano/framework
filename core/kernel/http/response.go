@@ -37,9 +37,13 @@ type Response struct {
 	content     []byte
 	textBody    string
 	contentType string
-	cold        *responseCold
-	pooled      bool
-	released    bool
+	// reqID is the generated request id, copied into the pooled response so
+	// Commit can write the header without allocating a string.
+	reqID    [32]byte
+	reqIDOn  bool
+	cold     *responseCold
+	pooled   bool
+	released bool
 }
 
 func (r *Response) touch() {
@@ -287,6 +291,11 @@ func (r *Response) flushInlineHeaders() {
 		r.inlineHdrs[i].v = ""
 	}
 	r.nInline = 0
+	if r.reqIDOn {
+		if _, ok := c.headers["X-Request-Id"]; !ok {
+			c.headers["X-Request-Id"] = []string{string(r.reqID[:32])}
+		}
+	}
 }
 
 // Cookies returns response cookies.
@@ -381,6 +390,9 @@ func (r *Response) GetHeader(key string, fallback ...string) string {
 		return ""
 	}
 	key = textproto.CanonicalMIMEHeaderKey(key)
+	if r.reqIDOn && key == "X-Request-Id" {
+		return string(r.reqID[:32])
+	}
 	for i := 0; i < r.nInline; i++ {
 		if r.inlineHdrs[i].k == key && r.inlineHdrs[i].v != "" {
 			return r.inlineHdrs[i].v

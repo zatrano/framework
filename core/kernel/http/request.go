@@ -53,12 +53,16 @@ type Request struct {
 	formParsed    bool
 	multipartForm *multipart.Form
 
-	route            map[string]string
-	routeN           int
-	routeK           [4]string
-	routeV           [4]string
-	attrs            map[string]any
-	requestID        string
+	route     map[string]string
+	routeN    int
+	routeK    [4]string
+	routeV    [4]string
+	attrs     map[string]any
+	requestID string
+	// idBuf holds a generated 32-hex id. The hot path never turns it into a
+	// string; Get materializes one only when something reads the attribute.
+	idBuf            [32]byte
+	idN              uint8
 	cookies          *cookie.Jar
 	jsonData         map[string]string
 	jsonRaw          map[string]any
@@ -709,8 +713,13 @@ func (r *Request) Get(key string) any {
 	if r == nil {
 		return nil
 	}
-	if key == "request_id" && r.requestID != "" {
-		return r.requestID
+	if key == "request_id" {
+		if r.requestID == "" && r.idN == 32 {
+			r.requestID = string(r.idBuf[:32])
+		}
+		if r.requestID != "" {
+			return r.requestID
+		}
 	}
 	if r.attrs == nil {
 		return nil

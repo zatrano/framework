@@ -58,12 +58,49 @@ func TestRequestIDRejectsGarbageAndGenerates(t *testing.T) {
 	raw.Header.Set("X-Request-ID", "not a valid id because spaces")
 	resp := h(http.RequestFromHTTP(raw))
 	id := string(resp.Content())
-	if id == "" || strings.Contains(id, " ") {
+	if !hex32(id) {
 		t.Fatalf("id=%q", id)
 	}
-	if len(id) != 32 {
-		t.Fatalf("generated id length=%d", len(id))
+	if resp.Headers().Get("X-Request-Id") != id {
+		t.Fatalf("header=%q get=%q", resp.Headers().Get("X-Request-Id"), id)
 	}
+}
+
+func TestGeneratedRequestIDGetAndHeader(t *testing.T) {
+	var seen string
+	h := middleware.RequestID(func(req *http.Request) *http.Response {
+		seen, _ = req.Get("request_id").(string)
+		return http.Text("ok")
+	})
+	resp := h(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
+	if !hex32(seen) {
+		t.Fatalf("get=%q", seen)
+	}
+	if resp.Headers().Get("X-Request-Id") != seen {
+		t.Fatalf("header=%q get=%q", resp.Headers().Get("X-Request-Id"), seen)
+	}
+}
+
+func TestGeneratedRequestIDHeaderWithoutGet(t *testing.T) {
+	h := middleware.RequestID(func(*http.Request) *http.Response {
+		return http.Text("ok")
+	})
+	resp := h(http.RequestFromHTTP(httptest.NewRequest("GET", "/", nil)))
+	if !hex32(resp.GetHeader("X-Request-Id")) {
+		t.Fatalf("header=%q", resp.GetHeader("X-Request-Id"))
+	}
+}
+
+func hex32(s string) bool {
+	if len(s) != 32 {
+		return false
+	}
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func TestRequestIDFromTraceparent(t *testing.T) {

@@ -1,14 +1,9 @@
 package middleware
 
 import (
-	cryptorand "crypto/rand"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"log"
-	mrand "math/rand/v2"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/zatrano/framework/v3/core/kernel/http"
@@ -93,14 +88,14 @@ func ForceJSON(next routing.HandlerFunc) routing.HandlerFunc {
 // RequestID assigns or propagates a request id (X-Request-ID / X-Correlation-ID).
 func RequestID(next routing.HandlerFunc) routing.HandlerFunc {
 	return func(req *http.Request) *http.Response {
-		id := incomingRequestID(req)
-		if id == "" {
-			id = newRequestID()
+		if id := incomingRequestID(req); id != "" {
+			req.SetRequestID(id)
+		} else {
+			req.GenerateRequestID()
 		}
-		req.SetRequestID(id)
 		resp := next(req)
 		if resp != nil {
-			resp.Header("X-Request-Id", id)
+			resp.UseRequestID(req)
 			if tp := strings.TrimSpace(req.Header("Traceparent")); tp != "" {
 				resp.Header("Traceparent", tp)
 			}
@@ -141,38 +136,6 @@ func traceIDFromTraceparent(header string) string {
 		return traceID
 	}
 	return ""
-}
-
-// idSources are ChaCha8 generators seeded once from crypto/rand.
-// A request id is a correlation token. It stays unguessable without a
-// getrandom syscall on every request.
-var idSources = sync.Pool{
-	New: func() any {
-		var seed [32]byte
-		if _, err := cryptorand.Read(seed[:]); err != nil {
-			binary.LittleEndian.PutUint64(seed[:8], uint64(time.Now().UnixNano()))
-		}
-		return mrand.New(mrand.NewChaCha8(seed))
-	},
-}
-
-func newRequestID() string {
-	src := idSources.Get().(*mrand.Rand)
-	var b [16]byte
-	fillID(src, b[:])
-	idSources.Put(src)
-	return hex.EncodeToString(b[:])
-}
-
-func fillID(src *mrand.Rand, b []byte) {
-	var n uint64
-	for i := range b {
-		if i%8 == 0 {
-			n = src.Uint64()
-		}
-		b[i] = byte(n)
-		n >>= 8
-	}
 }
 
 // CORS adds CORS headers (development default is wildcard; production/staging
