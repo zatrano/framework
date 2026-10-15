@@ -6,7 +6,7 @@
 | --- | --- |
 | File | `conn.go`, `server.go` (`connReadBufSize`, `fillHeaders`, `shrinkIdle`) |
 | Why | Framework sets `MaxHeaderBytes` to 16 KiB. rawhttp used to allocate that as the connection read buffer, so 4096 connections pinned about 64 MiB before any body. The buffer now starts at 4 KiB when the ceiling is above 8 KiB, and grows 4 → 8 → 16 KiB only while the header block is incomplete. A buffered Content-Length body is a view of that buffer during the handler; a response that still points into it is copied once before the buffer is compacted. On idle, with nothing buffered, a grown buffer returns to a pool capped at 64 per size. |
-| Version | On rawhttp `main`, commit `693b49c`. Not tagged. The framework module still requires v0.2.6 and must not contain a `replace`. The harness module replaces rawhttp for the Linux bench; a `replace` in the framework module is ignored by that build and fails `TestReleaseModuleHasNoReplace`. A ceiling of 8 KiB or less keeps the previous buffer size. A header past `MaxHeaderBytes` is still 431. |
+| Version | On rawhttp `main`, commit `693b49c`. Not tagged. The framework module still requires v0.2.6 and must not contain a `replace`. The harness module replaces rawhttp for the Linux bench; a `replace` in the framework module is ignored by that build and fails `TestReleaseModuleHasNoReplace`. The default 8 KiB ceiling now starts at 4 KiB and grows only while the header block does not fit. A header past `MaxHeaderBytes` is still 431. |
 
 ## v0.2.7 — `Ctx.SetBodyRelease`
 

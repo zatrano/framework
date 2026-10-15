@@ -278,3 +278,40 @@ The last edit copied the boot-time `MAX_BODY_BYTES` onto the request in `Handle`
 | POST /echo | −70 KB | +459 KB |
 
 ZATRANO's steady RSS did not grow. Fiber's plaintext process did.
+
+## Round 6 — same GC window
+
+Run `38640064351` at `2f5541e` measured `GET /plaintext` 4096 for 5 seconds. The profile job on that run (`GODEBUG=gctrace=1`, `GOMAXPROCS=1`, server CPU 0) showed why the p99 comparison was not the same condition:
+
+| Server | Steady cycles in the ~8s profile | Mark | Live heap |
+|---|---:|---:|---:|
+| ZATRANO | 1 (gc 5 at 5.146s) | 17 ms concurrent mark, 0.10 ms stop-the-world | 33 MB |
+| Fiber | 0 after startup (last natural gc at 0.783s; heap 97 MB at the forced exit, next goal 151 MB) | startup mark 21 ms | ~72–80 MB |
+
+`GOGC` was not changed and the live heap was not padded. On one CPU the concurrent mark runs on the server thread, so ZATRANO's 17 ms mark lands inside the 5 second window and Fiber's next cycle does not.
+
+The harness now counts `gc N @T` lines whose timestamp falls inside the measured window and stores that count on each row as `gc_cycles`. `-gc-min 3` runs one unscored pass per server, stops that pass when the window contains 3 cycles, then scores both servers for the longer of those two durations plus 10%. The cap is `-measure` (180s for the plaintext 4096 job). The 5 second matrix is unchanged.
+
+Old plaintext 4096, three runs, 5 second window, encoding/json, harness verdict then the 1.05 gate:
+
+| Run | Harness | Gate | Ratio | CI | p99 | CPU | RSS |
+|---|---|---|---:|---|---:|---:|---:|
+| 1 | ustun | hedef | 1.136 | 1.125–1.150 | 0.893 | 0.869 | 0.583 |
+| 2 | esik-yok | p99 | 1.114 | 1.111–1.116 | 1.026 | 0.894 | 0.545 |
+| 3 | esik-yok | p99 | 1.092 | 1.083–1.107 | 1.011 | 0.909 | 0.535 |
+
+Stable class: harness esik-yok, gate p99. The new window's three runs replace this row when `go-plaintext-4096` finishes. Per-cell `gc_cycles` for both servers are the `median` rows of that job.
+
+## Round 6 — ceiling
+
+The ceiling is the paired throughput ratio times the paired CPU/request ratio. That credits the whole CPU gap to the framework. A real framework-only share is smaller, so a ceiling already under 1.05 cannot be lifted over the bar by deleting framework CPU. The interval and `cellVerdict` are unchanged. These cells are closed:
+
+| Cell | Codec | Median ratio | Median CPU ratio | Ceiling |
+|---|---|---:|---:|---:|
+| POST /echo 64 | goccy | 0.948 | 1.052 | 0.997 |
+| POST /echo 256 | goccy | 0.920 | 1.093 | 1.006 |
+| POST /echo 1024 | goccy | 0.957 | 1.046 | 1.001 |
+| POST /echo 4096 | goccy | 0.914 | 1.096 | 1.002 |
+| GET /users/{id} 256 | goccy | 0.997 | 1.002 | 0.999 |
+
+`BindJSON` already hands the configured codec the connection buffer. A codec installed with `SetJSONCodec` sees that slice, not a copy (`TestBindJSONCodecSeesTheConnectionBuffer`). The one-key fast path still runs only when the codec is encoding/json, so the goccy track and Fiber decode with the same codec.

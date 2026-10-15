@@ -57,6 +57,36 @@ func TestBindJSONDoesNotAliasDecodedStrings(t *testing.T) {
 	}
 }
 
+func TestBindJSONCodecSeesTheConnectionBuffer(t *testing.T) {
+	const payload = `{"message":"Hello, World!"}`
+	var seen []byte
+	http.SetJSONCodec(json.Marshal, func(b []byte, v any) error {
+		seen = b
+		return json.Unmarshal(b, v)
+	})
+	t.Cleanup(func() { http.SetJSONCodec(nil, nil) })
+	var decoded map[string]any
+	_, _, err := http.ServeConnForTest(func(ctx *rawhttp.Ctx) {
+		req := http.NewRequest(ctx)
+		if err := req.BindJSON(&decoded); err != nil {
+			t.Errorf("BindJSON: %v", err)
+			return
+		}
+		raw := ctx.Body()
+		if len(seen) == 0 || len(raw) == 0 || &seen[0] != &raw[0] {
+			t.Errorf("codec saw a copy of the body")
+		}
+		ctx.SetStatusCode(200)
+		ctx.SetBodyString("ok")
+	}, bindRequest(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded["message"] != "Hello, World!" {
+		t.Fatalf("decoded %#v", decoded)
+	}
+}
+
 func TestBindJSONEscapeFallsBackToEncodingJSON(t *testing.T) {
 	const payload = `{"message":"\u0041<\u0026"}`
 	var decoded map[string]any

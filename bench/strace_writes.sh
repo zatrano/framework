@@ -58,3 +58,37 @@ if [[ "${n:-0}" -lt 1 ]]; then
   echo "no connection write recorded"
   exit 1
 fi
+
+# Syscall mix for the bare carriers at the connection levels where rawhttp
+# lost the RSS and p99 gate. Summary only; the one-write check above stays.
+syscall_summary() {
+  local server="$1" conns="$2"
+  local summary="${TMPDIR:-/tmp}/ztfb-strace-${server}-${conns}.txt"
+  taskset -c 0 strace -c -f -o "$summary" "$bin" serve "$server" 127.0.0.1:18181 &
+  local pid=$!
+  local ready=0
+  for _ in $(seq 1 100); do
+    if ss -ltn | grep -q ':18181'; then
+      ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ "$ready" -ne 1 ]]; then
+    echo "syscall: $server did not listen"
+    kill -9 "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    return 1
+  fi
+  taskset -c 1 "$bin" load 127.0.0.1:18181 "GET /plaintext" "$conns" 2 || true
+  # SIGTERM lets strace -c write the table. SIGKILL drops it.
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  echo "==== strace -c $server c=$conns ===="
+  cat "$summary" || true
+}
+bin="${TMPDIR:-/tmp}/ztfb"
+syscall_summary rawhttp 64
+syscall_summary fasthttp 64
+syscall_summary rawhttp 256
+syscall_summary fasthttp 256

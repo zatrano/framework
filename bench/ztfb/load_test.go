@@ -3,9 +3,58 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestSessionConnRedialFailureDoesNotPanic(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	accepted := make(chan struct{})
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			_ = c.Close()
+		}
+		close(accepted)
+		_ = ln.Close()
+	}()
+	var warmReqs, warmErrs, measReqs, measErrs atomic.Int64
+	slots := make(chan struct{}, 4)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = sessionConn(ln.Addr().String(), []byte("GET / HTTP/1.1\r\nHost: x\r\n\r\n"), []byte("nope"), 200*time.Millisecond, 200*time.Millisecond, slots, time.Now, nil, &warmReqs, &warmErrs, &measReqs, &measErrs)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("redial hung or panicked")
+	}
+	<-accepted
+}
+
+func TestParseGCLineAndWindow(t *testing.T) {
+	at, forced, ok := parseGCLine("gc 5 @5.146s 0%: 0.091+17+0.003 ms clock, 48->48->33 MB, 50 MB goal, 1 P")
+	if !ok || forced || at < 5.145 || at > 5.147 {
+		t.Fatalf("at=%v forced=%v ok=%v", at, forced, ok)
+	}
+	_, forced, ok = parseGCLine("gc 7 @8.001s 0%: 0.10+17+0.002 ms clock (forced)")
+	if !ok || !forced {
+		t.Fatalf("forced ok=%v forced=%v", ok, forced)
+	}
+	if _, _, ok := parseGCLine("listening"); ok {
+		t.Fatal("not a gc line")
+	}
+	marks := []gcMark{{at: 0.2}, {at: 5.1}, {at: 8.0, forced: true}}
+	if n := gcCyclesInWindow(marks, 1.5, 6.0); n != 1 {
+		t.Fatalf("cycles %d", n)
+	}
+}
 
 func TestReadCheckedAcceptsContentLengthAndBody(t *testing.T) {
 	raw := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 13\r\n\r\nHello, World!")

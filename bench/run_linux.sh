@@ -51,4 +51,10 @@ fi
 if [[ -n "${CONNS:-}" ]]; then
   args+=(-conns "$CONNS")
 fi
+if [[ -n "${MEASURE:-}" ]]; then
+  args+=(-measure "$MEASURE")
+fi
+if [[ -n "${GC_MIN:-}" ]]; then
+  args+=(-gc-min "$GC_MIN")
+fi
 exec "${TMPDIR:-/tmp}/ztfb" "${args[@]}"

@@ -30,6 +30,7 @@ type cell struct {
 	Errors     int      `json:"errors"`
 	Requests   int      `json:"requests"`
 	ElapsedS   float64  `json:"elapsed_s"`
+	GCCycles   int      `json:"gc_cycles,omitempty"`
 	RSSSamples []uint64 `json:"rss_samples,omitempty"`
 	Config     string   `json:"config,omitempty"`
 	Client     string   `json:"client,omitempty"`
@@ -58,6 +59,7 @@ type matrixOpts struct {
 	config   string
 	codec    string
 	pair     string
+	gcMin    int
 }
 
 func cmdRun(args []string) error {
@@ -74,6 +76,7 @@ func cmdRun(args []string) error {
 	config := fs.String("config", "default", "label recorded on every row; pooled sets HTTP_POOL_REQUESTS=true")
 	codec := fs.String("codec", "encodingjson", "encodingjson or goccy; both servers use it")
 	pair := fs.String("pair", "fiber", "fiber compares zatrano with fiber; rawhttp compares rawhttp with fasthttp")
+	gcMin := fs.Int("gc-min", 0, "before scoring, set one window long enough for this many GC cycles on both servers; 0 keeps -measure")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -109,7 +112,7 @@ func cmdRun(args []string) error {
 	return runMatrix(matrixOpts{
 		outPath: *out, affinity: *affinity, rounds: *roundsFlag, levels: levels, routes: selected,
 		warmup: *warmup, measure: *measure, addr: *addr, client: *client, config: *config, codec: *codec,
-		pair: *pair,
+		pair: *pair, gcMin: *gcMin,
 	})
 }
 
@@ -141,7 +144,7 @@ func cmdLoad(args []string) error {
 	if err != nil {
 		return err
 	}
-	warm, measured := session(args[0], requestBytes(rt, host), rt.Want, conns, time.Second, time.Duration(secs)*time.Second, nil)
+	warm, measured := session(args[0], requestBytes(rt, host), rt.Want, conns, time.Second, time.Duration(secs)*time.Second, nil, nil)
 	fmt.Printf("warmup requests=%d errors=%d measure rps=%.0f errors=%d p50=%s p99=%s\n", warm.Requests, warm.Errors, measured.RPS(), measured.Errors, percentile(measured.Samples, 0.50), percentile(append([]int64(nil), measured.Samples...), 0.99))
 	return nil
 }
@@ -228,6 +231,12 @@ func runMatrix(opt matrixOpts) error {
 	if opt.config == "" {
 		opt.config = "default"
 	}
+	if opt.gcMin > 0 {
+		if opt.client != "go" {
+			return fmt.Errorf("gc-min requires the go client")
+		}
+		_ = os.Setenv("ZTFB_GCTRACE", "1")
+	}
 	if !opt.soak && opt.rounds > 0 && opt.rounds < defaultRounds {
 		fmt.Fprintf(os.Stderr, "warning: %d rounds is below the %d-round cell size used for the CI\n", opt.rounds, defaultRounds)
 	}
@@ -243,6 +252,15 @@ func runMatrix(opt matrixOpts) error {
 			if opt.pair == "rawhttp" {
 				left, right = "rawhttp", "fasthttp"
 			}
+			measure := opt.measure
+			if opt.gcMin > 0 {
+				var err error
+				measure, err = calibrateWindow(exe, opt.addr, rt, req, conns, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.client, opt.config, opt.codec, left, right, opt.gcMin)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "gc window %s for %s c=%d (both servers, %d cycles)\n", measure, rt.Name, conns, opt.gcMin)
+			}
 			byServer := map[string][]cell{}
 			for round := 1; round <= rounds; round++ {
 				order := []string{left, right}
@@ -250,7 +268,7 @@ func runMatrix(opt matrixOpts) error {
 					order = []string{right, left}
 				}
 				for _, server := range order {
-					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec)
+					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec, 0)
 					if err != nil {
 						return fmt.Errorf("%s %s c=%d round %d: %w", server, rt.Name, conns, round, err)
 					}
@@ -284,7 +302,7 @@ func runMatrix(opt matrixOpts) error {
 	return nil
 }
 
-func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config, codec string) (cell, error) {
+func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config, codec string, gcStop int) (cell, error) {
 	cmd := startServer(exe, server, addr, serverMask)
 	cmd.Env = serverEnv(serverProcs, config, codec)
 	cmd.Stdout = os.Stderr
@@ -292,14 +310,23 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	if err != nil {
 		return cell{}, err
 	}
+	procStart := time.Now()
 	if err := cmd.Start(); err != nil {
 		return cell{}, err
 	}
+	var gcMu sync.Mutex
+	var marks []gcMark
 	done := make(chan struct{})
 	go func() {
 		sc := bufio.NewScanner(stderr)
 		for sc.Scan() {
-			fmt.Fprintln(os.Stderr, sc.Text())
+			line := sc.Text()
+			fmt.Fprintln(os.Stderr, line)
+			if at, forced, ok := parseGCLine(line); ok {
+				gcMu.Lock()
+				marks = append(marks, gcMark{at: at, forced: forced})
+				gcMu.Unlock()
+			}
 		}
 		close(done)
 	}()
@@ -321,6 +348,39 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	var rssMu sync.Mutex
 	var rssSamples []uint64
 	rssStop := make(chan struct{})
+	var winStart time.Time
+	var winMu sync.Mutex
+	stop := make(chan struct{})
+	var stopOnce sync.Once
+	halt := func() { stopOnce.Do(func() { close(stop) }) }
+	if gcStop > 0 {
+		watchDone := make(chan struct{})
+		defer close(watchDone)
+		go func() {
+			t := time.NewTicker(100 * time.Millisecond)
+			defer t.Stop()
+			for {
+				select {
+				case <-watchDone:
+					return
+				case <-t.C:
+					winMu.Lock()
+					ws := winStart
+					winMu.Unlock()
+					if ws.IsZero() {
+						continue
+					}
+					gcMu.Lock()
+					n := gcCyclesInWindow(marks, ws.Sub(procStart).Seconds(), time.Since(procStart).Seconds())
+					gcMu.Unlock()
+					if n >= gcStop {
+						halt()
+						return
+					}
+				}
+			}
+		}()
+	}
 	var warm, measured loadResult
 	if client == "wrk" {
 		var err error
@@ -329,12 +389,22 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 			return cell{}, err
 		}
 		before, beforeErr = readProc(cmd.Process.Pid)
+		winMu.Lock()
+		winStart = time.Now()
+		winMu.Unlock()
 		measured, err = runWrk(addr, rt, conns, measure)
 		if err != nil {
 			return cell{}, err
 		}
 	} else {
+		var sessionStop <-chan struct{}
+		if gcStop > 0 {
+			sessionStop = stop
+		}
 		warm, measured = session(addr, req, rt.Want, conns, warmup, measure, func() {
+			winMu.Lock()
+			winStart = time.Now()
+			winMu.Unlock()
 			before, beforeErr = readProc(cmd.Process.Pid)
 			if !soak || cmd.Process == nil {
 				return
@@ -360,7 +430,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 					}
 				}
 			}()
-		})
+		}, sessionStop)
 	}
 	var copied []uint64
 	if soak {
@@ -394,6 +464,18 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		// percentile sorts in place; copy for p999 from the already sorted slice.
 		p999 = percentile(measured.Samples, 0.999)
 	}
+	cycles := 0
+	winMu.Lock()
+	ws := winStart
+	winMu.Unlock()
+	if !ws.IsZero() {
+		gcMu.Lock()
+		cycles = gcCyclesInWindow(marks, ws.Sub(procStart).Seconds(), ws.Sub(procStart).Seconds()+measured.Elapsed.Seconds())
+		gcMu.Unlock()
+	}
+	if os.Getenv("ZTFB_GCTRACE") == "1" {
+		fmt.Fprintf(os.Stderr, "gc-window %s %s c=%d round %d cycles=%d elapsed=%.1fs\n", server, rt.Name, conns, round, cycles, measured.Elapsed.Seconds())
+	}
 	return cell{
 		Server:     server,
 		Route:      rt.Name,
@@ -402,6 +484,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		Config:     config,
 		Client:     client,
 		Codec:      codec,
+		GCCycles:   cycles,
 		RPS:        measured.RPS(),
 		P50US:      float64(p50.Microseconds()),
 		P99US:      float64(p99.Microseconds()),
@@ -463,6 +546,16 @@ func serverEnv(serverProcs, config, codec string) []string {
 		"GOFLAGS":      "",
 		"ZTFB_CODEC":   codec,
 	}
+	if os.Getenv("ZTFB_GCTRACE") == "1" {
+		prev := os.Getenv("GODEBUG")
+		if !strings.Contains(prev, "gctrace=") {
+			if prev == "" {
+				set["GODEBUG"] = "gctrace=1"
+			} else {
+				set["GODEBUG"] = prev + ",gctrace=1"
+			}
+		}
+	}
 	if config == "pooled" {
 		set["HTTP_POOL_REQUESTS"] = "true"
 	}
@@ -505,10 +598,71 @@ func waitReady(addr string, timeout time.Duration) error {
 	return fmt.Errorf("server did not accept connections: %w", last)
 }
 
+type gcMark struct {
+	at     float64
+	forced bool
+}
+
+func calibrateWindow(exe, addr string, rt routeSpec, req []byte, conns int, warmup, cap time.Duration, serverMask uintptr, pin bool, serverProcs, client, config, codec, left, right string, gcMin int) (time.Duration, error) {
+	if cap < 5*time.Second {
+		cap = 180 * time.Second
+	}
+	var longest time.Duration
+	for _, server := range []string{left, right} {
+		row, err := oneRound(exe, server, addr, rt, req, conns, 0, warmup, cap, serverMask, pin, serverProcs, false, client, config, codec, gcMin)
+		if err != nil {
+			return 0, err
+		}
+		if row.GCCycles < gcMin {
+			return 0, fmt.Errorf("%s %s c=%d: %d GC cycles in %.1fs, need %d", server, rt.Name, conns, row.GCCycles, row.ElapsedS, gcMin)
+		}
+		d := time.Duration(row.ElapsedS * float64(time.Second))
+		if d > longest {
+			longest = d
+		}
+	}
+	longest += longest / 10
+	if longest < 5*time.Second {
+		longest = 5 * time.Second
+	}
+	return longest, nil
+}
+
+func parseGCLine(line string) (at float64, forced, ok bool) {
+	// gc 5 @5.146s 0%: ...
+	if !strings.HasPrefix(line, "gc ") {
+		return 0, false, false
+	}
+	atPos := strings.Index(line, " @")
+	if atPos < 0 {
+		return 0, false, false
+	}
+	rest := line[atPos+2:]
+	end := strings.IndexByte(rest, 's')
+	if end <= 0 {
+		return 0, false, false
+	}
+	v, err := strconv.ParseFloat(rest[:end], 64)
+	if err != nil {
+		return 0, false, false
+	}
+	return v, strings.Contains(line, "(forced)"), true
+}
+
+func gcCyclesInWindow(marks []gcMark, start, end float64) int {
+	n := 0
+	for _, m := range marks {
+		if m.at >= start && m.at <= end {
+			n++
+		}
+	}
+	return n
+}
+
 func medianCell(server, route string, conns int, rows []cell) cell {
 	var rps []float64
 	var p50, p99, p999, cpu []float64
-	var rss, hwm []float64
+	var rss, hwm, gcs []float64
 	var errs, reqs int
 	for _, row := range rows {
 		rps = append(rps, row.RPS)
@@ -518,6 +672,7 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		cpu = append(cpu, row.CPUUS)
 		rss = append(rss, float64(row.RSSBytes))
 		hwm = append(hwm, float64(row.HWMBytes))
+		gcs = append(gcs, float64(row.GCCycles))
 		errs += row.Errors
 		reqs += row.Requests
 	}
@@ -526,6 +681,7 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		Route:    route,
 		Conns:    conns,
 		Agg:      "median",
+		GCCycles: int(medianFloat(gcs) + 0.5),
 		RPS:      medianFloat(rps),
 		P50US:    medianFloat(p50),
 		P99US:    medianFloat(p99),

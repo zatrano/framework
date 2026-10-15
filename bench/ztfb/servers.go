@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"time"
 
@@ -181,10 +182,27 @@ func startProfiles() func() {
 			}
 		}
 	}
+	var tr *os.File
+	if path := os.Getenv("ZTFB_TRACE"); path != "" {
+		f, err := os.Create(path)
+		if err == nil {
+			if err := trace.Start(f); err != nil {
+				_ = f.Close()
+			} else {
+				tr = f
+			}
+		}
+	}
 	return func() {
+		if tr != nil {
+			trace.Stop()
+			_ = tr.Close()
+			tr = nil
+		}
 		if cpu != nil {
 			pprof.StopCPUProfile()
 			_ = cpu.Close()
+			cpu = nil
 		}
 		writeProfile("ZTFB_ALLOC_PROFILE", "allocs")
 		writeProfile("ZTFB_HEAP_PROFILE", "heap")

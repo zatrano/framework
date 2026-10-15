@@ -131,7 +131,7 @@ jobs:
       fail-fast: false
       matrix:
         run: [1, 2, 3]
-        name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp]
+        name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp, go-plaintext-4096]
         include:
           - name: go-default
             client: go
@@ -139,24 +139,45 @@ jobs:
             codec: encodingjson
             pair: fiber
             routes: ""
+            conns: ""
+            measure: ""
+            gc_min: ""
           - name: wrk-default
             client: wrk
             config: default
             codec: encodingjson
             pair: fiber
             routes: ""
+            conns: ""
+            measure: ""
+            gc_min: ""
           - name: goccy-default
             client: go
             config: default
             codec: goccy
             pair: fiber
             routes: ""
+            conns: ""
+            measure: ""
+            gc_min: ""
           - name: rawhttp-fasthttp
             client: go
             config: default
             codec: encodingjson
             pair: rawhttp
             routes: "GET /plaintext"
+            conns: ""
+            measure: ""
+            gc_min: ""
+          - name: go-plaintext-4096
+            client: go
+            config: default
+            codec: encodingjson
+            pair: fiber
+            routes: "GET /plaintext"
+            conns: "4096"
+            measure: "180s"
+            gc_min: "3"
     defaults:
       run:
         working-directory: framework
@@ -207,6 +228,10 @@ jobs:
           CODEC: ${{ matrix.codec }}
           PAIR: ${{ matrix.pair }}
           ROUTES: ${{ matrix.routes }}
+          CONNS: ${{ matrix.conns }}
+          MEASURE: ${{ matrix.measure }}
+          GC_MIN: ${{ matrix.gc_min }}
+          ZTFB_GCTRACE: ${{ matrix.gc_min != '' && '1' || '' }}
           OUT: results/linux/${{ matrix.name }}-${{ matrix.run }}.jsonl
           GOTOOLCHAIN: go1.26.0
         run: bash run_linux.sh
@@ -223,7 +248,7 @@ jobs:
     name: linux p99 profile
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/zatrano-vs-fiber'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: framework

@@ -70,7 +70,7 @@ func requestBytes(rt routeSpec, host string) []byte {
 
 // session keeps one connection per worker. Warmup and the measured window
 // share that connection so the concurrency level is reached before timing starts.
-func session(addr string, req, want []byte, workers int, warmup, measure time.Duration, atMeasure func()) (loadResult, loadResult) {
+func session(addr string, req, want []byte, workers int, warmup, measure time.Duration, atMeasure func(), stop <-chan struct{}) (loadResult, loadResult) {
 	var warmReqs, warmErrs, measReqs, measErrs atomic.Int64
 	var mu sync.Mutex
 	var samples []int64
@@ -91,7 +91,7 @@ func session(addr string, req, want []byte, workers int, warmup, measure time.Du
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			local := sessionConn(addr, req, want, warmup, measure, slots, mark, &warmReqs, &warmErrs, &measReqs, &measErrs)
+			local := sessionConn(addr, req, want, warmup, measure, slots, mark, stop, &warmReqs, &warmErrs, &measReqs, &measErrs)
 			if len(local) > 0 {
 				mu.Lock()
 				samples = append(samples, local...)
@@ -113,14 +113,19 @@ func session(addr string, req, want []byte, workers int, warmup, measure time.Du
 		}
 }
 
-func sessionConn(addr string, req, want []byte, warmup, measure time.Duration, slots chan struct{}, mark func() time.Time, warmReqs, warmErrs, measReqs, measErrs *atomic.Int64) []int64 {
+func sessionConn(addr string, req, want []byte, warmup, measure time.Duration, slots chan struct{}, mark func() time.Time, stop <-chan struct{}, warmReqs, warmErrs, measReqs, measErrs *atomic.Int64) []int64 {
 	warmDeadline := time.Now().Add(warmup)
 	conn, br := dialRetry(addr, warmDeadline, slots)
 	if conn == nil {
 		warmErrs.Add(1)
 		return nil
 	}
-	defer func() { _ = conn.Close() }()
+	// The closure reads conn when it runs. A failed redial stores nil there.
+	defer func() {
+		if conn != nil {
+			_ = conn.Close()
+		}
+	}()
 	for time.Now().Before(warmDeadline) {
 		if !exchange(conn, br, req, want, warmDeadline, warmReqs, warmErrs, nil) {
 			_ = conn.Close()
@@ -133,6 +138,11 @@ func sessionConn(addr string, req, want []byte, warmup, measure time.Duration, s
 	deadline := mark().Add(measure)
 	var samples []int64
 	for time.Now().Before(deadline) {
+		select {
+		case <-stop:
+			return samples
+		default:
+		}
 		if !exchange(conn, br, req, want, deadline, measReqs, measErrs, &samples) {
 			if time.Now().After(deadline) {
 				return samples
