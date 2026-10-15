@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -91,8 +90,9 @@ func readWorkingSetClass(pid int) (wsClass, error) {
 	defer windows.CloseHandle(h)
 
 	buf := make([]uintptr, 1<<16)
+	word := int(reflect.TypeOf(buf[0]).Size())
 	for {
-		r, _, callErr := procQueryWorkingSet.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)*int(unsafe.Sizeof(buf[0]))))
+		r, _, callErr := procQueryWorkingSet.Call(uintptr(h), reflect.ValueOf(&buf[0]).Pointer(), uintptr(len(buf)*word))
 		if r != 0 {
 			break
 		}
@@ -119,7 +119,7 @@ func readWorkingSetClass(pid int) (wsClass, error) {
 		addr := e &^ (pageSize - 1)
 		shared := (e>>8)&1 == 1
 		if addr < region.BaseAddress || addr >= region.BaseAddress+region.RegionSize || region.State != memCommit {
-			r, _, callErr := procVirtualQueryEx.Call(uintptr(h), addr, uintptr(unsafe.Pointer(&region)), unsafe.Sizeof(region))
+			r, _, callErr := procVirtualQueryEx.Call(uintptr(h), addr, reflect.ValueOf(&region).Pointer(), reflect.TypeOf(region).Size())
 			if r == 0 {
 				return wsClass{}, fmt.Errorf("VirtualQueryEx %x: %w", addr, callErr)
 			}
