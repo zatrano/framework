@@ -36,7 +36,7 @@ func startMemSnap() {
 		}
 		defer conn.Close()
 		var cmd [1]byte
-		var out [16]byte
+		var out [32]byte
 		for {
 			_ = conn.SetReadDeadline(time.Now().Add(30 * time.Minute))
 			if _, err := io.ReadFull(conn, cmd[:]); err != nil {
@@ -44,9 +44,18 @@ func startMemSnap() {
 			}
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
-			binary.BigEndian.PutUint64(out[0:8], m.Mallocs)
-			binary.BigEndian.PutUint64(out[8:16], m.TotalAlloc)
-			if _, err := conn.Write(out[:]); err != nil {
+			n := 16
+			if cmd[0] == 2 {
+				binary.BigEndian.PutUint64(out[0:8], m.HeapInuse)
+				binary.BigEndian.PutUint64(out[8:16], m.StackInuse)
+				binary.BigEndian.PutUint64(out[16:24], m.GCSys)
+				binary.BigEndian.PutUint64(out[24:32], m.OtherSys)
+				n = 32
+			} else {
+				binary.BigEndian.PutUint64(out[0:8], m.Mallocs)
+				binary.BigEndian.PutUint64(out[8:16], m.TotalAlloc)
+			}
+			if _, err := conn.Write(out[:n]); err != nil {
 				return
 			}
 		}
@@ -67,4 +76,34 @@ func readMemSnap(conn net.Conn) (mallocs, totalAlloc uint64, err error) {
 		return 0, 0, err
 	}
 	return binary.BigEndian.Uint64(buf[0:8]), binary.BigEndian.Uint64(buf[8:16]), nil
+}
+
+// memClasses is the runtime.MemStats split used to attribute RSS.
+type memClasses struct {
+	HeapInuse  uint64
+	StackInuse uint64
+	GCSys      uint64
+	OtherSys   uint64
+}
+
+// readMemClasses asks for HeapInuse, StackInuse, GCSys, and OtherSys.
+// Command 1 stays the malloc snapshot.
+func readMemClasses(conn net.Conn) (memClasses, error) {
+	if conn == nil {
+		return memClasses{}, fmt.Errorf("memsnap: nil conn")
+	}
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	if _, err := conn.Write([]byte{2}); err != nil {
+		return memClasses{}, err
+	}
+	var buf [32]byte
+	if _, err := io.ReadFull(conn, buf[:]); err != nil {
+		return memClasses{}, err
+	}
+	return memClasses{
+		HeapInuse:  binary.BigEndian.Uint64(buf[0:8]),
+		StackInuse: binary.BigEndian.Uint64(buf[8:16]),
+		GCSys:      binary.BigEndian.Uint64(buf[16:24]),
+		OtherSys:   binary.BigEndian.Uint64(buf[24:32]),
+	}, nil
 }

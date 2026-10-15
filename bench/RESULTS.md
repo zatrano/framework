@@ -460,6 +460,28 @@ One sample on this host (Windows/amd64, Intel Core i5-6200U, `GOMAXPROCS=1`). Ea
 | rawhttp | 7.55 MiB | 8.82 MiB | 79.04 MiB | 17.87 |
 | fasthttp | 7.62 MiB | 9.22 MiB | 93.94 MiB | 21.58 |
 
-ZATRANO's idle gap against Fiber (tuned) is 272 KiB. It is the kernel: config, the logger, request-id and security-header middleware, trim, CORS, the empty public-file index, and the container. The bench registers no providers. The request pool is empty at 0 connections and retains objects after the first requests; that retention is the product default. None of this can be removed without dropping a feature. The 64-connection RSS cells are **tavan: sabit taban**.
+ZATRANO's idle gap against Fiber (tuned) is 272 KiB. **Sabit taban** is only this gap. It is the kernel: config, the logger, request-id and security-header middleware, trim, CORS, the empty public-file index, and the container. The bench registers no providers. The request pool is empty at 0 connections. None of this can be removed without dropping a feature.
+
+A second sample on the same host separates the high-water mark while the connections are held from the working set five seconds after they close. Private commit is `PagefileUsage`.
+
+| Server | 0 conn | 64 open | 64 HWM | 64 after 5s | 4096 open | 4096 HWM | 4096 after 5s |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ZATRANO | 8.21 MiB | 10.12 MiB | 10.12 MiB | 55.5 MiB | 127.9 MiB | 127.9 MiB | 127.0 MiB |
+| Fiber (tuned) | 7.80 MiB | 10.44 MiB | 10.45 MiB | 10.48 MiB | 120.8 MiB | 120.8 MiB | 120.5 MiB |
+| rawhttp | 7.61 MiB | 9.32 MiB | 9.32 MiB | 9.33 MiB | 79.8 MiB | 79.8 MiB | 78.8 MiB |
+| fasthttp | 7.63 MiB | 9.63 MiB | 9.64 MiB | 9.66 MiB | 93.9 MiB | 93.9 MiB | 93.6 MiB |
+
+While 64 connections are open, ZATRANO and fasthttp both show about 48 MiB of private commit and about 10 MiB of working set. Five seconds after the close, ZATRANO's working set rises to that commit and the others stay near the high-water mark. `runtime.MemStats` at that moment is about 8 MiB of `Sys`, so the rise is pages of the Go arena being touched, not a second copy of the handler state.
+
+`runtime.MemStats` from 0 to 64 connections, per connection:
+
+| Server | HeapInuse | StackInuse | GCSys | OtherSys |
+|---|---:|---:|---:|---:|
+| ZATRANO | 9.3 KB | 8.0 KB | 1.3 KB | −1.8 KB |
+| Fiber (tuned) | 21.0 KB | 16.0 KB | 1.4 KB | 2.1 KB |
+
+ZATRANO is not 18 KB ahead in any of these fields. The stack is one goroutine stack. The heap includes the connection read buffer. There is nothing in this split to delete without removing the connection. The earlier ~18 KB working-set gap at 64 connections does not show up in these counters, and a later working-set sample has Fiber (tuned) ahead. It is not called a ceiling.
+
+The Linux 64-connection RSS gap is not classified yet. Run `38752314433` (`6e96194`) was still in progress when this was written. That run's `hwm_bytes` is the high-water mark and `rss_bytes` is the working set at the end of the window. The 5 second settle above is this host only.
 
 The next matrix is the fixed 60 second plaintext window, the race fix, and rawhttp `v0.2.9`. Binding column remains Fiber (tuned). Classes from that run are reported when the three runs finish. The failed plaintext jobs are not a class.

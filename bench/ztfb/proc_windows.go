@@ -50,9 +50,10 @@ func readProc(pid int) (procSample, error) {
 		return procSample{}, fmt.Errorf("GetProcessMemoryInfo: %w", callErr)
 	}
 	return procSample{
-		CPU: cpu,
-		RSS: uint64(mem.WorkingSetSize),
-		HWM: uint64(mem.PeakWorkingSetSize),
+		CPU:     cpu,
+		RSS:     uint64(mem.WorkingSetSize),
+		HWM:     uint64(mem.PeakWorkingSetSize),
+		Private: uint64(mem.PagefileUsage),
 	}, nil
 }
 

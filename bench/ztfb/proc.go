@@ -3,9 +3,10 @@ package main
 import "time"
 
 type procSample struct {
-	CPU time.Duration
-	RSS uint64
-	HWM uint64
+	CPU     time.Duration
+	RSS     uint64
+	HWM     uint64
+	Private uint64
 }
 
 func cpuMicrosPerReq(before, after procSample, requests int) float64 {

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-The module requires rawhttp v0.2.8. There is no `replace` for it. A generated request id is stored as 32 hex bytes and written with `SetHeaderBytes`. `Get("request_id")` still returns the id string. A valid incoming `X-Request-ID` is still reflected as sent.
+The module requires rawhttp v0.2.9. There is no `replace` for it. A still-valid rawhttp read or write deadline is not refreshed. The effective timeout is `[d − granule, d]`, granule = min(d/8, 1s). A generated request id is stored as 32 hex bytes and written with `SetHeaderBytes`. `Get("request_id")` still returns the id string. A valid incoming `X-Request-ID` is still reflected as sent.
 
 `Request.BindJSON` decodes JSON from the connection buffer and does not copy it. The decode finishes before `BindJSON` returns. A value produced by `encoding/json` does not alias that buffer. A type that implements `UnmarshalJSON` must not retain the input slice. `Request.Body` and `Request.JSON` are unchanged and still return an owned copy.
 

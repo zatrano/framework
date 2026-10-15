@@ -14,9 +14,11 @@ import (
 	"time"
 )
 
-// TestRSSSlope records RSS with no connections, then with 64 and 4096
-// keep-alive connections held open, and the KB/connection slope from 0 to 4096.
-// It is not part of the matrix. Run with ZTFB_RSS=1.
+// TestRSSSlope records, for each server, RSS with no connections, the
+// high-water mark while 64 and 4096 connections are held, and RSS five
+// seconds after those connections close. ZATRANO and Fiber (tuned) also
+// report the MemStats delta from 0 to 64 connections. It is not part of
+// the matrix. Run with ZTFB_RSS=1.
 func TestRSSSlope(t *testing.T) {
 	if os.Getenv("ZTFB_RSS") != "1" {
 		t.Skip("set ZTFB_RSS=1 to measure idle and open-connection RSS")
@@ -28,14 +30,35 @@ func TestRSSSlope(t *testing.T) {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
 	for _, server := range []string{"zatrano", "fiber-tuned", "rawhttp", "fasthttp"} {
-		idle, at64, at4096 := rssPoints(t, exe, server)
-		slope := float64(at4096-idle) / 4096 / 1024
-		fmt.Printf("rss %s idle=%d b64=%d b4096=%d slope_kb=%.3f\n", server, idle, at64, at4096, slope)
+		row := rssPoints(t, exe, server)
+		fmt.Printf("rss %s idle=%d open64=%d hwm64=%d priv64=%d rss64_after5s=%d priv64_after=%d open4096=%d hwm4096=%d rss4096_after5s=%d\n",
+			server, row.idle, row.rssOpen64, row.hwm64, row.privOpen64, row.rss64, row.priv64, row.rssOpen4096, row.hwm4096, row.rss4096)
+		if row.memOK {
+			d := row.mem64
+			z := row.mem0
+			fmt.Printf("mem %s heap=%d stack=%d gcsys=%d othersys=%d\n",
+				server,
+				int64(d.HeapInuse-z.HeapInuse),
+				int64(d.StackInuse-z.StackInuse),
+				int64(d.GCSys-z.GCSys),
+				int64(d.OtherSys-z.OtherSys))
+		}
 	}
 }
 
-func rssPoints(t *testing.T, exe, server string) (idle, at64, at4096 uint64) {
+type rssRow struct {
+	idle, hwm64, rssOpen64, privOpen64, rss64, priv64, hwm4096, rssOpen4096, rss4096 uint64
+	mem0, mem64                                                                      memClasses
+	memOK                                                                            bool
+}
+
+func rssPoints(t *testing.T, exe, server string) rssRow {
 	t.Helper()
+	snapLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer snapLn.Close()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +67,7 @@ func rssPoints(t *testing.T, exe, server string) (idle, at64, at4096 uint64) {
 	_ = ln.Close()
 
 	cmd := exec.Command(exe, "serve", server, addr)
-	cmd.Env = rssChildEnv()
+	cmd.Env = append(rssChildEnv(), "ZTFB_MEMSNAP="+snapLn.Addr().String())
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
@@ -56,32 +79,68 @@ func rssPoints(t *testing.T, exe, server string) (idle, at64, at4096 uint64) {
 			_, _ = cmd.Process.Wait()
 		}
 	}()
+	if tcp, ok := snapLn.(*net.TCPListener); ok {
+		_ = tcp.SetDeadline(time.Now().Add(15 * time.Second))
+	}
+	snapConn, err := snapLn.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer snapConn.Close()
 	if err := waitReady(addr, 20*time.Second); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(200 * time.Millisecond)
+	var row rssRow
 	sample, err := readProc(cmd.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	idle = sample.RSS
+	row.idle = sample.RSS
+	if classes, err := readMemClasses(snapConn); err == nil {
+		row.mem0 = classes
+		row.memOK = true
+	}
+
 	hold := openKeepAlive(t, addr, 64)
 	time.Sleep(200 * time.Millisecond)
 	sample, err = readProc(cmd.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	at64 = sample.RSS
+	row.hwm64 = sample.HWM
+	row.rssOpen64 = sample.RSS
+	row.privOpen64 = sample.Private
+	if row.memOK {
+		if classes, err := readMemClasses(snapConn); err == nil {
+			row.mem64 = classes
+		}
+	}
 	closeAll(hold)
+	time.Sleep(5 * time.Second)
+	sample, err = readProc(cmd.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.rss64 = sample.RSS
+	row.priv64 = sample.Private
+
 	hold = openKeepAlive(t, addr, 4096)
 	time.Sleep(300 * time.Millisecond)
 	sample, err = readProc(cmd.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	at4096 = sample.RSS
+	row.hwm4096 = sample.HWM
+	row.rssOpen4096 = sample.RSS
 	closeAll(hold)
-	return idle, at64, at4096
+	time.Sleep(5 * time.Second)
+	sample, err = readProc(cmd.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.rss4096 = sample.RSS
+	return row
 }
 
 func rssChildEnv() []string {
@@ -89,6 +148,7 @@ func rssChildEnv() []string {
 		"ZTFB_PROFILE_SECONDS": true,
 		"ZTFB_ALLOC_PROFILE":   true,
 		"ZTFB_RSS":             true,
+		"ZTFB_MEMSNAP":         true,
 		"APP_ENV":              true,
 		"HTTP_POOL_REQUESTS":   true,
 	}
