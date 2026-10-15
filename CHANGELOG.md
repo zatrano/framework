@@ -10,7 +10,8 @@ All notable changes to ZATRANO are documented in this file.
 - **Breaking:** a route parameter aliases the carrier path and is valid only until the handler returns. `BenchmarkRouteParam` is 0 allocs. `Path()` stays an owned copy.
 - **Breaking:** `Request` and `Text`/`JSON` `Response` pooling is on unless `HTTP_POOL_REQUESTS=false`. Do not retain those pointers after the handler returns. With `APP_DEBUG=true`, a call after release panics and includes the request generation. A one-key `map[string]string` JSON body is encoded without reflection and still matches `encoding/json`, including `<`, `>`, and `&`.
 - `SetJSONCodec` replaces `encoding/json` for `JSON`, `Request.JSON`, and `BindJSON`. The default is `encoding/json`. `JSONP` stays on `encoding/json`.
-- Require rawhttp v1.0.0. The module has no `replace`. A generated request id is 32 hex bytes on the pooled request and response. `Get("request_id")` still returns that id as a string. An incoming `X-Request-ID` or `X-Correlation-ID` that passes the existing check is copied through unchanged.
+- Require rawhttp v1.0.1. The module has no `replace`. A generated request id is 32 hex bytes on the pooled request and response. `Get("request_id")` still returns that id as a string. An incoming `X-Request-ID` or `X-Correlation-ID` that passes the existing check is copied through unchanged.
+- On a shared 4-vCPU runner, three runs, Fiber v3.6.0 (tuned), `encoding/json`, request pool on: the default Go client and wrk each hold all 16 cells as stable `ustun` and gate `hedef`.
 
 ## 3.1.7 - 2026-10-13
 

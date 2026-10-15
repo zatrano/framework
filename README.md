@@ -51,7 +51,7 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 | --- | --- |
 | Current module tag | `v3.1.7` |
 | Release branch | `3.x` |
-| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v0.2.6`. This tag requires `v0.2.6`. Tag `v3.1.3` required `v0.2.5`. |
+| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.1`, wired at `framework/v3/core/ssr` |
 | Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.1` |
 
@@ -66,6 +66,8 @@ Version lines stay on their own branches:
 | `1.x` | V1. Tag `v1.6.6` |
 
 Create applications with `zatrano new`. Do not clone this repository and treat it as your application.
+
+On a shared 4-vCPU runner, three runs, Fiber v3.6.0 (tuned), `encoding/json`, request pool on: the default Go client and wrk each hold all 16 cells as stable `ustun` and gate `hedef` (throughput interval above 1, paired ratio at least 1.05, p99 and CPU/request below 1, high-water RSS at most 1.10). The binding opponent is Fiber (tuned).
 
 ## What is ZATRANO?
 
