@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/zatrano/canvas v0.2.1
-	github.com/zatrano/rawhttp v0.2.9
+	github.com/zatrano/rawhttp v1.0.0
 )
 
 // Use v3.1.0 or later. v3.0.0 was published with local replace directives, so
