@@ -309,23 +309,80 @@ ZATRANO: 3 cycles, mark 55 ms, STW 0.385 ms. Fiber: 1 cycle, mark 26 ms, STW 0.1
 
 One keep-alive connection, `net.Pipe`, 64 warmup requests, then `testing.B -benchmem` and `runtime.MemStats` over 2000 requests. `GOMAXPROCS=1`. Same handlers as the Fiber pair: plaintext, one-key JSON, `/users/{id}`, and echo. Both servers send a request id and the four security headers. ZATRANO is the production `Handle` path with an empty `public/` index. The framework row excludes the handler's `map[string]string` literal (the map is hoisted). Echo has no handler literal, so its framework row is the whole handler. Bytes are `B/op`.
 
-| Route | ZATRANO alloc | ZATRANO bytes | Fiber alloc | Fiber bytes |
-|---|---:|---:|---:|---:|
-| `GET /plaintext` | 0 | 0 | 8 | 432 |
-| `GET /json` | 3 | 368 | 14 | 880 |
-| `GET /users/{id}` | 3 | 352 | 14 | 864 |
-| `POST /echo` | 11 | 672 | 22 | 1112 |
+The JSON and users literals are 2 allocs and 336 bytes on both servers. ZATRANO's remaining JSON byte is the encoded body. The users body is 16 bytes. Echo's 11 allocs are `BindJSON` plus the encoded object.
+
+`Fiber (tuned)` is the same routes with `recover` and the same four `c.Set` security headers. The request id is not the `requestid` middleware: 16 random bytes are hex-encoded into a pooled `[32]byte` and written with `SetBytesV`, and `Locals` is not used. A valid `X-Request-ID`, `X-Correlation-ID`, or traceparent is reflected; an invalid one is replaced. `TestFiberTunedResponseBytesMatchZatrano` compares the status line, every header line, and the body with ZATRANO. fasthttp writes `Date`, `Content-Type`, and `Content-Length` before the application headers, so the raw frame order differs; the header lines and the body are the same bytes. On this one-connection bench the plaintext column still includes 6 allocations from `net.Pipe` deadlines in the same process. Those are not Fiber.
+
+| Route | ZATRANO alloc | ZATRANO bytes | Fiber (resmi) alloc | Fiber (resmi) bytes | Fiber (tuned) alloc | Fiber (tuned) bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 8 | 432 | 6 | 384 |
+| `GET /json` | 3 | 368 | 14 | 880 | 13 | 848 |
+| `GET /users/{id}` | 3 | 352 | 14 | 864 | 13 | 832 |
+| `POST /echo` | 11 | 672 | 22 | 1112 | 21 | 1080 |
 
 Framework, handler literal excluded:
 
-| Route | ZATRANO alloc | ZATRANO bytes | Fiber alloc | Fiber bytes |
-|---|---:|---:|---:|---:|
-| `GET /plaintext` | 0 | 0 | 8 | 432 |
-| `GET /json` | 1 | 32 | 12 | 544 |
-| `GET /users/{id}` | 1 | 16 | 12 | 528 |
-| `POST /echo` | 11 | 672 | 22 | 1112 |
+| Route | ZATRANO alloc | ZATRANO bytes | Fiber (resmi) alloc | Fiber (resmi) bytes | Fiber (tuned) alloc | Fiber (tuned) bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 8 | 432 | 6 | 384 |
+| `GET /json` | 1 | 32 | 12 | 544 | 11 | 512 |
+| `GET /users/{id}` | 1 | 16 | 12 | 528 | 11 | 496 |
+| `POST /echo` | 11 | 672 | 22 | 1112 | 21 | 1080 |
 
-The JSON and users literals are 2 allocs and 336 bytes on both servers. ZATRANO's remaining JSON byte is the encoded body. The users body is 16 bytes. Echo's 11 allocs are `BindJSON` plus the encoded object.
+Official plaintext `alloc_objects`, 2000 requests after 64 warmup, `MemProfileRate=1`, profile published by two GCs (`TestFiberPlaintextAllocObjects`). Eight mallocs per request:
+
+| Allocs/request | Function | Source |
+|---:|---|---|
+| 3 | `time.newTimer` via `net.(*pipeDeadline).set` | bench client, `net.Pipe` deadlines |
+| 3 | `net.(*pipeDeadline).set` | bench client, `net.Pipe` deadlines |
+| 1 | `encoding/hex.EncodeToString` | harness generator |
+| 1 | `requestid.New.func1` → `fiber.StoreInContext` | harness `Locals` |
+
+`c.Set` of the four security headers and `recover` do not allocate on this path. Fiber core is not in the eight. The tuned server drops the generator and `StoreInContext`, which is the 8→6 change above.
+
+The comparison that decides the alloc result is the server process, not this bench. In the 4096-connection window the parent reads the child `runtime.MemStats` (`Mallocs`, `TotalAlloc`) at the start and end of the measured interval and divides by completed requests. One window on this host, Intel Core i5-6200U, `GOMAXPROCS=1`, plaintext, encoding/json, 1 s warmup, 3 s measured. Not a Linux class.
+
+| Server | Requests | alloc/request | bytes/request |
+|---|---:|---:|---:|
+| ZATRANO | 67710 | 1.114 | 41.1 |
+| Fiber (resmi middleware) | 60182 | 2.190 | 116.3 |
+| Fiber (tuned) | 82662 | 0.128 | 47.4 |
+
+The fiber pair now runs three servers. `zatrano/fiber-tuned` is the binding paired row. `zatrano/fiber` stays the official-middleware column. `cellVerdict` is unchanged; on the tuned row `fiber` means the tuned server won. Run `38702939949` (`9abed55`) and run `38712986781` (`9c63264`) do not contain the tuned column.
+
+Run `38702939949`, matrix jobs finished, strace still running. Stable class is two of three runs. The gate is `hedef` only when `ci_low > 1`, ratio ≥ 1.05, p99 < 1, CPU/request < 1, and RSS ≤ 1.10. These classes are against Fiber (resmi middleware).
+
+go-default: 15 harness `ustun` and gate `hedef`. `GET /plaintext` 4096 is harness `esik-yok`, gate p99 (ratios 1.089 / 1.126 / 1.091, p99 1.035 / 0.894 / 1.034). That cell is the 5 second window, not the fair window above.
+
+wrk-default: 16 harness `ustun` and 16 gate `hedef`.
+
+goccy-default, harness then gate:
+
+| Cell | Harness | Gate |
+|---|---|---|
+| GET /json 64 | ustun | hedef |
+| GET /json 256 | esik-yok | kararsız |
+| GET /json 1024 | esik-yok | p99 |
+| GET /json 4096 | ustun | rps |
+| GET /plaintext 64, 256, 1024, 4096 | ustun | hedef |
+| GET /users/{id} 64 | ustun | rps |
+| GET /users/{id} 256 | kararsız | rps+p99 |
+| GET /users/{id} 1024 | esik-yok | p99 |
+| GET /users/{id} 4096 | ustun | rps |
+| POST /echo 64, 256, 1024, 4096 | fiber | rps+p99+cpu |
+
+The goccy echo cells and goccy `GET /users/{id}` 256 stay closed by the ceiling table below.
+
+rawhttp/fasthttp, median of the three paired ratios. A harness `fiber` would mean fasthttp won. None of the stable classes are that.
+
+| Conns | Harness | Gate | rps | p99 | RSS |
+|---:|---|---|---:|---:|---:|
+| 64 | kararsız | rps+rss | 1.008 | 0.984 | 1.214 |
+| 256 | kararsız | kararsız | 1.019 | 1.051 | 1.059 |
+| 1024 | ustun | kararsız | 1.075 | 0.936 | 1.060 |
+| 4096 | ustun | hedef | 1.112 | 0.907 | 0.896 |
+
+Run `38712986781` is still in progress (`go-default`, `wrk-default`, `goccy-default`, `go-plaintext-4096` run 1, strace). Its three-run class is not reported. It also has no tuned column.
 
 Old plaintext 4096, three runs, 5 second window, encoding/json, harness verdict then the 1.05 gate:
 

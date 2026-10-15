@@ -15,34 +15,36 @@ import (
 )
 
 type cell struct {
-	Server     string   `json:"server"`
-	Route      string   `json:"route"`
-	Conns      int      `json:"conns"`
-	Round      int      `json:"round"`
-	Agg        string   `json:"agg,omitempty"`
-	RPS        float64  `json:"rps"`
-	P50US      float64  `json:"p50_us"`
-	P99US      float64  `json:"p99_us"`
-	P999US     float64  `json:"p999_us"`
-	CPUUS      float64  `json:"cpu_us_per_req"`
-	RSSBytes   uint64   `json:"rss_bytes"`
-	HWMBytes   uint64   `json:"hwm_bytes"`
-	Errors     int      `json:"errors"`
-	Requests   int      `json:"requests"`
-	ElapsedS   float64  `json:"elapsed_s"`
-	GCCycles   int      `json:"gc_cycles,omitempty"`
-	RSSSamples []uint64 `json:"rss_samples,omitempty"`
-	Config     string   `json:"config,omitempty"`
-	Client     string   `json:"client,omitempty"`
-	Codec      string   `json:"codec,omitempty"`
-	Ratio      float64  `json:"ratio,omitempty"`
-	CILow      float64  `json:"ci_low,omitempty"`
-	CIHigh     float64  `json:"ci_high,omitempty"`
-	P50Ratio   float64  `json:"p50_ratio,omitempty"`
-	P99Ratio   float64  `json:"p99_ratio,omitempty"`
-	CPURatio   float64  `json:"cpu_ratio,omitempty"`
-	RSSRatio   float64  `json:"rss_ratio,omitempty"`
-	Verdict    string   `json:"verdict,omitempty"`
+	Server       string   `json:"server"`
+	Route        string   `json:"route"`
+	Conns        int      `json:"conns"`
+	Round        int      `json:"round"`
+	Agg          string   `json:"agg,omitempty"`
+	RPS          float64  `json:"rps"`
+	P50US        float64  `json:"p50_us"`
+	P99US        float64  `json:"p99_us"`
+	P999US       float64  `json:"p999_us"`
+	CPUUS        float64  `json:"cpu_us_per_req"`
+	RSSBytes     uint64   `json:"rss_bytes"`
+	HWMBytes     uint64   `json:"hwm_bytes"`
+	Errors       int      `json:"errors"`
+	Requests     int      `json:"requests"`
+	ElapsedS     float64  `json:"elapsed_s"`
+	GCCycles     int      `json:"gc_cycles,omitempty"`
+	RSSSamples   []uint64 `json:"rss_samples,omitempty"`
+	Config       string   `json:"config,omitempty"`
+	Client       string   `json:"client,omitempty"`
+	Codec        string   `json:"codec,omitempty"`
+	Ratio        float64  `json:"ratio,omitempty"`
+	CILow        float64  `json:"ci_low,omitempty"`
+	CIHigh       float64  `json:"ci_high,omitempty"`
+	P50Ratio     float64  `json:"p50_ratio,omitempty"`
+	P99Ratio     float64  `json:"p99_ratio,omitempty"`
+	CPURatio     float64  `json:"cpu_ratio,omitempty"`
+	RSSRatio     float64  `json:"rss_ratio,omitempty"`
+	Verdict      string   `json:"verdict,omitempty"`
+	AllocsPerReq *float64 `json:"allocs_per_req,omitempty"`
+	BytesPerReq  *float64 `json:"bytes_per_req,omitempty"`
 }
 
 type matrixOpts struct {
@@ -75,8 +77,8 @@ func cmdRun(args []string) error {
 	client := fs.String("client", "go", "load generator: go or wrk")
 	config := fs.String("config", "default", "label recorded on every row; pooled sets HTTP_POOL_REQUESTS=true")
 	codec := fs.String("codec", "encodingjson", "encodingjson or goccy; both servers use it")
-	pair := fs.String("pair", "fiber", "fiber compares zatrano with fiber; rawhttp compares rawhttp with fasthttp")
-	gcMin := fs.Int("gc-min", 0, "before scoring, set one window long enough for this many GC cycles on both servers; 0 keeps -measure")
+	pair := fs.String("pair", "fiber", "fiber compares zatrano with fiber and fiber-tuned; rawhttp compares rawhttp with fasthttp")
+	gcMin := fs.Int("gc-min", 0, "before scoring, set one window long enough for this many GC cycles on every server in the pair; 0 keeps -measure")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -248,26 +250,20 @@ func runMatrix(opt matrixOpts) error {
 			if rounds <= 0 {
 				rounds = defaultRounds
 			}
-			left, right := "zatrano", "fiber"
-			if opt.pair == "rawhttp" {
-				left, right = "rawhttp", "fasthttp"
-			}
+			order := pairOrder(opt.pair)
+			left := order[0]
 			measure := opt.measure
 			if opt.gcMin > 0 {
 				var err error
-				measure, err = calibrateWindow(exe, opt.addr, rt, req, conns, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.client, opt.config, opt.codec, left, right, opt.gcMin)
+				measure, err = calibrateWindow(exe, opt.addr, rt, req, conns, opt.warmup, opt.measure, serverMask, opt.affinity == "split", serverProcs, opt.client, opt.config, opt.codec, order, opt.gcMin)
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(os.Stderr, "gc window %s for %s c=%d (both servers, %d cycles)\n", measure, rt.Name, conns, opt.gcMin)
+				fmt.Fprintf(os.Stderr, "gc window %s for %s c=%d (every server, %d cycles)\n", measure, rt.Name, conns, opt.gcMin)
 			}
 			byServer := map[string][]cell{}
 			for round := 1; round <= rounds; round++ {
-				order := []string{left, right}
-				if round%2 == 0 {
-					order = []string{right, left}
-				}
-				for _, server := range order {
+				for _, server := range rotate(order, round) {
 					row, err := oneRound(exe, server, opt.addr, rt, req, conns, round, opt.warmup, measure, serverMask, opt.affinity == "split", serverProcs, opt.soak, opt.client, opt.config, opt.codec, 0)
 					if err != nil {
 						return fmt.Errorf("%s %s c=%d round %d: %w", server, rt.Name, conns, round, err)
@@ -277,7 +273,7 @@ func runMatrix(opt matrixOpts) error {
 				}
 			}
 			medians := map[string]cell{}
-			for _, server := range []string{left, right} {
+			for _, server := range order {
 				med := medianCell(server, rt.Name, conns, byServer[server])
 				med.Config = opt.config
 				med.Client = opt.client
@@ -286,11 +282,21 @@ func runMatrix(opt matrixOpts) error {
 				medians[server] = med
 			}
 			if !opt.soak {
-				paired, err := pairedCell(left+"/"+right, rt.Name, conns, opt.config, opt.client, byServer[left], byServer[right], medians[left], medians[right])
+				// The last name is the binding opponent. For the fiber pair
+				// that is fiber-tuned. fiber stays a second paired row.
+				binding := order[len(order)-1]
+				paired, err := pairedCell(left+"/"+binding, rt.Name, conns, opt.config, opt.client, byServer[left], byServer[binding], medians[left], medians[binding])
 				if err != nil {
 					return err
 				}
 				write(paired)
+				for _, extra := range order[1 : len(order)-1] {
+					paired, err = pairedCell(left+"/"+extra, rt.Name, conns, opt.config, opt.client, byServer[left], byServer[extra], medians[left], medians[extra])
+					if err != nil {
+						return err
+					}
+					write(paired)
+				}
 			}
 			if opt.soak {
 				if err := checkSoakFlat(byServer); err != nil {
@@ -305,6 +311,12 @@ func runMatrix(opt matrixOpts) error {
 func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round int, warmup, measure time.Duration, serverMask uintptr, pin bool, serverProcs string, soak bool, client, config, codec string, gcStop int) (cell, error) {
 	cmd := startServer(exe, server, addr, serverMask)
 	cmd.Env = serverEnv(serverProcs, config, codec)
+	snapLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return cell{}, err
+	}
+	defer snapLn.Close()
+	cmd.Env = append(cmd.Env, "ZTFB_MEMSNAP="+snapLn.Addr().String())
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -340,6 +352,14 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	if pin {
 		_ = setAffinity(cmd.Process.Pid, serverMask)
 	}
+	if tcp, ok := snapLn.(*net.TCPListener); ok {
+		_ = tcp.SetDeadline(time.Now().Add(15 * time.Second))
+	}
+	snapConn, err := snapLn.Accept()
+	if err != nil {
+		return cell{}, fmt.Errorf("memsnap: %w", err)
+	}
+	defer snapConn.Close()
 	if err := waitReady(addr, 20*time.Second); err != nil {
 		return cell{}, err
 	}
@@ -382,6 +402,13 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		}()
 	}
 	var warm, measured loadResult
+	var snapMallocs, snapTotal uint64
+	var snapErr error
+	snapped := false
+	takeSnap := func() {
+		snapMallocs, snapTotal, snapErr = readMemSnap(snapConn)
+		snapped = true
+	}
 	if client == "wrk" {
 		var err error
 		warm, err = runWrk(addr, rt, conns, warmup)
@@ -389,6 +416,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 			return cell{}, err
 		}
 		before, beforeErr = readProc(cmd.Process.Pid)
+		takeSnap()
 		winMu.Lock()
 		winStart = time.Now()
 		winMu.Unlock()
@@ -406,6 +434,7 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 			winStart = time.Now()
 			winMu.Unlock()
 			before, beforeErr = readProc(cmd.Process.Pid)
+			takeSnap()
 			if !soak || cmd.Process == nil {
 				return
 			}
@@ -450,6 +479,23 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 	if beforeErr != nil {
 		return cell{}, beforeErr
 	}
+	if snapErr != nil {
+		return cell{}, snapErr
+	}
+	if measured.Requests > 0 && !snapped {
+		return cell{}, fmt.Errorf("memsnap: measured window started without a snapshot")
+	}
+	endMallocs, endTotal, err := readMemSnap(snapConn)
+	if err != nil {
+		return cell{}, err
+	}
+	var allocsPerReq, bytesPerReq *float64
+	if measured.Requests > 0 && endMallocs >= snapMallocs && endTotal >= snapTotal {
+		a := float64(endMallocs-snapMallocs) / float64(measured.Requests)
+		b := float64(endTotal-snapTotal) / float64(measured.Requests)
+		allocsPerReq = &a
+		bytesPerReq = &b
+	}
 	after, err := readProc(cmd.Process.Pid)
 	if err != nil {
 		return cell{}, err
@@ -477,25 +523,27 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		fmt.Fprintf(os.Stderr, "gc-window %s %s c=%d round %d cycles=%d elapsed=%.1fs\n", server, rt.Name, conns, round, cycles, measured.Elapsed.Seconds())
 	}
 	return cell{
-		Server:     server,
-		Route:      rt.Name,
-		Conns:      conns,
-		Round:      round,
-		Config:     config,
-		Client:     client,
-		Codec:      codec,
-		GCCycles:   cycles,
-		RPS:        measured.RPS(),
-		P50US:      float64(p50.Microseconds()),
-		P99US:      float64(p99.Microseconds()),
-		P999US:     float64(p999.Microseconds()),
-		CPUUS:      cpuMicrosPerReq(before, after, measured.Requests),
-		RSSBytes:   after.RSS,
-		HWMBytes:   after.HWM,
-		Errors:     measured.Errors,
-		Requests:   measured.Requests,
-		ElapsedS:   measured.Elapsed.Seconds(),
-		RSSSamples: copied,
+		Server:       server,
+		Route:        rt.Name,
+		Conns:        conns,
+		Round:        round,
+		Config:       config,
+		Client:       client,
+		Codec:        codec,
+		GCCycles:     cycles,
+		RPS:          measured.RPS(),
+		P50US:        float64(p50.Microseconds()),
+		P99US:        float64(p99.Microseconds()),
+		P999US:       float64(p999.Microseconds()),
+		CPUUS:        cpuMicrosPerReq(before, after, measured.Requests),
+		RSSBytes:     after.RSS,
+		HWMBytes:     after.HWM,
+		Errors:       measured.Errors,
+		Requests:     measured.Requests,
+		ElapsedS:     measured.Elapsed.Seconds(),
+		RSSSamples:   copied,
+		AllocsPerReq: allocsPerReq,
+		BytesPerReq:  bytesPerReq,
 	}, nil
 }
 
@@ -603,12 +651,12 @@ type gcMark struct {
 	forced bool
 }
 
-func calibrateWindow(exe, addr string, rt routeSpec, req []byte, conns int, warmup, cap time.Duration, serverMask uintptr, pin bool, serverProcs, client, config, codec, left, right string, gcMin int) (time.Duration, error) {
+func calibrateWindow(exe, addr string, rt routeSpec, req []byte, conns int, warmup, cap time.Duration, serverMask uintptr, pin bool, serverProcs, client, config, codec string, servers []string, gcMin int) (time.Duration, error) {
 	if cap < 5*time.Second {
 		cap = 180 * time.Second
 	}
 	var longest time.Duration
-	for _, server := range []string{left, right} {
+	for _, server := range servers {
 		row, err := oneRound(exe, server, addr, rt, req, conns, 0, warmup, cap, serverMask, pin, serverProcs, false, client, config, codec, gcMin)
 		if err != nil {
 			return 0, err
@@ -662,7 +710,7 @@ func gcCyclesInWindow(marks []gcMark, start, end float64) int {
 func medianCell(server, route string, conns int, rows []cell) cell {
 	var rps []float64
 	var p50, p99, p999, cpu []float64
-	var rss, hwm, gcs []float64
+	var rss, hwm, gcs, allocs, bytesPer []float64
 	var errs, reqs int
 	for _, row := range rows {
 		rps = append(rps, row.RPS)
@@ -673,25 +721,63 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		rss = append(rss, float64(row.RSSBytes))
 		hwm = append(hwm, float64(row.HWMBytes))
 		gcs = append(gcs, float64(row.GCCycles))
+		if row.AllocsPerReq != nil {
+			allocs = append(allocs, *row.AllocsPerReq)
+		}
+		if row.BytesPerReq != nil {
+			bytesPer = append(bytesPer, *row.BytesPerReq)
+		}
 		errs += row.Errors
 		reqs += row.Requests
 	}
 	return cell{
-		Server:   server,
-		Route:    route,
-		Conns:    conns,
-		Agg:      "median",
-		GCCycles: int(medianFloat(gcs) + 0.5),
-		RPS:      medianFloat(rps),
-		P50US:    medianFloat(p50),
-		P99US:    medianFloat(p99),
-		P999US:   medianFloat(p999),
-		CPUUS:    medianFloat(cpu),
-		RSSBytes: uint64(medianFloat(rss)),
-		HWMBytes: uint64(medianFloat(hwm)),
-		Errors:   errs,
-		Requests: reqs,
+		Server:       server,
+		Route:        route,
+		Conns:        conns,
+		Agg:          "median",
+		GCCycles:     int(medianFloat(gcs) + 0.5),
+		RPS:          medianFloat(rps),
+		P50US:        medianFloat(p50),
+		P99US:        medianFloat(p99),
+		P999US:       medianFloat(p999),
+		CPUUS:        medianFloat(cpu),
+		RSSBytes:     uint64(medianFloat(rss)),
+		HWMBytes:     uint64(medianFloat(hwm)),
+		Errors:       errs,
+		Requests:     reqs,
+		AllocsPerReq: medianPtr(allocs),
+		BytesPerReq:  medianPtr(bytesPer),
 	}
+}
+
+func pairOrder(pair string) []string {
+	if pair == "rawhttp" {
+		return []string{"rawhttp", "fasthttp"}
+	}
+	return []string{"zatrano", "fiber", "fiber-tuned"}
+}
+
+func rotate(servers []string, round int) []string {
+	if len(servers) == 0 {
+		return nil
+	}
+	k := (round - 1) % len(servers)
+	if k < 0 {
+		k = 0
+	}
+	out := make([]string, len(servers))
+	for i := range servers {
+		out[i] = servers[(i+k)%len(servers)]
+	}
+	return out
+}
+
+func medianPtr(xs []float64) *float64 {
+	if len(xs) == 0 {
+		return nil
+	}
+	v := medianFloat(xs)
+	return &v
 }
 
 func checkSoakFlat(byServer map[string][]cell) error {

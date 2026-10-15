@@ -40,6 +40,39 @@ func BenchmarkFiberUsersFramework(b *testing.B) {
 	fiberBench(b, "GET /users/42 HTTP/1.1\r\nHost: localhost\r\n\r\n", fiberRoutesFramework)
 }
 
+func BenchmarkFiberTunedPlaintext(b *testing.B) {
+	fiberBenchApp(b, "GET /plaintext HTTP/1.1\r\nHost: localhost\r\n\r\n", newFiberTunedApp())
+}
+
+func BenchmarkFiberTunedJSON(b *testing.B) {
+	fiberBenchApp(b, "GET /json HTTP/1.1\r\nHost: localhost\r\n\r\n", newFiberTunedApp())
+}
+
+func BenchmarkFiberTunedUsers(b *testing.B) {
+	fiberBenchApp(b, "GET /users/42 HTTP/1.1\r\nHost: localhost\r\n\r\n", newFiberTunedApp())
+}
+
+func BenchmarkFiberTunedEcho(b *testing.B) {
+	fiberBenchApp(b, "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 27\r\n\r\n{\"message\":\"Hello, World!\"}", newFiberTunedApp())
+}
+
+func BenchmarkFiberTunedJSONFramework(b *testing.B) {
+	fiberBenchApp(b, "GET /json HTTP/1.1\r\nHost: localhost\r\n\r\n", newFiberTuned(func(app *fiber.App) {
+		app.Get("/json", func(c fiber.Ctx) error {
+			return c.JSON(fiberJSONPayload, jsonType)
+		})
+	}))
+}
+
+func BenchmarkFiberTunedUsersFramework(b *testing.B) {
+	fiberBenchApp(b, "GET /users/42 HTTP/1.1\r\nHost: localhost\r\n\r\n", newFiberTuned(func(app *fiber.App) {
+		app.Get("/users/:id", func(c fiber.Ctx) error {
+			fiberUserPayload["id"] = c.Params("id")
+			return c.JSON(fiberUserPayload, jsonType)
+		})
+	}))
+}
+
 var (
 	fiberJSONPayload = map[string]string{"message": "Hello, World!"}
 	fiberUserPayload = map[string]string{"id": ""}
@@ -103,7 +136,11 @@ func fiberBench(b *testing.B, raw string, routes func(*fiber.App)) {
 		return c.Next()
 	})
 	routes(app)
+	fiberBenchApp(b, raw, app)
+}
 
+func fiberBenchApp(b *testing.B, raw string, app *fiber.App) {
+	b.Helper()
 	left, right := net.Pipe()
 	ln := &oneConnListener{conn: left, stop: make(chan struct{})}
 	errCh := make(chan error, 1)

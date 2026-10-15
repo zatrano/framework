@@ -53,13 +53,16 @@ const (
 
 func cmdServe(args []string) error {
 	if len(args) != 2 {
-		return fmt.Errorf("serve <zatrano|fiber> <addr>")
+		return fmt.Errorf("serve <zatrano|fiber|fiber-tuned|rawhttp|fasthttp> <addr>")
 	}
+	startMemSnap()
 	switch args[0] {
 	case "zatrano":
 		return serveZatrano(args[1])
 	case "fiber":
 		return serveFiber(args[1])
+	case "fiber-tuned":
+		return serveFiberTuned(args[1])
 	case "rawhttp":
 		return serveRawHTTP(args[1])
 	case "fasthttp":

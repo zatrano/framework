@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Paired ZATRANO vs Fiber run on Linux.
+# Paired ZATRANO vs Fiber on Linux. The fiber pair also runs fiber-tuned.
+# The binding ratio is zatrano/fiber-tuned. zatrano/fiber is the official
+# requestid middleware column. rawhttp still compares rawhttp with fasthttp.
 #
 # The server is pinned to CPU 0 and the load generator to the remaining CPUs.
 # ztfb does that with sched_setaffinity, the same call taskset uses:
