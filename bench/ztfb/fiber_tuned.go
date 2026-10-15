@@ -26,6 +26,9 @@ var hexIDPool = sync.Pool{
 	New: func() any { return new([32]byte) },
 }
 
+// idSources are ChaCha8 generators seeded once from crypto/rand.
+// Same entropy source as core/kernel/http.GenerateRequestID:
+// a pooled math/rand/v2 ChaCha8, not crypto/rand on every request.
 var idSources = sync.Pool{
 	New: func() any {
 		var seed [32]byte

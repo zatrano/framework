@@ -307,46 +307,69 @@ ZATRANO: 3 cycles, mark 55 ms, STW 0.385 ms. Fiber: 1 cycle, mark 26 ms, STW 0.1
 
 ## Round 6 — allocs per request
 
-One keep-alive connection, `net.Pipe`, 64 warmup requests, then `testing.B -benchmem` and `runtime.MemStats` over 2000 requests. `GOMAXPROCS=1`. Same handlers as the Fiber pair: plaintext, one-key JSON, `/users/{id}`, and echo. Both servers send a request id and the four security headers. ZATRANO is the production `Handle` path with an empty `public/` index. The framework row excludes the handler's `map[string]string` literal (the map is hoisted). Echo has no handler literal, so its framework row is the whole handler. Bytes are `B/op`.
+One keep-alive connection, `net.Pipe`, the same client for ZATRANO, Fiber (resmi middleware), and Fiber (tuned): 64 warmup requests, then 2000 requests. `GOMAXPROCS=1`. Same handlers. Both servers send a request id and the four security headers. ZATRANO is the production `Handle` path with an empty `public/` index and the production timeouts (60s/60s/120s/10s). The framework row excludes the handler's `map[string]string` literal. Echo has no handler literal, so its framework row is the whole handler.
+
+`pipe` is `alloc_objects` whose stack contains `pipeDeadline` (`TestPipeAllocSplitPlaintext`, plaintext, `MemProfileRate=1`). fasthttp calls `SetReadDeadline` and `SetWriteDeadline` on that pipe from `serveConn`; each call allocates a timer. ZATRANO coalesces a still-valid deadline, so its pipe count on this burst is 0. The same 6 pipe allocs are subtracted on the other Fiber routes: the deadline calls do not depend on the handler, and 2000 requests finish inside the one-second coalesce slack. `server` is total minus pipe. Bytes are the `-benchmem` total, pipe timers included.
+
+| Route | ZATRANO total | ZATRANO pipe | ZATRANO server | Fiber (resmi) total | Fiber (resmi) pipe | Fiber (resmi) server | Fiber (tuned) total | Fiber (tuned) pipe | Fiber (tuned) server |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 0 | 8 | 6 | 2 | 6 | 6 | 0 |
+| `GET /json` | 3 | 0 | 3 | 14 | 6 | 8 | 13 | 6 | 7 |
+| `GET /users/{id}` | 3 | 0 | 3 | 14 | 6 | 8 | 13 | 6 | 7 |
+| `POST /echo` | 11 | 0 | 11 | 22 | 6 | 16 | 21 | 6 | 15 |
+
+Bytes, same runs, `B/op`:
+
+| Route | ZATRANO | Fiber (resmi) | Fiber (tuned) |
+|---|---:|---:|---:|
+| `GET /plaintext` | 0 | 432 | 384 |
+| `GET /json` | 368 | 880 | 848 |
+| `GET /users/{id}` | 352 | 864 | 832 |
+| `POST /echo` | 672 | 1112 | 1080 |
+
+Framework, handler literal excluded. Pipe column is the plaintext profile above.
+
+| Route | ZATRANO total | ZATRANO server | Fiber (resmi) total | Fiber (resmi) server | Fiber (tuned) total | Fiber (tuned) server |
+|---|---:|---:|---:|---:|---:|---:|
+| `GET /plaintext` | 0 | 0 | 8 | 2 | 6 | 0 |
+| `GET /json` | 1 | 1 | 12 | 6 | 11 | 5 |
+| `GET /users/{id}` | 1 | 1 | 12 | 6 | 11 | 5 |
+| `POST /echo` | 11 | 11 | 22 | 16 | 21 | 15 |
 
 The JSON and users literals are 2 allocs and 336 bytes on both servers. ZATRANO's remaining JSON byte is the encoded body. The users body is 16 bytes. Echo's 11 allocs are `BindJSON` plus the encoded object.
 
-`Fiber (tuned)` is the same routes with `recover` and the same four `c.Set` security headers. The request id is not the `requestid` middleware: 16 random bytes are hex-encoded into a pooled `[32]byte` and written with `SetBytesV`, and `Locals` is not used. A valid `X-Request-ID`, `X-Correlation-ID`, or traceparent is reflected; an invalid one is replaced. `TestFiberTunedResponseBytesMatchZatrano` compares the status line, every header line, and the body with ZATRANO. fasthttp writes `Date`, `Content-Type`, and `Content-Length` before the application headers, so the raw frame order differs; the header lines and the body are the same bytes. On this one-connection bench the plaintext column still includes 6 allocations from `net.Pipe` deadlines in the same process. Those are not Fiber.
+`Fiber (tuned)` keeps `recover` and the four `c.Set` security headers. The request id is not the `requestid` middleware: 16 random bytes are hex-encoded into a pooled `[32]byte` and written with `SetBytesV`, and `Locals` is not used. ZATRANO and Fiber (tuned) use the same entropy source: a `math/rand/v2` ChaCha8 generator seeded once from `crypto/rand` when the pool creates it. Fiber (resmi middleware) calls `crypto/rand` and `hex.EncodeToString` on every generated id.
 
-| Route | ZATRANO alloc | ZATRANO bytes | Fiber (resmi) alloc | Fiber (resmi) bytes | Fiber (tuned) alloc | Fiber (tuned) bytes |
-|---|---:|---:|---:|---:|---:|---:|
-| `GET /plaintext` | 0 | 0 | 8 | 432 | 6 | 384 |
-| `GET /json` | 3 | 368 | 14 | 880 | 13 | 848 |
-| `GET /users/{id}` | 3 | 352 | 14 | 864 | 13 | 832 |
-| `POST /echo` | 11 | 672 | 22 | 1112 | 21 | 1080 |
-
-Framework, handler literal excluded:
-
-| Route | ZATRANO alloc | ZATRANO bytes | Fiber (resmi) alloc | Fiber (resmi) bytes | Fiber (tuned) alloc | Fiber (tuned) bytes |
-|---|---:|---:|---:|---:|---:|---:|
-| `GET /plaintext` | 0 | 0 | 8 | 432 | 6 | 384 |
-| `GET /json` | 1 | 32 | 12 | 544 | 11 | 512 |
-| `GET /users/{id}` | 1 | 16 | 12 | 528 | 11 | 496 |
-| `POST /echo` | 11 | 672 | 22 | 1112 | 21 | 1080 |
-
-Official plaintext `alloc_objects`, 2000 requests after 64 warmup, `MemProfileRate=1`, profile published by two GCs (`TestFiberPlaintextAllocObjects`). Eight mallocs per request:
+Official plaintext `alloc_objects`, 2000 requests after 64 warmup, `MemProfileRate=1` (`TestFiberPlaintextAllocObjects` and `TestPipeAllocSplitPlaintext`). Eight mallocs per request:
 
 | Allocs/request | Function | Source |
 |---:|---|---|
-| 3 | `time.newTimer` via `net.(*pipeDeadline).set` | bench client, `net.Pipe` deadlines |
-| 3 | `net.(*pipeDeadline).set` | bench client, `net.Pipe` deadlines |
-| 1 | `encoding/hex.EncodeToString` | harness generator |
-| 1 | `requestid.New.func1` → `fiber.StoreInContext` | harness `Locals` |
+| 3 | `time.newTimer` via `net.(*pipe).SetReadDeadline` / `SetWriteDeadline` | fasthttp on `net.Pipe` |
+| 3 | `net.(*pipeDeadline).set` | same pipe |
+| 1 | `encoding/hex.EncodeToString` | resmi harness generator |
+| 1 | `requestid.New.func1` → `fiber.StoreInContext` | resmi harness `Locals` |
 
-`c.Set` of the four security headers and `recover` do not allocate on this path. Fiber core is not in the eight. The tuned server drops the generator and `StoreInContext`, which is the 8→6 change above.
+`c.Set` of the four security headers and `recover` do not allocate on this path. Fiber core is not in the eight. Tuned drops the generator and `StoreInContext`. The 6 that remain are the pipe. Tuned server allocs on this bench are 0.
 
-The comparison that decides the alloc result is the server process, not this bench. In the 4096-connection window the parent reads the child `runtime.MemStats` (`Mallocs`, `TotalAlloc`) at the start and end of the measured interval and divides by completed requests. One window on this host, Intel Core i5-6200U, `GOMAXPROCS=1`, plaintext, encoding/json, 1 s warmup, 3 s measured. Not a Linux class.
+The comparison that decides the alloc result is the server process. The parent reads the child `runtime.MemStats` twice. `allocs_per_req` is the steady window: the snapshot at the start of the measured interval (connections already up) through the end, divided by measured requests. `allocs_per_req_with_setup` is the accept through the end of that same interval, divided by warmup plus measured requests. One earlier window on this host, before the hijack-mark fix, Intel Core i5-6200U, `GOMAXPROCS=1`, plaintext, encoding/json, 1 s warmup, 3 s measured:
 
 | Server | Requests | alloc/request | bytes/request |
 |---|---:|---:|---:|
 | ZATRANO | 67710 | 1.114 | 41.1 |
 | Fiber (resmi middleware) | 60182 | 2.190 | 116.3 |
 | Fiber (tuned) | 82662 | 0.128 | 47.4 |
+
+That 1.114 was `serveLoop` allocating `ctx.markHijacked = func() { cs.hijacked.Store(true) }` on every request (`alloc_objects` flat 78755 of 114663 at 4096). `rawhttp` 60afd8f builds the closure once per connection and assigns that value after `reset`.
+
+After that fix, one 40 second window on this host, `GOMAXPROCS=1`, plaintext, encoding/json, 2 s warmup, 4096 connections. Not a Linux class. Steady is `allocs_per_req`. With-setup is `allocs_per_req_with_setup`. GC is `gc_cycles` inside the measured 40 s (`GODEBUG=gctrace=1`). `GOGC` was not changed.
+
+| Server | Steady alloc/req | Steady bytes/req | With setup alloc/req | With setup bytes/req | GC cycles |
+|---|---:|---:|---:|---:|---:|
+| ZATRANO | 0.007 | 1.95 | 0.013 | 3.49 | 0 |
+| Fiber (resmi middleware) | 2.011 | 51.7 | 2.015 | 53.5 | 10 |
+| Fiber (tuned) | 0.010 | 3.57 | 0.019 | 6.99 | 1 |
+
+Steady ZATRANO alloc/request is under Fiber (tuned), and the GC count in that window is under Fiber (tuned). The one-round paired rps on this laptop is not a cell class.
 
 The fiber pair now runs three servers. `zatrano/fiber-tuned` is the binding paired row. `zatrano/fiber` stays the official-middleware column. `cellVerdict` is unchanged; on the tuned row `fiber` means the tuned server won. Run `38702939949` (`9abed55`) and run `38712986781` (`9c63264`) do not contain the tuned column.
 

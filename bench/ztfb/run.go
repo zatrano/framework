@@ -15,36 +15,38 @@ import (
 )
 
 type cell struct {
-	Server       string   `json:"server"`
-	Route        string   `json:"route"`
-	Conns        int      `json:"conns"`
-	Round        int      `json:"round"`
-	Agg          string   `json:"agg,omitempty"`
-	RPS          float64  `json:"rps"`
-	P50US        float64  `json:"p50_us"`
-	P99US        float64  `json:"p99_us"`
-	P999US       float64  `json:"p999_us"`
-	CPUUS        float64  `json:"cpu_us_per_req"`
-	RSSBytes     uint64   `json:"rss_bytes"`
-	HWMBytes     uint64   `json:"hwm_bytes"`
-	Errors       int      `json:"errors"`
-	Requests     int      `json:"requests"`
-	ElapsedS     float64  `json:"elapsed_s"`
-	GCCycles     int      `json:"gc_cycles,omitempty"`
-	RSSSamples   []uint64 `json:"rss_samples,omitempty"`
-	Config       string   `json:"config,omitempty"`
-	Client       string   `json:"client,omitempty"`
-	Codec        string   `json:"codec,omitempty"`
-	Ratio        float64  `json:"ratio,omitempty"`
-	CILow        float64  `json:"ci_low,omitempty"`
-	CIHigh       float64  `json:"ci_high,omitempty"`
-	P50Ratio     float64  `json:"p50_ratio,omitempty"`
-	P99Ratio     float64  `json:"p99_ratio,omitempty"`
-	CPURatio     float64  `json:"cpu_ratio,omitempty"`
-	RSSRatio     float64  `json:"rss_ratio,omitempty"`
-	Verdict      string   `json:"verdict,omitempty"`
-	AllocsPerReq *float64 `json:"allocs_per_req,omitempty"`
-	BytesPerReq  *float64 `json:"bytes_per_req,omitempty"`
+	Server            string   `json:"server"`
+	Route             string   `json:"route"`
+	Conns             int      `json:"conns"`
+	Round             int      `json:"round"`
+	Agg               string   `json:"agg,omitempty"`
+	RPS               float64  `json:"rps"`
+	P50US             float64  `json:"p50_us"`
+	P99US             float64  `json:"p99_us"`
+	P999US            float64  `json:"p999_us"`
+	CPUUS             float64  `json:"cpu_us_per_req"`
+	RSSBytes          uint64   `json:"rss_bytes"`
+	HWMBytes          uint64   `json:"hwm_bytes"`
+	Errors            int      `json:"errors"`
+	Requests          int      `json:"requests"`
+	ElapsedS          float64  `json:"elapsed_s"`
+	GCCycles          int      `json:"gc_cycles,omitempty"`
+	RSSSamples        []uint64 `json:"rss_samples,omitempty"`
+	Config            string   `json:"config,omitempty"`
+	Client            string   `json:"client,omitempty"`
+	Codec             string   `json:"codec,omitempty"`
+	Ratio             float64  `json:"ratio,omitempty"`
+	CILow             float64  `json:"ci_low,omitempty"`
+	CIHigh            float64  `json:"ci_high,omitempty"`
+	P50Ratio          float64  `json:"p50_ratio,omitempty"`
+	P99Ratio          float64  `json:"p99_ratio,omitempty"`
+	CPURatio          float64  `json:"cpu_ratio,omitempty"`
+	RSSRatio          float64  `json:"rss_ratio,omitempty"`
+	Verdict           string   `json:"verdict,omitempty"`
+	AllocsPerReq      *float64 `json:"allocs_per_req,omitempty"`
+	BytesPerReq       *float64 `json:"bytes_per_req,omitempty"`
+	AllocsPerReqSetup *float64 `json:"allocs_per_req_with_setup,omitempty"`
+	BytesPerReqSetup  *float64 `json:"bytes_per_req_with_setup,omitempty"`
 }
 
 type matrixOpts struct {
@@ -402,6 +404,12 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		}()
 	}
 	var warm, measured loadResult
+	var bootMallocs, bootTotal uint64
+	var bootErr error
+	bootMallocs, bootTotal, bootErr = readMemSnap(snapConn)
+	if bootErr != nil {
+		return cell{}, bootErr
+	}
 	var snapMallocs, snapTotal uint64
 	var snapErr error
 	snapped := false
@@ -490,11 +498,19 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		return cell{}, err
 	}
 	var allocsPerReq, bytesPerReq *float64
+	var allocsSetup, bytesSetup *float64
 	if measured.Requests > 0 && endMallocs >= snapMallocs && endTotal >= snapTotal {
 		a := float64(endMallocs-snapMallocs) / float64(measured.Requests)
 		b := float64(endTotal-snapTotal) / float64(measured.Requests)
 		allocsPerReq = &a
 		bytesPerReq = &b
+	}
+	allReqs := warm.Requests + measured.Requests
+	if allReqs > 0 && endMallocs >= bootMallocs && endTotal >= bootTotal {
+		a := float64(endMallocs-bootMallocs) / float64(allReqs)
+		b := float64(endTotal-bootTotal) / float64(allReqs)
+		allocsSetup = &a
+		bytesSetup = &b
 	}
 	after, err := readProc(cmd.Process.Pid)
 	if err != nil {
@@ -523,27 +539,29 @@ func oneRound(exe, server, addr string, rt routeSpec, req []byte, conns, round i
 		fmt.Fprintf(os.Stderr, "gc-window %s %s c=%d round %d cycles=%d elapsed=%.1fs\n", server, rt.Name, conns, round, cycles, measured.Elapsed.Seconds())
 	}
 	return cell{
-		Server:       server,
-		Route:        rt.Name,
-		Conns:        conns,
-		Round:        round,
-		Config:       config,
-		Client:       client,
-		Codec:        codec,
-		GCCycles:     cycles,
-		RPS:          measured.RPS(),
-		P50US:        float64(p50.Microseconds()),
-		P99US:        float64(p99.Microseconds()),
-		P999US:       float64(p999.Microseconds()),
-		CPUUS:        cpuMicrosPerReq(before, after, measured.Requests),
-		RSSBytes:     after.RSS,
-		HWMBytes:     after.HWM,
-		Errors:       measured.Errors,
-		Requests:     measured.Requests,
-		ElapsedS:     measured.Elapsed.Seconds(),
-		RSSSamples:   copied,
-		AllocsPerReq: allocsPerReq,
-		BytesPerReq:  bytesPerReq,
+		Server:            server,
+		Route:             rt.Name,
+		Conns:             conns,
+		Round:             round,
+		Config:            config,
+		Client:            client,
+		Codec:             codec,
+		GCCycles:          cycles,
+		RPS:               measured.RPS(),
+		P50US:             float64(p50.Microseconds()),
+		P99US:             float64(p99.Microseconds()),
+		P999US:            float64(p999.Microseconds()),
+		CPUUS:             cpuMicrosPerReq(before, after, measured.Requests),
+		RSSBytes:          after.RSS,
+		HWMBytes:          after.HWM,
+		Errors:            measured.Errors,
+		Requests:          measured.Requests,
+		ElapsedS:          measured.Elapsed.Seconds(),
+		RSSSamples:        copied,
+		AllocsPerReq:      allocsPerReq,
+		BytesPerReq:       bytesPerReq,
+		AllocsPerReqSetup: allocsSetup,
+		BytesPerReqSetup:  bytesSetup,
 	}, nil
 }
 
@@ -710,7 +728,7 @@ func gcCyclesInWindow(marks []gcMark, start, end float64) int {
 func medianCell(server, route string, conns int, rows []cell) cell {
 	var rps []float64
 	var p50, p99, p999, cpu []float64
-	var rss, hwm, gcs, allocs, bytesPer []float64
+	var rss, hwm, gcs, allocs, bytesPer, allocsSetup, bytesSetup []float64
 	var errs, reqs int
 	for _, row := range rows {
 		rps = append(rps, row.RPS)
@@ -727,26 +745,34 @@ func medianCell(server, route string, conns int, rows []cell) cell {
 		if row.BytesPerReq != nil {
 			bytesPer = append(bytesPer, *row.BytesPerReq)
 		}
+		if row.AllocsPerReqSetup != nil {
+			allocsSetup = append(allocsSetup, *row.AllocsPerReqSetup)
+		}
+		if row.BytesPerReqSetup != nil {
+			bytesSetup = append(bytesSetup, *row.BytesPerReqSetup)
+		}
 		errs += row.Errors
 		reqs += row.Requests
 	}
 	return cell{
-		Server:       server,
-		Route:        route,
-		Conns:        conns,
-		Agg:          "median",
-		GCCycles:     int(medianFloat(gcs) + 0.5),
-		RPS:          medianFloat(rps),
-		P50US:        medianFloat(p50),
-		P99US:        medianFloat(p99),
-		P999US:       medianFloat(p999),
-		CPUUS:        medianFloat(cpu),
-		RSSBytes:     uint64(medianFloat(rss)),
-		HWMBytes:     uint64(medianFloat(hwm)),
-		Errors:       errs,
-		Requests:     reqs,
-		AllocsPerReq: medianPtr(allocs),
-		BytesPerReq:  medianPtr(bytesPer),
+		Server:            server,
+		Route:             route,
+		Conns:             conns,
+		Agg:               "median",
+		GCCycles:          int(medianFloat(gcs) + 0.5),
+		RPS:               medianFloat(rps),
+		P50US:             medianFloat(p50),
+		P99US:             medianFloat(p99),
+		P999US:            medianFloat(p999),
+		CPUUS:             medianFloat(cpu),
+		RSSBytes:          uint64(medianFloat(rss)),
+		HWMBytes:          uint64(medianFloat(hwm)),
+		Errors:            errs,
+		Requests:          reqs,
+		AllocsPerReq:      medianPtr(allocs),
+		BytesPerReq:       medianPtr(bytesPer),
+		AllocsPerReqSetup: medianPtr(allocsSetup),
+		BytesPerReqSetup:  medianPtr(bytesSetup),
 	}
 }
 

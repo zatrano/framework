@@ -128,6 +128,9 @@ jobs:
         # fiber pair jobs also run fiber-tuned. The binding paired row is
         # zatrano/fiber-tuned. zatrano/fiber stays the official-middleware column.
         # The tuned request header is a pointer; copying RequestHeader fails go vet.
+        # Steady alloc/request is the window after connections exist. The
+        # with-setup rate includes accept. ZATRANO's hijack mark is one closure
+        # per connection (rawhttp 60afd8f).
         name: [go-default, wrk-default, goccy-default, rawhttp-fasthttp, go-plaintext-4096]
         include:
           - name: go-default

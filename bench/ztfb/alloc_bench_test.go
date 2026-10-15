@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
@@ -14,7 +16,34 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/zatrano/framework/v3/core/kernel"
+	khttp "github.com/zatrano/framework/v3/core/kernel/http"
+	"github.com/zatrano/rawhttp"
 )
+
+func BenchmarkZatranoPlaintext(b *testing.B) {
+	zatranoBench(b, "GET /plaintext HTTP/1.1\r\nHost: localhost\r\n\r\n", zatranoRoutesSame)
+}
+
+func BenchmarkZatranoJSON(b *testing.B) {
+	zatranoBench(b, "GET /json HTTP/1.1\r\nHost: localhost\r\n\r\n", zatranoRoutesSame)
+}
+
+func BenchmarkZatranoUsers(b *testing.B) {
+	zatranoBench(b, "GET /users/42 HTTP/1.1\r\nHost: localhost\r\n\r\n", zatranoRoutesSame)
+}
+
+func BenchmarkZatranoEcho(b *testing.B) {
+	zatranoBench(b, "POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 27\r\n\r\n{\"message\":\"Hello, World!\"}", zatranoRoutesSame)
+}
+
+func BenchmarkZatranoJSONFramework(b *testing.B) {
+	zatranoBench(b, "GET /json HTTP/1.1\r\nHost: localhost\r\n\r\n", zatranoRoutesFramework)
+}
+
+func BenchmarkZatranoUsersFramework(b *testing.B) {
+	zatranoBench(b, "GET /users/42 HTTP/1.1\r\nHost: localhost\r\n\r\n", zatranoRoutesFramework)
+}
 
 func BenchmarkFiberPlaintext(b *testing.B) {
 	fiberBench(b, "GET /plaintext HTTP/1.1\r\nHost: localhost\r\n\r\n", fiberRoutesSame)
@@ -74,9 +103,71 @@ func BenchmarkFiberTunedUsersFramework(b *testing.B) {
 }
 
 var (
-	fiberJSONPayload = map[string]string{"message": "Hello, World!"}
-	fiberUserPayload = map[string]string{"id": ""}
+	fiberJSONPayload   = map[string]string{"message": "Hello, World!"}
+	fiberUserPayload   = map[string]string{"id": ""}
+	zatranoJSONPayload = map[string]string{"message": "Hello, World!"}
+	zatranoUserPayload = map[string]string{"id": ""}
 )
+
+func zatranoRoutesSame(app *kernel.Application) {
+	app.Router().Get("/plaintext", func(*khttp.Request) *khttp.Response {
+		return khttp.Text(helloBody)
+	})
+	app.Router().Get("/json", func(*khttp.Request) *khttp.Response {
+		return khttp.JSON(map[string]string{"message": "Hello, World!"})
+	})
+	app.Router().Get("/users/{id}", func(req *khttp.Request) *khttp.Response {
+		return khttp.JSON(map[string]string{"id": req.Route("id")})
+	})
+	app.Router().Post("/echo", func(req *khttp.Request) *khttp.Response {
+		var m map[string]any
+		if err := req.BindJSON(&m); err != nil {
+			return khttp.BadRequest("bad json")
+		}
+		return khttp.JSON(m)
+	})
+}
+
+func zatranoRoutesFramework(app *kernel.Application) {
+	app.Router().Get("/json", func(*khttp.Request) *khttp.Response {
+		return khttp.JSON(zatranoJSONPayload)
+	})
+	app.Router().Get("/users/{id}", func(req *khttp.Request) *khttp.Response {
+		zatranoUserPayload["id"] = req.Route("id")
+		return khttp.JSON(zatranoUserPayload)
+	})
+}
+
+func zatranoBench(b *testing.B, raw string, routes func(*kernel.Application)) {
+	b.Helper()
+	b.Setenv("APP_ENV", "production")
+	b.Setenv("APP_DEBUG", "false")
+	b.Setenv("LOG_LEVEL", "error")
+	b.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
+	b.Setenv("HTTP_POOL_REQUESTS", "")
+	dir := b.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "public"), 0o755); err != nil {
+		b.Fatal(err)
+	}
+	app := kernel.NewApplication(dir)
+	b.Cleanup(func() {
+		if c, ok := app.Logger().(interface{ Close() error }); ok && c != nil {
+			_ = c.Close()
+		}
+	})
+	routes(app)
+	if err := app.Bootstrap(); err != nil {
+		b.Fatal(err)
+	}
+	srv := &rawhttp.Server{
+		Handler:           func(ctx *rawhttp.Ctx) { app.Handle(ctx) },
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	pipeBench(b, raw, func(ln net.Listener) error { return srv.Serve(ln) })
+}
 
 func fiberRoutesSame(app *fiber.App) {
 	app.Get("/plaintext", func(c fiber.Ctx) error {
@@ -136,18 +227,27 @@ func fiberBench(b *testing.B, raw string, routes func(*fiber.App)) {
 		return c.Next()
 	})
 	routes(app)
-	fiberBenchApp(b, raw, app)
+	pipeBench(b, raw, func(ln net.Listener) error {
+		return app.Listener(ln, fiber.ListenConfig{DisableStartupMessage: true})
+	})
 }
 
 func fiberBenchApp(b *testing.B, raw string, app *fiber.App) {
 	b.Helper()
+	pipeBench(b, raw, func(ln net.Listener) error {
+		defer func() { _ = app.Shutdown() }()
+		return app.Listener(ln, fiber.ListenConfig{DisableStartupMessage: true})
+	})
+}
+
+func pipeBench(b *testing.B, raw string, serve func(net.Listener) error) {
+	b.Helper()
 	left, right := net.Pipe()
 	ln := &oneConnListener{conn: left, stop: make(chan struct{})}
 	errCh := make(chan error, 1)
-	go func() { errCh <- app.Listener(ln, fiber.ListenConfig{DisableStartupMessage: true}) }()
+	go func() { errCh <- serve(ln) }()
 	b.Cleanup(func() {
 		ln.Close()
-		_ = app.Shutdown()
 		_ = left.Close()
 		_ = right.Close()
 	})

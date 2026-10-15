@@ -78,6 +78,7 @@ func serveZatrano(addr string) error {
 	}
 	stop := startProfiles()
 	if sec, _ := strconv.Atoi(os.Getenv("ZTFB_PROFILE_SECONDS")); sec > 0 {
+		fmt.Fprintf(os.Stderr, "ztfb profile %ds\n", sec)
 		go func() {
 			time.Sleep(time.Duration(sec) * time.Second)
 			stop()
@@ -174,6 +175,11 @@ func serveFiber(addr string) error {
 // startProfiles writes runtime profiles when the env paths are set.
 // It does not import net/http/pprof, so nothing listens for /debug/pprof.
 func startProfiles() func() {
+	// Every allocation is recorded only for a diagnostic profile. The scored
+	// matrix does not set this variable, so its MemProfileRate stays default.
+	if os.Getenv("ZTFB_ALLOC_PROFILE") != "" {
+		runtime.MemProfileRate = 1
+	}
 	var cpu *os.File
 	if path := os.Getenv("ZTFB_CPU_PROFILE"); path != "" {
 		f, err := os.Create(path)
@@ -254,6 +260,7 @@ func writeProfile(envKey, name string) {
 		return
 	}
 	defer f.Close()
+	runtime.GC()
 	runtime.GC()
 	if p := pprof.Lookup(name); p != nil {
 		_ = p.WriteTo(f, 0)
