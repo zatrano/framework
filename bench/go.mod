@@ -11,7 +11,7 @@ require (
 	github.com/revel/revel v1.1.0
 	github.com/valyala/fasthttp v1.51.0
 	github.com/zatrano/framework/v3 v3.0.1
-	github.com/zatrano/rawhttp v1.0.0
+	github.com/zatrano/rawhttp v1.0.1
 )
 
 require (

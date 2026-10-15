@@ -32,8 +32,8 @@ github.com/valyala/fasthttp v1.75.0 h1:W3xrvNJHG60j2ZCjxpP8kkB+oPG8kh9/g1n4+3xUw
 github.com/valyala/fasthttp v1.75.0/go.mod h1:JiVkPRZU124PuPsreV/s9dZRgG2lRK7wNEikdQ0Rk4s=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
-github.com/zatrano/rawhttp v1.0.0 h1:EJi3TAQ1ctNAy8v3qPhG6qN64D3/H4okdPp66EDobBc=
-github.com/zatrano/rawhttp v1.0.0/go.mod h1:r6454t8cXYE7n+Qgkci7yCNJDqDhvQWVQDkVGo7YzmU=
+github.com/zatrano/rawhttp v1.0.1 h1:N7XdzZ5a9L0aRDx1AAFwmey+IqcL5NN1vcmwKolh+pg=
+github.com/zatrano/rawhttp v1.0.1/go.mod h1:r6454t8cXYE7n+Qgkci7yCNJDqDhvQWVQDkVGo7YzmU=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
 golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=

@@ -1,4 +1,4 @@
 github.com/zatrano/canvas v0.2.1 h1:8ti1anDGlqUs74upXiN7+ZQNFSg3BIrvzD+YyiWxH/0=
 github.com/zatrano/canvas v0.2.1/go.mod h1:tdbUa0I95Z7cvu8ZZu+qMGuZw6dwb9hku9VDW5rNCJ0=
-github.com/zatrano/rawhttp v1.0.0 h1:EJi3TAQ1ctNAy8v3qPhG6qN64D3/H4okdPp66EDobBc=
-github.com/zatrano/rawhttp v1.0.0/go.mod h1:r6454t8cXYE7n+Qgkci7yCNJDqDhvQWVQDkVGo7YzmU=
+github.com/zatrano/rawhttp v1.0.1 h1:N7XdzZ5a9L0aRDx1AAFwmey+IqcL5NN1vcmwKolh+pg=
+github.com/zatrano/rawhttp v1.0.1/go.mod h1:r6454t8cXYE7n+Qgkci7yCNJDqDhvQWVQDkVGo7YzmU=
