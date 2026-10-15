@@ -292,6 +292,15 @@ Run `38640064351` at `2f5541e` measured `GET /plaintext` 4096 for 5 seconds. The
 
 The harness now counts `gc N @T` lines whose timestamp falls inside the measured window and stores that count on each row as `gc_cycles`. `-gc-min 3` runs one unscored pass per server, stops that pass when the window contains 3 cycles, then scores both servers for the longer of those two durations plus 10%. The cap is `-measure` (180s for the plaintext 4096 job). The 5 second matrix is unchanged.
 
+Profile window, 40 seconds, `GOMAXPROCS=1`, encoding/json, `GET /plaintext` 4096. Cycles are natural collections at or after 1 second. Pause is the sum of the gctrace clock (`stop + mark + stop`). Forced collections at process exit are not counted. Live heap is the last steady cycle.
+
+| Server | Cycles | Pause | Live heap |
+|---|---:|---:|---:|
+| ZATRANO | 3 | 55.4 ms | 36 MB |
+| Fiber | 1 | 26.1 ms | 84 MB |
+
+Each ZATRANO cycle is about 18 ms of mark on the server CPU and 0.12 ms of stop-the-world. Fiber's one cycle is 26 ms of mark. `GOGC` was not changed.
+
 Old plaintext 4096, three runs, 5 second window, encoding/json, harness verdict then the 1.05 gate:
 
 | Run | Harness | Gate | Ratio | CI | p99 | CPU | RSS |
