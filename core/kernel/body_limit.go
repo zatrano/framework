@@ -42,7 +42,7 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 	}
 	inflight := http.MaxInflightBodyBytes()
 	poolOn := env.Get("HTTP_POOL_REQUESTS", "") == "true"
-	http.SetRequestPooling(poolOn, env.Get("APP_DEBUG", "") == "true")
+	http.SetRequestPooling(poolOn, poolDebugFromEnv())
 	app.bodyLimitSnap = bodyLimitSnap{
 		maxRequest:     http.MaxRequestBytes(),
 		maxBody:        http.MaxBodyBytes(),
@@ -53,6 +53,14 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 	}
 	atomic.StoreUint32(&app.bodyLimitReady, 1)
 	return app.bodyLimitSnap
+}
+
+// poolDebugFromEnv turns on use-after-release detection for the request pool.
+// An unset APP_DEBUG means debug outside production, the same default app.debug
+// uses. Benchmarks set APP_ENV=production and APP_DEBUG=false, so they keep reuse.
+func poolDebugFromEnv() bool {
+	notProduction := env.NormalizeAppEnv(env.Get("APP_ENV", "local")) != "production"
+	return env.GetBool("APP_DEBUG", notProduction)
 }
 
 // HeaderBodyConfig is the production HeaderReceived hook.

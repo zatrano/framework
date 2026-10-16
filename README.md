@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.2.1-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.2.2-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -49,7 +49,7 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
 | | |
 | --- | --- |
-| Current module tag | `v3.2.1` |
+| Current module tag | `v3.2.2` |
 | Release branch | `3.x` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` (current tag; this module requires it) |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v1.0.0`, wired at `framework/v3/core/ssr` |
@@ -61,7 +61,7 @@ Version lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `3.x` | V3. Current tag `v3.2.1` |
+| `3.x` | V3. Current tag `v3.2.2` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
@@ -219,10 +219,12 @@ canvas      HTML template engine
 
 ## Quick start
 
-Requires **Go 1.25+** (`go 1.25.0` in the module). Build production binaries with **Go >= go1.26.9** so the standard library includes the current security fixes. `zatrano doctor` warns when the project's toolchain is older (APP-GO-001).
+Requires **Go 1.25+** (`go 1.25.0` in the module). Build production binaries with **Go >= go1.26.9** so the standard library includes the current security fixes. The `go` line is the language floor. The toolchain that runs the build decides which standard library is in the binary. `zatrano doctor` warns when the project's toolchain is older (APP-GO-001).
+
+Distribution packages often ship an older Go. On Ubuntu, `apt install golang-go` usually installs a release below go1.26.9. Install the official toolchain from [go.dev/dl](https://go.dev/dl/), or build with `GOTOOLCHAIN=go1.26.9 go build ./...`. That needs Go 1.21 or newer on `PATH`; Go downloads the named toolchain once. Check with `go version` in the project directory before a release build. Docker images use `golang:1.26-alpine`.
 
 ```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v3.2.1
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.2.2
 zatrano new myapp
 cd myapp
 go run ./cmd/app key:generate
@@ -231,14 +233,14 @@ go run ./cmd/app serve
 
 `zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
 
-`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.1`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.2`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
 
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
 Pin the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.2.1
+go get github.com/zatrano/framework/v3@v3.2.2
 go get github.com/zatrano/packages@v1.15.2
 ```
 
@@ -436,6 +438,46 @@ An early 413 or 503 does not drop the TCP connection before the client can read 
 | Chunked over the cap | 413 | 413. v3.0.0–v3.0.1 could return 431 when the body exceeded the read buffer (rawhttp 0.2.2). |
 | Over the in-flight budget | not applied | 503 and `Retry-After: 1`. One request that cannot fit the budget at all is 413. |
 | Header block | bufio 4 KiB | 16 KiB (`HTTP_MAX_HEADER_BYTES`). Over the limit is 431. v3.0.0–v3.0.1 used 1 MiB. |
+
+### Request lifetime
+
+A `*http.Request` belongs to the handler call. Do not keep it after the handler returns. Do not pass it, `req.Context()`, or a closure that reads `req` to a goroutine, a queue, a channel, or a cache. This is the main rule for an ingest handler that accepts work and returns before the work is done.
+
+With `HTTP_POOL_REQUESTS=true` the framework resets that `Request`, and the `Response` from `Text` or `JSON`, after the handler returns and serves the next request with it. A later read can return another client's data.
+
+Pool debug catches that in development. It is on when `APP_DEBUG=true`, and when `APP_DEBUG` is unset outside `APP_ENV=production`. In debug a released request or response is never handed out again, so every later accessor call (`Path`, `Query`, `Input`, `Header`, `Cookie`, `IP`, `Get`, `Context`, `Body`, `JSON`, ...) panics with the request generation, however many requests ran in between. Production with `APP_DEBUG=false` reuses the objects and does not check.
+
+A `Stream`, `StreamBody`, `StreamDownload`, or `Hijack` callback runs after the handler returns. For those responses the framework does not return the request or the response to the pool, so the callback may still read `req`. With the pool off (the default) nothing is reused, but the same rule applies: the pool turns on by default in v4.
+
+The queue drivers in `github.com/zatrano/packages/queue` either run the job inside `Push` (`sync`) or serialize the payload (`database`, `redis`), so a `map[string]any` payload never shares memory with the request. A goroutine you start yourself has no such barrier.
+
+Copy what the job needs while the handler runs, then hand over only that copy:
+
+```go
+type ingestEvent struct {
+    Source string          `json:"source"`
+    Data   json.RawMessage `json:"data"`
+}
+
+func ingest(req *http.Request) *http.Response {
+    var ev ingestEvent
+    if err := req.BindJSON(&ev); err != nil {
+        return http.JSON(map[string]any{"error": "invalid body"}).Status(400)
+    }
+    payload := map[string]any{
+        "source":     ev.Source,
+        "data":       string(ev.Data),
+        "request_id": req.Get("request_id"),
+        "ip":         req.IP(),
+    }
+    if err := queue.From(app).Push("ingest", payload); err != nil {
+        return http.JSON(map[string]any{"error": "queue unavailable"}).Status(503)
+    }
+    return http.JSON(map[string]any{"accepted": true}).Status(202)
+}
+```
+
+The decoded struct, the byte slice from `req.Body()`, and the strings from `Header`, `Query`, `Cookie`, `IP`, and `Get("request_id")` are copies. They stay valid after the handler returns. Start background work with `context.Background()` or an application context, not `req.Context()`.
 
 `Stream` and `StreamBody` re-arm the write deadline before each chunk. `ClearWriteDeadline` removes it and accepts a peer that stops reading. `Hijack` always clears it.
 

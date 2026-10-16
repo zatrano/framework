@@ -116,11 +116,12 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 	}
 	if cold != nil && cold.stream != nil {
 		writer := cold.stream
+		status := r.StatusCode()
 		rw := streamWriterFor(ctx, r)
 		ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 			rw.buf = w
 			rw.header = make(http.Header)
-			rw.status = r.StatusCode()
+			rw.status = status
 			_ = writer(rw, rw)
 			_ = w.Flush()
 		})

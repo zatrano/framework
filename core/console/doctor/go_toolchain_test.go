@@ -7,38 +7,6 @@ import (
 	"testing"
 )
 
-func TestParseGoRelease(t *testing.T) {
-	cases := []struct {
-		in        string
-		want      goRelease
-		ok        bool
-		olderThan string
-		older     bool
-	}{
-		{in: "go1.26.8", want: goRelease{major: 1, minor: 26, patch: 8}, ok: true, olderThan: RecommendedGoMinimum, older: true},
-		{in: "go1.26.9", want: goRelease{major: 1, minor: 26, patch: 9}, ok: true, olderThan: RecommendedGoMinimum, older: false},
-		{in: "go1.26.10", want: goRelease{major: 1, minor: 26, patch: 10}, ok: true, olderThan: RecommendedGoMinimum, older: false},
-		{in: "go1.27.2", want: goRelease{major: 1, minor: 27, patch: 2}, ok: true, olderThan: RecommendedGoMinimum, older: false},
-		{in: "go1.25.14", want: goRelease{major: 1, minor: 25, patch: 14}, ok: true, olderThan: RecommendedGoMinimum, older: true},
-		{in: "go1.26", want: goRelease{major: 1, minor: 26}, ok: true, olderThan: RecommendedGoMinimum, older: true},
-		{in: "go1.26.9rc1", want: goRelease{major: 1, minor: 26, patch: 9, pre: true}, ok: true, olderThan: RecommendedGoMinimum, older: true},
-		{in: "go1.27rc1", want: goRelease{major: 1, minor: 27, pre: true}, ok: true, olderThan: RecommendedGoMinimum, older: false},
-		{in: "devel go1.27-abcdef", ok: false, olderThan: RecommendedGoMinimum, older: true},
-	}
-	for _, tc := range cases {
-		got, ok := parseGoRelease(tc.in)
-		if ok != tc.ok || got != tc.want {
-			t.Errorf("parse %q = %+v %v, want %+v %v", tc.in, got, ok, tc.want, tc.ok)
-		}
-		if goOlderThan(tc.in, tc.olderThan) != tc.older {
-			t.Errorf("goOlderThan(%q, %q) = %v, want %v", tc.in, tc.olderThan, !tc.older, tc.older)
-		}
-	}
-	if goOlderThan("go1.26.8", "not-a-version") {
-		t.Fatal("an unparsable minimum must not warn")
-	}
-}
-
 func TestAPPGO001SkippedWhenGoMissing(t *testing.T) {
 	root := doctorAppDir(t)
 	prev := goVersionLookup

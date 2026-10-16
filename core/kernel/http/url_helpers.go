@@ -9,6 +9,7 @@ import (
 
 // Host returns the request host (prefers trusted forwarded host).
 func (r *Request) Host() string {
+	r.touch()
 	if r == nil {
 		return ""
 	}
@@ -36,6 +37,7 @@ func (r *Request) Scheme() string {
 
 // Secure reports whether the request is HTTPS (TLS or trusted forwarded proto).
 func (r *Request) Secure() bool {
+	r.touch()
 	if r == nil {
 		return false
 	}

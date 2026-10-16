@@ -125,6 +125,7 @@ func (r *Request) Files(key string) ([]*UploadedFile, error) {
 }
 
 func (r *Request) parseMultipart() error {
+	r.touch()
 	if r == nil {
 		return fmt.Errorf("nil request")
 	}

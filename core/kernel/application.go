@@ -337,6 +337,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	}
 	app.logger = logger
 	app.container.Instance("log", logger)
+	app.warnOldToolchain()
 
 	// Kernel only above. Foundation + packages + app providers Register next.
 	for _, provider := range app.providers {
@@ -592,8 +593,8 @@ func (app *Application) Handle(ctxAny any) {
 		return
 	}
 
+	// A panic skips the release below; the GC reclaims that pair.
 	req := http.AcquireRequest(ctx)
-	defer http.ReleaseRequest(req)
 	// Body and JSON use the boot ceiling. Reading MAX_BODY_BYTES here would
 	// call os.LookupEnv on every body.
 	if n := app.ensureBodyLimits().maxBody; n > 0 {
@@ -623,7 +624,7 @@ func (app *Application) Handle(ctxAny any) {
 		resp.PrepareStreamDeadline(app.httpWriteTimeout)
 	}
 	_ = resp.Commit(ctx)
-	http.ReleaseResponse(resp)
+	http.ReleaseAfterCommit(req, resp)
 }
 
 func (app *Application) recoverHandle(ctx *rawhttp.Ctx) {

@@ -1,8 +1,7 @@
 package doctor
 
-// RecommendedGoMinimum is the oldest Go release that contains the current
-// stdlib security fixes. Review it on every framework release. The release
-// workflow compares it with the newest stable patch on the same minor from
-// https://go.dev/dl/?mode=json and warns when this constant is more than
-// two patches behind.
-const RecommendedGoMinimum = "go1.26.9"
+import "github.com/zatrano/framework/v3/core/kernel/goversion"
+
+// RecommendedGoMinimum is goversion.RecommendedMinimum. The production boot
+// warning reads the same constant.
+const RecommendedGoMinimum = goversion.RecommendedMinimum

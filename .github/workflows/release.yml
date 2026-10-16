@@ -46,10 +46,10 @@ jobs:
           GO_DL: ${{ runner.temp }}/go-dl.json
         run: |
           set -euo pipefail
-          const=$(sed -n 's/^const RecommendedGoMinimum = "\(go[0-9.]*\)"/\1/p' core/console/doctor/go_minimum.go)
+          const=$(sed -n 's/^const RecommendedMinimum = "\(go[0-9.]*\)"/\1/p' core/kernel/goversion/goversion.go)
           if [ -z "$const" ]; then
-            echo "::warning::RecommendedGoMinimum was not found"
-            exit 0
+            echo "::error::RecommendedMinimum was not found in core/kernel/goversion/goversion.go"
+            exit 1
           fi
           if ! curl -fsSL --retry 3 --retry-delay 2 -o "$GO_DL" https://go.dev/dl/?mode=json; then
             echo "::warning::could not read go.dev/dl; RecommendedGoMinimum ${const} was not compared"

@@ -11,8 +11,8 @@ import (
 
 // Request pooling is off unless HTTP_POOL_REQUESTS=true. A pooled request is
 // reset and reused after the handler returns. Do not keep the pointer.
-// With debug on, a method call after release panics and reports the generation.
-// The default turns on in v4.
+// With debug on, a released object is never handed out again, so every later
+// method call panics and reports the generation. The default turns on in v4.
 var (
 	pooling   atomic.Bool
 	poolDebug atomic.Bool
@@ -51,8 +51,23 @@ func ReleaseRequest(r *Request) {
 		return
 	}
 	gen := r.gen + 1
-	*r = Request{pooled: true, gen: gen, released: poolDebug.Load()}
+	debug := poolDebug.Load()
+	*r = Request{pooled: true, gen: gen, released: debug}
+	if debug {
+		return
+	}
 	reqPool.Put(r)
+}
+
+// ReleaseAfterCommit releases req and resp once Commit has run. A stream or
+// hijack callback runs after the handler returns and may still read either
+// object, so that pair is left to the garbage collector.
+func ReleaseAfterCommit(req *Request, resp *Response) {
+	if resp.outlivesCommit() {
+		return
+	}
+	ReleaseResponse(resp)
+	ReleaseRequest(req)
 }
 
 // Reset prepares a pooled request for another connection buffer.
@@ -100,6 +115,18 @@ func ReleaseResponse(r *Response) {
 	if r == nil || !r.pooled {
 		return
 	}
-	*r = Response{pooled: true, released: poolDebug.Load()}
+	debug := poolDebug.Load()
+	*r = Response{pooled: true, released: debug}
+	if debug {
+		return
+	}
 	respPool.Put(r)
+}
+
+func (r *Response) outlivesCommit() bool {
+	if r == nil || r.cold == nil {
+		return false
+	}
+	c := r.cold
+	return c.stream != nil || c.streamReader != nil || c.hijack != nil
 }

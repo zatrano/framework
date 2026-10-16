@@ -14,8 +14,10 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v3   v3.0.1
+github.com/zatrano/framework/v3   v3.2.2
 github.com/zatrano/packages       v1.15.2
+github.com/zatrano/rawhttp        v1.0.1
+github.com/zatrano/canvas         v1.0.0
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.
@@ -43,7 +45,7 @@ go run ./cmd/zatrano package:acquire session --enable
 
 The registry CLI consumer is **frozen**: CLI is a registry consumer only (`Search` / `Lookup` / `Resolve`). Architecture tests reject a second resolution implementation in `console`.
 
-**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin. First-time wiring may `go get github.com/zatrano/packages@v1.7.2` when the module is not yet required. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public consumption: `go get github.com/zatrano/framework/v3@v2.2.0` and `go get github.com/zatrano/packages@v1.7.2`.
+**Acquisition Plan** is **closed** (`FromResult` / `Targets` / `GoGetArg`). See [`distribution/acquire/SPEC.md`](distribution/acquire/SPEC.md). Apply contract is **frozen** ([`distribution/acquire/APPLY.md`](distribution/acquire/APPLY.md)): `Execute` runs `go get` under a per-root mutation lock, `Inspect` reads go.mod / go.sum, `ExecuteTargets` reports partial apply, `RecoverFiles` restores a go.mod / go.sum snapshot (not transactional, cache not undone). There is no `func Apply`. Acquisition/enablement is **COMPLETE / FROZEN** ([`distribution/acquire/ORCHESTRATION.md`](distribution/acquire/ORCHESTRATION.md)); Contract A (dry-run) is complete / FROZEN; Contract B (`package:acquire`) is implemented; Contract C is COMPLETE / FROZEN at `v2.0.27` (`package:acquire --enable` after successful acquisition). Default acquire does not enable. Acquisition hardening is **COMPLETE** ([`distribution/acquire/HARDENING.md`](distribution/acquire/HARDENING.md)). The runtime contract is **COMPLETE** ([`distribution/runtime/RUNTIME.md`](distribution/runtime/RUNTIME.md)): runtime lifecycle hardening A–L (`BootstrapContext` / `StartContext`, Start-failure `errors.Join`, runtime CLI codes 20–23). Enablement is **COMPLETE** (shipped in `v2.0.28`): enablement expands transitive `Requires` (not Optional); `package:disable` refuses reverse-Requires, is idempotent, and is not Stop; enablement does not rewrite an existing `github.com/zatrano/packages` pin. First-time wiring may `go get github.com/zatrano/packages@v1.15.2` when the module is not yet required. Disable does not remove Go modules. `package:install` ≠ module acquisition (enablement). Consumer diagnostics cover `package:doctor` framework/import/Requires-closure reporting, CLI error next-steps, deterministic list output, and provider-phase boot errors without changing those semantics. Application ergonomics cover `--help`/`--version`, `APP_PORT` configuration errors, generated `/up` vs optional `health`, and Start/Stop testability without new managers. Public consumption: `go get github.com/zatrano/framework/v3@v3.2.2` and `go get github.com/zatrano/packages@v1.15.2`.
 
 ---
 
@@ -422,6 +424,8 @@ q := queue.From(app)
 q.Register("send-invoice", func(payload map[string]any) error { return nil })
 _ = q.Push("send-invoice", map[string]any{"id": 1})
 ```
+
+Push values the handler already copied out of the request. Never push `*http.Request`, `req.Context()`, or a closure over `req`. With `HTTP_POOL_REQUESTS=true` the request is reused when the handler returns. See [Request lifetime](README.md#request-lifetime).
 
 ```bash
 go run ./cmd/zatrano queue:work

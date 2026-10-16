@@ -7,6 +7,37 @@ import (
 	"github.com/zatrano/framework/v3/core/kernel/http"
 )
 
+func TestPoolDebugFollowsAppDebugDefault(t *testing.T) {
+	cases := []struct {
+		appEnv, appDebug string
+		want             bool
+	}{
+		{"", "", true},
+		{"local", "", true},
+		{"testing", "", true},
+		{"production", "", false},
+		{" Production ", "", false},
+		{"production", "true", true},
+		{"local", "false", false},
+		{"production", "false", false},
+	}
+	for _, c := range cases {
+		setOrUnset(t, "APP_ENV", c.appEnv)
+		setOrUnset(t, "APP_DEBUG", c.appDebug)
+		if got := poolDebugFromEnv(); got != c.want {
+			t.Fatalf("APP_ENV=%q APP_DEBUG=%q: pool debug %v, want %v", c.appEnv, c.appDebug, got, c.want)
+		}
+	}
+}
+
+func setOrUnset(t *testing.T, key, value string) {
+	t.Helper()
+	t.Setenv(key, value)
+	if value == "" {
+		os.Unsetenv(key)
+	}
+}
+
 func TestHTTPPoolRequestsIsOffUntilSetTrue(t *testing.T) {
 	prev, had := os.LookupEnv("HTTP_POOL_REQUESTS")
 	t.Cleanup(func() {

@@ -56,6 +56,7 @@ func (r *Request) Header(key string, fallback ...string) string {
 // An overlay stores each value; the carrier stores one.
 // The rawhttp path keeps the last Origin when the request repeats it.
 func (r *Request) HeaderValues(key string) []string {
+	r.touch()
 	if r == nil {
 		return nil
 	}
@@ -260,6 +261,7 @@ func (r *Request) WhenMissingAnyHeader(keys []string, fn func(*Request)) *Reques
 
 // HeadersMap returns the first value for each request header.
 func (r *Request) HeadersMap() map[string]string {
+	r.touch()
 	if r == nil {
 		return map[string]string{}
 	}
