@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.2.0-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.2.1-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -49,7 +49,7 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
 | | |
 | --- | --- |
-| Current module tag | `v3.2.0` |
+| Current module tag | `v3.2.1` |
 | Release branch | `3.x` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` (current tag; this module requires it) |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v1.0.0`, wired at `framework/v3/core/ssr` |
@@ -61,7 +61,7 @@ Version lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `3.x` | V3. Current tag `v3.2.0` |
+| `3.x` | V3. Current tag `v3.2.1` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
@@ -136,7 +136,7 @@ canvas      HTML template engine
 Requires **Go 1.25+** (`go 1.25.0` in the module). Build production binaries with **Go >= go1.26.9** so the standard library includes the current security fixes. `zatrano doctor` warns when the project's toolchain is older (APP-GO-001).
 
 ```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v3.2.0
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.2.1
 zatrano new myapp
 cd myapp
 go run ./cmd/app key:generate
@@ -145,14 +145,14 @@ go run ./cmd/app serve
 
 `zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
 
-`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.0`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.1`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
 
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
 Pin the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.2.0
+go get github.com/zatrano/framework/v3@v3.2.1
 go get github.com/zatrano/packages@v1.15.2
 ```
 

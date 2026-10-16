@@ -2,6 +2,13 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 3.2.1 - 2026-10-16
+
+### Changed
+
+- Require canvas v1.0.0. That tag is the same code as canvas v0.2.1, which v3.2.0 required. There is no `replace`.
+- First-time `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
+
 ## 3.2.0 - 2026-10-16
 
 ### Added
