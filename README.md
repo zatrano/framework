@@ -51,9 +51,9 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 | --- | --- |
 | Current module tag | `v3.2.0` |
 | Release branch | `3.x` |
-| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` |
-| HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.1`, wired at `framework/v3/core/ssr` |
-| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.1` |
+| HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` (current tag; this module requires it) |
+| HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v1.0.0` (current tag). This module requires `v0.2.1`; that tag is the same code. Wired at `framework/v3/core/ssr` |
+| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.1` (current tag). The kernel does not import it |
 
 The kernel requires **rawhttp** and **canvas**. It does not import `github.com/zatrano/packages`. Web handlers return `http.Template`. API handlers return `http.JSON`. `routing.Version` mounts `/api/{version}`.
 
