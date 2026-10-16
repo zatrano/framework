@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 3.2.3 - 2026-10-16
+
+### Changed
+
+- Require canvas v1.0.1. Nested `@foreach` with `@if` in the body, struct-field loops, and map iteration on the AOT path were empty after the first outer iteration on v1.0.0. There is no `replace`.
+
 ## 3.2.2 - 2026-10-16
 
 ### Fixed

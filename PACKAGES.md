@@ -14,10 +14,10 @@ The two modules cannot be merged: `github.com/zatrano/packages` already requires
 Current public releases (independent lines; not a monolithic ZATRANO version):
 
 ```text
-github.com/zatrano/framework/v3   v3.2.2
+github.com/zatrano/framework/v3   v3.2.3
 github.com/zatrano/packages       v1.15.2
 github.com/zatrano/rawhttp        v1.0.1
-github.com/zatrano/canvas         v1.0.0
+github.com/zatrano/canvas         v1.0.1
 ```
 
 This guide answers three questions per package: **what it is for**, **how to enable/resolve it**, and **how to use it** (minimal example). Deep API reference lives on the website.

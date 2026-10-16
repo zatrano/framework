@@ -19,8 +19,8 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(raw))
-	if version != "3.2.2" {
-		t.Fatalf("VERSION=%q want 3.2.2", version)
+	if version != "3.2.3" {
+		t.Fatalf("VERSION=%q want 3.2.3", version)
 	}
 
 	log, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md"))
@@ -80,7 +80,7 @@ func TestReleaseMetadata(t *testing.T) {
 		t.Fatal("CHANGELOG.md must keep historical 2.0.28")
 	}
 	order := []string{
-		"## 3.2.2 -", "## 3.2.1 -", "## 3.2.0 -",
+		"## 3.2.3 -", "## 3.2.2 -", "## 3.2.1 -", "## 3.2.0 -",
 		"## 3.1.7 -", "## 3.1.6 -", "## 3.1.5 -", "## 3.1.4 -", "## 3.1.3 -", "## 3.1.2 -", "## 3.1.1 -", "## 3.1.0 -",
 		"## 3.0.1 -", "## 3.0.0 -", "## 3.0.0-rc.1", "## 2.8.1", "## 2.8.0",
 	}
@@ -100,8 +100,8 @@ func TestReleaseMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "version-3.2.2-green") {
-		t.Fatal("README badge must show 3.2.2")
+	if !strings.Contains(string(readme), "version-3.2.3-green") {
+		t.Fatal("README badge must show 3.2.3")
 	}
 }
 
@@ -128,8 +128,8 @@ func TestFreshConsumerLocalReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.2.2") {
-		t.Fatalf("generated go.mod must require v3.2.2:\n%s", mod)
+	if !strings.Contains(string(mod), "github.com/zatrano/framework/v3 v3.2.3") {
+		t.Fatalf("generated go.mod must require v3.2.3:\n%s", mod)
 	}
 	build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(t.TempDir(), "app.exe"), "./cmd/app")
 	build.Dir = dest
@@ -170,8 +170,8 @@ func TestReleaseModuleHasNoReplace(t *testing.T) {
 			canvas = r.Version
 		}
 	}
-	if canvas != "v1.0.0" {
-		t.Fatalf("go.mod must require canvas v1.0.0, got %s", canvas)
+	if canvas != "v1.0.1" {
+		t.Fatalf("go.mod must require canvas v1.0.1, got %s", canvas)
 	}
 	retracted := false
 	for _, r := range doc.Retract {
