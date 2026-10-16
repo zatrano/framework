@@ -69,13 +69,99 @@ Create applications with `zatrano new`. Do not clone this repository and treat i
 
 ## Performance
 
-With `HTTP_POOL_REQUESTS=true`, ZATRANO outperformed Fiber v3.6.0 (configured with the same request-id, recover and security-header behaviour) in 16 of 16 cells with both our Go load generator and `wrk`. In the default configuration (pooling off) it was faster in 11 of 16 cells (Go client) and 12 of 16 (`wrk`), tied or narrowly missed the p99/CPU bar in the rest, and was not stably slower in any cell. With the faster `goccy/go-json` codec on both sides ZATRANO trails Fiber on `POST /echo`. Full tables and methodology: `bench/RESULTS.md`.
+Paired against Fiber v3.6.0 (tuned: the same request-id, recover, and security-header behaviour). Ratio is ZATRANO/Fiber. Both sides use `encoding/json`. Each number is the median of three runs. The result is the one shared by at least two runs.
+
+- **ahead** — the 95% interval sits above 1, and p99 and CPU per request are not higher.
+- **tie** — the interval contains 1.
+- **mixed** — the interval sits above 1, but p99 or CPU per request is higher.
+
+Peak RSS is shown and is not part of the result. A ratio above 1 is not a 5% lead: several ahead cells are between 1.03 and 1.05. No cell in these two tables is a stable Fiber lead.
 
 <!-- bench-env:start -->
-Measured on a shared 4 vCPU Linux runner (server pinned to one core), 20 paired rounds × 3 runs, `encoding/json`. A dedicated-hardware run is pending; see `bench/README.md` to reproduce on your own machine.
+Measured on a shared 4 vCPU Linux runner (server pinned to one core, `GOMAXPROCS=1`), 20 paired rounds × 3 runs, SHA `b966476`. A dedicated-hardware run is pending; see `bench/README.md`.
 <!-- bench-env:end -->
 
-Faster means the paired throughput interval sits above 1 and p99 and CPU/request are lower. Set `HTTP_POOL_REQUESTS=true` to turn the request pool on. It is off when the variable is unset. With the pool on, do not keep a `*Request` after the handler returns.
+The pool is off unless `HTTP_POOL_REQUESTS=true`. With the pool on, do not keep a `*Request` after the handler returns. Method notes: `bench/RESULTS.md`.
+
+### Pool off
+
+Run [38815118387](https://github.com/zatrano/framework/actions/runs/38815118387). `HTTP_POOL_REQUESTS` unset. Go client: 11 ahead, 5 mixed. wrk: 12 ahead, 3 tie, 1 mixed.
+
+| Client | Route | Conns | Ratio | 95% CI | p99 | CPU | RSS | Result |
+|---|---|---:|---:|---|---:|---:|---:|---|
+| go | GET /plaintext | 64 | 1.052 | 1.048–1.059 | 0.964 | 0.949 | 1.118 | ahead |
+| go | GET /plaintext | 256 | 1.027 | 1.023–1.032 | 1.055 | 0.972 | 0.973 | mixed |
+| go | GET /plaintext | 1024 | 1.035 | 1.031–1.041 | 1.136 | 0.964 | 0.939 | mixed |
+| go | GET /plaintext | 4096 | 1.049 | 1.023–1.053 | 1.099 | 0.953 | 0.809 | mixed |
+| go | GET /json | 64 | 1.105 | 1.098–1.107 | 0.917 | 0.905 | 0.955 | ahead |
+| go | GET /json | 256 | 1.080 | 1.077–1.085 | 1.034 | 0.926 | 0.758 | mixed |
+| go | GET /json | 1024 | 1.086 | 1.074–1.127 | 0.922 | 0.889 | 0.674 | ahead |
+| go | GET /json | 4096 | 1.077 | 1.056–1.092 | 0.882 | 0.928 | 0.571 | ahead |
+| go | GET /users/{id} | 64 | 1.075 | 1.069–1.080 | 0.939 | 0.931 | 0.956 | ahead |
+| go | GET /users/{id} | 256 | 1.063 | 1.055–1.068 | 1.032 | 0.944 | 0.758 | mixed |
+| go | GET /users/{id} | 1024 | 1.091 | 1.061–1.137 | 0.939 | 0.906 | 0.674 | ahead |
+| go | GET /users/{id} | 4096 | 1.097 | 1.070–1.103 | 0.892 | 0.908 | 0.571 | ahead |
+| go | POST /echo | 64 | 1.065 | 1.055–1.070 | 0.949 | 0.937 | 0.957 | ahead |
+| go | POST /echo | 256 | 1.037 | 1.036–1.048 | 0.998 | 0.957 | 0.757 | ahead |
+| go | POST /echo | 1024 | 1.109 | 1.081–1.143 | 0.948 | 0.895 | 0.643 | ahead |
+| go | POST /echo | 4096 | 1.116 | 1.102–1.122 | 0.887 | 0.897 | 0.606 | ahead |
+| wrk | GET /plaintext | 64 | 1.003 | 0.977–1.043 | 1.003 | 0.993 | 1.254 | tie |
+| wrk | GET /plaintext | 256 | 1.000 | 0.956–1.033 | 1.039 | 1.000 | 0.973 | tie |
+| wrk | GET /plaintext | 1024 | 1.033 | 0.992–1.075 | 1.044 | 0.971 | 0.896 | tie |
+| wrk | GET /plaintext | 4096 | 1.035 | 1.008–1.054 | 1.075 | 0.974 | 0.790 | mixed |
+| wrk | GET /json | 64 | 1.137 | 1.109–1.188 | 0.914 | 0.884 | 0.959 | ahead |
+| wrk | GET /json | 256 | 1.107 | 1.069–1.135 | 0.963 | 0.918 | 0.760 | ahead |
+| wrk | GET /json | 1024 | 1.153 | 1.084–1.164 | 0.978 | 0.870 | 0.674 | ahead |
+| wrk | GET /json | 4096 | 1.095 | 1.085–1.126 | 0.959 | 0.907 | 0.578 | ahead |
+| wrk | GET /users/{id} | 64 | 1.084 | 1.063–1.128 | 0.922 | 0.907 | 0.959 | ahead |
+| wrk | GET /users/{id} | 256 | 1.052 | 1.011–1.093 | 0.977 | 0.937 | 0.760 | ahead |
+| wrk | GET /users/{id} | 1024 | 1.060 | 1.019–1.108 | 1.000 | 0.940 | 0.674 | ahead |
+| wrk | GET /users/{id} | 4096 | 1.076 | 1.045–1.120 | 0.969 | 0.918 | 0.572 | ahead |
+| wrk | POST /echo | 64 | 1.101 | 1.073–1.173 | 0.900 | 0.890 | 0.957 | ahead |
+| wrk | POST /echo | 256 | 1.072 | 1.037–1.104 | 0.959 | 0.932 | 0.761 | ahead |
+| wrk | POST /echo | 1024 | 1.113 | 1.066–1.140 | 0.965 | 0.895 | 0.642 | ahead |
+| wrk | POST /echo | 4096 | 1.094 | 1.084–1.119 | 0.917 | 0.906 | 0.626 | ahead |
+
+wrk `GET /plaintext` 256 was a Fiber lead on one run and a tie on the other two, so the stable result stays a tie.
+
+### Pool on (`HTTP_POOL_REQUESTS=true`)
+
+Run [38815127116](https://github.com/zatrano/framework/actions/runs/38815127116). Go client and wrk are each 16/16 ahead.
+
+| Client | Route | Conns | Ratio | 95% CI | p99 | CPU | RSS | Result |
+|---|---|---:|---:|---|---:|---:|---:|---|
+| go | GET /plaintext | 64 | 1.118 | 1.109–1.123 | 0.909 | 0.895 | 0.846 | ahead |
+| go | GET /plaintext | 256 | 1.110 | 1.108–1.121 | 0.873 | 0.894 | 0.758 | ahead |
+| go | GET /plaintext | 1024 | 1.122 | 1.106–1.153 | 0.869 | 0.896 | 0.624 | ahead |
+| go | GET /plaintext | 4096 | 1.089 | 1.077–1.103 | 0.873 | 0.909 | 0.511 | ahead |
+| go | GET /json | 64 | 1.145 | 1.124–1.159 | 0.869 | 0.878 | 0.954 | ahead |
+| go | GET /json | 256 | 1.136 | 1.127–1.147 | 0.909 | 0.882 | 0.757 | ahead |
+| go | GET /json | 1024 | 1.173 | 1.152–1.208 | 0.862 | 0.847 | 0.674 | ahead |
+| go | GET /json | 4096 | 1.109 | 1.102–1.121 | 0.861 | 0.900 | 0.531 | ahead |
+| go | GET /users/{id} | 64 | 1.113 | 1.108–1.129 | 0.887 | 0.897 | 0.958 | ahead |
+| go | GET /users/{id} | 256 | 1.102 | 1.092–1.123 | 0.868 | 0.895 | 0.757 | ahead |
+| go | GET /users/{id} | 1024 | 1.114 | 1.110–1.175 | 0.896 | 0.868 | 0.659 | ahead |
+| go | GET /users/{id} | 4096 | 1.108 | 1.103–1.111 | 0.897 | 0.900 | 0.512 | ahead |
+| go | POST /echo | 64 | 1.077 | 1.066–1.085 | 0.934 | 0.930 | 0.959 | ahead |
+| go | POST /echo | 256 | 1.069 | 1.062–1.077 | 0.953 | 0.936 | 0.759 | ahead |
+| go | POST /echo | 1024 | 1.119 | 1.100–1.161 | 0.897 | 0.896 | 0.644 | ahead |
+| go | POST /echo | 4096 | 1.102 | 1.094–1.107 | 0.897 | 0.909 | 0.584 | ahead |
+| wrk | GET /plaintext | 64 | 1.107 | 1.068–1.134 | 0.940 | 0.916 | 0.951 | ahead |
+| wrk | GET /plaintext | 256 | 1.112 | 1.048–1.165 | 0.942 | 0.901 | 0.759 | ahead |
+| wrk | GET /plaintext | 1024 | 1.138 | 1.102–1.191 | 0.925 | 0.874 | 0.624 | ahead |
+| wrk | GET /plaintext | 4096 | 1.108 | 1.088–1.131 | 0.912 | 0.896 | 0.533 | ahead |
+| wrk | GET /json | 64 | 1.158 | 1.128–1.203 | 0.859 | 0.861 | 0.955 | ahead |
+| wrk | GET /json | 256 | 1.166 | 1.114–1.205 | 0.873 | 0.857 | 0.759 | ahead |
+| wrk | GET /json | 1024 | 1.149 | 1.126–1.200 | 0.886 | 0.863 | 0.673 | ahead |
+| wrk | GET /json | 4096 | 1.150 | 1.124–1.181 | 0.887 | 0.874 | 0.547 | ahead |
+| wrk | GET /users/{id} | 64 | 1.153 | 1.138–1.180 | 0.866 | 0.884 | 0.957 | ahead |
+| wrk | GET /users/{id} | 256 | 1.143 | 1.131–1.192 | 0.870 | 0.874 | 0.759 | ahead |
+| wrk | GET /users/{id} | 1024 | 1.154 | 1.114–1.212 | 0.896 | 0.879 | 0.643 | ahead |
+| wrk | GET /users/{id} | 4096 | 1.127 | 1.098–1.159 | 0.914 | 0.883 | 0.522 | ahead |
+| wrk | POST /echo | 64 | 1.138 | 1.114–1.197 | 0.864 | 0.873 | 1.004 | ahead |
+| wrk | POST /echo | 256 | 1.177 | 1.120–1.233 | 0.862 | 0.840 | 0.759 | ahead |
+| wrk | POST /echo | 1024 | 1.206 | 1.173–1.256 | 0.882 | 0.814 | 0.644 | ahead |
+| wrk | POST /echo | 4096 | 1.141 | 1.089–1.162 | 0.881 | 0.882 | 0.604 | ahead |
 
 ## What is ZATRANO?
 
