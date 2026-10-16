@@ -150,6 +150,10 @@ func TestReleaseModuleHasNoReplace(t *testing.T) {
 		t.Fatal(err)
 	}
 	var doc struct {
+		Require []struct {
+			Path    string `json:"Path"`
+			Version string `json:"Version"`
+		} `json:"Require"`
 		Replace []*json.RawMessage `json:"Replace"`
 		Retract []struct {
 			Low string `json:"Low"`
@@ -160,6 +164,15 @@ func TestReleaseModuleHasNoReplace(t *testing.T) {
 	}
 	if len(doc.Replace) != 0 {
 		t.Fatalf("go.mod Replace must be empty, got %s", out)
+	}
+	var canvas string
+	for _, r := range doc.Require {
+		if r.Path == "github.com/zatrano/canvas" {
+			canvas = r.Version
+		}
+	}
+	if canvas != "v1.0.0" {
+		t.Fatalf("go.mod must require canvas v1.0.0, got %s", canvas)
 	}
 	retracted := false
 	for _, r := range doc.Retract {

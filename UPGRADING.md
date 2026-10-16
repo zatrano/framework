@@ -2,7 +2,7 @@
 
 ## Upgrading from v3.1.x
 
-v3.2.0 requires rawhttp v1.0.1 and canvas v0.2.1. There is no `replace`.
+This module requires rawhttp v1.0.1 and canvas v1.0.0. There is no `replace`. The published tag v3.2.0 required canvas v0.2.1. v1.0.0 is that same code. First-time `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
 
 ```bash
 go get github.com/zatrano/framework/v3@v3.2.0

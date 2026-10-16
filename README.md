@@ -52,8 +52,8 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 | Current module tag | `v3.2.0` |
 | Release branch | `3.x` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` (current tag; this module requires it) |
-| HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v1.0.0` (current tag). This module requires `v0.2.1`; that tag is the same code. Wired at `framework/v3/core/ssr` |
-| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.1` (current tag). The kernel does not import it |
+| HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v1.0.0`, wired at `framework/v3/core/ssr` |
+| Packages | [`github.com/zatrano/packages`](https://github.com/zatrano/packages) `v1.15.2` (current tag). The kernel does not import it |
 
 The kernel requires **rawhttp** and **canvas**. It does not import `github.com/zatrano/packages`. Web handlers return `http.Template`. API handlers return `http.JSON`. `routing.Version` mounts `/api/{version}`.
 
@@ -145,7 +145,7 @@ go run ./cmd/app serve
 
 `zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
 
-`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.0`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.1`.
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.0`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.2`.
 
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
@@ -153,7 +153,7 @@ Pin the modules in an existing `go.mod`:
 
 ```bash
 go get github.com/zatrano/framework/v3@v3.2.0
-go get github.com/zatrano/packages@v1.15.1
+go get github.com/zatrano/packages@v1.15.2
 ```
 
 These are the current stable public releases. The two modules version independently. There is no monolithic `zatrano@x.y.z` version. `v3.0.0` is retracted and cannot be installed. Moving from v3.0.1 is described in [Upgrading](UPGRADING.md).
@@ -167,7 +167,7 @@ These are the current stable public releases. The two modules version independen
 
 Packages depend on this module. This module does not import packages.
 
-Nested modules (`db/*`, `mongo`, `webauthn`, `qr`) have their own tags. Root `packages@v1.15.1` does not require them.
+Nested modules (`db/*`, `mongo`, `webauthn`, `qr`) have their own tags. Root `packages@v1.15.2` does not require them.
 
 ## Architecture
 
@@ -252,7 +252,7 @@ Bootstrap               Provider.Register + Provider.Boot
 go run ./cmd/app package:enable auth
 ```
 
-That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.15.1` when that module is not yet required, and merges env keys into `.env.example`. Rebuild or restart after enablement.
+That updates `bootstrap/enabled.go`, writes a blank-import in `bootstrap/addons.go`, `go get`s `github.com/zatrano/packages@v1.15.2` when that module is not yet required, and merges env keys into `.env.example`. Rebuild or restart after enablement.
 
 ```bash
 go run ./cmd/app package:acquire auth --enable
@@ -271,7 +271,7 @@ Stop      = LifecycleProvider.Stop
 Disable   = remove persistent enablement and that package’s blank-import
 ```
 
-`package:enable` expands transitive `Requires` before writing files. `package:disable` refuses when a remaining enabled addon requires the target. Disable does not stop a running process and does not run `go mod tidy`. First-time wiring may `go get github.com/zatrano/packages@v1.15.1`. An existing packages requirement is left alone. Upgrade is `package:acquire name@version`.
+`package:enable` expands transitive `Requires` before writing files. `package:disable` refuses when a remaining enabled addon requires the target. Disable does not stop a running process and does not run `go mod tidy`. First-time wiring may `go get github.com/zatrano/packages@v1.15.2`. An existing packages requirement is left alone. Upgrade is `package:acquire name@version`.
 
 ## HTTP
 
