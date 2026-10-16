@@ -2,6 +2,12 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## 3.2.4 - 2026-10-16
+
+### Changed
+
+- First-time `package:enable` pins `github.com/zatrano/packages@v1.15.3`. That tag requires canvas v1.0.1. An existing packages requirement is left alone.
+
 ## 3.2.3 - 2026-10-16
 
 ### Changed
