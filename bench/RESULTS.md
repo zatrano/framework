@@ -511,3 +511,89 @@ rawhttp/fasthttp, plaintext, as measured. There is no stable `esit` and Fiber's 
 The 60 second `go-plaintext-4096` window is stable `ustun` / `hedef` (ratios 1.122, 1.086, 1.069). GC cycles in that window: ZATRANO 0, Fiber (tuned) 0, official Fiber 2, on every run. Alloc/request there is about 0.0015 for ZATRANO and about 0.0018 for Fiber (tuned). On the 5 second go-default window, `GET /plaintext` alloc/request is about 0.00031 at 64 connections and about 0.018 at 4096 for ZATRANO, and about 0.00055 and 0.020 for Fiber (tuned). The 5 second jobs do not set `gc_cycles`.
 
 Stable class distribution: default and wrk are 16/16 `ustun` and `hedef`; goccy is 6 `ustun`/`hedef`, 6 `esik-yok`, 4 `fiber`; rawhttp/fasthttp is 2 `ustun` and 2 `esik-yok`, and only plaintext 4096 is `hedef`.
+
+## Pool off and pool on (`b966476`)
+
+Shared 4-vCPU runner. SHA `b9664769deb52ac62fb5187d90c0b09c8aa6dd73`. 20 rounds, three runs. Fiber v3.6.0 (tuned), `encoding/json`. The binding row is `zatrano/fiber-tuned`. Each number is the median of the three paired summaries. The verdict is the class shared by at least two runs. Peak RSS is reported and is not a gate. `HTTP_POOL_REQUESTS` unset is the product default and leaves the pool off. `HTTP_POOL_REQUESTS=true` turns it on.
+
+### default (pool off)
+
+Run `38815118387`. `HTTP_POOL_REQUESTS` unset.
+
+| Client | Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| go | GET /plaintext | 64 | 1.052 | 1.048 | 1.059 | 0.947 | 0.964 | 0.949 | 1.118 | ustun |
+| go | GET /plaintext | 256 | 1.027 | 1.023 | 1.032 | 0.972 | 1.055 | 0.972 | 0.973 | esik-yok |
+| go | GET /plaintext | 1024 | 1.035 | 1.031 | 1.041 | 0.950 | 1.136 | 0.964 | 0.939 | esik-yok |
+| go | GET /plaintext | 4096 | 1.049 | 1.023 | 1.053 | 0.933 | 1.099 | 0.953 | 0.809 | esik-yok |
+| go | GET /json | 64 | 1.105 | 1.098 | 1.107 | 0.910 | 0.917 | 0.905 | 0.955 | ustun |
+| go | GET /json | 256 | 1.080 | 1.077 | 1.085 | 0.927 | 1.034 | 0.926 | 0.758 | esik-yok |
+| go | GET /json | 1024 | 1.086 | 1.074 | 1.127 | 0.894 | 0.922 | 0.889 | 0.674 | ustun |
+| go | GET /json | 4096 | 1.077 | 1.056 | 1.092 | 0.918 | 0.882 | 0.928 | 0.571 | ustun |
+| go | GET /users/{id} | 64 | 1.075 | 1.069 | 1.080 | 0.932 | 0.939 | 0.931 | 0.956 | ustun |
+| go | GET /users/{id} | 256 | 1.063 | 1.055 | 1.068 | 0.944 | 1.032 | 0.944 | 0.758 | esik-yok |
+| go | GET /users/{id} | 1024 | 1.091 | 1.061 | 1.137 | 0.911 | 0.939 | 0.906 | 0.674 | ustun |
+| go | GET /users/{id} | 4096 | 1.097 | 1.070 | 1.103 | 0.894 | 0.892 | 0.908 | 0.571 | ustun |
+| go | POST /echo | 64 | 1.065 | 1.055 | 1.070 | 0.936 | 0.949 | 0.937 | 0.957 | ustun |
+| go | POST /echo | 256 | 1.037 | 1.036 | 1.048 | 0.961 | 0.998 | 0.957 | 0.757 | ustun |
+| go | POST /echo | 1024 | 1.109 | 1.081 | 1.143 | 0.893 | 0.948 | 0.895 | 0.643 | ustun |
+| go | POST /echo | 4096 | 1.116 | 1.102 | 1.122 | 0.880 | 0.887 | 0.897 | 0.606 | ustun |
+| wrk | GET /plaintext | 64 | 1.003 | 0.977 | 1.043 | 0.991 | 1.003 | 0.993 | 1.254 | esit |
+| wrk | GET /plaintext | 256 | 1.000 | 0.956 | 1.033 | 1.000 | 1.039 | 1.000 | 0.973 | esit |
+| wrk | GET /plaintext | 1024 | 1.033 | 0.992 | 1.075 | 0.954 | 1.044 | 0.971 | 0.896 | esit |
+| wrk | GET /plaintext | 4096 | 1.035 | 1.008 | 1.054 | 0.993 | 1.075 | 0.974 | 0.790 | esik-yok |
+| wrk | GET /json | 64 | 1.137 | 1.109 | 1.188 | 0.879 | 0.914 | 0.884 | 0.959 | ustun |
+| wrk | GET /json | 256 | 1.107 | 1.069 | 1.135 | 0.924 | 0.963 | 0.918 | 0.760 | ustun |
+| wrk | GET /json | 1024 | 1.153 | 1.084 | 1.164 | 0.841 | 0.978 | 0.870 | 0.674 | ustun |
+| wrk | GET /json | 4096 | 1.095 | 1.085 | 1.126 | 0.898 | 0.959 | 0.907 | 0.578 | ustun |
+| wrk | GET /users/{id} | 64 | 1.084 | 1.063 | 1.128 | 0.908 | 0.922 | 0.907 | 0.959 | ustun |
+| wrk | GET /users/{id} | 256 | 1.052 | 1.011 | 1.093 | 0.937 | 0.977 | 0.937 | 0.760 | ustun |
+| wrk | GET /users/{id} | 1024 | 1.060 | 1.019 | 1.108 | 0.933 | 1.000 | 0.940 | 0.674 | ustun |
+| wrk | GET /users/{id} | 4096 | 1.076 | 1.045 | 1.120 | 0.902 | 0.969 | 0.918 | 0.572 | ustun |
+| wrk | POST /echo | 64 | 1.101 | 1.073 | 1.173 | 0.882 | 0.900 | 0.890 | 0.957 | ustun |
+| wrk | POST /echo | 256 | 1.072 | 1.037 | 1.104 | 0.928 | 0.959 | 0.932 | 0.761 | ustun |
+| wrk | POST /echo | 1024 | 1.113 | 1.066 | 1.140 | 0.881 | 0.965 | 0.895 | 0.642 | ustun |
+| wrk | POST /echo | 4096 | 1.094 | 1.084 | 1.119 | 0.896 | 0.917 | 0.906 | 0.626 | ustun |
+
+Go client: 11 `ustun`, 5 `esik-yok` (`GET /plaintext` 256, 1024, 4096; `GET /json` 256; `GET /users/{id}` 256). wrk: 12 `ustun`, 3 `esit` (`GET /plaintext` 64, 256, 1024), 1 `esik-yok` (`GET /plaintext` 4096). No cell is stable `fiber`. wrk `GET /plaintext` 256 is `fiber` on one run and `esit` on the other two, so the stable verdict stays `esit`.
+
+### HTTP_POOL_REQUESTS=true
+
+Run `38815127116`.
+
+| Client | Route | Conns | Ratio | CI low | CI high | p50 | p99 | CPU/req | Peak RSS | Verdict |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| go | GET /plaintext | 64 | 1.118 | 1.109 | 1.123 | 0.891 | 0.909 | 0.895 | 0.846 | ustun |
+| go | GET /plaintext | 256 | 1.110 | 1.108 | 1.121 | 0.895 | 0.873 | 0.894 | 0.758 | ustun |
+| go | GET /plaintext | 1024 | 1.122 | 1.106 | 1.153 | 0.888 | 0.869 | 0.896 | 0.624 | ustun |
+| go | GET /plaintext | 4096 | 1.089 | 1.077 | 1.103 | 0.922 | 0.873 | 0.909 | 0.511 | ustun |
+| go | GET /json | 64 | 1.145 | 1.124 | 1.159 | 0.879 | 0.869 | 0.878 | 0.954 | ustun |
+| go | GET /json | 256 | 1.136 | 1.127 | 1.147 | 0.882 | 0.909 | 0.882 | 0.757 | ustun |
+| go | GET /json | 1024 | 1.173 | 1.152 | 1.208 | 0.851 | 0.862 | 0.847 | 0.674 | ustun |
+| go | GET /json | 4096 | 1.109 | 1.102 | 1.121 | 0.898 | 0.861 | 0.900 | 0.531 | ustun |
+| go | GET /users/{id} | 64 | 1.113 | 1.108 | 1.129 | 0.899 | 0.887 | 0.897 | 0.958 | ustun |
+| go | GET /users/{id} | 256 | 1.102 | 1.092 | 1.123 | 0.904 | 0.868 | 0.895 | 0.757 | ustun |
+| go | GET /users/{id} | 1024 | 1.114 | 1.110 | 1.175 | 0.866 | 0.896 | 0.868 | 0.659 | ustun |
+| go | GET /users/{id} | 4096 | 1.108 | 1.103 | 1.111 | 0.899 | 0.897 | 0.900 | 0.512 | ustun |
+| go | POST /echo | 64 | 1.077 | 1.066 | 1.085 | 0.928 | 0.934 | 0.930 | 0.959 | ustun |
+| go | POST /echo | 256 | 1.069 | 1.062 | 1.077 | 0.935 | 0.953 | 0.936 | 0.759 | ustun |
+| go | POST /echo | 1024 | 1.119 | 1.100 | 1.161 | 0.902 | 0.897 | 0.896 | 0.644 | ustun |
+| go | POST /echo | 4096 | 1.102 | 1.094 | 1.107 | 0.907 | 0.897 | 0.909 | 0.584 | ustun |
+| wrk | GET /plaintext | 64 | 1.107 | 1.068 | 1.134 | 0.917 | 0.940 | 0.916 | 0.951 | ustun |
+| wrk | GET /plaintext | 256 | 1.112 | 1.048 | 1.165 | 0.902 | 0.942 | 0.901 | 0.759 | ustun |
+| wrk | GET /plaintext | 1024 | 1.138 | 1.102 | 1.191 | 0.860 | 0.925 | 0.874 | 0.624 | ustun |
+| wrk | GET /plaintext | 4096 | 1.108 | 1.088 | 1.131 | 0.897 | 0.912 | 0.896 | 0.533 | ustun |
+| wrk | GET /json | 64 | 1.158 | 1.128 | 1.203 | 0.860 | 0.859 | 0.861 | 0.955 | ustun |
+| wrk | GET /json | 256 | 1.166 | 1.114 | 1.205 | 0.864 | 0.873 | 0.857 | 0.759 | ustun |
+| wrk | GET /json | 1024 | 1.149 | 1.126 | 1.200 | 0.867 | 0.886 | 0.863 | 0.673 | ustun |
+| wrk | GET /json | 4096 | 1.150 | 1.124 | 1.181 | 0.879 | 0.887 | 0.874 | 0.547 | ustun |
+| wrk | GET /users/{id} | 64 | 1.153 | 1.138 | 1.180 | 0.885 | 0.866 | 0.884 | 0.957 | ustun |
+| wrk | GET /users/{id} | 256 | 1.143 | 1.131 | 1.192 | 0.886 | 0.870 | 0.874 | 0.759 | ustun |
+| wrk | GET /users/{id} | 1024 | 1.154 | 1.114 | 1.212 | 0.845 | 0.896 | 0.879 | 0.643 | ustun |
+| wrk | GET /users/{id} | 4096 | 1.127 | 1.098 | 1.159 | 0.897 | 0.914 | 0.883 | 0.522 | ustun |
+| wrk | POST /echo | 64 | 1.138 | 1.114 | 1.197 | 0.869 | 0.864 | 0.873 | 1.004 | ustun |
+| wrk | POST /echo | 256 | 1.177 | 1.120 | 1.233 | 0.841 | 0.862 | 0.840 | 0.759 | ustun |
+| wrk | POST /echo | 1024 | 1.206 | 1.173 | 1.256 | 0.792 | 0.882 | 0.814 | 0.644 | ustun |
+| wrk | POST /echo | 4096 | 1.141 | 1.089 | 1.162 | 0.887 | 0.881 | 0.882 | 0.604 | ustun |
+
+Go client and wrk are each 16/16 stable `ustun`.
