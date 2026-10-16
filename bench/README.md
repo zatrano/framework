@@ -109,3 +109,17 @@ canon.exe -test.bench ^BenchmarkCanonT0$ -test.run ^$ -test.benchtime 1s -test.c
 ```
 
 `cmd/tcp` is a separate real-TCP informational probe (`go run ./cmd/tcp`). Its log `cmd/tcp/results.txt` is gitignored.
+
+## Reproduce on your own Linux machine
+
+One command, from the repository root, on Ubuntu 22.04 or newer with at least 4 logical cores:
+
+```bash
+./bench/run_dedicated.sh
+```
+
+The script checks the CPU governor and leaves if it is not `performance`. Set it with `sudo cpupower frequency-set -g performance`, or pass `--allow-any-governor` to continue. That flag writes the result files and does not edit the README. Go 1.26.6 is installed from the official archive when it is missing. `wrk` is installed with `apt` when it is missing.
+
+The full run is the CI matrix: Go client and wrk, pooling off and `HTTP_POOL_REQUESTS=true`, Fiber (tuned) as the binding column, 64/256/1024/4096 connections, four routes, 20 rounds, three runs. It can take hours. `--quick` is 5 rounds and one run. It only writes the result files.
+
+Output is `bench/results/dedicated/<YYYY-MM-DD>/` (`jsonl`, `env.txt`, `SUMMARY.md`). A full run on the performance governor rewrites the note between the `bench-env` markers in the root README and commits that file locally. It does not push.

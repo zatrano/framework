@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/zatrano/framework/v3"><img src="https://img.shields.io/badge/golang-1.25+-00ADD8?logo=go&logoColor=white" alt="Golang"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.1.7-green.svg" alt="Version"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-3.2.0-green.svg" alt="Version"></a>
   <a href=".github/SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen.svg" alt="Security Policy"></a>
 </p>
 
@@ -49,7 +49,7 @@ This repository is the **V3 kernel**: `github.com/zatrano/framework/v3`.
 
 | | |
 | --- | --- |
-| Current module tag | `v3.1.7` |
+| Current module tag | `v3.2.0` |
 | Release branch | `3.x` |
 | HTTP carrier | [`github.com/zatrano/rawhttp`](https://github.com/zatrano/rawhttp) `v1.0.1` |
 | HTML SSR | [`github.com/zatrano/canvas`](https://github.com/zatrano/canvas) `v0.2.1`, wired at `framework/v3/core/ssr` |
@@ -61,13 +61,21 @@ Version lines stay on their own branches:
 
 | Branch | Line |
 | --- | --- |
-| `3.x` | V3. Current tag `v3.1.7` |
+| `3.x` | V3. Current tag `v3.2.0` |
 | `2.x` | V2. Tag `v2.8.1`, packages `v1.13.1` |
 | `1.x` | V1. Tag `v1.6.6` |
 
 Create applications with `zatrano new`. Do not clone this repository and treat it as your application.
 
-On a shared 4-vCPU runner, three runs, Fiber v3.6.0 (tuned), `encoding/json`, request pool on: the default Go client and wrk each hold all 16 cells as stable `ustun` and gate `hedef` (throughput interval above 1, paired ratio at least 1.05, p99 and CPU/request below 1, high-water RSS at most 1.10). The binding opponent is Fiber (tuned).
+## Performance
+
+With `HTTP_POOL_REQUESTS=true`, ZATRANO outperformed Fiber v3.6.0 (configured with the same request-id, recover and security-header behaviour) in 16 of 16 cells with both our Go load generator and `wrk`. In the default configuration (pooling off) it was faster in 11 of 16 cells (Go client) and 12 of 16 (`wrk`), tied or narrowly missed the p99/CPU bar in the rest, and was not stably slower in any cell. With the faster `goccy/go-json` codec on both sides ZATRANO trails Fiber on `POST /echo`. Full tables and methodology: `bench/RESULTS.md`.
+
+<!-- bench-env:start -->
+Measured on a shared 4 vCPU Linux runner (server pinned to one core), 20 paired rounds × 3 runs, `encoding/json`. A dedicated-hardware run is pending; see `bench/README.md` to reproduce on your own machine.
+<!-- bench-env:end -->
+
+Faster means the paired throughput interval sits above 1 and p99 and CPU/request are lower. Set `HTTP_POOL_REQUESTS=true` to turn the request pool on. It is off when the variable is unset. With the pool on, do not keep a `*Request` after the handler returns.
 
 ## What is ZATRANO?
 
@@ -128,7 +136,7 @@ canvas      HTML template engine
 Requires **Go 1.25+** (`go 1.25.0` in the module). Build production binaries with **Go >= go1.26.9** so the standard library includes the current security fixes. `zatrano doctor` warns when the project's toolchain is older (APP-GO-001).
 
 ```bash
-go install github.com/zatrano/framework/v3/cmd/zatrano@v3.1.7
+go install github.com/zatrano/framework/v3/cmd/zatrano@v3.2.0
 zatrano new myapp
 cd myapp
 go run ./cmd/app key:generate
@@ -137,14 +145,14 @@ go run ./cmd/app serve
 
 `zatrano new` runs `go mod tidy` in the new project. That step is a convenience: the command already listed `go mod tidy` next. When tidy succeeds, the Next list is `cd`, `key:generate`, and `serve`. `--no-tidy` skips it. If the machine is offline, `go` is not on `PATH`, tidy exceeds 120 seconds, or tidy exits non-zero, the command still exits 0, prints one line (`Run `go mod tidy` in <dir> before building`), and the Next list still includes `go mod tidy`.
 
-`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.1.7`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.1`.
+`--framework-version vX.Y.Z` sets the `github.com/zatrano/framework/v3` version written into the new `go.mod`. The default is this CLI's own version (`v3.2.0`). A value without a `v` prefix, or a value that is not a version, is an error and the project is not written. `package:enable` pins `github.com/zatrano/packages@v1.15.1`.
 
 Open [http://localhost:8080](http://localhost:8080). The listen port is `APP_PORT` (default 8080).
 
 Pin the modules in an existing `go.mod`:
 
 ```bash
-go get github.com/zatrano/framework/v3@v3.1.7
+go get github.com/zatrano/framework/v3@v3.2.0
 go get github.com/zatrano/packages@v1.15.1
 ```
 

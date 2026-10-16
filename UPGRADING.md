@@ -1,16 +1,16 @@
 # Upgrading
 
-## Unreleased
+## Upgrading from v3.1.x
 
-The module requires rawhttp v1.0.0. There is no `replace` for it. A still-valid rawhttp read or write deadline is not refreshed. The effective timeout is `[d − granule, d]`, granule = min(d/8, 1s). A generated request id is stored as 32 hex bytes and written with `SetHeaderBytes`. `Get("request_id")` still returns the id string. A valid incoming `X-Request-ID` is still reflected as sent.
+v3.2.0 requires rawhttp v1.0.1 and canvas v0.2.1. There is no `replace`.
 
-`Request.BindJSON` decodes JSON from the connection buffer and does not copy it. The decode finishes before `BindJSON` returns. A value produced by `encoding/json` does not alias that buffer. A type that implements `UnmarshalJSON` must not retain the input slice. `Request.Body` and `Request.JSON` are unchanged and still return an owned copy.
+```bash
+go get github.com/zatrano/framework/v3@v3.2.0
+```
 
-`SetJSONCodec` is opt-in and process-wide. Nil arguments restore `encoding/json`. `JSON`, `Request.JSON`, and `BindJSON` use it. `JSONP` does not. The default leaves those calls on `encoding/json`, including `<`, `>`, and `&`.
+Handler behaviour is unchanged. Request and `Text`/`JSON` response pooling stays off unless you set `HTTP_POOL_REQUESTS=true`. The default turns on in v4. With the pool on, do not keep a `*Request` after the handler returns, and do not use it from another goroutine. That is the contract. `APP_DEBUG=true` panics on a method call after release and reports the request generation.
 
-**Breaking:** a route parameter taken from the carrier path aliases that buffer. It is valid only until the handler returns, the same rule as Fiber. Do not retain the string. `Path()` still returns an owned copy. Zeroing the carrier buffer after the handler changes a retained parameter; the debug test covers that. There is no second goroutine reading the buffer while the handler runs.
-
-`Request` and `Text`/`JSON` `Response` pooling is off unless `HTTP_POOL_REQUESTS=true`. Set `HTTP_POOL_REQUESTS=true` and `Application.Handle` reuses those objects after the handler returns. Do not keep the pointer, and do not use it from another goroutine after the handler returns. `APP_DEBUG=true` panics on a method call after release and reports the request generation. The response JSON bytes are still a fresh buffer. rawhttp aliases that buffer until it writes, which is after `Handle` returns, so the bytes are not pooled. The default turns on in v4.
+A still-valid rawhttp deadline is not refreshed. The effective timeout is `[d − granule, d]`, granule = `min(d/8, 1s)`.
 
 ## Upgrading from v3.1.6
 

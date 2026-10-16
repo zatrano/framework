@@ -2,16 +2,15 @@
 
 All notable changes to ZATRANO are documented in this file.
 
-## Unreleased
+## 3.2.0 - 2026-10-16
 
 ### Added
 
+- Request and `Text`/`JSON` response pooling is opt-in. It stays off unless `HTTP_POOL_REQUESTS=true`. Do not retain those pointers after the handler returns. With `APP_DEBUG=true`, a call after release panics and includes the request generation. The default turns on in v4.
 - `Request.BindJSON` decodes the connection buffer in place. `Request.JSON` and `Request.Body` still return an owned copy.
-- **Breaking:** a route parameter aliases the carrier path and is valid only until the handler returns. `BenchmarkRouteParam` is 0 allocs. `Path()` stays an owned copy.
-- `Request` and `Text`/`JSON` `Response` pooling is off unless `HTTP_POOL_REQUESTS=true`. Set that variable to reuse those objects after the handler returns. Do not retain the pointers. With `APP_DEBUG=true`, a call after release panics and includes the request generation. The default turns on in v4. A one-key `map[string]string` JSON body is encoded without reflection and still matches `encoding/json`, including `<`, `>`, and `&`.
-- `SetJSONCodec` replaces `encoding/json` for `JSON`, `Request.JSON`, and `BindJSON`. The default is `encoding/json`. `JSONP` stays on `encoding/json`.
-- Require rawhttp v1.0.1. The module has no `replace`. A generated request id is 32 hex bytes on the pooled request and response. `Get("request_id")` still returns that id as a string. An incoming `X-Request-ID` or `X-Correlation-ID` that passes the existing check is copied through unchanged.
-- On a shared 4-vCPU runner, three runs, Fiber v3.6.0 (tuned), `encoding/json`, request pool on: the default Go client and wrk each hold all 16 cells as stable `ustun` and gate `hedef`.
+- A generated request id is 32 hex bytes on the request and is written with `SetHeaderBytes`, without allocating the id. `Get("request_id")` still returns that id as a string. An incoming `X-Request-ID` or `X-Correlation-ID` that passes the existing check is copied through unchanged.
+- The module requires rawhttp v1.0.1. There is no `replace`. The connection read buffer starts at 4 KiB. A still-valid read or write deadline is not refreshed; the granule is `min(d/8, 1s)`.
+- `bench/` is the paired Linux harness. `bench/run_dedicated.sh` repeats that matrix on a machine you control.
 
 ## 3.1.7 - 2026-10-13
 
