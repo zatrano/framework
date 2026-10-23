@@ -2,6 +2,7 @@ package trustedproxy
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -59,7 +60,42 @@ func (c Config) Validate(production bool) error {
 	if production && c.TrustAll {
 		return fmt.Errorf("refusing to boot: TRUSTED_PROXIES=* is not allowed in production")
 	}
+	if production {
+		for _, n := range c.nets {
+			// 0.0.0.0/0 or ::/0 trusts X-Forwarded-* from every peer, the same as *.
+			if ones, _ := n.Mask.Size(); ones == 0 {
+				return fmt.Errorf("refusing to boot: TRUSTED_PROXIES=%s trusts every address in production", n.String())
+			}
+		}
+		// Several wide networks can add up to the same thing, for example
+		// 0.0.0.0/1,128.0.0.0/1, or ::ffff:0:0/96, which covers every IPv4
+		// address. No real proxy fleet needs half of an address family.
+		if v4, v6 := coverage(c.nets); v4 >= 0.5 || v6 >= 0.5 {
+			return fmt.Errorf("refusing to boot: TRUSTED_PROXIES covers at least half of all IPv4 or IPv6 addresses in production; list only the proxies you run")
+		}
+	}
 	return nil
+}
+
+// coverage returns the share of the IPv4 and of the IPv6 address space the
+// networks cover, counting overlaps more than once. IPv4-mapped IPv6
+// networks count as IPv4, the way net.IPNet.Contains matches them.
+func coverage(nets []*net.IPNet) (v4, v6 float64) {
+	for _, n := range nets {
+		ones, bits := n.Mask.Size()
+		if n.IP.To4() != nil {
+			if bits == 128 {
+				ones -= 96
+			}
+			if ones < 0 {
+				ones = 0
+			}
+			v4 += math.Ldexp(1, -ones)
+			continue
+		}
+		v6 += math.Ldexp(1, -ones)
+	}
+	return v4, v6
 }
 
 // Middleware trusts X-Forwarded-* headers only when the remote peer is a trusted proxy.
@@ -72,10 +108,10 @@ func (c Config) Middleware() routing.MiddlewareFunc {
 		return func(req *http.Request) *http.Response {
 			req.Set(clientIPKey, Resolve(req, trustAll, nets))
 			if trustAll || ipInNets(RemoteAddr(req), nets) {
-				if proto := firstHeaderValue(req.Header("X-Forwarded-Proto")); proto != "" {
+				if proto := lastForwardedValue(req, "X-Forwarded-Proto"); proto != "" {
 					req.Set(forwardedProtoKey, proto)
 				}
-				if host := firstHeaderValue(req.Header("X-Forwarded-Host")); host != "" {
+				if host := lastForwardedValue(req, "X-Forwarded-Host"); host != "" {
 					req.Set(forwardedHostKey, host)
 				}
 			}
@@ -122,23 +158,35 @@ func FromEnv(production bool) (routing.MiddlewareFunc, error) {
 // Untrusted peers cannot set the client IP via X-Forwarded-For. When the
 // peer is a trusted proxy, hops are read from the right (the value the
 // proxy appended), skipping trusted proxy addresses. Leftmost attacker
-// prepending is ignored.
+// prepending is ignored. Every X-Forwarded-For line counts, in order. A hop
+// that is not an IP address stops the walk and the peer address is returned.
+// X-Real-IP is read only when no X-Forwarded-For line is present.
 func Resolve(req *http.Request, trustAll bool, nets []*net.IPNet) string {
 	remote := RemoteAddr(req)
 	if !trustAll && !ipInNets(remote, nets) {
 		return remote
 	}
-	hops := parseForwardedIPs(req.Header("X-Forwarded-For"))
-	if len(hops) == 0 {
+	lines := req.HeaderValues("X-Forwarded-For")
+	if len(lines) == 0 {
 		if realIP := parseSingleIP(req.Header("X-Real-IP")); realIP != "" {
 			return realIP
 		}
 		return remote
 	}
+	hops, ok := parseForwardedIPs(strings.Join(lines, ","))
+	if len(hops) == 0 {
+		return remote
+	}
 	if trustAll {
+		if !ok {
+			return remote
+		}
 		return hops[0]
 	}
 	for i := len(hops) - 1; i >= 0; i-- {
+		if hops[i] == "" {
+			return remote
+		}
 		if !ipInNets(hops[i], nets) {
 			return hops[i]
 		}
@@ -167,14 +215,21 @@ func ipInNets(ip string, nets []*net.IPNet) bool {
 	return false
 }
 
-func parseForwardedIPs(raw string) []string {
-	var out []string
+// parseForwardedIPs returns one entry per comma-separated hop; a hop that is
+// not an IP address is "" and ok is false. Empty list elements are skipped.
+func parseForwardedIPs(raw string) (hops []string, ok bool) {
+	ok = true
 	for _, part := range strings.Split(raw, ",") {
-		if ip := parseSingleIP(part); ip != "" {
-			out = append(out, ip)
+		if strings.TrimSpace(part) == "" {
+			continue
 		}
+		ip := parseSingleIP(part)
+		if ip == "" {
+			ok = false
+		}
+		hops = append(hops, ip)
 	}
-	return out
+	return hops, ok
 }
 
 func parseSingleIP(raw string) string {
@@ -193,13 +248,19 @@ func parseSingleIP(raw string) string {
 	return raw
 }
 
-func firstHeaderValue(raw string) string {
-	raw = strings.TrimSpace(raw)
+// lastForwardedValue takes the rightmost hop across every header line, the
+// value a proxy that appends would write. A client that prepends is ignored.
+func lastForwardedValue(req *http.Request, key string) string {
+	vals := req.HeaderValues(key)
+	if len(vals) == 0 {
+		return ""
+	}
+	raw := strings.TrimSpace(strings.Join(vals, ","))
 	if raw == "" {
 		return ""
 	}
-	if idx := strings.Index(raw, ","); idx >= 0 {
-		raw = strings.TrimSpace(raw[:idx])
+	if idx := strings.LastIndex(raw, ","); idx >= 0 {
+		raw = strings.TrimSpace(raw[idx+1:])
 	}
 	return raw
 }

@@ -21,6 +21,9 @@ func ensureProductionSecrets(app *Application) error {
 	if _, err := encryption.New(key); err != nil {
 		return fmt.Errorf("refusing to boot: %w", err)
 	}
+	if weakAppKey(key) && env.Get(allowWeakAppKey, "") != allowValue {
+		return fmt.Errorf("refusing to boot: APP_KEY is too predictable for production; run key:generate (or set %s=%s)", allowWeakAppKey, allowValue)
+	}
 	return nil
 }
 

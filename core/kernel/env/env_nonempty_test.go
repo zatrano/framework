@@ -33,4 +33,9 @@ func TestNormalizeAppEnv(t *testing.T) {
 	if got := env.NormalizeAppEnv("Staging"); got != "staging" {
 		t.Fatalf("got %q", got)
 	}
+	for _, v := range []string{"prod", " Prod ", "PROD"} {
+		if got := env.NormalizeAppEnv(v); got != "production" {
+			t.Fatalf("NormalizeAppEnv(%q)=%q, want production", v, got)
+		}
+	}
 }

@@ -9,7 +9,8 @@ import (
 )
 
 // checkHTTPLifecycle flags request-scoped rawhttp / net/http server leaks in app code.
-// Kernel Body() returns an owned copy; Ctx() and lasting *Request pointers remain unsafe.
+// Request values are owned copies; Ctx() is the one accessor that still aliases
+// the connection.
 func checkHTTPLifecycle(root string) ([]Finding, error) {
 	var out []Finding
 	err := walkConsumerGo(root, func(rel, abs string, fset *token.FileSet, file *ast.File) {
@@ -176,16 +177,20 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 						})
 					}
 				}
-				if sel.Sel.Name == "Ctx" && len(x.Args) == 0 && hasKernelHTTP && inHandlers {
+				if sel.Sel.Name == "Ctx" && len(x.Args) == 0 && hasKernelHTTP {
+					severity, rule := "warning", "APP-HTTP-008"
+					if inHandlers {
+						severity, rule = "error", "APP-HTTP-003"
+					}
 					out = append(out, Finding{
-						Rule:     "APP-HTTP-003",
+						Rule:     rule,
 						Check:    "http-lifecycle",
-						Severity: "error",
+						Severity: severity,
 						File:     rel,
 						Line:     line,
 						Found:    ".Ctx()",
-						Why:      "*rawhttp.Ctx is request-scoped (zero-copy / pool). Storing or using it after Commit is undefined.",
-						How:      "Use Method(), Path(), Header(), Body() (owned copy). For background jobs copy into a DTO; do not keep *http.Request or Ctx().",
+						Why:      "Request.Ctx is deprecated and unsafe. Every slice the *rawhttp.Ctx returns aliases the connection buffer, and rawhttp reuses the context for the next request; Ctx returns nil once the handler has returned.",
+						How:      "Use Method(), Path(), Query(), Header(), Cookie(), Body(), RemoteIP(), and Secure(); they return owned values that stay valid after the handler.",
 					})
 				}
 			case *ast.ValueSpec:
@@ -206,7 +211,7 @@ func checkHTTPLifecycle(root string) ([]Finding, error) {
 						File:     rel,
 						Line:     fset.Position(name.Pos()).Line,
 						Found:    fmt.Sprintf("package-level %s *http.Request", name.Name),
-						Why:      "*http.Request holds a request-scoped rawhttp.Ctx; package-level storage outlives Handle→Commit.",
+						Why:      "A package-level *http.Request is shared by every goroutine that touches it; Request is not safe for concurrent mutation and keeps the whole request in memory.",
 						How:      "Do not store *http.Request globally. Copy Method/Path/Body into owned values for async work.",
 					})
 				}

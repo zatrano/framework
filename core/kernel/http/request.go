@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/zatrano/framework/v3/core/kernel/cookie"
 
@@ -25,16 +25,20 @@ import (
 // ErrBodyTooLarge is returned when JSON/Body reads exceed MaxBodyBytes.
 var ErrBodyTooLarge = errors.New("http: request body too large")
 
-// Request wraps rawhttp.Ctx with optional mutable overlays for middleware/tests.
+// Request is one HTTP request with optional mutable overlays for
+// middleware and tests. Every value it returns is owned by the request: the
+// carrier fields are copied when the request is built, and the connection
+// buffer is never read again. A *Request kept after the handler returns keeps
+// reporting this request. It is not safe for concurrent mutation.
 type Request struct {
-	ctx *rawhttp.Ctx
+	carrier carrier
+	// raw is the rawhttp context while the handler runs; Detach clears it.
+	raw atomic.Pointer[rawhttp.Ctx]
 
 	method     string
 	methodSet  bool
-	methodView string
 	path       string
 	pathSet    bool
-	pathView   string
 	query      string
 	querySet   bool
 	host       string
@@ -81,9 +85,9 @@ type Request struct {
 	bodyReader       io.ReadCloser
 	maxBodyBytes     int64
 
-	pooled   bool
-	released bool
-	gen      uint64
+	// owned is the first response Own copied for this request.
+	owned     Response
+	ownedUsed bool
 }
 
 // SessionStore is an optional request capability (flash/csrf bag).
@@ -99,9 +103,24 @@ type SessionStore interface {
 	ID() string
 }
 
-// NewRequest creates a ZATRANO request from a rawhttp context.
+// NewRequest creates a ZATRANO request from a rawhttp context. The method,
+// target, headers, body, and peer address are copied before it returns.
 func NewRequest(ctx *rawhttp.Ctx) *Request {
-	return &Request{ctx: ctx, stdCtx: context.Background()}
+	r := &Request{stdCtx: context.Background()}
+	if ctx != nil {
+		r.carrier.fill(ctx)
+		r.raw.Store(ctx)
+	}
+	return r
+}
+
+// Detach drops the rawhttp context. The kernel calls it after Commit, before
+// the connection reads its next request. Ctx returns nil afterwards; every
+// other method keeps answering from the copied request.
+func (r *Request) Detach() {
+	if r != nil {
+		r.raw.Store(nil)
+	}
 }
 
 // RequestFromHTTP copies a net/http request into overlays for unit tests.
@@ -160,20 +179,23 @@ func RequestFromHTTP(sr *stdhttp.Request) *Request {
 	return req
 }
 
-// Ctx returns the rawhttp context for this request.
-// Valid only during Application.Handle → Commit. Do not store or pass to
-// async work; use Method/Path/Body (owned) or copy fields into a DTO.
+// Ctx returns the rawhttp context for this request, or nil once the handler
+// has returned.
+//
+// Deprecated: unsafe. Every slice the context returns aliases the connection
+// buffer, and rawhttp reuses the context for the next request on the
+// connection, so a stored *rawhttp.Ctx or a slice taken from it reads another
+// request. Use Method, Path, Header, Cookie, Body, RemoteIP, and Secure, which
+// return owned values. Removal is a v4 decision (docs/V4-DECISIONS.md).
 func (r *Request) Ctx() *rawhttp.Ctx {
-	r.touch()
 	if r == nil {
 		return nil
 	}
-	return r.ctx
+	return r.raw.Load()
 }
 
 // Context returns the request-scoped context (default Background).
 func (r *Request) Context() context.Context {
-	r.touch()
 	if r == nil || r.stdCtx == nil {
 		return context.Background()
 	}
@@ -182,7 +204,6 @@ func (r *Request) Context() context.Context {
 
 // SetContext replaces the request-scoped context.
 func (r *Request) SetContext(ctx context.Context) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -194,7 +215,6 @@ func (r *Request) SetContext(ctx context.Context) {
 
 // SetMethod overrides the HTTP method.
 func (r *Request) SetMethod(method string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -204,7 +224,6 @@ func (r *Request) SetMethod(method string) {
 
 // SetPath overrides the request path (query string stripped if present).
 func (r *Request) SetPath(path string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -219,7 +238,6 @@ func (r *Request) SetPath(path string) {
 
 // SetQueryString overrides the raw query string (without leading ?).
 func (r *Request) SetQueryString(raw string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -229,7 +247,6 @@ func (r *Request) SetQueryString(raw string) {
 
 // SetHeader sets a request header overlay value.
 func (r *Request) SetHeader(key, value string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -243,7 +260,6 @@ func (r *Request) SetHeader(key, value string) {
 
 // AddHeader appends a request header overlay value.
 func (r *Request) AddHeader(key, value string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -257,7 +273,6 @@ func (r *Request) AddHeader(key, value string) {
 
 // DelHeader removes a request header (overlay + hides ctx value).
 func (r *Request) DelHeader(key string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -273,7 +288,6 @@ func (r *Request) DelHeader(key string) {
 
 // SetCookie sets a request cookie overlay value.
 func (r *Request) SetCookie(name, value string) {
-	r.touch()
 	if r == nil || name == "" {
 		return
 	}
@@ -285,7 +299,6 @@ func (r *Request) SetCookie(name, value string) {
 
 // SetBody replaces the request body used by Body/JSON/form parsers.
 func (r *Request) SetBody(b []byte) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -308,7 +321,6 @@ func (r *Request) SetBody(b []byte) {
 
 // SetRemoteAddr overrides the direct connection address (host:port or IP).
 func (r *Request) SetRemoteAddr(addr string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -317,7 +329,6 @@ func (r *Request) SetRemoteAddr(addr string) {
 
 // SetHost overrides the request host.
 func (r *Request) SetHost(host string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -326,7 +337,6 @@ func (r *Request) SetHost(host string) {
 
 // SetSecure overrides TLS detection for this request.
 func (r *Request) SetSecure(secure bool) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -339,76 +349,29 @@ func (r *Request) Method() string {
 	if r == nil {
 		return ""
 	}
-	r.touch()
 	if r.methodSet {
 		return r.method
 	}
-	if r.methodView != "" {
-		return r.methodView
-	}
-	if r.ctx != nil && len(r.ctx.Method) > 0 {
-		r.methodView = methodFromBytes(r.ctx.Method)
-		return r.methodView
-	}
-	return ""
-}
-
-func methodFromBytes(b []byte) string {
-	switch len(b) {
-	case 3:
-		if b[0] == 'G' && b[1] == 'E' && b[2] == 'T' {
-			return "GET"
-		}
-		if b[0] == 'P' && b[1] == 'U' && b[2] == 'T' {
-			return "PUT"
-		}
-	case 4:
-		if b[0] == 'P' && b[1] == 'O' && b[2] == 'S' && b[3] == 'T' {
-			return "POST"
-		}
-		if b[0] == 'H' && b[1] == 'E' && b[2] == 'A' && b[3] == 'D' {
-			return "HEAD"
-		}
-	case 5:
-		if b[0] == 'P' && b[1] == 'A' && b[2] == 'T' && b[3] == 'C' && b[4] == 'H' {
-			return "PATCH"
-		}
-	case 6:
-		if b[0] == 'D' && b[1] == 'E' && b[2] == 'L' && b[3] == 'E' && b[4] == 'T' && b[5] == 'E' {
-			return "DELETE"
-		}
-	case 7:
-		if b[0] == 'O' && b[1] == 'P' && b[2] == 'T' && b[3] == 'I' && b[4] == 'O' && b[5] == 'N' && b[6] == 'S' {
-			return "OPTIONS"
-		}
-	}
-	return string(b)
+	return r.carrier.method
 }
 
 // FormURLEncoded reports whether Content-Type is application/x-www-form-urlencoded.
 // A parameter suffix such as "; charset=utf-8" still matches. The check does
 // not call mime.ParseMediaType.
 func (r *Request) FormURLEncoded() bool {
-	r.touch()
 	if r == nil {
 		return false
 	}
-	var ct []byte
-	if r.headerOverlay != nil || len(r.headerDeleted) > 0 {
-		ct = []byte(r.Header("Content-Type"))
-	} else if r.ctx != nil {
-		ct = r.ctx.Header("Content-Type")
-	}
-	return formURLEncodedMedia(ct)
+	return formURLEncodedMedia(r.Header("Content-Type"))
 }
 
-func formURLEncodedMedia(ct []byte) bool {
-	ct = bytes.TrimSpace(ct)
+func formURLEncodedMedia(ct string) bool {
+	ct = strings.TrimSpace(ct)
 	const want = "application/x-www-form-urlencoded"
-	if len(ct) < len(want) || !bytes.EqualFold(ct[:len(want)], []byte(want)) {
+	if len(ct) < len(want) || !asciiEqualFold(ct[:len(want)], want) {
 		return false
 	}
-	rest := bytes.TrimSpace(ct[len(want):])
+	rest := strings.TrimSpace(ct[len(want):])
 	return len(rest) == 0 || rest[0] == ';'
 }
 
@@ -417,38 +380,29 @@ func (r *Request) PathSet() bool {
 	return r != nil && r.pathSet
 }
 
-// PathBytes returns the carrier path without copying. It is nil after SetPath.
-// The bytes are valid only until the carrier reuses the request buffer.
+// PathBytes returns a copy of the parsed path. It is nil after SetPath.
+//
+// Deprecated: use Path, which returns the owned path without allocating.
 func (r *Request) PathBytes() []byte {
-	r.touch()
-	if r == nil || r.pathSet || r.ctx == nil {
+	if r == nil || r.pathSet || r.carrier.path == "" {
 		return nil
 	}
-	return r.ctx.Path
+	return []byte(r.carrier.path)
 }
 
 // Path returns the request path.
 func (r *Request) Path() string {
-	r.touch()
 	if r == nil {
 		return ""
 	}
 	if r.pathSet {
 		return r.path
 	}
-	if r.pathView != "" {
-		return r.pathView
-	}
-	if r.ctx != nil && len(r.ctx.Path) > 0 {
-		r.pathView = string(r.ctx.Path)
-		return r.pathView
-	}
-	return ""
+	return r.carrier.path
 }
 
 // URL returns the full request URL string.
 func (r *Request) URL() string {
-	r.touch()
 	if r == nil {
 		return ""
 	}
@@ -477,7 +431,6 @@ func (r *Request) Query(key string, fallback ...string) string {
 }
 
 func (r *Request) queryValues() url.Values {
-	r.touch()
 	qs := r.QueryString()
 	if qs == "" {
 		return url.Values{}
@@ -491,14 +444,11 @@ func (r *Request) queryValues() url.Values {
 
 // RemoteIP returns the direct connection IP (ignores forwarding headers).
 func (r *Request) RemoteIP() string {
-	r.touch()
 	if r == nil {
 		return ""
 	}
-	if r.ctx != nil {
-		if ip := r.ctx.RemoteIP(); ip != "" {
-			return ip
-		}
+	if r.carrier.peerIP != "" {
+		return r.carrier.peerIP
 	}
 	host := r.remoteAddr
 	if host == "" {
@@ -515,17 +465,13 @@ func (r *Request) RemoteIP() string {
 	return host
 }
 
-// IP returns the client IP. Prefers RawHTTP ClientIP (TrustedProxies), then
-// the _client_ip attribute set by trustedproxy middleware, else RemoteIP.
+// IP returns the client IP: the _client_ip attribute the trustedproxy
+// middleware resolves from the right of X-Forwarded-For when the peer is a
+// trusted proxy, else RemoteIP. Forwarding headers from any other peer are
+// ignored.
 func (r *Request) IP() string {
-	r.touch()
 	if r == nil {
 		return ""
-	}
-	if r.ctx != nil {
-		if ip := r.ctx.ClientIP(); ip != "" {
-			return ip
-		}
 	}
 	if v, ok := r.Get("_client_ip").(string); ok && v != "" {
 		return v
@@ -533,18 +479,15 @@ func (r *Request) IP() string {
 	return r.RemoteIP()
 }
 
-// Body returns an owned copy of the raw request body.
-// It never aliases rawhttp's connection buffer (zero-copy lifecycle).
+// Body returns the request body. The bytes are owned by the request and never
+// alias rawhttp's connection buffer. Callers share one slice; copy it before
+// modifying it.
 func (r *Request) Body() ([]byte, error) {
-	if r != nil {
-		r.touch()
-	}
 	return r.readBody()
 }
 
 // SetMaxBodyBytes overrides the default JSON/raw body limit for this request.
 func (r *Request) SetMaxBodyBytes(n int64) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -575,17 +518,13 @@ func (r *Request) readBody() ([]byte, error) {
 		r.bodyCached = r.bodyOverride
 		return r.bodyCached, nil
 	}
-	if r.ctx != nil {
-		if raw := r.ctx.Body(); len(raw) > 0 {
-			if int64(len(raw)) > limit {
-				r.bodyErr = ErrBodyTooLarge
-				return nil, ErrBodyTooLarge
-			}
-			// Owned copy: ctx.Body() may alias the connection read buffer
-			// (rawhttp zero-copy). Do not return/cache that slice.
-			r.bodyCached = append([]byte(nil), raw...)
-			return r.bodyCached, nil
+	if raw := r.carrier.body; len(raw) > 0 {
+		if int64(len(raw)) > limit {
+			r.bodyErr = ErrBodyTooLarge
+			return nil, ErrBodyTooLarge
 		}
+		r.bodyCached = raw
+		return r.bodyCached, nil
 	}
 	if r.bodyReader != nil {
 		raw, err := io.ReadAll(io.LimitReader(r.bodyReader, limit+1))
@@ -605,9 +544,8 @@ func (r *Request) readBody() ([]byte, error) {
 	return nil, nil
 }
 
-// Route returns a route parameter.
-// A parameter taken from the carrier path aliases that buffer and is valid
-// only until the handler returns. Do not retain it.
+// Route returns a route parameter. The value is a substring of the request
+// arena and stays valid for as long as the *Request is referenced.
 func (r *Request) Route(key string, fallback ...string) string {
 	if r == nil {
 		if len(fallback) > 0 {
@@ -615,7 +553,6 @@ func (r *Request) Route(key string, fallback ...string) string {
 		}
 		return ""
 	}
-	r.touch()
 	for i := 0; i < r.routeN; i++ {
 		if r.routeK[i] == key {
 			return r.routeV[i]
@@ -652,7 +589,6 @@ func (r *Request) RouteInt(key string, fallback ...int) int {
 // SetRouteParams sets matched route parameters.
 // One to four parameters stay on the request. A larger map is kept as given.
 func (r *Request) SetRouteParams(params map[string]string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -676,7 +612,6 @@ func (r *Request) SetRouteParams(params map[string]string) {
 // The strings are copied by header. A value that aliases the carrier buffer
 // stays an alias.
 func (r *Request) SetRouteSlots(n int, keys, vals [4]string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -694,7 +629,6 @@ func (r *Request) SetRouteSlots(n int, keys, vals [4]string) {
 
 // RouteParams returns all matched route parameters.
 func (r *Request) RouteParams() map[string]string {
-	r.touch()
 	if r == nil || (r.routeN == 0 && len(r.route) == 0) {
 		return map[string]string{}
 	}
@@ -710,7 +644,6 @@ func (r *Request) RouteParams() map[string]string {
 
 // SetRequestID stores the correlation id without boxing it in an attribute map.
 func (r *Request) SetRequestID(id string) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -719,7 +652,6 @@ func (r *Request) SetRequestID(id string) {
 
 // Set sets a request attribute.
 func (r *Request) Set(key string, value any) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -737,7 +669,6 @@ func (r *Request) Set(key string, value any) {
 
 // Get returns a request attribute.
 func (r *Request) Get(key string) any {
-	r.touch()
 	if r == nil {
 		return nil
 	}
@@ -759,7 +690,6 @@ const sessionAttrKey = "session"
 
 // SetSession attaches a session store as a request attribute.
 func (r *Request) SetSession(store SessionStore) {
-	r.touch()
 	if r == nil {
 		return
 	}
@@ -768,7 +698,6 @@ func (r *Request) SetSession(store SessionStore) {
 
 // Session returns the session store attached to this request, if any.
 func (r *Request) Session() SessionStore {
-	r.touch()
 	if r == nil {
 		return nil
 	}
@@ -778,7 +707,6 @@ func (r *Request) Session() SessionStore {
 
 // Cookie returns a cookie value.
 func (r *Request) Cookie(name string, fallback ...string) string {
-	r.touch()
 	if r == nil {
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -790,10 +718,8 @@ func (r *Request) Cookie(name string, fallback ...string) string {
 			return value
 		}
 	}
-	if r.ctx != nil {
-		if v := r.ctx.Cookie(name); len(v) > 0 {
-			return string(v)
-		}
+	if v, _ := r.carrier.cookie(name); v != "" {
+		return v
 	}
 	if len(fallback) > 0 {
 		return fallback[0]
@@ -811,10 +737,8 @@ func (r *Request) HasCookie(name string) bool {
 			return true
 		}
 	}
-	if r.ctx != nil {
-		return r.ctx.Cookie(name) != nil
-	}
-	return false
+	_, ok := r.carrier.cookie(name)
+	return ok
 }
 
 // MissingCookie reports whether a cookie is absent.
@@ -840,7 +764,6 @@ func (r *Request) WhenMissingCookie(name string, fn func(*Request)) *Request {
 
 // Cookies returns the response cookie jar for this request.
 func (r *Request) Cookies() *cookie.Jar {
-	r.touch()
 	if r.cookies == nil {
 		r.cookies = cookie.NewJar()
 	}
@@ -979,17 +902,13 @@ func (r *Request) DecodedPath() string {
 
 // QueryString returns the raw URL query string without leading ?.
 func (r *Request) QueryString() string {
-	r.touch()
 	if r == nil {
 		return ""
 	}
 	if r.querySet {
 		return r.query
 	}
-	if r.ctx != nil {
-		return string(r.ctx.Query)
-	}
-	return ""
+	return r.carrier.query
 }
 
 // RequestURI returns path + query (RequestURI).
@@ -1078,7 +997,6 @@ func (r *Request) IsSecure() bool {
 }
 
 func (r *Request) parseForm() error {
-	r.touch()
 	if r == nil {
 		return nil
 	}

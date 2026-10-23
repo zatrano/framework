@@ -71,6 +71,11 @@ func PermanentRedirect(url string) *Response {
 }
 
 func safeBackURL(req *Request, ref string) string {
+	// Reject before parse: url.Parse percent-encodes '\', which would hide
+	// "/\host" (browsers treat that as "//host") behind "/%5C...".
+	if strings.ContainsRune(ref, '\\') || strings.Contains(strings.ToLower(ref), "%5c") {
+		return ""
+	}
 	u, err := url.Parse(ref)
 	if err != nil {
 		return ""
@@ -91,7 +96,7 @@ func safeBackURL(req *Request, ref string) string {
 	if path == "" {
 		path = "/"
 	}
-	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsRune(path, '\\') || strings.ContainsRune(u.Path, '\\') {
 		return ""
 	}
 	return path

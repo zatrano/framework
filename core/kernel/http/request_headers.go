@@ -14,12 +14,9 @@ func (r *Request) Header(key string, fallback ...string) string {
 		}
 		return ""
 	}
-	r.touch()
 	if r.headerOverlay == nil && len(r.headerDeleted) == 0 {
-		if r.ctx != nil {
-			if v := r.ctx.Header(key); len(v) > 0 {
-				return string(v)
-			}
+		if v := r.carrier.header(key); v != "" {
+			return v
 		}
 		if len(fallback) > 0 {
 			return fallback[0]
@@ -41,10 +38,8 @@ func (r *Request) Header(key string, fallback ...string) string {
 			return ""
 		}
 	}
-	if r.ctx != nil {
-		if v := r.ctx.Header(key); len(v) > 0 {
-			return string(v)
-		}
+	if v := r.carrier.header(key); v != "" {
+		return v
 	}
 	if len(fallback) > 0 {
 		return fallback[0]
@@ -52,11 +47,10 @@ func (r *Request) Header(key string, fallback ...string) string {
 	return ""
 }
 
-// HeaderValues returns every value of a request header.
-// An overlay stores each value; the carrier stores one.
-// The rawhttp path keeps the last Origin when the request repeats it.
+// HeaderValues returns every value of a request header, one entry per header
+// line, in the order the client sent them. An overlay replaces the parsed
+// values.
 func (r *Request) HeaderValues(key string) []string {
-	r.touch()
 	if r == nil {
 		return nil
 	}
@@ -66,15 +60,10 @@ func (r *Request) HeaderValues(key string) []string {
 	}
 	if r.headerOverlay != nil {
 		if vals, ok := r.headerOverlay[canon]; ok {
-			return vals
+			return append([]string(nil), vals...)
 		}
 	}
-	if r.ctx != nil {
-		if v := r.ctx.Header(key); len(v) > 0 {
-			return []string{string(v)}
-		}
-	}
-	return nil
+	return r.carrier.headerValues(key)
 }
 
 // BearerToken extracts a bearer token from the Authorization header.
@@ -109,11 +98,7 @@ func (r *Request) IsJSON() bool {
 }
 
 // JSON decodes the request body into dest. The raw body is not closed.
-// JSON copies the connection buffer first. BindJSON decodes it in place.
 func (r *Request) JSON(dest any) error {
-	if r != nil {
-		r.touch()
-	}
 	raw, err := r.readBody()
 	if err != nil {
 		return err
@@ -121,16 +106,13 @@ func (r *Request) JSON(dest any) error {
 	return unmarshalJSON(raw, dest)
 }
 
-// BindJSON decodes the request body into dest from the connection buffer.
-// It does not copy that buffer. encoding/json finishes the decode before
-// BindJSON returns and copies string values into dest. A type with
-// UnmarshalJSON must not keep the input slice; that slice is the connection
-// buffer and is reused on the next request. Body still returns an owned copy.
+// BindJSON decodes the request body into dest. The body is the request's own
+// copy, so a type with UnmarshalJSON may keep the input slice, but it must not
+// modify it: Body returns the same bytes.
 func (r *Request) BindJSON(dest any) error {
 	if r == nil {
 		return errors.New("http: nil request")
 	}
-	r.touch()
 	if dest == nil {
 		return errors.New("http: nil json dest")
 	}
@@ -152,8 +134,7 @@ func (r *Request) BindJSON(dest any) error {
 		}
 		return unmarshalJSON(r.bodyOverride, dest)
 	}
-	if r.ctx != nil {
-		raw := r.ctx.Body()
+	if raw := r.carrier.body; len(raw) > 0 {
 		if int64(len(raw)) > limit {
 			r.bodyRead = true
 			r.bodyErr = ErrBodyTooLarge
@@ -261,23 +242,19 @@ func (r *Request) WhenMissingAnyHeader(keys []string, fn func(*Request)) *Reques
 
 // HeadersMap returns the first value for each request header.
 func (r *Request) HeadersMap() map[string]string {
-	r.touch()
 	if r == nil {
 		return map[string]string{}
 	}
 	out := make(map[string]string)
-	if r.ctx != nil {
-		r.ctx.VisitHeader(func(k, v []byte) {
-			key := string(k)
-			canon := textproto.CanonicalMIMEHeaderKey(key)
-			if r.headerDeleted[canon] {
-				return
-			}
-			if _, exists := out[canon]; !exists {
-				out[canon] = string(v)
-			}
-		})
-	}
+	r.carrier.visitHeaders(func(k, v string) {
+		canon := textproto.CanonicalMIMEHeaderKey(k)
+		if r.headerDeleted[canon] {
+			return
+		}
+		if _, exists := out[canon]; !exists {
+			out[canon] = v
+		}
+	})
 	for key, values := range r.headerOverlay {
 		if r.headerDeleted[key] {
 			continue
@@ -377,11 +354,10 @@ func (r *Request) CookieMap() map[string]string {
 		return map[string]string{}
 	}
 	out := make(map[string]string)
-	if r.ctx != nil {
-		r.ctx.VisitCookie(func(name, val []byte) {
-			out[string(name)] = string(val)
-		})
-	}
+	r.carrier.visitCookies(func(name, val string, _ bool) bool {
+		out[name] = val
+		return true
+	})
 	for name, value := range r.cookieOverlay {
 		out[name] = value
 	}

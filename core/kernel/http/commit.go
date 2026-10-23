@@ -13,7 +13,8 @@ import (
 	"github.com/zatrano/rawhttp"
 )
 
-// Commit writes the response onto a rawhttp context.
+// Commit writes the response onto a rawhttp context. It only reads r, so one
+// response may be committed for many requests at once.
 func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 	if ctx == nil {
 		return nil
@@ -49,9 +50,14 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 			_ = ctx.AddHeader(r.inlineHdrs[i].k, r.inlineHdrs[i].v)
 		}
 	} else {
-		for key, values := range r.Headers() {
+		for key, values := range cold.headers {
 			for _, value := range values {
 				_ = ctx.AddHeader(key, value)
+			}
+		}
+		for i := 0; i < r.nInline; i++ {
+			if _, ok := cold.headers[r.inlineHdrs[i].k]; !ok {
+				_ = ctx.AddHeader(r.inlineHdrs[i].k, r.inlineHdrs[i].v)
 			}
 		}
 	}
@@ -85,7 +91,7 @@ func (r *Response) Commit(ctx *rawhttp.Ctx) error {
 				return fmt.Errorf("cannot serve directory: %s", cold.filePath)
 			}
 			if !cold.publicFile {
-				_ = ctx.SetHeader("Content-Disposition", "attachment; filename="+filepath.Base(cold.filePath))
+				_ = ctx.SetHeader("Content-Disposition", contentDisposition("attachment", filepath.Base(cold.filePath)))
 			}
 			ctx.SetStatusCode(r.StatusCode())
 			if r.contentType != "" {

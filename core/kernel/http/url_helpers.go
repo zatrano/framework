@@ -9,7 +9,6 @@ import (
 
 // Host returns the request host (prefers trusted forwarded host).
 func (r *Request) Host() string {
-	r.touch()
 	if r == nil {
 		return ""
 	}
@@ -19,10 +18,8 @@ func (r *Request) Host() string {
 	if r.host != "" {
 		return r.host
 	}
-	if r.ctx != nil {
-		if host := string(r.ctx.Host()); host != "" {
-			return host
-		}
+	if r.carrier.host != "" {
+		return r.carrier.host
 	}
 	return r.Header("Host")
 }
@@ -37,7 +34,6 @@ func (r *Request) Scheme() string {
 
 // Secure reports whether the request is HTTPS (TLS or trusted forwarded proto).
 func (r *Request) Secure() bool {
-	r.touch()
 	if r == nil {
 		return false
 	}
@@ -47,10 +43,7 @@ func (r *Request) Secure() bool {
 	if r.secureSet {
 		return r.secure
 	}
-	if r.ctx != nil {
-		return r.ctx.IsTLS()
-	}
-	return false
+	return r.carrier.tls
 }
 
 // Root returns scheme://host.

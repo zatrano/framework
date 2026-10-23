@@ -2,13 +2,11 @@ package routing
 
 import (
 	"fmt"
+	"github.com/zatrano/framework/v3/core/kernel/http"
 	"log"
 	"net/url"
 	"regexp"
 	"strings"
-	"unsafe"
-
-	"github.com/zatrano/framework/v3/core/kernel/http"
 )
 
 // HandlerFunc handles an HTTP request and returns a response.
@@ -126,10 +124,23 @@ func composeHandler(handler HandlerFunc, stack []MiddlewareFunc) HandlerFunc {
 	if handler == nil {
 		return nil
 	}
+	handler = owning(handler)
 	for i := len(stack) - 1; i >= 0; i-- {
-		handler = stack[i](handler)
+		handler = owning(stack[i](handler))
 	}
 	return handler
+}
+
+// owning makes every response that crosses a middleware boundary a copy
+// owned by the request, so a middleware adding a header never writes into a
+// response that another request may also be returning.
+func owning(next HandlerFunc) HandlerFunc {
+	if next == nil {
+		return nil
+	}
+	return func(req *http.Request) *http.Response {
+		return req.Own(next(req))
+	}
 }
 
 func (r *Router) compileNamed() (map[string]*Route, error) {
@@ -578,28 +589,24 @@ func (r *Router) match(req *http.Request) *Route {
 		return nil
 	}
 	method := req.Method()
-	// Frozen exact static hit. The lookup key aliases the carrier buffer and
-	// is not retained. A route parameter also aliases that buffer and stays
-	// valid only until the handler returns.
-	if r.byMethod != nil {
+	// Path is the request's own copy, so route parameters cut from it stay
+	// valid after the handler returns.
+	path := req.Path()
+	if r.byMethod != nil && !req.PathSet() && path != "" {
 		if t := r.byMethod[method]; t != nil {
-			if b := req.PathBytes(); len(b) > 0 {
-				path := aliasBuf(b)
-				if route := t.static[path]; route != nil {
-					req.SetRouteParams(nil)
-					req.SetRouteName(route.dispatchName())
-					return route
-				}
-				hit := r.resolve(method, path, false)
-				if hit.route == nil {
-					return nil
-				}
-				r.applyHit(req, hit)
-				return hit.route
+			if route := t.static[path]; route != nil {
+				req.SetRouteParams(nil)
+				req.SetRouteName(route.dispatchName())
+				return route
 			}
+			hit := r.resolve(method, path, false)
+			if hit.route == nil {
+				return nil
+			}
+			r.applyHit(req, hit)
+			return hit.route
 		}
 	}
-	path := req.Path()
 	if r.byMethod != nil {
 		if t := r.byMethod[method]; t != nil {
 			if route := t.static[path]; route != nil {
@@ -630,16 +637,6 @@ func (r *Router) applyHit(req *http.Request, hit routeHit) {
 		req.SetRouteSlots(hit.n, hit.k, hit.v)
 	}
 	req.SetRouteName(hit.route.dispatchName())
-}
-
-// aliasBuf returns s as a string that shares b's bytes.
-// The static lookup key is not retained. A route parameter aliases the
-// carrier buffer until the handler returns.
-func aliasBuf(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	return unsafe.String(&b[0], len(b))
 }
 
 // bindSubs fills route params from a match resolve already computed.
@@ -679,10 +676,7 @@ func (r *Router) Through(req *http.Request, handler HandlerFunc) *http.Response 
 }
 
 func (r *Router) invokeHandler(req *http.Request, handler HandlerFunc, stack []MiddlewareFunc) *http.Response {
-	for i := len(stack) - 1; i >= 0; i-- {
-		handler = stack[i](handler)
-	}
-	return handler(req)
+	return composeHandler(handler, stack)(req)
 }
 
 // RedirectRoute redirects to a named route.
@@ -807,8 +801,8 @@ func normalizeDispatchPath(req *http.Request) {
 	if req == nil || req.PathSet() {
 		return
 	}
-	b := req.PathBytes()
-	if len(b) > 1 && b[len(b)-1] == '/' {
-		req.SetPath(strings.TrimRight(string(b), "/"))
+	p := req.Path()
+	if len(p) > 1 && p[len(p)-1] == '/' {
+		req.SetPath(strings.TrimRight(p, "/"))
 	}
 }

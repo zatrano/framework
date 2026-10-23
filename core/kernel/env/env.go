@@ -61,9 +61,15 @@ func Get(key string, fallback ...string) string {
 }
 
 // NormalizeAppEnv trims and lowercases an application environment name.
-// Bootstrap stores this once; security policy must not re-parse APP_ENV.
+// "prod" means production, so the production checks cannot be skipped by
+// the short spelling. Bootstrap stores this once; security policy must not
+// re-parse APP_ENV.
 func NormalizeAppEnv(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
+	n := strings.ToLower(strings.TrimSpace(name))
+	if n == "prod" {
+		return "production"
+	}
+	return n
 }
 
 // GetNonEmpty is like Get but treats blank/whitespace values as unset (uses fallback).

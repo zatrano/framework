@@ -38,7 +38,7 @@ func (p preflightAuth) Boot(app contracts.App) error {
 func TestBootstrapRejectsCORSCredentialsWildcard(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	t.Setenv("LOG_LEVEL", "error")
 	t.Setenv("CORS_ALLOW_CREDENTIALS", "true")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
@@ -61,7 +61,7 @@ func TestBootstrapRejectsCORSCredentialsWildcard(t *testing.T) {
 func TestRealServerPreflightAndUnmatched(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	t.Setenv("LOG_LEVEL", "error")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")
 

@@ -433,6 +433,17 @@ func Index(req *http.Request) *http.Response {
 	assertDoctorRule(t, root, "APP-HTTP-003")
 }
 
+func TestDoctorRequestCtxCallOutsideHandlersWarns(t *testing.T) {
+	root := t.TempDir()
+	writeDoctorFile(t, root, filepath.Join("app", "http", "middleware", "trace.go"), `package middleware
+
+import "github.com/zatrano/framework/v3/core/kernel/http"
+
+func Trace(req *http.Request) { _ = req.Ctx() }
+`)
+	assertDoctorRule(t, root, "APP-HTTP-008")
+}
+
 func TestDoctorPackageLevelRequestFails(t *testing.T) {
 	root := t.TempDir()
 	writeDoctorFile(t, root, filepath.Join("app", "services", "leak.go"), `package services

@@ -27,18 +27,35 @@ Review `RecommendedMinimum` on every release. The release workflow reads that co
 
 ## Reporting a Vulnerability
 
-Email **Serhan KARAKOÇ** at [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com).
+Do **not** open a public GitHub issue, pull request or discussion for a vulnerability.
 
-Do **not** open a public GitHub issue for security vulnerabilities.
+Report privately, by either channel:
+
+* GitHub private vulnerability reporting: **Security → Report a vulnerability** on github.com/zatrano/framework
+* Email **Serhan KARAKOÇ** at [serhankarakoc@zatrano.com](mailto:serhankarakoc@zatrano.com)
 
 Please include:
 
-* ZATRANO version / commit
+* ZATRANO version / commit, rawhttp version, Go version
 * Affected package and API
 * Reproduction steps (PoC)
 * Impact assessment
 
-We aim to acknowledge reports within a few business days and ship fixes promptly.
+A problem in HTTP parsing or framing belongs to rawhttp; report it there (same channels). If you are unsure, report here and we will move it.
+
+### Process
+
+| Step | Target |
+|------|--------|
+| Acknowledge the report | 3 business days |
+| Reproduce and assess severity | 7 days |
+| Fix on a private branch, with a regression test | 30 days for high or critical, 90 days otherwise |
+| Release a patch version and publish a GitHub security advisory (CVE requested through GitHub) | with the fix |
+| Public details | at release, or 90 days after the report, whichever comes first, unless agreed otherwise with the reporter |
+
+The reporter is credited in the advisory unless they ask not to be, and is kept informed at each step. Good-faith research that avoids privacy violations, data destruction and service disruption, and that is reported through the channels above, will not be pursued.
+
+Security properties and their tests: [docs/SECURITY-GUARANTEES.md](../docs/SECURITY-GUARANTEES.md).
 
 ## Documentation
 

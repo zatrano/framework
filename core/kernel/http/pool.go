@@ -1,127 +1,52 @@
 package http
 
 import (
-	"context"
-	"strconv"
-	"sync"
-	"sync/atomic"
-
 	"github.com/zatrano/rawhttp"
 )
 
-// Request pooling is off unless HTTP_POOL_REQUESTS=true. A pooled request is
-// reset and reused after the handler returns. Do not keep the pointer.
-// With debug on, a released object is never handed out again, so every later
-// method call panics and reports the generation. The default turns on in v4.
-var (
-	pooling   atomic.Bool
-	poolDebug atomic.Bool
-	reqPool   = sync.Pool{New: func() any { return &Request{pooled: true} }}
-	respPool  = sync.Pool{New: func() any { return &Response{pooled: true} }}
-)
+// Request and Response objects are never pooled. A *Request or *Response kept
+// after the handler returns stays valid and keeps describing its own request.
+// Only rawhttp's connection buffers are reused, and no public value points
+// into them. The functions below remain so v3 callers keep compiling.
 
-func init() {
-	pooling.Store(false)
-}
+// SetRequestPooling has no effect.
+//
+// Deprecated: request and response pooling was removed. HTTP_POOL_REQUESTS is
+// ignored.
+func SetRequestPooling(on, debug bool) {}
 
-// SetRequestPooling turns the process-wide request and response pool on or off.
-// debug makes a use-after-release call panic while the pool is on. The default is off.
-func SetRequestPooling(on, debug bool) {
-	pooling.Store(on)
-	poolDebug.Store(debug)
-}
+// RequestPooling reports false.
+//
+// Deprecated: request and response pooling was removed.
+func RequestPooling() bool { return false }
 
-// RequestPooling reports whether AcquireRequest draws from the pool.
-func RequestPooling() bool { return pooling.Load() }
+// AcquireRequest is NewRequest.
+//
+// Deprecated: use NewRequest.
+func AcquireRequest(ctx *rawhttp.Ctx) *Request { return NewRequest(ctx) }
 
-// AcquireRequest returns a request for ctx. With pooling off this is NewRequest.
-func AcquireRequest(ctx *rawhttp.Ctx) *Request {
-	if !pooling.Load() {
-		return NewRequest(ctx)
-	}
-	r := reqPool.Get().(*Request)
-	r.Reset(ctx)
-	return r
-}
+// ReleaseRequest has no effect. The request stays valid.
+//
+// Deprecated: requests are not pooled.
+func ReleaseRequest(r *Request) {}
 
-// ReleaseRequest returns a pooled request. A request that was not acquired
-// from the pool is left alone.
-func ReleaseRequest(r *Request) {
-	if r == nil || !r.pooled {
-		return
-	}
-	gen := r.gen + 1
-	debug := poolDebug.Load()
-	*r = Request{pooled: true, gen: gen, released: debug}
-	if debug {
-		return
-	}
-	reqPool.Put(r)
-}
+// ReleaseResponse has no effect. The response stays valid.
+//
+// Deprecated: responses are not pooled.
+func ReleaseResponse(r *Response) {}
 
-// ReleaseAfterCommit releases req and resp once Commit has run. A stream or
-// hijack callback runs after the handler returns and may still read either
-// object, so that pair is left to the garbage collector.
-func ReleaseAfterCommit(req *Request, resp *Response) {
-	if resp.outlivesCommit() {
-		return
-	}
-	ReleaseResponse(resp)
-	ReleaseRequest(req)
-}
+// ReleaseAfterCommit detaches req from its rawhttp context. resp is left
+// unchanged.
+//
+// Deprecated: call Request.Detach.
+func ReleaseAfterCommit(req *Request, resp *Response) { req.Detach() }
 
-// Reset prepares a pooled request for another connection buffer.
-func (r *Request) Reset(ctx *rawhttp.Ctx) {
-	if r == nil {
-		return
-	}
-	gen := r.gen + 1
-	*r = Request{
-		ctx:      ctx,
-		stdCtx:   context.Background(),
-		pooled:   true,
-		gen:      gen,
-		released: false,
-	}
-}
+// Generation reports 0.
+//
+// Deprecated: requests are not pooled, so there is no reuse counter.
+func (r *Request) Generation() uint64 { return 0 }
 
-// Generation is the reuse counter. It changes when the request is released.
-func (r *Request) Generation() uint64 {
-	if r == nil {
-		return 0
-	}
-	return r.gen
-}
-
-func (r *Request) touch() {
-	if r != nil && r.released {
-		panic("http: request used after release (generation " + strconv.FormatUint(r.gen, 10) + ")")
-	}
-}
-
-func newResponse() *Response {
-	if !pooling.Load() {
-		return &Response{}
-	}
-	r := respPool.Get().(*Response)
-	*r = Response{pooled: true}
-	return r
-}
-
-// ReleaseResponse returns a pooled response after Commit. The JSON bytes are
-// not reused: rawhttp still aliases them until it writes, which happens after
-// Handle returns. Debug mode panics if a method runs after this release.
-func ReleaseResponse(r *Response) {
-	if r == nil || !r.pooled {
-		return
-	}
-	debug := poolDebug.Load()
-	*r = Response{pooled: true, released: debug}
-	if debug {
-		return
-	}
-	respPool.Put(r)
-}
+func newResponse() *Response { return &Response{} }
 
 func (r *Response) outlivesCommit() bool {
 	if r == nil || r.cold == nil {

@@ -107,6 +107,31 @@ func TestFromEnvDevelopmentStarTrustsForwarded(t *testing.T) {
 	_ = handler(req)
 }
 
+func TestForwardedHostAndProtoUseRightmostHop(t *testing.T) {
+	t.Setenv("TRUSTED_PROXIES", "192.0.2.1")
+	mw, err := trustedproxy.FromEnv(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
+	raw.RemoteAddr = "192.0.2.1:443"
+	raw.Host = "app.example"
+	raw.Header.Set("X-Forwarded-Host", "evil.example, app.example")
+	raw.Header.Add("X-Forwarded-Host", "app.example")
+	raw.Header.Set("X-Forwarded-Proto", "https, http")
+	req := reqFromStd(raw)
+	handler := mw(func(r *http.Request) *http.Response {
+		if r.Host() != "app.example" {
+			t.Fatalf("Host=%q used the client-prepended value", r.Host())
+		}
+		if r.Secure() {
+			t.Fatal("Secure used the client-prepended https hop")
+		}
+		return http.JSON(map[string]any{"ok": true})
+	})
+	_ = handler(req)
+}
+
 func TestFromEnvProductionSpecificProxyTrustsForwarded(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "192.0.2.1")
 	mw, err := trustedproxy.FromEnv(true)
@@ -209,6 +234,34 @@ func TestResolveMalformedXFF(t *testing.T) {
 	ip = trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")})
 	if ip != "192.0.2.1" {
 		t.Fatalf("malformed-only XFF got %q", ip)
+	}
+}
+
+// A proxy that adds its own X-Forwarded-For line after the client's must win
+// over the client's line.
+func TestResolveReadsEveryForwardedForLine(t *testing.T) {
+	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
+	raw.RemoteAddr = "192.0.2.1:443"
+	raw.Header.Add("X-Forwarded-For", "127.0.0.1")
+	raw.Header.Add("X-Forwarded-For", "203.0.113.99")
+	if ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")}); ip != "203.0.113.99" {
+		t.Fatalf("got %q, want the proxy-appended hop", ip)
+	}
+}
+
+// A malformed hop to the right of the client stops the walk; X-Real-IP is
+// not consulted while any X-Forwarded-For line exists.
+func TestResolveMalformedHopDoesNotFallBackToRealIP(t *testing.T) {
+	raw, _ := stdhttp.NewRequest(stdhttp.MethodGet, "/", nil)
+	raw.RemoteAddr = "192.0.2.1:443"
+	raw.Header.Set("X-Forwarded-For", "1.2.3.4, bogus")
+	raw.Header.Set("X-Real-IP", "1.2.3.4")
+	if ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")}); ip != "192.0.2.1" {
+		t.Fatalf("got %q, want the peer", ip)
+	}
+	raw.Header.Set("X-Forwarded-For", "bogus")
+	if ip := trustedproxy.Resolve(reqFromStd(raw), false, []*net.IPNet{cidr(t, "192.0.2.1/32")}); ip != "192.0.2.1" {
+		t.Fatalf("garbage XFF with X-Real-IP got %q, want the peer", ip)
 	}
 }
 

@@ -7,8 +7,17 @@ import (
 	"strings"
 )
 
+// A backslash would escape the closing quote of the quoted-string, and a
+// quote would end it early; control bytes are dropped.
+var dispositionName = strings.NewReplacer(`"`, `'`, `\`, `_`)
+
 func contentDisposition(kind, filename string) string {
-	filename = strings.ReplaceAll(filename, `"`, `'`)
+	filename = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, dispositionName.Replace(filename))
 	return fmt.Sprintf(`%s; filename="%s"`, kind, filename)
 }
 

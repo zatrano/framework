@@ -108,7 +108,7 @@ func TestHandleBootedWithoutStartAccepts(t *testing.T) {
 func TestHandleProductionRejectionDoesNotLeakState(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	app := kernel.NewApplication(t.TempDir())
 	er := serveHandle(t, app, http.MethodGet, "/ok", nil, "")
 	assertHTTPUnavailable(t, er)

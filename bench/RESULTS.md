@@ -1,5 +1,7 @@
 # ZATRANO vs Fiber v3.6.0
 
+These results were measured on v3.2.4 and earlier. Rows for pooled configurations (`HTTP_POOL_REQUESTS`) describe a mode that no longer exists; the setting is now ignored. The cost of the copy-on-parse request and the always-copy response is measured in [docs/PERFORMANCE-IMPACT.md](../docs/PERFORMANCE-IMPACT.md).
+
 ## Round 2 gate
 
 A cell is a paired comparison. Each round runs ZATRANO and Fiber back to back, and the round order alternates. The throughput ratio is ZATRANO/Fiber for that round. The cell ratio is the median of those pairs. The 95% interval is a 10,000-draw bootstrap of that median. Default cell size is 10 rounds. Peak RSS is reported and is not a gate.

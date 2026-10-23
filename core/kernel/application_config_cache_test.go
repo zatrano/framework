@@ -3,7 +3,6 @@ package kernel_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/zatrano/framework/v3/core/kernel"
@@ -153,7 +152,7 @@ func TestCorruptConfigCacheProductionAcceptsEnvKey(t *testing.T) {
 	}
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	t.Setenv("APP_NAME", "from-env")
 	app := kernel.NewApplication(dir)
 	t.Cleanup(func() { closeAppLog(t, app) })
@@ -163,7 +162,7 @@ func TestCorruptConfigCacheProductionAcceptsEnvKey(t *testing.T) {
 	if app.Config().GetString("app.name") != "from-env" {
 		t.Fatalf("got %q", app.Config().GetString("app.name"))
 	}
-	if app.Config().GetString("app.key") != strings.Repeat("s", 32) {
+	if app.Config().GetString("app.key") != "zatrano-ci-test-key-not-prod!!!!" {
 		t.Fatal("ENV APP_KEY must populate config after cache miss")
 	}
 }
