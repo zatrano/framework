@@ -8,11 +8,15 @@ import (
 	"github.com/zatrano/rawhttp"
 )
 
-func TestRouteParamAliasesCarrierBuffer(t *testing.T) {
+// Route parameters are views of the request's own copy of the path, so
+// rawhttp reusing its read buffer for the next request cannot change them.
+func TestRouteParamSurvivesCarrierBufferReuse(t *testing.T) {
 	r := routing.New()
 	var got string
+	var kept *http.Request
 	r.Get("/users/{id}", func(req *http.Request) *http.Response {
 		got = req.Route("id")
+		kept = req
 		return http.Text("ok")
 	})
 	if err := r.Freeze(); err != nil {
@@ -20,28 +24,28 @@ func TestRouteParamAliasesCarrierBuffer(t *testing.T) {
 	}
 	path := []byte("/users/42")
 	ctx := &rawhttp.Ctx{Method: []byte("GET"), Path: path}
-	resp := r.Dispatch(http.NewRequest(ctx))
+	req := http.NewRequest(ctx)
+	resp := r.Dispatch(req)
+	req.Detach()
 	if resp == nil || resp.StatusCode() != 200 {
 		t.Fatalf("status=%v", resp)
 	}
-	if got != "42" {
-		t.Fatalf("param=%q", got)
+	copy(path, "/users/99")
+	for i := range ctx.Method {
+		ctx.Method[i] = 'X'
 	}
-	path[7] = '9'
-	if got != "92" {
-		t.Fatalf("parameter was copied out of the carrier buffer: %q", got)
+	if got != "42" || kept.Route("id") != "42" {
+		t.Fatalf("parameter followed the carrier buffer: got=%q kept=%q", got, kept.Route("id"))
 	}
-	for i := range path {
-		path[i] = 0
+	if kept.Path() != "/users/42" || kept.Method() != "GET" {
+		t.Fatalf("retained request followed the carrier buffer: %s %s", kept.Method(), kept.Path())
 	}
-	if got == "92" || got == "42" {
-		t.Fatal("zeroing the carrier buffer left the parameter readable")
+	if kept.Ctx() != nil {
+		t.Fatal("Ctx is still reachable after Detach")
 	}
 }
 
 func BenchmarkRouteParam(b *testing.B) {
-	http.SetRequestPooling(true, false)
-	b.Cleanup(func() { http.SetRequestPooling(false, false) })
 	r := routing.New()
 	r.Get("/users/{id}", func(req *http.Request) *http.Response {
 		return http.Text(req.Route("id"))
@@ -49,16 +53,11 @@ func BenchmarkRouteParam(b *testing.B) {
 	if err := r.Freeze(); err != nil {
 		b.Fatal(err)
 	}
-	path := []byte("/users/42")
-	ctx := &rawhttp.Ctx{Method: []byte("GET"), Path: path}
+	ctx := &rawhttp.Ctx{Method: []byte("GET"), Path: []byte("/users/42")}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		req := http.AcquireRequest(ctx)
-		resp := r.Dispatch(req)
-		if resp == nil {
+		if r.Dispatch(http.NewRequest(ctx)) == nil {
 			b.Fatal("nil response")
 		}
-		http.ReleaseResponse(resp)
-		http.ReleaseRequest(req)
 	}
 }

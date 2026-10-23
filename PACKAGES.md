@@ -425,7 +425,7 @@ q.Register("send-invoice", func(payload map[string]any) error { return nil })
 _ = q.Push("send-invoice", map[string]any{"id": 1})
 ```
 
-Push values the handler already copied out of the request. Never push `*http.Request`, `req.Context()`, or a closure over `req`. With `HTTP_POOL_REQUESTS=true` the request is reused when the handler returns. See [Request lifetime](README.md#request-lifetime).
+Push values the handler already copied out of the request. Never push `*http.Request`, `req.Context()`, or a closure over `req`. The request's own values stay valid, but `req.Context()` ends with the request and `*Request` is not safe for concurrent writes. See [Request lifetime](README.md#request-lifetime).
 
 ```bash
 go run ./cmd/zatrano queue:work

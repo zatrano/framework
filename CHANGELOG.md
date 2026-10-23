@@ -2,6 +2,26 @@
 
 All notable changes to ZATRANO are documented in this file.
 
+## Unreleased
+
+### Security
+
+- A `*Request` kept after the handler returned, or read from another goroutine, could return a later request's method, path, query, headers, cookies, body, or route parameters on the same keep-alive connection. The request now copies everything it can return when it is built, route parameters come from that copy, and the router no longer uses `unsafe`.
+- A handler that returned one cached `*Response` for many requests had it modified by middleware and by `Application.Handle`; one visitor's CSRF cookie could be sent to the next. Every middleware boundary and the kernel now work on a request-owned copy (`Request.Own`), and `Commit` only reads the response.
+- The CSRF middleware accepted the `XSRF-TOKEN` cookie as the submitted token. A browser attaches that cookie to forged cross-site requests too. Only `X-CSRF-TOKEN`, `X-XSRF-TOKEN`, and the `_token` field count now.
+- `Request.IP()` used `rawhttp.Ctx.ClientIP`, which trusts the leftmost `X-Forwarded-For` hop. It now uses the trustedproxy middleware's right-to-left resolution or the peer address.
+- `APP_DEBUG` defaulted to on when unset, including in production. It now defaults to off in production.
+
+### Changed
+
+- `HTTP_POOL_REQUESTS` is deprecated and ignored; boot logs one warning when it is set. The pool API functions are deprecated no-ops. `Request.Reset` is removed.
+- `Request.Ctx()` is deprecated and returns `nil` after the handler returns. `zatrano doctor` reports every call (APP-HTTP-003 in handlers, APP-HTTP-008 elsewhere).
+- `Request.PathBytes()` is deprecated and returns a copy.
+- Production boot fails on `APP_DEBUG=true`, a low-entropy `APP_KEY`, insecure cookie flags with an `https://` `APP_URL`, session middleware without CSRF, and `TRUSTED_PROXIES` set to `0.0.0.0/0` or `::/0`. Every environment fails on credentialed CORS with the `null` origin. Each new check has its own opt-out; see `UPGRADING.md`.
+- A test fails when any Go file in the repository imports `unsafe` or uses `//go:linkname` outside an empty allowlist.
+- With a trusted proxy, `X-Forwarded-Host` and `X-Forwarded-Proto` take the rightmost hop, the same direction as `X-Forwarded-For`. A client that prepends a host or scheme is ignored.
+- `Request.BindJSON` decodes the request's owned body copy. It no longer aliases the connection buffer.
+
 ## 3.2.4 - 2026-10-16
 
 ### Changed

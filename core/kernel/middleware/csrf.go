@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/zatrano/framework/v3/core/kernel/cookie"
 	"github.com/zatrano/framework/v3/core/kernel/http"
@@ -68,9 +69,22 @@ func CSRF(next routing.HandlerFunc) routing.HandlerFunc {
 	return CSRFExcept()(next)
 }
 
+var csrfWraps atomic.Uint64
+
+// CSRFInstalled reports whether CSRF or CSRFExcept has wrapped a handler in
+// this process.
+func CSRFInstalled() bool { return csrfWraps.Load() > 0 }
+
+// CSRFWrapCount counts how many handlers CSRF or CSRFExcept has wrapped in
+// this process. The production boot check compares it before and after one
+// application composes its routes, so CSRF installed by another router in the
+// same process does not count.
+func CSRFWrapCount() uint64 { return csrfWraps.Load() }
+
 // CSRFExcept skips CSRF verification for matching path prefixes.
 func CSRFExcept(prefixes ...string) routing.MiddlewareFunc {
 	return func(next routing.HandlerFunc) routing.HandlerFunc {
+		csrfWraps.Add(1)
 		return func(req *http.Request) *http.Response {
 			if exceptedPath(req, prefixes) {
 				return next(req)
@@ -92,12 +106,12 @@ func CSRFExcept(prefixes ...string) routing.MiddlewareFunc {
 				return http.Abort(stdhttp.StatusForbidden, "CSRF "+reason)
 			}
 
+			// The XSRF-TOKEN cookie is never a submitted token: the browser
+			// attaches it to cross-site requests too. A script copies it into
+			// X-XSRF-TOKEN; a form posts _token.
 			provided := req.Header("X-CSRF-TOKEN")
 			if provided == "" {
 				provided = req.Header("X-XSRF-TOKEN")
-			}
-			if provided == "" {
-				provided = req.Cookie("XSRF-TOKEN")
 			}
 			if provided == "" {
 				provided = req.Input("_token")

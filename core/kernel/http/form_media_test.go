@@ -21,7 +21,7 @@ func TestFormURLEncodedMedia(t *testing.T) {
 		{"", false},
 	}
 	for _, tc := range cases {
-		got := formURLEncodedMedia([]byte(tc.ct))
+		got := formURLEncodedMedia(tc.ct)
 		media, _, err := mime.ParseMediaType(tc.ct)
 		parsed := err == nil && media == "application/x-www-form-urlencoded"
 		if tc.ct == "  Application/X-WWW-Form-Urlencoded  " {
@@ -34,7 +34,7 @@ func TestFormURLEncodedMedia(t *testing.T) {
 }
 
 func BenchmarkFormURLEncodedMediaJSON(b *testing.B) {
-	ct := []byte("application/json")
+	ct := "application/json"
 	for i := 0; i < b.N; i++ {
 		if formURLEncodedMedia(ct) {
 			b.Fatal("json matched form")

@@ -64,7 +64,7 @@ func bootProductionPublicApp(t testing.TB, routes func(*kernel.Application)) (*k
 	t.Helper()
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	dir := t.TempDir()
 	public := filepath.Join(dir, "public")
 	if err := os.MkdirAll(filepath.Join(public, "css"), 0o755); err != nil {
@@ -182,7 +182,7 @@ func bootBenchAppRoutes(b *testing.B, routes func(*kernel.Application)) *kernel.
 	b.Helper()
 	b.Setenv("APP_ENV", "production")
 	b.Setenv("APP_DEBUG", "false")
-	b.Setenv("APP_KEY", strings.Repeat("s", 32))
+	b.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	dir := b.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "public"), 0o755); err != nil {
 		b.Fatal(err)

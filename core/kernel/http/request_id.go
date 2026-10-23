@@ -63,7 +63,6 @@ func (r *Response) UseRequestID(req *Request) {
 	if r == nil || req == nil {
 		return
 	}
-	r.touch()
 	if req.requestID != "" {
 		r.Header("X-Request-Id", req.requestID)
 		return

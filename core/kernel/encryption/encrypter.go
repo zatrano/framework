@@ -119,6 +119,9 @@ func (e *Encrypter) DecryptJSON(payload string, dest any) error {
 	return json.Unmarshal([]byte(plain), dest)
 }
 
+// KeyBytes returns the AES key an APP_KEY string decodes to.
+func KeyBytes(appKey string) ([]byte, error) { return parseKey(appKey) }
+
 func parseKey(appKey string) ([]byte, error) {
 	appKey = strings.TrimSpace(appKey)
 	if appKey == "" {

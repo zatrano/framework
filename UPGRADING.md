@@ -1,5 +1,32 @@
 # Upgrading
 
+## Upgrading from v3.2.4 (unreleased)
+
+These changes are on the `safe-by-construction` branch and are not in a tagged release yet.
+
+**Request lifetime.** A `*Request` and every `string`, `[]byte`, map, and route parameter it returns now belong to that request. The kernel copies the method, path, query, headers, peer address, TLS state, and body into the request before any handler runs, and route parameters are substrings of that copy. Keeping `req` after the handler returns, or reading it from a goroutine, returns that request's data. The one exception is `Request.Ctx()`, which is deprecated: it returns the raw `*rawhttp.Ctx` while the handler runs and `nil` afterwards. Replace `req.Ctx().X` with the matching `Request` method; `zatrano doctor` reports each call (APP-HTTP-003 in `app/http/handlers`, APP-HTTP-008 elsewhere).
+
+**No pooling.** `HTTP_POOL_REQUESTS` is deprecated and ignored, and boot logs a warning when it is set. `SetRequestPooling`, `AcquireRequest`, `ReleaseRequest`, `ReleaseResponse`, `ReleaseAfterCommit`, and `Request.Generation` remain as deprecated no-ops so existing code compiles. `Request.Reset` is removed. The pool-debug panics from v3.2.2 are gone, because there is nothing to release.
+
+**Responses are not modified after the handler.** Middleware, the HTTP bridge, and `Application.Handle` each work on a request-owned copy (`Request.Own`). A handler can return one prebuilt `*Response` for every request; headers and cookies added for one request no longer reach the shared object or another request. Code that called `resp.Header(...)` on a response *after* passing it to `next` and expected the caller to see the change does not need to change: the returned pointer is the one that carries it.
+
+**Client IP.** `Request.IP()` no longer uses `rawhttp.Ctx.ClientIP`, which took the leftmost `X-Forwarded-For` hop. With `TRUSTED_PROXIES` set, the trustedproxy middleware's right-to-left resolution is used; without it, the peer address.
+
+**BindJSON.** Decodes the request's owned body copy. A custom JSON codec must not assume the input slice is the connection buffer or that writing to it changes the next request.
+
+**CSRF.** The `XSRF-TOKEN` cookie is no longer accepted as the submitted token. Send it back in `X-XSRF-TOKEN` (Axios and Angular do this by default), or send `X-CSRF-TOKEN` or a `_token` form field. A request that only carried the cookie now gets 403.
+
+**Production boot checks.** With `APP_ENV=production`, boot now also fails when:
+
+- `APP_DEBUG` is on. It now defaults to off in production. Opt-out: `APP_DEBUG_IN_PRODUCTION=allow`.
+- `APP_KEY` has fewer distinct bytes than half its length (for example 32 of the same character). Opt-out: `APP_KEY_WEAK_IN_PRODUCTION=allow`. Run `zatrano key:generate` instead.
+- `APP_URL` is `https://` and `COOKIE_SECURE` or `SESSION_SECURE` is explicitly false. Opt-out: `COOKIE_INSECURE_IN_PRODUCTION=allow`.
+- the HTTP bridge installs session middleware but no `middleware.CSRF` or `CSRFExcept` wraps any route. Opt-out: `CSRF_DISABLED=true`.
+- `TRUSTED_PROXIES` contains `0.0.0.0/0` or `::/0` (the same as `*`, which already failed).
+- `CORS_ALLOW_CREDENTIALS=true` and `CORS_ALLOWED_ORIGINS` contains `null`. Opt-out: `CORS_NULL_ORIGIN_WITH_CREDENTIALS=allow`. This check runs in every environment.
+
+Each opt-out turns off only its own check. See `docs/SECURITY-GUARANTEES.md` for what the framework guarantees and what it does not.
+
 ## Upgrading from v3.1.x
 
 v3.2.4 requires rawhttp v1.0.1 and canvas v1.0.1. There is no `replace`. First-time `package:enable` pins `github.com/zatrano/packages@v1.15.3`. v3.2.0 required canvas v0.2.1. v1.0.1 fixes nested `@foreach` scoping.
@@ -126,17 +153,23 @@ Names the kernel reads with `env.Get`, `env.Lookup`, `env.IntOr`, `env.GetBool`,
 | `HTTP_READ_HEADER_TIMEOUT` | 10s | Header read deadline. `0` or negative disables it. |
 | `HTTP_MAX_HEADER_BYTES` | 16 KiB | Header-block ceiling in bytes. Over the limit the engine returns 431. |
 | `HTTP_ALLOW_UPGRADE` | unset (off) | `false` forces WebSocket admission off. `true` turns it on unless `AllowUpgrade` is explicitly false. |
-| `HTTP_POOL_REQUESTS` | unset (off) | `true` reuses the `Request` and the `Text`/`JSON` `Response` after the handler returns. Do not keep the pointer. With `APP_DEBUG=true`, a call after release panics. The default turns on in v4. |
+| `HTTP_POOL_REQUESTS` | ignored | Deprecated and ignored. Requests and responses are never pooled. When the variable is set, boot logs one warning. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES` | 256 MiB | In-flight body budget. Negative disables it. Not enough room is 503 with `Retry-After: 1`. |
 | `HTTP_MAX_INFLIGHT_BODY_BYTES_PER_CLIENT` | 25% of the budget | Per-client share when the client can be told apart. Negative disables it. |
 | `HTTP_STRICT_LIMITS` | off | A route `BodyLimit` above the in-flight budget fails boot outside production as well. |
 | `MAX_BODY_BYTES` | 2 MiB | JSON, urlencoded, and `text/*` header cap. Also `Request.Body` and `Request.JSON`. Ignored unless positive. |
 | `MAX_UPLOAD_BYTES` | 32 MiB | Multipart ceiling. The server ceiling is the larger of this and `MAX_BODY_BYTES`. Ignored unless positive. |
-| `TRUSTED_PROXIES` | empty | Proxy or CDN addresses. Empty is APP-HTTP-007. |
+| `TRUSTED_PROXIES` | empty | Proxy or CDN addresses. Empty is APP-HTTP-007, and no forwarding header can set `Request.IP()`. In production `*`, `0.0.0.0/0`, and `::/0` fail boot. |
 | `CORS_ENABLED` | true | `false` does not install CORS middleware. |
 | `CORS_ALLOWED_ORIGINS` | empty | Comma-separated exact origins. Empty writes no CORS headers. Development may still default to `*` until this is set. |
 | `CORS_ALLOWED_METHODS` | `GET, POST, PUT, PATCH, DELETE, OPTIONS` | Preflight methods. |
 | `CORS_ALLOWED_HEADERS` | `Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, X-Idempotency-Key` | Preflight headers. The response is the intersection with the request. |
 | `CORS_EXPOSE_HEADERS` | empty | Sent as `Access-Control-Expose-Headers` when an origin matches. |
-| `CORS_ALLOW_CREDENTIALS` | false | `true` together with a wildcard origin fails boot. |
+| `CORS_ALLOW_CREDENTIALS` | false | `true` together with a wildcard origin fails boot. `true` together with the `null` origin fails boot unless `CORS_NULL_ORIGIN_WITH_CREDENTIALS=allow`. |
+| `CORS_NULL_ORIGIN_WITH_CREDENTIALS` | unset | `allow` accepts a credentialed `null` origin. Sandboxed iframes and `file:` pages send `Origin: null`. |
 | `CORS_MAX_AGE` | 600 | Preflight `Access-Control-Max-Age`. A non-integer is ignored. |
+| `APP_DEBUG` | off in production, on elsewhere | `true` in production fails boot unless `APP_DEBUG_IN_PRODUCTION=allow`. |
+| `APP_DEBUG_IN_PRODUCTION` | unset | `allow` accepts `APP_DEBUG=true` in production. |
+| `APP_KEY_WEAK_IN_PRODUCTION` | unset | `allow` accepts a production `APP_KEY` with fewer distinct bytes than half its length. Empty, known-default, and wrong-length keys always fail boot. |
+| `COOKIE_INSECURE_IN_PRODUCTION` | unset | `allow` accepts `COOKIE_SECURE=false` or `SESSION_SECURE=false` while `APP_URL` is `https://`. |
+| `CSRF_DISABLED` | unset | `true` records that a production application with session middleware does not use the CSRF middleware. Without it that boot fails. |

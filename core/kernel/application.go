@@ -73,6 +73,7 @@ type Application struct {
 	httpBridge          contracts.HTTPBridge
 	httpBridgeCaptured  contracts.HTTPBridge
 	httpBridgeFrozen    bool
+	csrfComposed        bool
 	providers           []contracts.Provider
 	life                lifeState
 	lifeMu              sync.Mutex
@@ -177,9 +178,10 @@ func (app *Application) IsProduction() bool {
 	return app.environment == "production"
 }
 
-// IsDebug reports whether debug mode is enabled.
+// IsDebug reports whether debug mode is enabled. An unset APP_DEBUG is off in
+// production and on elsewhere.
 func (app *Application) IsDebug() bool {
-	return app.config.GetBool("app.debug", true)
+	return app.config.GetBool("app.debug", !app.IsProduction())
 }
 
 // SetEnabledAddons records which imported addons this application will boot.
@@ -295,7 +297,7 @@ func (app *Application) loadEnvAppConfig() {
 	app.config.Load("app", map[string]any{
 		"name":     env.Get("APP_NAME", "ZATRANO"),
 		"env":      app.environment,
-		"debug":    env.GetBool("APP_DEBUG", true),
+		"debug":    env.GetBool("APP_DEBUG", app.environment != "production"),
 		"url":      env.Get("APP_URL", "http://localhost:8080"),
 		"key":      env.Get("APP_KEY"),
 		"locale":   env.Get("APP_LOCALE", "en"),
@@ -338,6 +340,7 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	app.logger = logger
 	app.container.Instance("log", logger)
 	app.warnOldToolchain()
+	app.warnPoolEnv()
 
 	// Kernel only above. Foundation + packages + app providers Register next.
 	for _, provider := range app.providers {
@@ -397,7 +400,12 @@ func (app *Application) bootstrapLocked(ctx context.Context) error {
 	for _, route := range app.router.Routes() {
 		app.router.RegisterName(route)
 	}
+	csrfBefore := middleware.CSRFWrapCount()
 	if err := app.router.Freeze(); err != nil {
+		return err
+	}
+	app.csrfComposed = middleware.CSRFWrapCount() > csrfBefore
+	if err := ensureProductionConfig(app); err != nil {
 		return err
 	}
 	app.config.Freeze()
@@ -593,8 +601,11 @@ func (app *Application) Handle(ctxAny any) {
 		return
 	}
 
-	// A panic skips the release below; the GC reclaims that pair.
-	req := http.AcquireRequest(ctx)
+	// The request copies everything it can return before any user code runs.
+	// Detach runs even when a handler panics, so no *Request can reach the
+	// rawhttp context after this call returns.
+	req := http.NewRequest(ctx)
+	defer req.Detach()
 	// Body and JSON use the boot ceiling. Reading MAX_BODY_BYTES here would
 	// call os.LookupEnv on every body.
 	if n := app.ensureBodyLimits().maxBody; n > 0 {
@@ -611,10 +622,11 @@ func (app *Application) Handle(ctxAny any) {
 	if resp == nil {
 		resp = http.Abort(204)
 	}
-	resp = finalizeHTTPBridge(app, req, resp)
+	resp = finalizeHTTPBridge(app, req, req.Own(resp))
 	if resp == nil {
 		resp = http.Abort(204)
 	}
+	resp = req.Own(resp)
 
 	for _, c := range req.DrainCookies() {
 		resp.WithCookie(c)
@@ -624,7 +636,6 @@ func (app *Application) Handle(ctxAny any) {
 		resp.PrepareStreamDeadline(app.httpWriteTimeout)
 	}
 	_ = resp.Commit(ctx)
-	http.ReleaseAfterCommit(req, resp)
 }
 
 func (app *Application) recoverHandle(ctx *rawhttp.Ctx) {

@@ -81,7 +81,7 @@ Peak RSS is shown and is not part of the result. A ratio above 1 is not a 5% lea
 Measured on a shared 4 vCPU Linux runner (server pinned to one core, `GOMAXPROCS=1`), 20 paired rounds × 3 runs, SHA `b966476`. A dedicated-hardware run is pending; see `bench/README.md`.
 <!-- bench-env:end -->
 
-The pool is off unless `HTTP_POOL_REQUESTS=true`. With the pool on, do not keep a `*Request` after the handler returns. Method notes: `bench/RESULTS.md`.
+These tables were measured on v3.2.4. The `safe-by-construction` branch removes request pooling (`HTTP_POOL_REQUESTS` is ignored), so the "Pool on" table describes a configuration that no longer exists there; its measured cost is in `docs/PERFORMANCE-IMPACT.md`. Method notes: `bench/RESULTS.md`.
 
 ### Pool off
 
@@ -441,13 +441,13 @@ An early 413 or 503 does not drop the TCP connection before the client can read 
 
 ### Request lifetime
 
-A `*http.Request` belongs to the handler call. Do not keep it after the handler returns. Do not pass it, `req.Context()`, or a closure that reads `req` to a goroutine, a queue, a channel, or a cache. This is the main rule for an ingest handler that accepts work and returns before the work is done.
+On the `safe-by-construction` branch (unreleased) a `*http.Request` owns its data. The kernel copies the method, path, query, headers, peer address, TLS state, and body into the request before the handler runs, and route parameters are substrings of that copy. Requests and responses are never pooled; `HTTP_POOL_REQUESTS` is ignored. A request kept after the handler returns, or read from a goroutine, still returns its own values. `TestRetainedRequestKeepsItsOwnData` and `TestRequestUsedAfterResponseByGoroutine` check this over a keep-alive connection.
 
-With `HTTP_POOL_REQUESTS=true` the framework resets that `Request`, and the `Response` from `Text` or `JSON`, after the handler returns and serves the next request with it. A later read can return another client's data.
+`Request.Ctx()` is the exception. It is deprecated, returns the raw `*rawhttp.Ctx` while the handler runs, and returns `nil` afterwards. Slices taken from it alias the connection buffer. `zatrano doctor` reports every call.
 
-Pool debug catches that in development. It is on when `APP_DEBUG=true`, and when `APP_DEBUG` is unset outside `APP_ENV=production`. In debug a released request or response is never handed out again, so every later accessor call (`Path`, `Query`, `Input`, `Header`, `Cookie`, `IP`, `Get`, `Context`, `Body`, `JSON`, ...) panics with the request generation, however many requests ran in between. Production with `APP_DEBUG=false` reuses the objects and does not check.
+A `*Request` is still not safe for concurrent *writes*: `Set`, `SetHeader`, and session changes from two goroutines need your own locking. Do not pass `req.Context()` to background work; it ends with the request.
 
-A `Stream`, `StreamBody`, `StreamDownload`, or `Hijack` callback runs after the handler returns. For those responses the framework does not return the request or the response to the pool, so the callback may still read `req`. With the pool off (the default) nothing is reused, but the same rule applies: the pool turns on by default in v4.
+The engine never writes to a `*Response` a handler returns. Middleware and the kernel each work on a request-owned copy, so a handler may return one prebuilt response for every request.
 
 The queue drivers in `github.com/zatrano/packages/queue` either run the job inside `Push` (`sync`) or serialize the payload (`database`, `redis`), so a `map[string]any` payload never shares memory with the request. A goroutine you start yourself has no such barrier.
 

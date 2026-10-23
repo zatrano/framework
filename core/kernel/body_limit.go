@@ -21,7 +21,6 @@ type bodyLimitSnap struct {
 	inflight       int64
 	perClient      int64
 	trustedProxies bool
-	poolRequests   bool
 }
 
 func (app *Application) ensureBodyLimits() bodyLimitSnap {
@@ -41,26 +40,24 @@ func (app *Application) ensureBodyLimits() bodyLimitSnap {
 		return app.bodyLimitSnap
 	}
 	inflight := http.MaxInflightBodyBytes()
-	poolOn := env.Get("HTTP_POOL_REQUESTS", "") == "true"
-	http.SetRequestPooling(poolOn, poolDebugFromEnv())
 	app.bodyLimitSnap = bodyLimitSnap{
 		maxRequest:     http.MaxRequestBytes(),
 		maxBody:        http.MaxBodyBytes(),
 		inflight:       inflight,
 		perClient:      perClientBodyCap(inflight),
 		trustedProxies: trustedProxiesConfigured(),
-		poolRequests:   poolOn,
 	}
 	atomic.StoreUint32(&app.bodyLimitReady, 1)
 	return app.bodyLimitSnap
 }
 
-// poolDebugFromEnv turns on use-after-release detection for the request pool.
-// An unset APP_DEBUG means debug outside production, the same default app.debug
-// uses. Benchmarks set APP_ENV=production and APP_DEBUG=false, so they keep reuse.
-func poolDebugFromEnv() bool {
-	notProduction := env.NormalizeAppEnv(env.Get("APP_ENV", "local")) != "production"
-	return env.GetBool("APP_DEBUG", notProduction)
+// warnPoolEnv logs once that HTTP_POOL_REQUESTS no longer does anything.
+// Request and response objects are not pooled in any configuration.
+func (app *Application) warnPoolEnv() {
+	if _, set := env.Lookup("HTTP_POOL_REQUESTS"); !set || app == nil || app.logger == nil {
+		return
+	}
+	app.logger.Warningf("HTTP_POOL_REQUESTS is deprecated and ignored: requests and responses are never pooled")
 }
 
 // HeaderBodyConfig is the production HeaderReceived hook.

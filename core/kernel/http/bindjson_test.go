@@ -57,7 +57,7 @@ func TestBindJSONDoesNotAliasDecodedStrings(t *testing.T) {
 	}
 }
 
-func TestBindJSONCodecSeesTheConnectionBuffer(t *testing.T) {
+func TestBindJSONCodecSeesOwnedBody(t *testing.T) {
 	const payload = `{"message":"Hello, World!"}`
 	var seen []byte
 	http.SetJSONCodec(json.Marshal, func(b []byte, v any) error {
@@ -73,8 +73,11 @@ func TestBindJSONCodecSeesTheConnectionBuffer(t *testing.T) {
 			return
 		}
 		raw := ctx.Body()
-		if len(seen) == 0 || len(raw) == 0 || &seen[0] != &raw[0] {
-			t.Errorf("codec saw a copy of the body")
+		if len(seen) == 0 || len(raw) == 0 {
+			t.Fatal("empty body")
+		}
+		if &seen[0] == &raw[0] {
+			t.Fatal("codec aliased the connection buffer")
 		}
 		ctx.SetStatusCode(200)
 		ctx.SetBodyString("ok")

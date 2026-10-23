@@ -61,15 +61,22 @@ func CORSFromEnv(environment string) routing.MiddlewareFunc {
 }
 
 // ValidateCORSEnv reports a boot error when credentials are combined with a
-// wildcard origin, including the implicit development wildcard.
+// wildcard origin, including the implicit development wildcard, or with the
+// "null" origin.
 func ValidateCORSEnv(environment string) error {
 	cfg := corsConfigFromEnv(environment)
 	if !cfg.AllowCredentials {
 		return nil
 	}
 	for _, o := range cfg.AllowOrigins {
-		if strings.TrimSpace(o) == "*" {
+		o = strings.TrimSpace(o)
+		if o == "*" {
 			return fmt.Errorf("cors: CORS_ALLOW_CREDENTIALS cannot be combined with a wildcard origin")
+		}
+		// Sandboxed iframes and file: pages send Origin: null, so a credentialed
+		// "null" entry admits any page that sandboxes itself.
+		if strings.EqualFold(o, "null") && env.Get("CORS_NULL_ORIGIN_WITH_CREDENTIALS", "") != "allow" {
+			return fmt.Errorf("cors: CORS_ALLOW_CREDENTIALS cannot be combined with the null origin (set CORS_NULL_ORIGIN_WITH_CREDENTIALS=allow to accept it)")
 		}
 	}
 	return nil

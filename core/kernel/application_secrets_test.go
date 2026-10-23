@@ -46,7 +46,7 @@ func TestProductionRejectsPaddedShortKey(t *testing.T) {
 func TestProductionAccepts32ByteKey(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_DEBUG", "false")
-	t.Setenv("APP_KEY", strings.Repeat("s", 32))
+	t.Setenv("APP_KEY", "zatrano-ci-test-key-not-prod!!!!")
 	app := kernel.NewApplication(t.TempDir())
 	t.Cleanup(func() { closeAppLog(t, app) })
 	if err := app.Bootstrap(); err != nil {

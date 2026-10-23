@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	stdhttp "net/http"
@@ -37,19 +38,13 @@ type Response struct {
 	content     []byte
 	textBody    string
 	contentType string
-	// reqID is the generated request id, copied into the pooled response so
-	// Commit can write the header without allocating a string.
-	reqID    [32]byte
-	reqIDOn  bool
-	cold     *responseCold
-	pooled   bool
-	released bool
-}
-
-func (r *Response) touch() {
-	if r != nil && r.released {
-		panic("http: response used after release")
-	}
+	// reqID is the generated request id, copied into the response so Commit
+	// can write the header without allocating a string.
+	reqID   [32]byte
+	reqIDOn bool
+	cold    *responseCold
+	// owner is the request this copy belongs to; see Request.Own.
+	owner *Request
 }
 
 func (r *Response) ensureCold() *responseCold {
@@ -64,7 +59,6 @@ func (r *Response) Status(code int) *Response {
 	if r == nil {
 		return nil
 	}
-	r.touch()
 	r.status = code
 	return r
 }
@@ -74,7 +68,6 @@ func (r *Response) Header(key, value string) *Response {
 	if r == nil {
 		return nil
 	}
-	r.touch()
 	if r.cold != nil && r.cold.headers != nil {
 		r.cold.headers.Set(key, value)
 		return r
@@ -199,14 +192,14 @@ func (r *Response) WithoutCookie(name string) *Response {
 	})
 }
 
-// Content returns the response body bytes.
+// Content returns a copy of the response body. The body may be shared by
+// every copy of a cached response, so callers never get the shared bytes.
 func (r *Response) Content() []byte {
 	if r == nil {
 		return nil
 	}
-	r.touch()
 	if len(r.content) > 0 {
-		return r.content
+		return bytes.Clone(r.content)
 	}
 	if r.textBody != "" {
 		return []byte(r.textBody)
@@ -402,6 +395,9 @@ func (r *Response) GetHeader(key string, fallback ...string) string {
 		if value := r.cold.headers.Get(key); value != "" {
 			return value
 		}
+	}
+	if key == "Location" && r.cold != nil && r.cold.redirectURL != "" {
+		return r.cold.redirectURL
 	}
 	if len(fallback) > 0 {
 		return fallback[0]

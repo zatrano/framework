@@ -1,0 +1,62 @@
+name: safety
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 0'
+
+permissions:
+  contents: read
+
+env:
+  APP_KEY: zatrano-ci-test-key-not-prod!!!!
+  APP_ENV: testing
+
+jobs:
+  canary:
+    name: canary 10M (race=${{ matrix.race }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        race: ['off', 'on']
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          check-latest: true
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Canary request isolation gate
+        env:
+          ZATRANO_CANARY: '1'
+        run: |
+          flags=""
+          if [ "${{ matrix.race }}" = "on" ]; then flags="-race"; fi
+          go test $flags -count=1 -timeout 0 -v -run '^TestCanaryRequestIsolation$' ./tests/safety
+
+  checkptr:
+    name: race + checkptr
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout framework
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          check-latest: true
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Kernel, routing and safety packages with pointer checks
+        run: go test -race -gcflags=all=-d=checkptr -count=1 ./core/kernel/... ./tests/...

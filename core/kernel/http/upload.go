@@ -125,7 +125,6 @@ func (r *Request) Files(key string) ([]*UploadedFile, error) {
 }
 
 func (r *Request) parseMultipart() error {
-	r.touch()
 	if r == nil {
 		return fmt.Errorf("nil request")
 	}
@@ -137,13 +136,6 @@ func (r *Request) parseMultipart() error {
 	if raw := r.Header("X-Max-Upload"); raw != "" {
 		if n, err := strconvAtoiSafe(raw); err == nil && n > 0 && n < max {
 			max = n
-		}
-	}
-	if r.ctx != nil && !r.bodyOverrideSet {
-		mf, err := r.ctx.MultipartForm(int64(max))
-		if err == nil && mf != nil {
-			r.multipartForm = &multipart.Form{Value: mf.Value, File: mf.File}
-			return nil
 		}
 	}
 	return r.parseMultipartFromBody(max)

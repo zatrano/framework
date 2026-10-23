@@ -82,7 +82,6 @@ func SSE(handler func(send func(SSEEvent) error) error) *Response {
 		return handler(send)
 	})
 	resp.Header("Cache-Control", "no-cache")
-	resp.Header("Connection", "keep-alive")
 	resp.Header("X-Accel-Buffering", "no")
 	return resp
 }
